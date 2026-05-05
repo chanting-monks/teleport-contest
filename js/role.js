@@ -213,11 +213,27 @@ export function chargen_simulate(moves) {
     if (yn === 'y' || yn === 'Y' || yn === 'a' || yn === 'A'
         || yn === ' ' || yn === '\r' || yn === '\n'
         || yn === '@' || yn === '*') {
-        return chargen_full_random();
+        const picked = chargen_full_random();
+        // If user rejects "Is X OK?" (typically 'n'), they re-enter
+        // manual menu mode with all attributes reset to NONE. The
+        // PICK_RANDOM picks above advance PRNG but their values are
+        // discarded. C ref: role.c:2249 — 'n' at confirmation jumps
+        // back into the makepicks loop with ROLE/RACE/GEND/ALGN reset.
+        if (idx < moves.length && (moves[idx] === 'n' || moves[idx] === 'N')) {
+            idx++;
+            return chargen_manual(moves, idx);
+        }
+        return picked;
     }
 
     if (yn !== 'n' && yn !== 'N') return null;
+    return chargen_manual(moves, idx);
+}
 
+// Manual-menu chargen ('n' branch). Walks RS_ROLE/RACE/GENDER/ALGNMNT
+// stages, emitting PICK_RIGID rn2(1) calls via rigid_role_checks
+// before each menu shown.
+function chargen_manual(moves, idx) {
     const s = { roleIdx: null, race: null, gend: null, algn: null };
 
     // Stage RS_ROLE — read role letter
