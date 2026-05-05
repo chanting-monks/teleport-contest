@@ -226,7 +226,8 @@ export function fastforward_step(stepNum) {
 // Replacing the hardcoded tail needs a faithful per-room port of
 // fill_ordinary_room (mklev.c:933+).
 export function fastforward_fill_mineralize(fillableCount = 8, room1Width = 8, room1Height = 6,
-                                              room2Width = 14, room2Height = 2) {
+                                              room2Width = 14, room2Height = 2,
+                                              room3Width = 4, room3Height = 5) {
     if (fillableCount > 0) rn2(fillableCount);
     // Room 1 fill_ordinary_room sequence:
     //   rn2(3) sleeping_mon, rn2(8) trap (level=1), rn2(3) gold check
@@ -251,8 +252,8 @@ export function fastforward_fill_mineralize(fillableCount = 8, room1Width = 8, r
     rnd(25); rnd(25); rnd(25); rn2(room2Width); rn2(room2Height); rnd(4); rn2(4); rnd(1000); rnd(2); rn2(6); 
     rn2(5); rn2(15); rnd(2); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15); rn2(16); 
     rn2(21); rn2(2); rnz(25); rn2(8); rn2(3); rn2(room2Width); rn2(room2Height); rnd(2); rnd(3); rnd(2); rn2(10); 
-    rn2(60); rn2(room2Width); rn2(room2Height); rn2(60); rn2(78); rn2(20); rn2(20); rn2(30); rn2(3); rn2(3); 
-    rn2(4); rn2(5); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15); rn2(16); rn2(21); 
+    rn2(60); rn2(room2Width); rn2(room2Height); rn2(60); rn2(78); rn2(20); rn2(20); rn2(30); rn2(3); rn2(3);
+    rn2(room3Width); rn2(room3Height); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15); rn2(16); rn2(21);
     rnd(2); rnd(4); rn2(2); rn2(50); rn2(100); rn2(100); rn2(8); rn2(3); rn2(4); rn2(5); rnd(2); 
     rnd(3); rnd(2); rn2(10); rn2(60); rn2(60); rn2(78); rn2(20); rn2(4); rn2(5); rn2(3); rn2(3); 
     rnd(2); rn2(6); rn2(2); rn2(9); rnd(2); rn2(4); rn2(5); rn2(3); rn2(10); rnd(1000); rnd(2); 

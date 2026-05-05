@@ -112,7 +112,8 @@ export async function newgame() {
     {
         const r1 = nthFillableRoomDims(g, 0);
         const r2 = nthFillableRoomDims(g, 1);
-        fastforward_fill_mineralize(countFillableRooms(g), r1.w, r1.h, r2.w, r2.h);
+        const r3 = nthFillableRoomDims(g, 2);
+        fastforward_fill_mineralize(countFillableRooms(g), r1.w, r1.h, r2.w, r2.h, r3.w, r3.h);
     }
 
     // Fast-forward through post-mklev startup RNG calls.
