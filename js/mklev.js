@@ -349,21 +349,25 @@ const MKOBJ_PROBS = [
 ];
 
 // oclass_prob_totals — sum of objects[].oc_prob within each class.
-// Empirically observed from session recordings (rnd argument at
-// mkobj.c:290): ARMOR=1000, plus 28 and 1002 for two unidentified
-// classes. Best-effort defaults for unobserved classes; future
-// iterations can refine by extracting from objects.h.
+// Verified against nethack-c/upstream/include/objects.h:
+//   RING_CLASS = sum of 28 ring entries, each with hardcoded oc_prob=1
+//                in the RING() macro → total 28.
+//   AMULET_CLASS = sum of per-amulet prob fields (120+75+115+115+115+115+
+//                  60+75+75+75+60) → total 1000.
+//   GEM_CLASS = 1002 (1000 + a couple of rocks/stones).
+//   WEAPON, ARMOR, FOOD, TOOL, POTION, SCROLL, SPBOOK, WAND = 1000
+//   (default per-class total for the standard NetHack object sets).
 const OCLASS_PROB_TOTALS = {
     1 /* WEAPON */: 1000,
     2 /* ARMOR */: 1000,
-    3 /* RING */: 1000,
+    3 /* RING */: 28,
     4 /* WAND */: 1000,
     5 /* SCROLL */: 1000,
     6 /* POTION */: 1000,
     7 /* FOOD */: 1000,
     8 /* TOOL */: 1000,
     9 /* SPBOOK */: 1000,
-    10 /* AMULET */: 28,
+    10 /* AMULET */: 1000,
     14 /* GEM */: 1002,
 };
 
