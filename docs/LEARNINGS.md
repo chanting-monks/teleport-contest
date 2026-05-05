@@ -276,6 +276,36 @@ at all.
 
 ---
 
+## 11.5 Screen scoring is bottlenecked on PRNG matching first
+
+**Lesson.** Of 10,902 total screen captures across 44 sessions, only
+15 currently match — and ALL 15 are in seed8000-tourist-starter. No
+other session has any matching screens.
+
+**Why.** Screen matching requires both (a) PRNG matching that lets the
+JS port reach the same gameplay state as C, AND (b) display rendering
+that produces the same 24×80 grid. Currently (a) holds only for
+seed8000 (because of fastforward.js hardcoded for it) — every other
+session diverges PRNG-wise within ~1500 calls of game start, well
+before any meaningful gameplay screens get captured.
+
+**How.** Don't pursue screen-scoring fixes until PRNG matching extends
+significantly past startup for at least one non-seed8000 session.
+The current "screens stuck at 15" is a SYMPTOM of PRNG limitations,
+not a separate problem to solve. Once a non-Tourist session reaches
+moveloop with correct PRNG, its screen captures will start mattering;
+THEN per-command pline plumbing becomes a productive lever.
+
+The screen scoring bottleneck order:
+1. Match PRNG into moveloop for at least one non-seed8000 session.
+2. Get screens to match for THAT session's early turns.
+3. Generalize per-command pline plumbing to other sessions.
+
+Chasing screen fixes ahead of step 1 produces no aggregate
+improvement (and risks regressing seed8000's 15 matches).
+
+---
+
 ## 11. JS pline writes only `_pending_message`; flush_screen renders it
 
 **Lesson.** Adding a new command handler that calls `pline()` does
