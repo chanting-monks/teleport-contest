@@ -66,3 +66,33 @@ export function parseNethackrc(rc) {
     }
     return result;
 }
+
+// Detects the "full-random chargen" pattern: the user's nethackrc lacks
+// role/race/gender/align AND the first chargen-prompt response is one
+// of y/a/space/return/@/* (all of which trigger pick_role+pick_race+
+// pick_gend+pick_align via role.c:2300). The chargen prompt fires after
+// name entry; in moves the name is the run of letters/digits before the
+// first \r or \n.
+//
+// C ref: role.c:2249-2301 — "Shall I pick a character for you? [ynaq]"
+// y/a/space/\r/\n/@/* → randomize; n → manual menu (different rn2 path,
+// not handled here).
+//
+// Returns true if the pattern matches, false otherwise (rc has any of
+// role/race/gender/align set, or first response is 'n'/'q'/letter).
+export function detectFullRandomChargen(opts, moves) {
+    if (!moves) return false;
+    const hasRole = opts.role && opts.role !== -1;
+    const hasRace = opts.race && opts.race !== -1;
+    const hasGend = opts.gender && opts.gender !== -1;
+    const hasAlgn = opts.align && opts.align !== -1;
+    if (hasRole || hasRace || hasGend || hasAlgn) return false;
+    let idx = 0;
+    while (idx < moves.length && moves[idx] !== '\r' && moves[idx] !== '\n') idx++;
+    if (idx >= moves.length - 1) return false;
+    idx++;
+    const ch = moves[idx];
+    return ch === 'y' || ch === 'Y' || ch === 'a' || ch === 'A'
+        || ch === ' ' || ch === '\r' || ch === '\n'
+        || ch === '@' || ch === '*';
+}

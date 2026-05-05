@@ -101,6 +101,48 @@ export function role_enadv_inrnd() {
     return ROLE_ENADV_INRND[game.opts_role || ''] || 0;
 }
 
+// Per-race allowed alignment list, derived from races[].allow at
+// nethack-c/upstream/src/role.c:581-682 (ROLE_LAWFUL/NEUTRAL/CHAOTIC bits).
+const RACE_ALIGNS = {
+    human: ['lawful', 'neutral', 'chaotic'],
+    elf:   ['chaotic'],
+    dwarf: ['lawful'],
+    gnome: ['neutral'],
+    orc:   ['chaotic'],
+};
+
+// Emits the four pick_role/pick_race/pick_gend/pick_align rn2 calls
+// fired by chargen when the user accepts full-random selection
+// (responding y/a/space/return at the "Shall I pick a character for
+// you?" prompt; see role.c:2249-2301). All four pickers walk a "valid
+// option count" derived from intersected role/race/gend/align bitmasks
+// and call rn2(count).
+//
+// For initial unconstrained chargen:
+//   - pick_role:  rn2(13)            — 13 = SIZE(roles) - 1
+//   - pick_race:  rn2(N_role)        — races compatible with role
+//   - pick_gend:  rn2(N_role_race)   — genders compatible with role+race
+//                                      (always 2 except Valkyrie's 1)
+//   - pick_align: rn2(N_role_race_g) — aligns compatible with role+race;
+//                                      gender doesn't constrain align
+//
+// Returns the picked role name, race, gender, align so the caller can
+// store them on game state for subsequent role-conditional logic
+// (welcome message, role_init's nemgend, ROLE_DATA lookups).
+export function chargen_full_random() {
+    const SIZE_ROLES = 13;
+    const roleIdx = rn2(SIZE_ROLES);
+    const rd = ROLE_DATA[roleIdx];
+    const raceIdx = rn2(rd.races.length);
+    const raceName = rd.races[raceIdx];
+    const gendIdx = rn2(rd.gens.length);
+    const gendName = rd.gens[gendIdx];
+    const allowedAligns = rd.aligns.filter(a => RACE_ALIGNS[raceName].includes(a));
+    const alignIdx = rn2(allowedAligns.length);
+    const alignName = allowedAligns[alignIdx];
+    return { role: rd.name, race: raceName, gender: gendName, align: alignName };
+}
+
 // Per-role allowed (races, genders, aligns) bitmask data extracted from
 // nethack-c/upstream/src/role.c roles[].flags. Order matches js/roles.js.
 //

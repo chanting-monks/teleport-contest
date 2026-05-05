@@ -19,7 +19,7 @@ import {
     fastforward_fill_mineralize,
 } from './fastforward.js';
 import { init_dungeons } from './dungeon.js';
-import { role_init } from './role.js';
+import { role_init, chargen_full_random } from './role.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
 
 // C ref: mklev.c:929 ROOM_IS_FILLABLE macro
@@ -60,6 +60,19 @@ function firstFillableRoomDims(g) { return nthFillableRoomDims(g, 0); }
 // C ref: allmain.c newgame()
 export async function newgame() {
     const g = game;
+
+    // Chargen full-random: when the user accepts random selection at
+    // the "Shall I pick a character for you?" prompt, C fires
+    // pick_role/pick_race/pick_gend/pick_align (4 rn2 calls) BEFORE
+    // init_objects. The picked role/race/gender/align is also used by
+    // role_init (nemgend) and the welcome banner.
+    if (g.opts_chargen_full_random) {
+        const picked = chargen_full_random();
+        g.opts_role = picked.role;
+        g.opts_race = picked.race;
+        g.opts_gender = picked.gender;
+        g.opts_align = picked.align;
+    }
 
     // Pre-dungeon: gem_randomize + shuffle_all + init_objects (the
     // 199 universally-shaped startup PRNG calls).

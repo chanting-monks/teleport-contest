@@ -13,7 +13,7 @@ import { game, resetGame } from './gstate.js';
 import { initRng, enableRngLog, clearRngLog, getRngLog } from './rng.js';
 import { pushKey, nhgetch } from './input.js';
 import { newgame, moveloop_core } from './allmain.js';
-import { parseNethackrc } from './options.js';
+import { parseNethackrc, detectFullRandomChargen } from './options.js';
 import { flush_screen } from './display.js';
 import { GameDisplay } from './game_display.js';
 
@@ -24,6 +24,7 @@ export class NethackGame {
         this._seed = opts.seed || 0;
         this._datetime = opts.datetime || null;
         this._nethackrc = opts.nethackrc || '';
+        this._moves = opts.moves || '';
         this._screens = [];
         this._cursors = [];
         this._rngSlices = [];
@@ -50,10 +51,14 @@ export class NethackGame {
         // Role/race/gender/align strings from nethackrc — needed by
         // role_init for nemgend/ldrgend rn2 calls and (eventually) by
         // u_init_role for stat / inventory rolls.
-        g.opts_role = opts.role || '';
-        g.opts_race = opts.race || '';
-        g.opts_align = opts.align || '';
-        g.opts_gender = opts.gender || '';
+        g.opts_role = (opts.role && opts.role !== -1) ? opts.role : '';
+        g.opts_race = (opts.race && opts.race !== -1) ? opts.race : '';
+        g.opts_align = (opts.align && opts.align !== -1) ? opts.align : '';
+        g.opts_gender = (opts.gender && opts.gender !== -1) ? opts.gender : '';
+        // Chargen full-random ('y'/'a'/space/return at "Shall I pick a
+        // character for you?" prompt). Triggers pick_role+race+gend+align
+        // rn2 calls at the very start of newgame, BEFORE init_objects.
+        g.opts_chargen_full_random = detectFullRandomChargen(opts, this._moves);
 
         // Initialize hero struct
         g.u = { ux: 0, uy: 0, ux0: 0, uy0: 0 };
@@ -137,10 +142,11 @@ export async function runSegment(input, prevGame = null) {
     const { seed, nethackrc } = input;
     const moves = input.moves || '';
 
-    const nhGame = prevGame || new NethackGame({ seed, nethackrc });
+    const nhGame = prevGame || new NethackGame({ seed, nethackrc, moves });
     if (prevGame) {
         nhGame._seed = seed;
         nhGame._nethackrc = nethackrc;
+        nhGame._moves = moves;
     }
 
     const display = new GameDisplay(null);
