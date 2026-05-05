@@ -247,9 +247,20 @@ function mksobj(otyp, init, artif) {
 function mksobj_init(otmp, otyp) {
     let isErodable = false;
     if (otyp >= 1 && otyp < 28) {
-        // WEAPON_CLASS — simplified: most weapons just call blessorcurse(10).
-        // (Full port: oc_charged check + spe rolls per weapon family.)
-        blessorcurse(otmp, 10);
+        // WEAPON_CLASS — port of mkobj.c:876-893.
+        //   quan: is_multigen ? rn1(6,6) : 1 — approximated as 1
+        //   rn2(11) check; if 0: rne(3) + rn2(2); else rn2(10); if 0: rne(3); else blessorcurse(10).
+        //   is_poisonable + rn2(100) — approximated as not poisonable.
+        //   artif + rn2(20+...) — approximated as not artif.
+        if (rn2(11) === 0) {
+            rne(3);
+            rn2(2);
+        } else if (rn2(10) === 0) {
+            rne(3);
+            if (otmp) otmp.cursed = true;
+        } else {
+            blessorcurse(otmp, 10);
+        }
         isErodable = true;
     } else if (otyp >= 28 && otyp < 95) {
         // ARMOR_CLASS — port of mkobj.c:1085-1097
