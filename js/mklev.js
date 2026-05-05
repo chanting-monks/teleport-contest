@@ -247,9 +247,66 @@ function mksobj_at(otyp, x, y, init, artif) {
     return mksobj(otyp, init, artif);
 }
 
+// C ref: mkobj.c:271 mkobj(int oclass, boolean artif)
+//
+// For RANDOM_CLASS, C emits:
+//   rnd(100) at mkobj.c:281 — pick class via mkobjprobs cumulative
+//   rnd(class_total) at mkobj.c:290 — pick item within class via oc_prob
+// Then next_ident (rnd(2)) + mksobj_init (class-specific) + ...
+//
+// Here we port the first two rnd calls. Subsequent class-specific
+// init is still stubbed via mksobj.
+//
+// mkobjprobs (mkobj.c:36) — class pick distribution (sum=100):
+const MKOBJ_PROBS = [
+    { prob: 10, oclass: 1 /* WEAPON */ },
+    { prob: 11, oclass: 2 /* ARMOR */ },
+    { prob: 20, oclass: 7 /* FOOD */ },
+    { prob:  8, oclass: 8 /* TOOL */ },
+    { prob:  7, oclass: 14 /* GEM */ },
+    { prob: 16, oclass: 6 /* POTION */ },
+    { prob: 16, oclass: 5 /* SCROLL */ },
+    { prob:  4, oclass: 9 /* SPBOOK */ },
+    { prob:  4, oclass: 4 /* WAND */ },
+    { prob:  3, oclass: 3 /* RING */ },
+    { prob:  1, oclass: 10 /* AMULET */ },
+];
+
+// oclass_prob_totals — sum of objects[].oc_prob within each class.
+// Empirically observed from session recordings (rnd argument at
+// mkobj.c:290): ARMOR=1000, plus 28 and 1002 for two unidentified
+// classes. Best-effort defaults for unobserved classes; future
+// iterations can refine by extracting from objects.h.
+const OCLASS_PROB_TOTALS = {
+    1 /* WEAPON */: 1000,
+    2 /* ARMOR */: 1000,
+    3 /* RING */: 1000,
+    4 /* WAND */: 1000,
+    5 /* SCROLL */: 1000,
+    6 /* POTION */: 1000,
+    7 /* FOOD */: 1000,
+    8 /* TOOL */: 1000,
+    9 /* SPBOOK */: 1000,
+    10 /* AMULET */: 28,
+    14 /* GEM */: 1002,
+};
+
+const RANDOM_CLASS_OCLASS = 0;
+
 function mkobj(oclass, artif) {
-    // Class-based random object creation
-    // For contest, just consume the right RNG
+    // For RANDOM_CLASS, emit C's class+item picks before falling through
+    // to mksobj. Other oclass values skip the picks (C does too).
+    if (oclass === RANDOM_CLASS_OCLASS) {
+        let tprob = rnd(100);
+        let pickedClass = 1; // WEAPON_CLASS fallback
+        for (const entry of MKOBJ_PROBS) {
+            tprob -= entry.prob;
+            if (tprob <= 0) { pickedClass = entry.oclass; break; }
+        }
+        const total = OCLASS_PROB_TOTALS[pickedClass] || 1000;
+        rnd(total);
+        oclass = pickedClass;
+    }
     return mksobj(0, false, artif);
 }
 
