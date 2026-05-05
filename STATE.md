@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    af89e69
-last_run_time:      2026-05-05T17:09Z
-last_aggregate:     p:(11/4143) 45686/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(11/4143) 45686/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        af89e69
+last_run_commit:    536ff81
+last_run_time:      2026-05-05T17:14Z
+last_aggregate:     p:(12/4143) 45683/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(12/4143) 45683/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        536ff81
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -206,4 +206,6 @@ what changed, did the aggregate move.
 2026-05-05T17:04Z  f44a370  mklev: partial mkobj RANDOM_CLASS port — emits rnd(100) class pick via mkobjprobs + rnd(class_total) item pick via oclass_prob_totals. Aggregate p: 45664 → 45674 (+10). seed8000 unchanged.
 2026-05-05T17:06Z  e641d25  mklev: port ARMOR_CLASS init in mksobj_init; wire mkobj to invoke it (init=TRUE, synthesized otyp). +11 calls.
 2026-05-05T17:08Z  af89e69  mklev: extend mksobj_init — WEAPON, SPBOOK, WAND classes + mkobj_erosions (rn2(100) erodeproof, rn2(80) flammable+do-while, rn2(80) rottable+do-while, rn2(1000) greased). +12 calls.
+2026-05-05T17:12Z  1e4d4bb  mklev: port AMULET_CLASS in mksobj_init — rn2(10) + blessorcurse(10). turnsFully 11→12 (recovered from prior coincidental shift). seed8000 unchanged.
+2026-05-05T17:14Z  536ff81  mklev: faithful WEAPON_CLASS init — rn2(11) + (rne(3)+rn2(2) | rn2(10)+(rne(3)|blessorcurse(10))). 0 immediate gain (no test session exercises WEAPON via mkobj path) but correct C-shape for future unlocks.
 ```
