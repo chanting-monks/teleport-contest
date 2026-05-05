@@ -87,10 +87,46 @@ export async function newgame() {
     g.u.acurr = { a: [9, 14, 12, 11, 16, 16] };
     g.u.amax = { a: [9, 14, 12, 11, 16, 16] };
     g.moves = 1;
-    g.urole = { name: { m: 'Tourist', f: 'Tourist' }, rank: { m: 'Rambler', f: 'Rambler' } };
-    g.urace = { adj: 'human' };
-    g.flags.female = true;
+    // Plumb role/race/gender/alignment from nethackrc into game state.
+    // Falls back to seed8000's Tourist/human/female defaults when the
+    // session didn't specify (chargen sessions, which would normally
+    // run an interactive UI we don't yet model). For all other sessions
+    // this fixes the welcome message and any role/race-conditional
+    // display logic to match what the C recorder produces.
+    const RACE_ADJ = { human: 'human', elf: 'elven', dwarf: 'dwarven',
+                       gnome: 'gnomish', orc: 'orcish' };
+    const ROLE_TITLES = {
+        Archeologist: 'Digger', Barbarian: 'Plunderer', Caveman: 'Troglodyte',
+        Healer: 'Rhizotomist', Knight: 'Gallant', Monk: 'Candidate',
+        Priest: 'Aspirant', Ranger: 'Tenderfoot', Rogue: 'Footpad',
+        Samurai: 'Hatamoto', Tourist: 'Rambler', Valkyrie: 'Stripling',
+        Wizard: 'Evoker',
+    };
+    const ROLE_TITLES_F = {
+        Caveman: 'Cavewoman', Healer: 'Rhizotomist', Knight: 'Gallant',
+        Monk: 'Candidate', Priest: 'Aspirant', Ranger: 'Tenderfoot',
+        Rogue: 'Footpad', Samurai: 'Hatamoto', Tourist: 'Rambler',
+        Valkyrie: 'Stripling', Wizard: 'Evoker',
+    };
+    const role = g.opts_role || 'Tourist';
+    const race = g.opts_race || 'human';
+    const align = g.opts_align || 'neutral';
+    const female = g.opts_gender ? (g.opts_gender === 'female')
+                                 : (role === 'Tourist'); // seed8000 default
+    const isF = female;
+    const roleNameM = role;
+    const roleNameF = (role === 'Caveman') ? 'Cavewoman'
+                    : (role === 'Priest') ? 'Priestess' : role;
+    g.urole = {
+        name: { m: roleNameM, f: roleNameF },
+        rank: { m: ROLE_TITLES[role] || 'Rambler',
+                f: ROLE_TITLES_F[role] || ROLE_TITLES[role] || 'Rambler' },
+    };
+    g.urace = { adj: RACE_ADJ[race] || race };
+    g.flags.female = female;
     g.plname = g.plname || 'Contestant';
+    // alignName — used for welcome message and display.
+    g._align_name = align;
 
     // C ref: allmain.c newgame() → u_on_upstairs()
     // Places hero on upstair, or special stair, or random room position.
@@ -105,10 +141,12 @@ export async function newgame() {
     await flush_screen(1);
     await bot();
 
-    // Welcome message
-    const alignName = 'neutral';
+    // Welcome message — uses role/race/gender/align from rc options.
+    const alignName = g._align_name || 'neutral';
     const genderAdj = g.flags?.female ? 'female' : 'male';
-    await pline(`Aloha ${g.plname}, welcome to NetHack!  You are a ${alignName} ${genderAdj} human ${g.urole.name.m}.`);
+    const raceName = g.opts_race || 'human';
+    const roleDisplayName = g.flags?.female ? g.urole.name.f : g.urole.name.m;
+    await pline(`Aloha ${g.plname}, welcome to NetHack!  You are a ${alignName} ${genderAdj} ${raceName} ${roleDisplayName}.`);
 }
 
 // C ref: allmain.c moveloop_core()
