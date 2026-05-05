@@ -222,7 +222,7 @@ function mksobj(otyp, init, artif) {
     const otmp = { otyp, ox: 0, oy: 0, quan: 1, owt: 1, cursed: false, blessed: false, olocked: false, spe: 0 };
     next_ident();
     if (init) {
-        mksobj_init(otmp, otyp);
+        mksobj_init(otmp, otyp, artif);
     }
     return otmp;
 }
@@ -244,7 +244,7 @@ function mksobj(otyp, init, artif) {
 // LEVITATION_BOOTS, etc.) is approximated as "always not special" —
 // these 4 otyps are rare; the common-case path matches for nearly
 // all armor instances.
-function mksobj_init(otmp, otyp) {
+function mksobj_init(otmp, otyp, artif) {
     let isErodable = false;
     if (otyp >= 1 && otyp < 28) {
         // WEAPON_CLASS — port of mkobj.c:876-893.
@@ -263,7 +263,7 @@ function mksobj_init(otmp, otyp) {
         }
         isErodable = true;
     } else if (otyp >= 28 && otyp < 95) {
-        // ARMOR_CLASS — port of mkobj.c:1085-1097
+        // ARMOR_CLASS — port of mkobj.c:1085-1102
         if (rn2(10) && !rn2(11)) {
             rne(3);
             if (otmp) { otmp.cursed = true; otmp.spe = 0; }
@@ -274,6 +274,10 @@ function mksobj_init(otmp, otyp) {
         } else {
             blessorcurse(otmp, 10);
         }
+        // mkobj.c:1099: if (artif && !rn2(40 + 10*nartifact_exist()))
+        // Early game nartifact_exist()==0 → rn2(40). Approximate
+        // nartifact_exist() as 0 (no artifacts created yet by this call).
+        if (artif) rn2(40);
         isErodable = true;
     } else if (otyp >= 230 && otyp < 270) {
         blessorcurse(otmp, 4); // POTION_CLASS
