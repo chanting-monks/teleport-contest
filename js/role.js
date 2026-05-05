@@ -210,16 +210,18 @@ export function chargen_simulate(moves) {
     if (idx >= moves.length) return null;
     const yn = moves[idx]; idx++;
 
-    if (yn === 'y' || yn === 'Y' || yn === 'a' || yn === 'A'
-        || yn === ' ' || yn === '\r' || yn === '\n'
-        || yn === '@' || yn === '*') {
+    // 'y' (and space/\r/\n which collapse to 'y') leads to the 4-pick
+    // sequence and then a "Is X OK?" confirmation prompt. 'a' / '@' / '*'
+    // are PICK_RANDOM with skip-confirm, so no follow-up rejection key
+    // is consumed. We only check for the 'n' rejection on 'y'-class
+    // responses; for 'a'-class, the next keystroke is gameplay.
+    const isYClass = yn === 'y' || yn === 'Y' || yn === ' '
+                  || yn === '\r' || yn === '\n';
+    const isAClass = yn === 'a' || yn === 'A' || yn === '@' || yn === '*';
+    if (isYClass || isAClass) {
         const picked = chargen_full_random();
-        // If user rejects "Is X OK?" (typically 'n'), they re-enter
-        // manual menu mode with all attributes reset to NONE. The
-        // PICK_RANDOM picks above advance PRNG but their values are
-        // discarded. C ref: role.c:2249 — 'n' at confirmation jumps
-        // back into the makepicks loop with ROLE/RACE/GEND/ALGN reset.
-        if (idx < moves.length && (moves[idx] === 'n' || moves[idx] === 'N')) {
+        if (isYClass && idx < moves.length
+            && (moves[idx] === 'n' || moves[idx] === 'N')) {
             idx++;
             return chargen_manual(moves, idx);
         }
