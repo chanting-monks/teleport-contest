@@ -10,15 +10,34 @@ import { mklev, l_nhcore_init, u_on_upstairs } from './mklev.js';
 import { rhack } from './cmd.js';
 import { docrt, cls, bot, flush_screen, pline } from './display.js';
 import { vision_recalc, vision_reset, init_vision_globals } from './vision.js';
-import { fastforward_pre_mklev, fastforward_post_mklev, fastforward_step, fastforward_fill_mineralize } from './fastforward.js';
+import {
+    fastforward_pre_dungeon,
+    fastforward_post_dungeon,
+    fastforward_post_mklev,
+    fastforward_step,
+    fastforward_fill_mineralize,
+} from './fastforward.js';
+import { init_dungeons } from './dungeon.js';
 
 // C ref: allmain.c newgame()
 export async function newgame() {
     const g = game;
 
-    // Fast-forward through pre-mklev startup RNG calls.
-    // Covers: o_init (shuffles), dungeon init, u_init_misc.
-    fastforward_pre_mklev();
+    // Pre-dungeon startup: gem randomize, shuffle_all, init_objects, lua.
+    // Structural (same calls every session) so it stays in fastforward.
+    fastforward_pre_dungeon();
+
+    // Real init_dungeons port — emits the per-dungeon dgn_chance check,
+    // num_dunlevs draw, init_level chance checks, place_level recursion,
+    // parent_dlevel branch resolution, and init_castle_tune. Honors
+    // game.flags.debug (wizard mode) by skipping the chance-guarded
+    // rn2(100) calls. Replaces the hardcoded seed8000 dungeon-init
+    // section that fastforward.js used to emit.
+    init_dungeons();
+
+    // Post-dungeon: u_init_misc rn2(10). The role-specific newpw rnd(N)
+    // belongs to a future role_init port and is NOT emitted here.
+    fastforward_post_dungeon();
 
     // C ref: allmain.c l_nhcore_init() — shuffle align[] for Lua
     // Consumes rn2(3), rn2(2) matching session indices 309-310
