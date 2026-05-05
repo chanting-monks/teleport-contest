@@ -42,15 +42,25 @@ export function fastforward_pre_dungeon() {
     rn2(3); rn2(2); rn2(1);
     // init_objects (1) — final rn2(2) at o_init.c:234 for WAN_NOTHING.oc_dir
     rn2(2);
-    // random src=nhlib.lua:8 parent=shuffle (2) — lua-side shuffle that
-    // runs after init_objects and before init_dungeons.
+}
+
+// random src=nhlib.lua:8 parent=shuffle — lua-side 3-element shuffle
+// that runs between role_init and init_dungeons. Two rn2 calls
+// (rn2(3), rn2(2)) regardless of role/seed/mode. Empirically observed
+// in every session's PRNG log between role_init's optional rn2 calls
+// and init_dungeons' first chance check.
+export function fastforward_lua_pair() {
     rn2(3); rn2(2);
 }
 
-// Pre-mklev post-dungeon: u_init_misc rn2(10). Always fires regardless
-// of mode; the role-specific rnd(N) for newpw (where N = enadv.inrnd
-// for the role) is NOT included here — that's role-init's job.
+// Pre-mklev post-dungeon: role-specific newpw rnd(role.enadv.inrnd) +
+// u_init_misc rn2(10). The newpw is part of u_init_misc in C (it's
+// called from u_init_misc before the rn2(10) for u.uhandedness); we
+// emit it here at the same call-order point.
+import { role_enadv_inrnd } from './role.js';
 export function fastforward_post_dungeon() {
+    const inrnd = role_enadv_inrnd();
+    if (inrnd > 0) rnd(inrnd);
     rn2(10);
 }
 

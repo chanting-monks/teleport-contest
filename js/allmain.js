@@ -12,31 +12,42 @@ import { docrt, cls, bot, flush_screen, pline } from './display.js';
 import { vision_recalc, vision_reset, init_vision_globals } from './vision.js';
 import {
     fastforward_pre_dungeon,
+    fastforward_lua_pair,
     fastforward_post_dungeon,
     fastforward_post_mklev,
     fastforward_step,
     fastforward_fill_mineralize,
 } from './fastforward.js';
 import { init_dungeons } from './dungeon.js';
+import { role_init } from './role.js';
 
 // C ref: allmain.c newgame()
 export async function newgame() {
     const g = game;
 
-    // Pre-dungeon startup: gem randomize, shuffle_all, init_objects, lua.
-    // Structural (same calls every session) so it stays in fastforward.
+    // Pre-dungeon: gem_randomize + shuffle_all + init_objects (the
+    // 199 universally-shaped startup PRNG calls).
     fastforward_pre_dungeon();
+
+    // role_init — emits role-specific rn2 calls (e.g., rn2(100) for
+    // Wizard/Archeologist nemgend). For roles without such calls,
+    // emits nothing. Mirrors C's role_init at the same call-order
+    // position (between init_objects and init_dungeons).
+    role_init();
+
+    // lua-side 3-element shuffle (rn2(3), rn2(2)) — happens between
+    // role_init and init_dungeons in every session.
+    fastforward_lua_pair();
 
     // Real init_dungeons port — emits the per-dungeon dgn_chance check,
     // num_dunlevs draw, init_level chance checks, place_level recursion,
     // parent_dlevel branch resolution, and init_castle_tune. Honors
     // game.flags.debug (wizard mode) by skipping the chance-guarded
-    // rn2(100) calls. Replaces the hardcoded seed8000 dungeon-init
-    // section that fastforward.js used to emit.
+    // rn2(100) calls.
     init_dungeons();
 
     // Post-dungeon: u_init_misc rn2(10). The role-specific newpw rnd(N)
-    // belongs to a future role_init port and is NOT emitted here.
+    // belongs to a future u_init_role port and is NOT emitted here.
     fastforward_post_dungeon();
 
     // C ref: allmain.c l_nhcore_init() — shuffle align[] for Lua

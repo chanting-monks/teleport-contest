@@ -47,6 +47,13 @@ export class NethackGame {
         g.iflags = { ...opts.iflags };
         if (opts.preferred_pet) g.preferred_pet = opts.preferred_pet;
         if (opts.tutorial_set) g.tutorial_set_in_config = true;
+        // Role/race/gender/align strings from nethackrc — needed by
+        // role_init for nemgend/ldrgend rn2 calls and (eventually) by
+        // u_init_role for stat / inventory rolls.
+        g.opts_role = opts.role || '';
+        g.opts_race = opts.race || '';
+        g.opts_align = opts.align || '';
+        g.opts_gender = opts.gender || '';
 
         // Initialize hero struct
         g.u = { ux: 0, uy: 0, ux0: 0, uy0: 0 };
