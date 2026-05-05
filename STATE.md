@@ -254,4 +254,20 @@ what changed, did the aggregate move.
 2026-05-05T17:18Z  50335ba  state: enumerate concrete next-chunk priorities (5 chunks with leverage estimates).
 2026-05-05T17:22Z  65534df  dungeon: drop unused rnd import (cleanup, no behavior change).
 2026-05-05T17:24Z  ed61814  mklev: mkcorpstat now respects CORPSTAT_INIT (0x08) flag. Was hardcoded init=false; now derives from caller flags. Affects corpse/statue generation paths to invoke mksobj_init properly.
+2026-05-05T17:27Z  6845c6d  state: log dungeon-cleanup + mkcorpstat-CORPSTAT_INIT commits.
+2026-05-05T17:30Z  aa7f046  docs/LEARNINGS item 12: chargen port requires per-role bitmask data + UI sim. Documents prerequisites for chargen chunk.
+2026-05-05T17:32Z  ea4db6e  role: add ROLE_DATA bitmask table (foundation for future chargen port). 13 roles' allowed (races, genders, aligns) extracted from C role.c roles[].flags. Not wired into chargen yet — needs UI sim to distinguish menu-letter picks from random.
+
+Investigation this turn (no code change but documented):
+- Multiple sessions blocked at makelevel:1410 fillable_room_count rn2.
+  C emits rn2(7), JS emits rn2(8) — JS counts 1 more fillable room
+  than C. Investigation incomplete; vault is correctly typed VAULT not
+  OROOM, so it's not the source. Some room creation path in JS produces
+  one extra OROOM/THEMEROOM with needfill=FILL_NORMAL that C doesn't.
+- Multiple chargen sessions need per-role allowed-attribute bitmasks
+  (now in ROLE_DATA) plus UI keystroke parsing to know which menus
+  the user chose "*" (random) vs specific letter.
+- Tried chargen port that emits all 4 picks for sessions with empty
+  rc components — over-emits for sessions where user pressed letters
+  via menu. Reverted; data table preserved as ea4db6e.
 ```
