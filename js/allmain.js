@@ -35,6 +35,21 @@ function countFillableRooms(g) {
     return count;
 }
 
+// First fillable room's dimensions, used for somex/somey arg
+// parameterization in fastforward_fill_mineralize. Returns {w, h}
+// where w = hx-lx+1, h = hy-ly+1 (matches mkroom.c:670, 676).
+// If no fillable room, returns seed8000's defaults (8, 6).
+function firstFillableRoomDims(g) {
+    for (const room of (g.level?.rooms || [])) {
+        if (!room || room.hx <= 0) continue;
+        if ((room.rtype === OROOM || room.rtype === THEMEROOM)
+            && room.needfill === FILL_NORMAL) {
+            return { w: room.hx - room.lx + 1, h: room.hy - room.ly + 1 };
+        }
+    }
+    return { w: 8, h: 6 };
+}
+
 // C ref: allmain.c newgame()
 export async function newgame() {
     const g = game;
@@ -87,7 +102,10 @@ export async function newgame() {
     // from C mklev.c:1402. We compute fillable_room_count from JS's
     // generated rooms (rtype=OROOM/THEMEROOM AND needfill=FILL_NORMAL,
     // matching the ROOM_IS_FILLABLE macro at mklev.c:929-931).
-    fastforward_fill_mineralize(countFillableRooms(g));
+    {
+        const dims = firstFillableRoomDims(g);
+        fastforward_fill_mineralize(countFillableRooms(g), dims.w, dims.h);
+    }
 
     // Fast-forward through post-mklev startup RNG calls.
     // Covers: u_init_role, ini_inv, attributes, moveloop_preamble.

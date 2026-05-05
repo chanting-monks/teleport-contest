@@ -218,17 +218,16 @@ export function fastforward_step(stepNum) {
 // Fill + mineralize: 1448 calls
 //
 // First call (rn2(N)) is the bonus_item_room_countdown from
-// mklev.c:1402 — `int bonus_item_room_countdown = fillable_room_count
-// ? rn2(fillable_room_count) : -1;`. For seed8000, fillable_room_count
-// is 8; for other sessions it varies (6, 7, etc.). The caller computes
-// the count from g.level.rooms and passes it as `fillableCount`.
+// mklev.c:1402. Subsequent rn2(W), rn2(H) at positions 4, 5 are the
+// somex/somey for the FIRST fillable room (mkroom.c:669, mkroom.c:675).
+// Caller supplies fillableCount + first room's (width, height); the
+// rest is still hardcoded for seed8000's specific subsequent rooms.
 //
-// All subsequent calls are still hardcoded for seed8000 — replacing
-// them needs faithful port of fill_ordinary_room (mklev.c:933+) which
-// is the next big chunk.
-export function fastforward_fill_mineralize(fillableCount = 8) {
+// Replacing the hardcoded tail needs a faithful per-room port of
+// fill_ordinary_room (mklev.c:933+).
+export function fastforward_fill_mineralize(fillableCount = 8, room1Width = 8, room1Height = 6) {
     if (fillableCount > 0) rn2(fillableCount);
-    rn2(3); rn2(8); rn2(3); rn2(8); rn2(6); rnd(2); rnd(3); rnd(2); rn2(10); rn2(60);
+    rn2(3); rn2(8); rn2(3); rn2(room1Width); rn2(room1Height); rnd(2); rnd(3); rnd(2); rn2(10); rn2(60);
     rn2(60); rn2(78); rn2(20); rn2(20); rn2(30); rn2(3); rn2(8); rn2(6); rnd(100); rnd(1000); 
     rnd(2); rn2(10); rn2(11); rn2(10); rn2(10); rn2(40); rn2(100); rn2(80); rn2(80); rn2(1000); 
     rn2(5); rn2(3); rn2(14); rn2(2); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15); 
