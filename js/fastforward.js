@@ -248,10 +248,10 @@ export function fastforward_fill_mineralize(fillableCount = 8, room1Width = 8, r
     // is wrong (different code path). Caveat documented.
     rn2(5); rn2(3); rn2(room2Width); rn2(room2Height); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15);
     rn2(16); rn2(21); rnd(2); rnd(4); rn2(50); rn2(100); rn2(100); rn2(8); rnd(25); rnd(25); 
-    rnd(25); rnd(25); rnd(25); rn2(14); rn2(2); rnd(4); rn2(4); rnd(1000); rnd(2); rn2(6); 
+    rnd(25); rnd(25); rnd(25); rn2(room2Width); rn2(room2Height); rnd(4); rn2(4); rnd(1000); rnd(2); rn2(6); 
     rn2(5); rn2(15); rnd(2); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15); rn2(16); 
-    rn2(21); rn2(2); rnz(25); rn2(8); rn2(3); rn2(14); rn2(2); rnd(2); rnd(3); rnd(2); rn2(10); 
-    rn2(60); rn2(14); rn2(2); rn2(60); rn2(78); rn2(20); rn2(20); rn2(30); rn2(3); rn2(3); 
+    rn2(21); rn2(2); rnz(25); rn2(8); rn2(3); rn2(room2Width); rn2(room2Height); rnd(2); rnd(3); rnd(2); rn2(10); 
+    rn2(60); rn2(room2Width); rn2(room2Height); rn2(60); rn2(78); rn2(20); rn2(20); rn2(30); rn2(3); rn2(3); 
     rn2(4); rn2(5); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15); rn2(16); rn2(21); 
     rnd(2); rnd(4); rn2(2); rn2(50); rn2(100); rn2(100); rn2(8); rn2(3); rn2(4); rn2(5); rnd(2); 
     rnd(3); rnd(2); rn2(10); rn2(60); rn2(60); rn2(78); rn2(20); rn2(4); rn2(5); rn2(3); rn2(3); 
