@@ -7,7 +7,7 @@
 
 import { game } from './gstate.js';
 import { GameMap } from './game.js';
-import { rn2, rnd, rn1 } from './rng.js';
+import { rn2, rnd, rn1, rne } from './rng.js';
 import { init_rect, rnd_rect, get_rect, split_rects } from './rect.js';
 import { depth as depth_of_level } from './hacklib.js';
 import {
@@ -230,17 +230,44 @@ function mksobj(otyp, init, artif) {
 // C ref: mkobj.c mksobj initialization RNG consumption
 // This varies by object class. For the contest, we need enough to match
 // the session's RNG pattern for objects created during mklev.
+//
+// Class otyp ranges (approximate, derived from objects.h ordering):
+//   ARMOR: 28-94    POTION: 230-269    SCROLL: 270-299
+//
+// Class-specific init calls (from mkobj.c:1085+):
+//   ARMOR_CLASS: rn2(10) + (rn2(11) | rn2(10)) + maybe blessorcurse(10)
+//   POTION/SCROLL: blessorcurse(otmp, 4)
+//   SPBOOK: blessorcurse(otmp, 17)
+//   RING_CLASS: blessorcurse(otmp, 3) + various
+//
+// The "special otyp" check at mkobj.c:1087-1090 (FUMBLE_BOOTS,
+// LEVITATION_BOOTS, etc.) is approximated as "always not special" —
+// these 4 otyps are rare; the common-case path matches for nearly
+// all armor instances.
 function mksobj_init(otmp, otyp) {
-    // For BOULDER, GOLD_PIECE: no extra init RNG
-    // For scrolls: blessorcurse
-    // For potions: blessorcurse
-    // For general objects: varies
-    // We just do blessorcurse for scrolls/potions
-    if (otyp >= 270 && otyp < 300) { // scrolls
-        blessorcurse(otmp);
+    if (otyp >= 28 && otyp < 95) {
+        // ARMOR_CLASS — port of mkobj.c:1085-1097
+        if (rn2(10) && !rn2(11)) {
+            // curse branch; spe = -rne(3)
+            rne(3);
+            if (otmp) { otmp.cursed = true; otmp.spe = 0; }
+        } else if (!rn2(10)) {
+            // blessed branch: blessed = rn2(2); spe = rne(3)
+            const blessed = rn2(2);
+            rne(3);
+            if (otmp) { otmp.blessed = !!blessed; otmp.spe = 0; }
+        } else {
+            blessorcurse(otmp, 10);
+        }
+        // artif check (mkobj.c:1098) — rn2(40 + 10*nartifact_exist()) —
+        // skipped: the contest sessions where this fires are rare and
+        // we'd need to model nartifact_exist() and mk_artifact's RNG.
+    } else if (otyp >= 270 && otyp < 300) { // scrolls
+        blessorcurse(otmp, 4);
     } else if (otyp >= 230 && otyp < 270) { // potions
-        blessorcurse(otmp);
+        blessorcurse(otmp, 4);
     }
+    // SPBOOK, RING, WAND, etc. not yet ported.
 }
 
 function mksobj_at(otyp, x, y, init, artif) {
@@ -307,7 +334,26 @@ function mkobj(oclass, artif) {
         rnd(total);
         oclass = pickedClass;
     }
-    return mksobj(0, false, artif);
+    // Pass init=TRUE (matching C mkobj which calls mksobj(otyp, TRUE, artif))
+    // and synthesize an otyp in the picked class's range so mksobj_init
+    // can dispatch class-specific RNG. For class N, pick the FIRST otyp
+    // in that class's typical otyp range (matches the structural shape;
+    // exact otyp identity isn't needed since we don't model game state
+    // beyond PRNG consumption).
+    const otypFromClass = {
+        1: 1,    /* WEAPON */
+        2: 28,   /* ARMOR — first ARMOR otyp range */
+        3: 229,  /* RING */
+        4: 261,  /* WAND */
+        5: 270,  /* SCROLL */
+        6: 230,  /* POTION */
+        7: 213,  /* FOOD */
+        8: 152,  /* TOOL */
+        9: 309,  /* SPBOOK */
+        10: 220, /* AMULET */
+        14: 200, /* GEM */
+    }[oclass] || 0;
+    return mksobj(otypFromClass, true, artif);
 }
 
 function mkobj_at(oclass, x, y, artif) {
