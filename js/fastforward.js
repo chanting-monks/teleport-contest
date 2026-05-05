@@ -216,8 +216,19 @@ export function fastforward_step(stepNum) {
     if (stepNum > 0 && stepNum <= steps.length) steps[stepNum - 1]();
 }
 // Fill + mineralize: 1448 calls
-export function fastforward_fill_mineralize() {
-    rn2(8); rn2(3); rn2(8); rn2(3); rn2(8); rn2(6); rnd(2); rnd(3); rnd(2); rn2(10); rn2(60); 
+//
+// First call (rn2(N)) is the bonus_item_room_countdown from
+// mklev.c:1402 — `int bonus_item_room_countdown = fillable_room_count
+// ? rn2(fillable_room_count) : -1;`. For seed8000, fillable_room_count
+// is 8; for other sessions it varies (6, 7, etc.). The caller computes
+// the count from g.level.rooms and passes it as `fillableCount`.
+//
+// All subsequent calls are still hardcoded for seed8000 — replacing
+// them needs faithful port of fill_ordinary_room (mklev.c:933+) which
+// is the next big chunk.
+export function fastforward_fill_mineralize(fillableCount = 8) {
+    if (fillableCount > 0) rn2(fillableCount);
+    rn2(3); rn2(8); rn2(3); rn2(8); rn2(6); rnd(2); rnd(3); rnd(2); rn2(10); rn2(60);
     rn2(60); rn2(78); rn2(20); rn2(20); rn2(30); rn2(3); rn2(8); rn2(6); rnd(100); rnd(1000); 
     rnd(2); rn2(10); rn2(11); rn2(10); rn2(10); rn2(40); rn2(100); rn2(80); rn2(80); rn2(1000); 
     rn2(5); rn2(3); rn2(14); rn2(2); rn2(3); rn2(4); rn2(5); rn2(7); rn2(8); rn2(11); rn2(15); 
