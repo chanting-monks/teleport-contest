@@ -230,12 +230,36 @@ export function chargen_simulate(moves) {
     if (isYClass || isAClass) {
         const picked = chargen_full_random();
         picked.name = initialName;
-        if (isYClass && idx < moves.length
-            && (moves[idx] === 'n' || moves[idx] === 'N')) {
-            idx++;
-            const m = chargen_manual(moves, idx, initialName);
-            if (m) return m;
-            return picked;
+        if (isYClass) {
+            // 'y' shows "Is X OK?" prompt. Process responses:
+            // 'a' = rename + re-show; 'n' = reject + manual; else = accept.
+            // C ref: role.c:2654 getconfirmation loop.
+            let currentName = initialName;
+            while (idx < moves.length) {
+                while (idx < moves.length
+                       && moves[idx] !== 'y' && moves[idx] !== 'Y'
+                       && moves[idx] !== 'n' && moves[idx] !== 'N'
+                       && moves[idx] !== 'a' && moves[idx] !== 'A'
+                       && moves[idx] !== 'q' && moves[idx] !== 'Q'
+                       && moves[idx] !== ' ' && moves[idx] !== '\r' && moves[idx] !== '\n'
+                       && moves[idx] !== '\x1b') idx++;
+                if (idx >= moves.length) break;
+                const c = moves[idx]; idx++;
+                if (c === 'a' || c === 'A') {
+                    const ns = idx;
+                    while (idx < moves.length && moves[idx] !== '\r' && moves[idx] !== '\n') idx++;
+                    currentName = moves.slice(ns, idx);
+                    picked.name = currentName;
+                    if (idx < moves.length) idx++;
+                    continue;
+                }
+                if (c === 'n' || c === 'N') {
+                    const m = chargen_manual(moves, idx, currentName);
+                    if (m) return m;
+                    return picked;
+                }
+                break;
+            }
         }
         return picked;
     }
