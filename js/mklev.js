@@ -251,7 +251,7 @@ function mksobj_init(otmp, otyp, artif) {
         //   quan: is_multigen ? rn1(6,6) : 1 — approximated as 1
         //   rn2(11) check; if 0: rne(3) + rn2(2); else rn2(10); if 0: rne(3); else blessorcurse(10).
         //   is_poisonable + rn2(100) — approximated as not poisonable.
-        //   artif + rn2(20+...) — approximated as not artif.
+        //   artif + rn2(20+10*nartifact_exist()) — approx nartifact==0 → rn2(20).
         if (rn2(11) === 0) {
             rne(3);
             rn2(2);
@@ -261,6 +261,7 @@ function mksobj_init(otmp, otyp, artif) {
         } else {
             blessorcurse(otmp, 10);
         }
+        if (artif) rn2(20);
         isErodable = true;
     } else if (otyp >= 28 && otyp < 95) {
         // ARMOR_CLASS — port of mkobj.c:1085-1102
