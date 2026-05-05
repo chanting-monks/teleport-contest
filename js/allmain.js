@@ -20,6 +20,20 @@ import {
 } from './fastforward.js';
 import { init_dungeons } from './dungeon.js';
 import { role_init } from './role.js';
+import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
+
+// C ref: mklev.c:929 ROOM_IS_FILLABLE macro
+function countFillableRooms(g) {
+    let count = 0;
+    for (const room of (g.level?.rooms || [])) {
+        if (!room || room.hx <= 0) continue;
+        if ((room.rtype === OROOM || room.rtype === THEMEROOM)
+            && room.needfill === FILL_NORMAL) {
+            count++;
+        }
+    }
+    return count;
+}
 
 // C ref: allmain.c newgame()
 export async function newgame() {
@@ -73,18 +87,7 @@ export async function newgame() {
     // from C mklev.c:1402. We compute fillable_room_count from JS's
     // generated rooms (rtype=OROOM/THEMEROOM AND needfill=FILL_NORMAL,
     // matching the ROOM_IS_FILLABLE macro at mklev.c:929-931).
-    let fillableCount = 0;
-    for (const room of (g.level?.rooms || [])) {
-        if (!room || room.hx <= 0) continue;
-        const OROOM_RTYPE = 0;
-        const THEMEROOM_RTYPE = 1;
-        const FILL_NORMAL_VAL = 1;
-        if ((room.rtype === OROOM_RTYPE || room.rtype === THEMEROOM_RTYPE)
-            && room.needfill === FILL_NORMAL_VAL) {
-            fillableCount++;
-        }
-    }
-    fastforward_fill_mineralize(fillableCount);
+    fastforward_fill_mineralize(countFillableRooms(g));
 
     // Fast-forward through post-mklev startup RNG calls.
     // Covers: u_init_role, ini_inv, attributes, moveloop_preamble.
