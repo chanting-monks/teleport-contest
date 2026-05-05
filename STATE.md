@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    469fdb9
-last_run_time:      2026-05-05T19:10Z
-last_aggregate:     p:(20/4143) 53611/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(20/4143) 53611/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        469fdb9
+last_run_commit:    ea922a1
+last_run_time:      2026-05-05T19:20Z
+last_aggregate:     p:(20/4143) 53620/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(20/4143) 53620/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        ea922a1
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -295,4 +295,17 @@ Cumulative session-2026-05-05: 19,409 → 53,610 (+34,201, +176%). Turns matched
 2026-05-05T19:10Z  469fdb9  mklev: fix RING/AMULET oclass_prob_totals swap. RING() macro hardcodes oc_prob=1, 28 entries → total 28 (not 1000). AMULET probs sum to 1000 (not 28). Aggregate +1 (limited because most sessions diverge before RING/AMULET picks).
 
 Cumulative session-2026-05-05 (final): 19,409 → 53,611 (+34,202, +176%). seed8000 canary preserved across all 40+ commits.
+
+2026-05-05T19:18Z  4b94efd  mklev: ARMOR_CLASS artif rn2(40) check (mkobj.c:1099). Approximates nartifact_exist()==0. seed1800-tourist 833→842 (+9). Aggregate 53611→53620.
+2026-05-05T19:19Z  ea922a1  mklev: WEAPON_CLASS artif rn2(20) check (mkobj.c:889). Mirrors ARMOR's port for the WEAPON path. No immediate session impact (no public session reaches WEAPON_CLASS init in matched range yet) but keeps the port structurally correct.
+
+Cumulative session-2026-05-05: 19,409 → 53,620 (+34,211, +176%). 20/4143 turns matched. seed8000 canary p:(11)3126/3130 across all 50+ commits.
+
+Top remaining blockers (10+ session impact each, all deferred — multi-day projects):
+- fill_special_room (sp_lev.c) — 10 sessions
+- lspo_map themeroom contents() — 7 sessions
+- rect.c divergence from upstream room placement — 5 sessions
+- somex/somey for room2+ dimensions (mklev divergence) — 5 sessions
+- fill_ordinary_room mklev:998 — 4 sessions
+- mkclass_aligned monster bitmask — 2 sessions
 ```
