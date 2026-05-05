@@ -18,10 +18,16 @@ export function initRng(seed) {
         s >>= 8n;
     }
     game.coreCtx = isaac64_init(bytes);
-    _rngLog = [];
+    // NB: do NOT clear _rngLog here. Multi-segment sessions re-seed
+    // between segments; the contest scorer expects the JS log to be
+    // the cumulative sequence across all segments (matching C's
+    // recorder which captures both the original game and the
+    // restored/fresh game in one stream). Use clearRngLog() for
+    // explicit reset at session start.
 }
 
-export function enableRngLog() { _rngLogEnabled = true; _rngLog = []; }
+export function enableRngLog() { _rngLogEnabled = true; }
+export function clearRngLog() { _rngLog = []; }
 export function getRngLog() { return _rngLog; }
 export function pushRngLogEntry(entry) { if (_rngLogEnabled) _rngLog.push(entry); }
 

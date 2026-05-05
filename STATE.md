@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    88ad3c8
-last_run_time:      2026-05-05T14:07Z
-last_aggregate:     p:(12/4143) 19409/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(12/4143) 19409/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        88ad3c8
+last_run_commit:    <this commit>
+last_run_time:      2026-05-05T14:23Z
+last_aggregate:     p:(12/4143) 25431/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(12/4143) 25431/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        <this commit>
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -138,5 +138,7 @@ what changed, did the aggregate move.
 
 ```
 2026-05-05T13:58Z  88ad3c8  bootstrap iteration mode: STATE.md, ITERATION.md, PROMPT.md Part 0, scripts/score-table.mjs.
-2026-05-05T14:08Z  <next>   add AGENTS.md, scripts/compare-firstdiv.mjs (first-divergence localizer); fix 30m→1h cron docs. agg unchanged (infra).
+2026-05-05T14:08Z  4c46062  add AGENTS.md, scripts/compare-firstdiv.mjs (first-divergence localizer); fix 30m→1h cron docs. agg unchanged (infra).
+2026-05-05T14:11Z  d4a4d1a  compare-firstdiv: add --all summary mode for focus selection. agg unchanged (infra).
+2026-05-05T14:23Z  <next>   fix initRng/enableRngLog wiping rng log on each segment — multi-segment sessions now retain seg0 calls in the cumulative log. PRNG matched 19409 → 25431 (+6022) across 44 sessions; seed0030 alone gained +4987.
 ```

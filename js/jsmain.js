@@ -10,7 +10,7 @@
 // For browser play, see nethack.js (uses NethackGame directly).
 
 import { game, resetGame } from './gstate.js';
-import { initRng, enableRngLog, getRngLog } from './rng.js';
+import { initRng, enableRngLog, clearRngLog, getRngLog } from './rng.js';
 import { pushKey, nhgetch } from './input.js';
 import { newgame, moveloop_core } from './allmain.js';
 import { parseNethackrc } from './options.js';
@@ -29,6 +29,12 @@ export class NethackGame {
         this._rngSlices = [];
         this._lastRngIdx = 0;
         this._nhgetchCount = 0;
+        // The rng log is cumulative across segments of one session,
+        // mirroring how C's recorder captures the full per-process call
+        // sequence. Reset it on game-construction (= first segment),
+        // never on segment 2+. initRng/enableRngLog deliberately do
+        // NOT touch the log.
+        clearRngLog();
     }
 
     async start() {
