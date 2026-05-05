@@ -321,16 +321,17 @@ function mksobj_init(otmp, otyp, artif) {
         if (!rn2(100)) {
             // erodeproof — no further rn2 (oerodeproof=1)
         } else {
-            if (!rn2(80) /* && is_flammable... approximation: assume true */) {
-                // do { ++oeroded } while (oeroded < 3 && !rn2(9));
-                while (true) {
-                    if (rn2(9)) break;
-                }
+            // C: do { ++oeroded } while (oeroded < 3 && !rn2(9))
+            // — at most 3 iterations of rn2(9). After oeroded reaches 3,
+            // the loop exits regardless of rn2(9). Approximating
+            // is_flammable/rottable as TRUE (most weapons/armor qualify).
+            if (!rn2(80)) {
+                let oeroded = 0;
+                do { oeroded++; } while (oeroded < 3 && !rn2(9));
             }
-            if (!rn2(80) /* && is_rottable... approximation: assume true */) {
-                while (true) {
-                    if (rn2(9)) break;
-                }
+            if (!rn2(80)) {
+                let oeroded2 = 0;
+                do { oeroded2++; } while (oeroded2 < 3 && !rn2(9));
             }
         }
         rn2(1000); // greased check
