@@ -390,7 +390,36 @@ prerequisite.
 
 ---
 
-## 13. `seed8000` is the canary, not the goal
+## 13. JS flush_screen clears grid; C overlays incrementally
+
+**Lesson.** JS's `flush_screen` calls `display.clearScreen()` then
+re-renders state to the grid. So even if `_pending_message` were
+preserved from the previous iteration, JS still resets the grid
+each iteration; only the current pline shows.
+
+C's flush_screen doesn't clear — it overlays current state on top of
+existing buffer. The toplin message persists across iterations until
+an explicit pline overwrites or another command displaces it.
+
+**Why.** Verified this turn: tried removing the `_pending_message = ''`
+clear in moveloop_core to allow messages to persist; expected this to
+fix seed8000's 8 missing screens (s11, s13, s15, s17, s18, s22 etc).
+Instead, seed8000 dropped from s:(15)15/23 to s:(1)1/23 because the
+welcome message ("Aloha Contestant, welcome to NetHack!...") persisted
+into screens 1+, polluting rows that should have had different state.
+
+**How.** Proper fix requires refactoring JS's display layer to mirror
+C's overlay-not-clear behavior. Each pline call should write to the
+grid directly (not via `_pending_message`), and `flush_screen` should
+NOT call `display.clearScreen()`. cls() at game start handles the
+initial wipe; subsequent flush_screens just update what changed.
+
+Until then: don't pursue persisting `_pending_message`. It's a deeper
+fix than a one-line edit and any halfway version regresses seed8000.
+
+---
+
+## 14. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
 fastforward exactly matches its seed. Every commit must verify
