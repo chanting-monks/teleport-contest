@@ -303,13 +303,16 @@ function mksobj_init(otmp, otyp, artif) {
         rn2(10);
         blessorcurse(otmp, 10);
     }
-    // RING_CLASS — port of mkobj.c:1128-1148. Charged-ring path:
-    // blessorcurse(3) + rn2(10) outer + (rn2(10) inner | rn2(2)+rne(3))
-    // + maybe rn2(4)+rn2(3) for spe==0 + maybe rn2(5) for spe<0 curse.
-    // Not yet wired: otypFromClass picks otyp=229 which currently
-    // routes to AMULET branch (overlapping range). Disambiguating
-    // requires real per-class otyp ranges from objects.h enum order;
-    // deferred until the otyp tables are extracted.
+    // RING_CLASS — port of mkobj.c:1128-1148. NOT YET WIRED. The
+    // charged-ring path emits blessorcurse(3) + rn2(10) + spe-dependent
+    // sub-branches (rn2(10), rn2(2), rne(3), rn2(4), rn2(3), rn2(5)),
+    // but the branching depends on bcsign(otmp) state we don't track.
+    // A naive "always emit blessorcurse(3) + rn2(10)" approximation
+    // regressed seed0030 by -16 calls and -1 matched turn (some RING
+    // mksobj_init calls in C don't fire those rn2s — likely the
+    // rare uncharged-ring path which only emits rn2(10) + maybe rn2(9)
+    // and is being followed for those particular otyps).
+    // Defer until we can model bcsign properly.
     // mkobj_erosions runs for ALL classes at end of mksobj — port of
     // mkobj.c:196-222. Only fires PRNG for erodable classes (weapons,
     // armor, certain tools); other classes have may_generate_eroded()
@@ -408,10 +411,15 @@ function mkobj(oclass, artif) {
     // in that class's typical otyp range (matches the structural shape;
     // exact otyp identity isn't needed since we don't model game state
     // beyond PRNG consumption).
+    // Synthetic per-class otyp picked to dispatch into the right
+    // mksobj_init branch. RING currently shares range with AMULET
+    // [220,230) so falls through AMULET's branch — that's the
+    // empirically-best behavior right now (see RING comment in
+    // mksobj_init body); changing this regressed seed0030.
     const otypFromClass = {
         1: 1,    /* WEAPON */
         2: 28,   /* ARMOR — first ARMOR otyp range */
-        3: 229,  /* RING */
+        3: 229,  /* RING (currently dispatches via AMULET branch) */
         4: 261,  /* WAND */
         5: 270,  /* SCROLL */
         6: 230,  /* POTION */
