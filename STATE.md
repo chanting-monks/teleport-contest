@@ -22,8 +22,8 @@ clean.
 ## scores
 
 ```
-last_run_commit:    77395c3
-last_run_time:      2026-05-05T19:59Z
+last_run_commit:    7862d65
+last_run_time:      2026-05-05T20:55Z
 last_aggregate:     p:(21/4143) 53827/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
 best_aggregate:     p:(21/4143) 53827/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
 best_commit:        77395c3
@@ -313,4 +313,6 @@ Top remaining blockers (10+ session impact each, all deferred — multi-day proj
 2026-05-05T19:32Z  ea922a1  mklev: WEAPON_CLASS artif rn2(20) check (mkobj.c:889). Structural correctness; no immediate gain.
 2026-05-05T19:50Z  2df1325  mklev: document RING_CLASS deferral with regression evidence (charged-ring spe sub-branches need bcsign modeling).
 2026-05-05T19:59Z  77395c3  chargen: handle 'a' rename, 'n' restart, '~' role filter. Inner confirmation loop preserves picks across rename, resets across reject; filter mode skips '~'-opened sub-menus until \r confirms. seed0006 p:(1)1008→p:(2)1215 (+207). Aggregate 53620→53827 (+207, +1 turn).
+2026-05-05T20:51Z  2949b36  mklev: fix WAND_CLASS otyp dispatch. otypFromClass[4]=261 was shadowed by POTION's [230,270) range, routing WAND mksobj_init through POTION's blessorcurse(4) instead of WAND's rn2(5)+blessorcurse(17). Moved WAND to synthetic [350,380) and reordered cascade. No public session reaches WAND init in matched range; correctness fix only.
+2026-05-05T20:52Z  7862d65  mklev: clamp erosion do-while to oeroded<3. C limits the do-while loop to 3 iterations of rn2(9); JS used unbounded `while(true){if(rn2(9))break;}` which could over-fire if rn2(9)=0 occurred 3+ times in a row (~0.015% per fourth iteration). Now matches C exactly. No public session exercises this edge case.
 ```
