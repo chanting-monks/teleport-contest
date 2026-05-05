@@ -419,6 +419,77 @@ fix than a one-line edit and any halfway version regresses seed8000.
 
 ---
 
+## 15. mkobj otyp dispatch ranges in JS are SYNTHETIC, not C otyp values
+
+**Lesson.** JS's `mkobj()` synthesizes an otyp value via `otypFromClass`
+to dispatch into `mksobj_init`'s class branches. These otyp values do
+NOT correspond to C's actual otyp enum order — they're internal to JS,
+chosen to land in unique per-class ranges. Check ranges DON'T overlap.
+
+**Why.** Initially WAND was assigned otyp=261, which falls into POTION's
+[230,270) range; the if-else cascade matched POTION's branch first, so
+WAND init ran POTION's `blessorcurse(4)` instead of WAND's
+`rn2(5)+blessorcurse(17)`. Same hazard hit RING (otyp=229 falls into
+AMULET's [220,230) — currently dispatches via AMULET's branch by
+design, since adding a separate RING branch with naive `blessorcurse(3)
++ rn2(10)` regressed seed0030 by -16 calls). Whenever adding a new
+class to mksobj_init, check the otypFromClass map and the if-else
+cascade — synthetic ranges must not collide.
+
+**How.** Current ranges are documented in the otypFromClass map
+(js/mklev.js:411-432). Use [350,380) for any new class to stay clear
+of the existing [220,350) cluster. RING_CLASS port is deferred until
+bcsign-aware spe-branching can be modeled; see RING comment in
+mksobj_init body.
+
+**Commit:** 2949b36 (WAND fix), 2df1325 (RING deferral evidence).
+
+---
+
+## 16. mkobj_erosions do-while needs explicit oeroded<3 clamp
+
+**Lesson.** C's mkobj_erosions has `do { ++oeroded } while (oeroded < 3
+&& !rn2(9))` — the loop runs at most 3 iterations of rn2(9) regardless
+of result. JS's first port used `while (true) { if (rn2(9)) break; }`
+which had no upper bound on iterations — if rn2(9) returned 0 four
+times in a row (~0.015% per fourth iteration), C would have exited but
+JS would continue, over-firing PRNG.
+
+**How.** Always include the explicit iteration counter when porting C
+do-while loops with bounded iteration (`oeroded < N`). The single-
+clause condition `&& !rn2(9)` masks the bound visually but it's there.
+
+**Commit:** 7862d65.
+
+---
+
+## 17. ROLES_WITH_RANDOM_NEMGEND = {Wizard, Archeologist}, validated
+
+**Lesson.** role_init's nemgend `rn2(100)` (role.c:2060) fires only
+for roles whose nemesis monster lacks an explicit gender flag in
+monsters.h (M2_MALE/M2_FEMALE/M2_NEUTER). Validated by reading every
+role's nemesis and checking M2 flags:
+
+  | Role         | Nemesis              | Gender flag | Random? |
+  |--------------|----------------------|-------------|---------|
+  | Archeologist | MASTER_MIND_FLAYER   | none        | YES     |
+  | Wizard       | DARK_ONE             | none        | YES     |
+  | Knight       | IXOTH                | M2_MALE     | no      |
+  | Caveman      | CHROMATIC_DRAGON     | M2_FEMALE   | no      |
+  | Rogue        | MASTER_OF_THIEVES    | M2_MALE     | no      |
+  | (10 others)  | various              | explicit    | no      |
+
+For LEADERS, all 13 quest leaders have explicit gender (no role
+triggers ldrgend rn2(100)).
+
+**How.** ROLES_WITH_RANDOM_NEMGEND set in js/role.js is correct as
+{Wizard, Archeologist}. ROLES_WITH_RANDOM_LDRGEND is empty (no roles
+need it).
+
+**Commits:** 85e1b70 (initial), 8f138bf (Priest pantheon refinement).
+
+---
+
 ## 14. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
