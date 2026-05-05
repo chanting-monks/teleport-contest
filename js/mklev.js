@@ -245,29 +245,62 @@ function mksobj(otyp, init, artif) {
 // these 4 otyps are rare; the common-case path matches for nearly
 // all armor instances.
 function mksobj_init(otmp, otyp) {
-    if (otyp >= 28 && otyp < 95) {
+    let isErodable = false;
+    if (otyp >= 1 && otyp < 28) {
+        // WEAPON_CLASS — simplified: most weapons just call blessorcurse(10).
+        // (Full port: oc_charged check + spe rolls per weapon family.)
+        blessorcurse(otmp, 10);
+        isErodable = true;
+    } else if (otyp >= 28 && otyp < 95) {
         // ARMOR_CLASS — port of mkobj.c:1085-1097
         if (rn2(10) && !rn2(11)) {
-            // curse branch; spe = -rne(3)
             rne(3);
             if (otmp) { otmp.cursed = true; otmp.spe = 0; }
         } else if (!rn2(10)) {
-            // blessed branch: blessed = rn2(2); spe = rne(3)
-            const blessed = rn2(2);
+            rn2(2);
             rne(3);
-            if (otmp) { otmp.blessed = !!blessed; otmp.spe = 0; }
+            if (otmp) { otmp.blessed = false; otmp.spe = 0; }
         } else {
             blessorcurse(otmp, 10);
         }
-        // artif check (mkobj.c:1098) — rn2(40 + 10*nartifact_exist()) —
-        // skipped: the contest sessions where this fires are rare and
-        // we'd need to model nartifact_exist() and mk_artifact's RNG.
-    } else if (otyp >= 270 && otyp < 300) { // scrolls
-        blessorcurse(otmp, 4);
-    } else if (otyp >= 230 && otyp < 270) { // potions
-        blessorcurse(otmp, 4);
+        isErodable = true;
+    } else if (otyp >= 230 && otyp < 270) {
+        blessorcurse(otmp, 4); // POTION_CLASS
+    } else if (otyp >= 270 && otyp < 300) {
+        blessorcurse(otmp, 4); // SCROLL_CLASS
+    } else if (otyp >= 309 && otyp < 350) {
+        blessorcurse(otmp, 17); // SPBOOK_CLASS (mkobj.c:1083)
+    } else if (otyp >= 261 && otyp < 309) {
+        // WAND_CLASS — mkobj.c:1115-1126. Most wands: rn1(5, N) for spe
+        // (logged as rn2(5)), then blessorcurse(17). Skipping per-otyp
+        // specials (WAN_WISHING, WAN_STASIS).
+        rn2(5);
+        blessorcurse(otmp, 17);
+    } else if (otyp >= 220 && otyp < 230) {
+        // AMULET — no init RNG in mkobj.c (case AMULET_CLASS not listed).
     }
-    // SPBOOK, RING, WAND, etc. not yet ported.
+    // mkobj_erosions runs for ALL classes at end of mksobj — port of
+    // mkobj.c:196-222. Only fires PRNG for erodable classes (weapons,
+    // armor, certain tools); other classes have may_generate_eroded()
+    // return false and no rn2 fires.
+    if (isErodable) {
+        if (!rn2(100)) {
+            // erodeproof — no further rn2 (oerodeproof=1)
+        } else {
+            if (!rn2(80) /* && is_flammable... approximation: assume true */) {
+                // do { ++oeroded } while (oeroded < 3 && !rn2(9));
+                while (true) {
+                    if (rn2(9)) break;
+                }
+            }
+            if (!rn2(80) /* && is_rottable... approximation: assume true */) {
+                while (true) {
+                    if (rn2(9)) break;
+                }
+            }
+        }
+        rn2(1000); // greased check
+    }
 }
 
 function mksobj_at(otyp, x, y, init, artif) {
