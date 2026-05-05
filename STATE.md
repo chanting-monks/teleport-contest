@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    a2f0950
-last_run_time:      2026-05-05T17:56Z
-last_aggregate:     p:(12/4143) 45693/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(12/4143) 45693/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        a2f0950
+last_run_commit:    83ffad8
+last_run_time:      2026-05-05T18:15Z
+last_aggregate:     p:(12/4143) 45700/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(12/4143) 45700/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        83ffad8
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -263,6 +263,8 @@ what changed, did the aggregate move.
 2026-05-05T18:05Z  f8f6d9f  cmd: drop "Unknown command" pline. Stops fabricating messages for non-movement keys where C is silent or has specific message.
 2026-05-05T18:10Z  b37d274  docs/LEARNINGS item 13: JS flush_screen wipes the grid each iteration (clearScreen() then re-render), so persisting _pending_message can't fix screens without a deeper display refactor. Verified empirically — removing the message-clear regressed seed8000 from 15/23 to 1/23 because the welcome message persisted into all later screens.
 2026-05-05T18:12Z  e62fa8d  state: log f8f6d9f, b37d274 + LEARNINGS item 13.
+2026-05-05T18:14Z  f1ec0b0  state: log seed0107 post-fillable-fix divergence at room-dim somey.
+2026-05-05T18:15Z  83ffad8  fastforward: parameterize first-room somex/somey by JS room dimensions. fastforward_fill_mineralize now takes (fillableCount, room1Width, room1Height). seed0107 firstDiv 1093→1102 (+9). Aggregate p: 45693 → 45700 (+7). seed8000 unchanged.
 
 Discovery this turn (no fix yet): seed0107-samurai now diverges
 at fill_ordinary_room's somey rn2(4 in C / 6 in JS). My
