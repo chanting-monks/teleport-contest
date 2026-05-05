@@ -277,7 +277,12 @@ function mksobj_init(otmp, otyp) {
         rn2(5);
         blessorcurse(otmp, 17);
     } else if (otyp >= 220 && otyp < 230) {
-        // AMULET — no init RNG in mkobj.c (case AMULET_CLASS not listed).
+        // AMULET_CLASS — port of mkobj.c:1060-1069. rn2(10) outer check
+        // (if non-zero AND otyp is special, curse). For non-special otyps
+        // (the common case) the special check fails, so we always fall
+        // through to blessorcurse(10).
+        rn2(10);
+        blessorcurse(otmp, 10);
     }
     // mkobj_erosions runs for ALL classes at end of mksobj — port of
     // mkobj.c:196-222. Only fires PRNG for erodable classes (weapons,
