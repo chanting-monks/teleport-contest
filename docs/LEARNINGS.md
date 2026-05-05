@@ -338,7 +338,59 @@ between handler and the next nhgetch.
 
 ---
 
-## 12. `seed8000` is the canary, not the goal
+## 12. Chargen port requires per-role bitmask data from role.c roles[]
+
+**Lesson.** To port pick_role/pick_race/pick_gend/pick_align faithfully,
+JS needs per-role bitmask data: which races, genders, and alignments
+each role allows. The data is encoded in C role.c's roles[] table as
+`MH_HUMAN | MH_ELF | ... | ROLE_MALE | ROLE_FEMALE | ROLE_LAWFUL`
+flag combinations.
+
+**Why.** pick_race emits `rn2(races_ok)` where races_ok = popcount of
+the role's MH_* bits. pick_gend emits `rn2(gends_ok)`. pick_align
+emits `rn2(aligns_ok)` where the role's allowed aligns are
+intersected with the chosen race's allowed aligns. Without
+per-role/per-race bitmask data, JS can't compute the right
+rn2 args. Adding chargen WITHOUT this data emits wrong N for each
+pick and breaks the PRNG sequence worse than emitting nothing.
+
+**How.** Future iteration that takes the chargen chunk should:
+1. Extract per-role bitmasks by parsing nethack-c/upstream/src/role.c
+   roles[]. Format suggestion:
+     ```js
+     const ROLE_DATA = [
+       { name: 'Archeologist', races: ['human','dwarf','gnome'],
+         genders: ['male','female'], aligns: ['lawful','neutral'] },
+       { name: 'Barbarian', races: ['human','orc'],
+         genders: ['male','female'], aligns: ['neutral','chaotic'] },
+       ... 13 entries
+     ];
+     ```
+2. Extract per-race aligns from races[] table similarly (some races
+   constrain alignment).
+3. Implement `pick_role()`/`pick_race()`/`pick_gend()`/`pick_align()`
+   following role.c:1024-1240. Each emits rn2(N) where N is the
+   intersect-count and the result selects from the valid set.
+4. Wire into NethackGame.start() BEFORE fastforward_pre_dungeon. For
+   sessions with role/race/gender/align all specified in rc, no rn2
+   fires (matches C). For sessions with some unspecified, the picks
+   fire in order.
+
+Sessions that would benefit (firstDiv@0 cluster): seed0002, seed0004,
+seed0006, seed0007, seed0009, seed0014, seed0077. Each is currently
+stuck at the very first PRNG call and would advance significantly
+once chargen is ported.
+
+**Caveat.** Some sessions (seed0014) have only PARTIAL randomness —
+the user pressed specific letters for some menus. Without UI
+simulation, we can't know which were random. A pure "all random"
+fallback works for fully-random sessions but mismatches partial-
+random ones. UI sim is the next layer; data tables are the
+prerequisite.
+
+---
+
+## 13. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
 fastforward exactly matches its seed. Every commit must verify
