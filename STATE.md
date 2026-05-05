@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    63185d1
-last_run_time:      2026-05-05T15:49Z
-last_aggregate:     p:(12/4143) 45662/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(12/4143) 45662/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        63185d1
+last_run_commit:    0c054d3
+last_run_time:      2026-05-05T17:00Z
+last_aggregate:     p:(12/4143) 45664/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(12/4143) 45664/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        4a32f89
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -92,6 +92,31 @@ notes:              `node scripts/compare-firstdiv.mjs --prng-only --all` shows 
                     seed8000 normal-mode. A real port unblocks 20 sessions; partial
                     correctness blocks fewer. Requires reading C dungeon.c:680-700
                     plus possible_places() / pick_level() / proto_dungeon data.
+                    *(place_level was ported in commit 8f88193; cluster resolved.)*
+
+                    Current top blockers (after place_level resolved):
+                      - mkclass_aligned (makemon.c:1946) — JS stub emits rn2(NUMMONS=398)
+                        where C iterates class members emitting rn2(9) per member +
+                        conditional rn2(2) toostrong + rnd(num) final pick. Blocks
+                        seed0103, seed0700, seed0102 (Knight/Samurai/Ranger normal).
+                        Requires per-class member counts + monster geno/maligntyp/
+                        difficulty data.
+                      - fill_special_room (sp_lev.c:2769) — JS doesn't have this
+                        path. Blocks seed1500, seed0017, seed0105, seed0383.
+                        Requires sp_lev port.
+                      - lspo_map (sp_lev.c:6154/6163) — JS doesn't process themed
+                        map placement. Blocks seed0013×2, seed0399, seed5002,
+                        seed0015, seed0200. Requires lua-side themerms.lua port.
+                      - mkobj RANDOM_CLASS (mkobj.c:281,290) — JS stub doesn't emit
+                        rnd(100) class pick + rnd(class_total) item pick. Affects
+                        many sessions in level fill. Requires mkobjprobs +
+                        oclass_prob_totals tables.
+                      - chargen (pick_role/pick_race/pick_gend/pick_align) — 7
+                        sessions stuck at firstDiv@0 with empty role spec. Requires
+                        UI simulation + role/race/gender/alignment validation tables.
+
+                    Each is a multi-hour port. The session can pick any one and
+                    ship a chunk-sized port that preserves seed8000 canary.
 ```
 
 The single session being chased this iteration. The first iteration
@@ -171,4 +196,10 @@ what changed, did the aggregate move.
 2026-05-05T15:31Z  85e1b70   js/role.js: role-aware role_init for Wizard/Archeologist nemgend (rn2(100)) and Priest pantheon-loop (rn2(13), single iteration); plus per-role newpw rnd(enadv.inrnd) for Healer/Knight/Priest/Wizard/Monk inside u_init_misc. Plumb role string from nethackrc into game.opts_role. Mirrors C's allmain.c order: init_objects → role_init → lua_pair → init_dungeons → u_init_misc. Aggregate p: 31649 → 43298 (+11649). seed8000 still p:(11)3126/3130 (canary). turnsFully 11→12. Big winners: seed4500 556→1232, seed0016-healer 367→1285, seed0367-priest 362→885, seed0106-priest 431→1201. Small regression seed0501-priest 297→283: pantheon loop iterates twice for that seed; my port emits one rn2(13). The 12 sessions blocked at firstDiv@199-200 (Priest/Wizard/Archeologist) now advance past role_init.
 2026-05-05T15:39Z  8f138bf   Priest pantheon loop now iterates correctly: models C's `while (pantheon == 6 && ++trycnt < 100) pantheon = rn2(13)`. Priest (idx 6) is the only role in NetHack 5.0 with null lgod (verified by grepping role.c for `0, 0, 0,` god lines), so the loop continues iff rn2(13) returns 6 again. Aggregate p: 43298 → 44162 (+864). seed0501-priest 283 → 1147 (+864) — full recovery of prior regression and then some. seed0367/seed0106 unchanged (their loops were already 1 iteration). seed8000 still canary p:(11)3126/3130.
 2026-05-05T15:49Z  63185d1  options.js: parse `playmode:explore`. Sets g.flags.explore so JS getbones honors C bones.c:639's `if (discover) return 0` — the rn2(3) at bones.c:645 must be skipped in explore mode. seed0900-tourist (only Tourist explore session): 351 → 1285 (+934). seed1150-caveman-explore also gained. Aggregate p: 44162 → 45662 (+1500). seed8000 unchanged.
+2026-05-05T16:30Z  68a4b85  state: log session-2026-05-05 cumulative summary; LEARNINGS #9 (rc options).
+2026-05-05T16:35Z  4e0bb15  docs: ABSOLUTE RULE — never voluntarily stop. Strengthens both PROMPT.md and docs/ITERATION.md.
+2026-05-05T16:42Z  fd1cb8b  allmain: plumb role/race/gender/align from nethackrc into urole/urace/flags.female. Welcome message now uses correct values per session.
+2026-05-05T16:43Z  4a32f89  mklev: fix blessorcurse to mirror C — rn2(chance) + conditional rn2(2). Aggregate p: 45662 → 45664 (+2).
+2026-05-05T16:55Z  c0d3c06  docs/LEARNINGS items 10, 11 — fastforward_step guard hazard and pline timing trap. Documents experiments that regressed (so future iterations don't repeat them).
+2026-05-05T17:00Z  0c054d3  docs/LEARNINGS item 11.5 — screen scoring is bottlenecked on PRNG matching first. Of 10,902 screens, only 15 match (all in seed8000); ALL non-seed8000 sessions have 0 screens matching because they diverge PRNG-wise within ~1500 calls. Pursuing screen fixes ahead of PRNG matching produces no aggregate improvement.
 ```
