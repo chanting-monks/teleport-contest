@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    <next>
-last_run_time:      2026-05-05T15:39Z
-last_aggregate:     p:(12/4143) 44162/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(12/4143) 44162/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        <next>
+last_run_commit:    63185d1
+last_run_time:      2026-05-05T15:49Z
+last_aggregate:     p:(12/4143) 45662/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(12/4143) 45662/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        63185d1
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -169,5 +169,6 @@ what changed, did the aggregate move.
 2026-05-05T15:00Z  ac58568  state: refresh focus map with PRNG-only firstDiv cluster.
 2026-05-05T15:21Z  8f88193   port real init_dungeons (js/dungeon.js): full dungeon.lua data + level_range, possible_places, pick_level, place_level (recursive backtracking), init_level, parent_dlevel, init_dungeon_dungeons, init_castle_tune. Honors wizard mode (game.flags.debug). Replaces fastforward.js's hardcoded seed8000-tuned dungeon-init slice. Caught a bit-collision bug: D_ALIGN_CHAOTIC and UNCONNECTED both occupy 0x10 in C; they must be tracked as separate fields per dungeon (C does this; my first cut OR'd them, falsely flagging Vlad's Tower as unconnected). Aggregate PRNG calls matched: 25431 → 31649 (+6218). seed8000 unchanged (p:(11)3126/3130 — canary preserved). Big winners: seed0700-samurai 359→1723, seed0017-samurai 325→1368, seed5006-tourist 555→1181, seed4500-knight 289→556. The 23-session place_level cluster is now resolved.
 2026-05-05T15:31Z  85e1b70   js/role.js: role-aware role_init for Wizard/Archeologist nemgend (rn2(100)) and Priest pantheon-loop (rn2(13), single iteration); plus per-role newpw rnd(enadv.inrnd) for Healer/Knight/Priest/Wizard/Monk inside u_init_misc. Plumb role string from nethackrc into game.opts_role. Mirrors C's allmain.c order: init_objects → role_init → lua_pair → init_dungeons → u_init_misc. Aggregate p: 31649 → 43298 (+11649). seed8000 still p:(11)3126/3130 (canary). turnsFully 11→12. Big winners: seed4500 556→1232, seed0016-healer 367→1285, seed0367-priest 362→885, seed0106-priest 431→1201. Small regression seed0501-priest 297→283: pantheon loop iterates twice for that seed; my port emits one rn2(13). The 12 sessions blocked at firstDiv@199-200 (Priest/Wizard/Archeologist) now advance past role_init.
-2026-05-05T15:39Z  <next>   Priest pantheon loop now iterates correctly: models C's `while (pantheon == 6 && ++trycnt < 100) pantheon = rn2(13)`. Priest (idx 6) is the only role in NetHack 5.0 with null lgod (verified by grepping role.c for `0, 0, 0,` god lines), so the loop continues iff rn2(13) returns 6 again. Aggregate p: 43298 → 44162 (+864). seed0501-priest 283 → 1147 (+864) — full recovery of prior regression and then some. seed0367/seed0106 unchanged (their loops were already 1 iteration). seed8000 still canary p:(11)3126/3130.
+2026-05-05T15:39Z  8f138bf   Priest pantheon loop now iterates correctly: models C's `while (pantheon == 6 && ++trycnt < 100) pantheon = rn2(13)`. Priest (idx 6) is the only role in NetHack 5.0 with null lgod (verified by grepping role.c for `0, 0, 0,` god lines), so the loop continues iff rn2(13) returns 6 again. Aggregate p: 43298 → 44162 (+864). seed0501-priest 283 → 1147 (+864) — full recovery of prior regression and then some. seed0367/seed0106 unchanged (their loops were already 1 iteration). seed8000 still canary p:(11)3126/3130.
+2026-05-05T15:49Z  63185d1  options.js: parse `playmode:explore`. Sets g.flags.explore so JS getbones honors C bones.c:639's `if (discover) return 0` — the rn2(3) at bones.c:645 must be skipped in explore mode. seed0900-tourist (only Tourist explore session): 351 → 1285 (+934). seed1150-caveman-explore also gained. Aggregate p: 44162 → 45662 (+1500). seed8000 unchanged.
 ```

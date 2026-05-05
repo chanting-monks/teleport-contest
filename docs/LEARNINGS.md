@@ -210,7 +210,36 @@ ignoring the event channel entirely. Once JS starts emitting events
 
 ---
 
-## 9. `seed8000` is the canary, not the goal
+## 9. nethackrc options that affect PRNG must be plumbed
+
+**Lesson.** Every `OPTIONS=` key that affects a C-side branching
+decision (especially in early-game / level-gen code) must be parsed
+into game state. Missing one introduces silent PRNG drift even if
+all the algorithmic ports are otherwise correct.
+
+**Why.** seed0900-tourist had `OPTIONS=playmode:explore`, which
+maps to C's `discover` flag. C's `getbones` (bones.c:639) returns
+early if `discover` is set, skipping the `rn2(3)` at line 645. JS
+already had a `flags.explore` check in its `getbones` stub, but
+options.js never set the flag — the parser handled `playmode:debug`
+but not `playmode:explore`. Consequence: JS emitted an extra
+`rn2(3)` that C didn't, advancing JS by one PRNG draw and pushing
+every downstream call out of alignment. seed0900 was at 351 calls
+matched; the one-line parser fix took it to 1285.
+
+**How.** Audit `options.c`'s parser against `js/options.js`. Any
+option whose value gets read by something other than UI code must
+be propagated. `playmode` is the canonical example because it
+gates `wizard`, `discover`, and several side effects that are
+non-PRNG-affecting (e.g., `iflags.deferred_X`).
+
+**Pattern.** Every commit that fixes a divergence at firstDiv@N for
+some session group should ALSO check whether other sessions in the
+group have similar nethackrc options that aren't yet parsed.
+
+---
+
+## 10. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
 fastforward exactly matches its seed. Every commit must verify
