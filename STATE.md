@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    0c054d3
-last_run_time:      2026-05-05T17:00Z
-last_aggregate:     p:(12/4143) 45664/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(12/4143) 45664/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        4a32f89
+last_run_commit:    af89e69
+last_run_time:      2026-05-05T17:09Z
+last_aggregate:     p:(11/4143) 45686/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(11/4143) 45686/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        af89e69
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -202,4 +202,8 @@ what changed, did the aggregate move.
 2026-05-05T16:43Z  4a32f89  mklev: fix blessorcurse to mirror C — rn2(chance) + conditional rn2(2). Aggregate p: 45662 → 45664 (+2).
 2026-05-05T16:55Z  c0d3c06  docs/LEARNINGS items 10, 11 — fastforward_step guard hazard and pline timing trap. Documents experiments that regressed (so future iterations don't repeat them).
 2026-05-05T17:00Z  0c054d3  docs/LEARNINGS item 11.5 — screen scoring is bottlenecked on PRNG matching first. Of 10,902 screens, only 15 match (all in seed8000); ALL non-seed8000 sessions have 0 screens matching because they diverge PRNG-wise within ~1500 calls. Pursuing screen fixes ahead of PRNG matching produces no aggregate improvement.
+2026-05-05T17:01Z  eac8b14  state: refresh focus map with current top blockers post-place_level (mkclass, fill_special_room, lspo_map, mkobj RANDOM_CLASS, chargen).
+2026-05-05T17:04Z  f44a370  mklev: partial mkobj RANDOM_CLASS port — emits rnd(100) class pick via mkobjprobs + rnd(class_total) item pick via oclass_prob_totals. Aggregate p: 45664 → 45674 (+10). seed8000 unchanged.
+2026-05-05T17:06Z  e641d25  mklev: port ARMOR_CLASS init in mksobj_init; wire mkobj to invoke it (init=TRUE, synthesized otyp). +11 calls.
+2026-05-05T17:08Z  af89e69  mklev: extend mksobj_init — WEAPON, SPBOOK, WAND classes + mkobj_erosions (rn2(100) erodeproof, rn2(80) flammable+do-while, rn2(80) rottable+do-while, rn2(1000) greased). +12 calls.
 ```
