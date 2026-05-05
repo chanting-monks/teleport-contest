@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    ea922a1
-last_run_time:      2026-05-05T19:20Z
-last_aggregate:     p:(20/4143) 53620/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(20/4143) 53620/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        ea922a1
+last_run_commit:    77395c3
+last_run_time:      2026-05-05T19:59Z
+last_aggregate:     p:(21/4143) 53827/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(21/4143) 53827/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        77395c3
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -308,4 +308,9 @@ Top remaining blockers (10+ session impact each, all deferred — multi-day proj
 - somex/somey for room2+ dimensions (mklev divergence) — 5 sessions
 - fill_ordinary_room mklev:998 — 4 sessions
 - mkclass_aligned monster bitmask — 2 sessions
+
+2026-05-05T19:30Z  4b94efd  mklev: ARMOR_CLASS artif rn2(40) check (mkobj.c:1099). seed1800-tourist 833→842 (+9). Agg 53611→53620.
+2026-05-05T19:32Z  ea922a1  mklev: WEAPON_CLASS artif rn2(20) check (mkobj.c:889). Structural correctness; no immediate gain.
+2026-05-05T19:50Z  2df1325  mklev: document RING_CLASS deferral with regression evidence (charged-ring spe sub-branches need bcsign modeling).
+2026-05-05T19:59Z  77395c3  chargen: handle 'a' rename, 'n' restart, '~' role filter. Inner confirmation loop preserves picks across rename, resets across reject; filter mode skips '~'-opened sub-menus until \r confirms. seed0006 p:(1)1008→p:(2)1215 (+207). Aggregate 53620→53827 (+207, +1 turn).
 ```
