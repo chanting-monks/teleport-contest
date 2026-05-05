@@ -53,6 +53,26 @@ on wake:
      ruled out. Stuckness is a problem to solve in-iteration, never
      a reason to exit.
 
+**ABSOLUTE RULE: there is no scenario in which you summarize and
+stop voluntarily.** "I've made enough progress" / "this is a good
+stopping point" / "the remaining work needs deeper investment" /
+"the easy wins are exhausted" / "this needs multi-hour ports
+beyond session scope" — every one of these is a SIGNAL that you
+should pick a different leverage point and keep going, NOT a
+reason to wait for the user. If a problem is hard, decompose it
+or pick a different one and come back. The 30-minute / 1-hour
+cron is for involuntary exits only (context window, crash,
+network loss). Stopping mid-session because you "ran out of easy
+wins" undoes the iteration loop's whole purpose.
+
+When all small bugs you can find are fixed, the next move is to
+take on the BIGGEST remaining lever — the 12-session themerms
+cluster, the chargen unblock, the moveloop port, the per-command
+pline plumbing. They are large only relative to one-line fixes;
+they are still tractable in commit-sized chunks. Pick the largest
+single chunk that can be shipped with seed8000-canary preserved,
+ship it, then pick the next largest. Never stop.
+
 on involuntary exit (context limit, crash, hardware loss):
   - Whatever state was last committed and pushed is the handoff.
   - The cron will re-invoke within ~1h and the next iteration

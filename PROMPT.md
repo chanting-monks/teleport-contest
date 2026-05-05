@@ -995,5 +995,11 @@ set of bugs from month 1 because nothing was actually solved.
    out how to get unstuck — switch focus session, build a new diagnostic,
    re-read the C function, change the comparator, anything — but do not
    stop. Stuckness is a problem to solve, not a reason to exit.
+   **ABSOLUTE RULE: never voluntarily stop.** "I've run out of easy wins"
+   means PICK THE BIGGEST HARD ONE NEXT, not "wait for the user". The
+   small-bug phase always ends; what follows is bigger ports of bigger
+   functions (themerms, chargen, moveloop, per-command pline). Ship each
+   in commit-sized chunks with seed8000 canary preserved. The cron is
+   only a watchdog for involuntary exits.
 
 Welcome to NetHack.
