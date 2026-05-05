@@ -36,16 +36,13 @@ const ROLES_WITH_RANDOM_NEMGEND = new Set(['Wizard', 'Archeologist']);
 // None of the public sessions show this firing yet; placeholder set.
 const ROLES_WITH_RANDOM_LDRGEND = new Set();
 
-// Roles whose pantheon loop fires randrole(FALSE) → rn2(SIZE(roles)-1)
-// = rn2(13). Triggered when the role's `lgod` is NULL — Priest is the
-// canonical case. The loop iterates until a role with lgod is selected;
-// empirically all observed Priest sessions exit after exactly one
-// rn2(13) call (the first random pick lands on a role with lgod set).
-//
-// Future work: model the pantheon loop accurately if a session ever
-// shows >1 rn2(13) at this site (would require porting the per-role
-// god tables to know which roles have lgod set).
-const ROLES_WITH_PANTHEON_LOOP = new Set(['Priest']);
+// Role index of Priest in the roles[] table (matches js/roles.js order).
+// Priest is the only role in NetHack 5.0 with a null `lgod` field
+// (role.c line 285: "deities from a randomly chosen other role will
+// be used"), so it's the only index that triggers the pantheon
+// retry loop.
+const PRIEST_ROLE_INDEX = 6;
+const SIZE_ROLES_MINUS_ONE = 13;  // SIZE(roles) - 1 in C
 
 export function role_init() {
     const role = game.opts_role || '';
@@ -60,9 +57,25 @@ export function role_init() {
         rn2(100);
     }
 
-    // Pantheon loop (line 2069). One iteration of randrole(FALSE).
-    if (ROLES_WITH_PANTHEON_LOOP.has(role)) {
-        rn2(13);
+    // Pantheon loop (role.c:2068):
+    //     flags.pantheon = flags.initrole;
+    //     while (!roles[flags.pantheon].lgod && ++trycnt < 100)
+    //         flags.pantheon = randrole(FALSE);
+    //
+    // For Priest, initial pantheon == Priest, lgod == null, so the
+    // loop enters at least once. Each iteration emits rn2(13). The
+    // loop exits as soon as the random pick is NOT Priest (only
+    // Priest has null lgod in 5.0).
+    //
+    // For seed0367-priest the loop ran once (rn2(13)=11 → Valkyrie).
+    // For seed0501-priest it ran twice (rn2(13)=6 → Priest again,
+    // rn2(13)=10 → Tourist).
+    if (role === 'Priest') {
+        let pantheon = PRIEST_ROLE_INDEX;
+        let trycnt = 0;
+        while (pantheon === PRIEST_ROLE_INDEX && ++trycnt < 100) {
+            pantheon = rn2(SIZE_ROLES_MINUS_ONE);
+        }
     }
 }
 
