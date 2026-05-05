@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    65450be
-last_run_time:      2026-05-05T18:51Z
-last_aggregate:     p:(20/4143) 53610/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(20/4143) 53610/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        65450be
+last_run_commit:    469fdb9
+last_run_time:      2026-05-05T19:10Z
+last_aggregate:     p:(20/4143) 53611/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(20/4143) 53611/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        469fdb9
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -289,4 +289,10 @@ canary preserved. Cumulative session-2026-05-05: 19,409 → 45,693
 2026-05-05T18:50Z  65450be  chargen: handle 'y' followed by 'n' rejection branch — fires the 4 picks then jumps into manual mode. Unblocks seed0007 (Septor → 'y'(Caveman) → 'n'(reject) → 'r'(Rogue) → pick_align rn2(1)). seed0007 73 → 1409 (+1336, p:(1)→p:(2)). Aggregate 52274 → 53610 (+1336).
 
 Cumulative session-2026-05-05: 19,409 → 53,610 (+34,201, +176%). Turns matched: 1 → 20 (out of 4143). seed8000 canary preserved at p:(11)3126/3130 across all 35+ commits.
+
+2026-05-05T19:00Z  55fa3d9  docs: mark LEARNINGS #12 (chargen) resolved with final approach + impact summary; update STATE run_log with chargen and role-order commits.
+2026-05-05T19:05Z  28defd7  chargen: distinguish y-class (asks confirm) from a-class (skips confirm). For 'a'/'@'/'*', no "Is X OK?" prompt fires — next keystroke is gameplay, so we don't check for 'n' rejection. Defensive correctness fix; no current sessions affected, prevents future regressions.
+2026-05-05T19:10Z  469fdb9  mklev: fix RING/AMULET oclass_prob_totals swap. RING() macro hardcodes oc_prob=1, 28 entries → total 28 (not 1000). AMULET probs sum to 1000 (not 28). Aggregate +1 (limited because most sessions diverge before RING/AMULET picks).
+
+Cumulative session-2026-05-05 (final): 19,409 → 53,611 (+34,202, +176%). seed8000 canary preserved across all 40+ commits.
 ```
