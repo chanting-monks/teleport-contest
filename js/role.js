@@ -235,12 +235,76 @@ export function chargen_simulate(moves) {
 // Manual-menu chargen ('n' branch). Walks RS_ROLE/RACE/GENDER/ALGNMNT
 // stages, emitting PICK_RIGID rn2(1) calls via rigid_role_checks
 // before each menu shown.
+//
+// After completing all stages, looks for the "Is this ok?" confirmation
+// response. 'y' / space / \r → accept (chargen complete); 'n' → reject
+// and restart this whole function with all attributes reset (matches
+// role.c:2716 makepicks goto); 'a' → rename flow: skip new name (until
+// \r/\n), then read the next "Is this ok?" response, looping again.
+// 'q' / ESC → quit (chargen ends, return what we have).
 function chargen_manual(moves, idx) {
+    let picked = null;
+    while (true) {
+        const result = chargen_manual_pass(moves, idx);
+        if (!result) return picked;
+        idx = result.idx;
+        picked = result.picked;
+        // Inner loop: process confirmation responses. 'a' (rename) keeps
+        // the picks and re-shows the confirmation; 'n' resets and restarts
+        // the whole chargen; 'y'/space/\r/\n/q/ESC ends chargen.
+        while (true) {
+            while (idx < moves.length
+                   && moves[idx] !== 'y' && moves[idx] !== 'Y'
+                   && moves[idx] !== 'n' && moves[idx] !== 'N'
+                   && moves[idx] !== 'a' && moves[idx] !== 'A'
+                   && moves[idx] !== 'q' && moves[idx] !== 'Q'
+                   && moves[idx] !== ' ' && moves[idx] !== '\r' && moves[idx] !== '\n'
+                   && moves[idx] !== '\x1b') idx++;
+            if (idx >= moves.length) return picked;
+            const confirm = moves[idx]; idx++;
+            if (confirm === 'a' || confirm === 'A') {
+                // rename: skip new name (until \r/\n), then continue inner
+                // loop to process the next confirm prompt. C ref: role.c:2693
+                // preserves ROLE/RACE/GEND/ALGN across rename.
+                while (idx < moves.length && moves[idx] !== '\r' && moves[idx] !== '\n') idx++;
+                if (idx < moves.length) idx++;
+                continue;
+            }
+            if (confirm === 'n' || confirm === 'N') {
+                // reject: outer loop restarts chargen_manual_pass with reset state.
+                // C ref: role.c:2716 sets all to ROLE_NONE and gotos makepicks.
+                break;
+            }
+            // 'y'/space/\r/\n/q/ESC: accept or quit; return what we have
+            return picked;
+        }
+    }
+}
+
+function chargen_manual_pass(moves, idx) {
     const s = { roleIdx: null, race: null, gend: null, algn: null };
 
-    // Stage RS_ROLE — read role letter
-    while (idx < moves.length && !(moves[idx] in ROLE_BY_LETTER)) idx++;
-    if (idx >= moves.length) return null;
+    // Stage RS_ROLE — read role letter, but skip filter-mode keystrokes.
+    // C ref: role.c filter_menu (RS_filter). When the user presses '~' in
+    // the role menu, they enter filter setup; subsequent letters add to
+    // the filter list and \r/\n confirms. After confirmation, the role
+    // menu reappears (now filtered) and the user picks a role letter.
+    // The filter keystrokes don't fire any rn2 calls, so we just skip
+    // them. Multiple filter rounds are possible (seed0006 has two: role
+    // filter then race filter).
+    while (true) {
+        while (idx < moves.length && !(moves[idx] in ROLE_BY_LETTER)
+               && moves[idx] !== '~' && moves[idx] !== 'F') idx++;
+        if (idx >= moves.length) return null;
+        if (moves[idx] === '~' || moves[idx] === 'F') {
+            // Filter mode: skip the rest until \r/\n confirm
+            idx++;
+            while (idx < moves.length && moves[idx] !== '\r' && moves[idx] !== '\n') idx++;
+            if (idx < moves.length) idx++;
+            continue;
+        }
+        break;
+    }
     s.roleIdx = ROLE_BY_LETTER[moves[idx]]; idx++;
 
     // Stage RS_RACE
@@ -290,8 +354,11 @@ function chargen_manual(moves, idx) {
     }
 
     return {
-        role: ROLE_DATA[s.roleIdx].name,
-        race: s.race, gender: s.gend, align: s.algn,
+        idx,
+        picked: {
+            role: ROLE_DATA[s.roleIdx].name,
+            race: s.race, gender: s.gend, align: s.algn,
+        },
     };
 }
 
