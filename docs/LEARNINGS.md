@@ -338,55 +338,55 @@ between handler and the next nhgetch.
 
 ---
 
-## 12. Chargen port requires per-role bitmask data from role.c roles[]
+## 12. Chargen port — RESOLVED via per-role bitmask + UI sim (commits 0e45afd, 0df7f38, 65450be)
 
-**Lesson.** To port pick_role/pick_race/pick_gend/pick_align faithfully,
-JS needs per-role bitmask data: which races, genders, and alignments
-each role allows. The data is encoded in C role.c's roles[] table as
-`MH_HUMAN | MH_ELF | ... | ROLE_MALE | ROLE_FEMALE | ROLE_LAWFUL`
-flag combinations.
+**Final approach.** chargen_simulate(moves) in js/role.js walks the
+keystroke prefix after name+\r:
+- 'y'/'a'/space/\r/\n/@/* → pick_role+race+gend+align (4 rn2 calls).
+- 'n' → manual menu mode. Per-stage (RS_ROLE→RACE→GENDER→ALGNMNT),
+  if attribute unset and >1 valid, fire rigid_role_checks
+  (PICK_RIGID emits rn2(1) for each unset attr with exactly 1 valid)
+  then read menu accelerator key from moves to set the attribute.
+- 'y' followed by 'n' (rejection of "Is X OK?") → fire 4 picks
+  then enter manual mode (the picks' values are discarded; PRNG
+  state still advances).
 
-**Why.** pick_race emits `rn2(races_ok)` where races_ok = popcount of
-the role's MH_* bits. pick_gend emits `rn2(gends_ok)`. pick_align
-emits `rn2(aligns_ok)` where the role's allowed aligns are
-intersected with the chosen race's allowed aligns. Without
-per-role/per-race bitmask data, JS can't compute the right
-rn2 args. Adding chargen WITHOUT this data emits wrong N for each
-pick and breaks the PRNG sequence worse than emitting nothing.
+**Wiring.** allmain.js newgame() calls chargen_simulate BEFORE
+fastforward_pre_dungeon (which contains init_objects). Detection in
+options.js detectChargenNeeded(opts): runs whenever ANY of role/race/
+gender/align is unset in nethackrc. Picked attributes are stored on
+g.opts_role/race/gender/align so role_init's nemgend and the welcome
+banner work correctly.
 
-**How.** Future iteration that takes the chargen chunk should:
-1. Extract per-role bitmasks by parsing nethack-c/upstream/src/role.c
-   roles[]. Format suggestion:
-     ```js
-     const ROLE_DATA = [
-       { name: 'Archeologist', races: ['human','dwarf','gnome'],
-         genders: ['male','female'], aligns: ['lawful','neutral'] },
-       { name: 'Barbarian', races: ['human','orc'],
-         genders: ['male','female'], aligns: ['neutral','chaotic'] },
-       ... 13 entries
-     ];
-     ```
-2. Extract per-race aligns from races[] table similarly (some races
-   constrain alignment).
-3. Implement `pick_role()`/`pick_race()`/`pick_gend()`/`pick_align()`
-   following role.c:1024-1240. Each emits rn2(N) where N is the
-   intersect-count and the result selects from the valid set.
-4. Wire into NethackGame.start() BEFORE fastforward_pre_dungeon. For
-   sessions with role/race/gender/align all specified in rc, no rn2
-   fires (matches C). For sessions with some unspecified, the picks
-   fire in order.
+**Required data tables** (now in js/role.js):
+- ROLE_DATA[13]: per-role races/gens/aligns lists.
+- RACE_ALIGNS / RACE_GENDS: per-race allowed sets (e.g., elf only
+  allows chaotic alignment, regardless of role).
 
-Sessions that would benefit (firstDiv@0 cluster): seed0002, seed0004,
-seed0006, seed0007, seed0009, seed0014, seed0077. Each is currently
-stuck at the very first PRNG call and would advance significantly
-once chargen is ported.
+**Impact.** 7 sessions advanced from firstDiv@0 to 1+ matched turn:
+- seed0002-healer:    p:(0)90 → (1)1008 (+918)
+- seed0004-feeding:   p:(0)108 → (1)544 (+436)
+- seed0006-wizard:    p:(0)138 → (1)1008 (+870)
+- seed0007-rogue:     p:(0)190 → (2)1409 (+1219)
+- seed0009-swimmer:   p:(0)126 → (1)529 (+403)
+- seed0014-dequa:     p:(0)78 → (1)1517 (+1439)
+- seed0077-rogue:     p:(0)445 → (1)2445 (+2000)
 
-**Caveat.** Some sessions (seed0014) have only PARTIAL randomness —
-the user pressed specific letters for some menus. Without UI
-simulation, we can't know which were random. A pure "all random"
-fallback works for fully-random sessions but mismatches partial-
-random ones. UI sim is the next layer; data tables are the
-prerequisite.
+Total chargen contribution: +7888 PRNG calls and +7 matched turns.
+
+**Caveats discovered during port.**
+- C role order has Rogue=7, Ranger=8 (role.c:318/358). JS originally
+  had them swapped — fixed in commit fcab8c6.
+- pick_align rn2(N) where N depends on race AS WELL AS role: e.g.,
+  Caveman+gnome → 1 align (neutral). Wizard+orc → 1 align (chaotic).
+  Race ALIGNs subset is required (RACE_ALIGNS table).
+- rigid_role_checks runs INSIDE plsel_startmenu (role.c:2814), which
+  is only invoked when n>1 (menu shown). For attributes auto-set
+  via rigid_role_checks during a previous menu's setup, no rn2 fires
+  in the later stage's "n=1 just pick" branch.
+- '~' / filter-reset menus and complex re-pick flows (seed0006 step
+  22+) are NOT yet modeled. seed0006 still diverges at index 1
+  (the 2nd pick_align after a complex restart) but matches 1 turn.
 
 ---
 

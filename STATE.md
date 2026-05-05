@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    83ffad8
-last_run_time:      2026-05-05T18:15Z
-last_aggregate:     p:(12/4143) 45700/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(12/4143) 45700/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        83ffad8
+last_run_commit:    65450be
+last_run_time:      2026-05-05T18:51Z
+last_aggregate:     p:(20/4143) 53610/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(20/4143) 53610/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        65450be
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -278,4 +278,15 @@ behavior matches C for non-seed8000 seeds. Deferred.
 Session-final aggregate this turn: 45,693 PRNG calls. seed8000
 canary preserved. Cumulative session-2026-05-05: 19,409 → 45,693
 (+26,284, +135%).
+
+2026-05-05T18:30Z  3e76165  fastforward: room1 second somex/somey parameterized for object placement. +5.
+2026-05-05T18:32Z  5da4f73  fastforward: room2 sleeping_mon somex/somey parameterized. +10.
+2026-05-05T18:33Z  66223fe  fastforward: replace remaining rn2(14); rn2(2) with room2 dim params. +5.
+2026-05-05T18:35Z  f4baa83  fastforward: room3 sleeping somex/somey parameterized. +2.
+2026-05-05T18:36Z  fcab8c6  role: fix Rogue/Ranger order swap (C:Rogue=7,Ranger=8 — JS had them swapped). Foundational fix; no immediate PRNG impact since no live code path indexes the role table for randomization yet.
+2026-05-05T18:40Z  0e45afd  chargen: port pick_role/race/gend/align for full-random ('y'/'a') chargen sessions. Detect via empty role/race/gender/align in nethackrc + 'y'-class first response after name. Computes race-conditional align counts (e.g., Caveman+gnome→1 align). Aggregate p: 45722 → 47362 (+1640, +4 turns). seed0002/0004/0009 advanced from p:(0)~100 to p:(1)500-1000.
+2026-05-05T18:48Z  0df7f38  chargen: port 'n' manual mode with rigid_role_checks PICK_RIGID rn2(1) emission. Walks moves keystrokes through role/race/gender/align stages, emitting auto-pick rn2 calls when constrained to single valid option. Aggregate p: 47362 → 52274 (+4912, +3 turns). seed0006/0014/0077 advanced to (1)1008/1517/2445.
+2026-05-05T18:50Z  65450be  chargen: handle 'y' followed by 'n' rejection branch — fires the 4 picks then jumps into manual mode. Unblocks seed0007 (Septor → 'y'(Caveman) → 'n'(reject) → 'r'(Rogue) → pick_align rn2(1)). seed0007 73 → 1409 (+1336, p:(1)→p:(2)). Aggregate 52274 → 53610 (+1336).
+
+Cumulative session-2026-05-05: 19,409 → 53,610 (+34,201, +176%). Turns matched: 1 → 20 (out of 4143). seed8000 canary preserved at p:(11)3126/3130 across all 35+ commits.
 ```
