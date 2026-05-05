@@ -12,6 +12,11 @@
 //   node scripts/compare-firstdiv.mjs seed0077-rogue-chargen
 //   node scripts/compare-firstdiv.mjs sessions/seed0077-rogue-chargen.session.json
 //   node scripts/compare-firstdiv.mjs --all     (summary table sorted by firstDiv asc)
+//   node scripts/compare-firstdiv.mjs --prng-only <session>  (filter both sides
+//                                                             to PRNG calls before
+//                                                             comparison — matches
+//                                                             score-table's p: column)
+//   node scripts/compare-firstdiv.mjs --all --prng-only       (combine)
 //
 // Exit code: 0 if logs fully match, 1 if a divergence was found, 2 on error.
 
@@ -38,6 +43,15 @@ function stripJsIndex(s) {
     return s.replace(/^\d+\s+/, '');
 }
 
+// PRNG-only filter — same shape ps_test_runner / score-table use to
+// compute the p: column. When the C log contains events but the JS
+// log doesn't (the current state of the world), full-log alignment
+// reports firstDiv@0 even when the PRNG-only sequences agree for
+// hundreds of calls. --prng-only reveals the real PRNG drift point.
+function isRngCall(entry) {
+    return typeof entry === 'string' && /^(?:rn2|rnd|rn1|rnl|rne|rnz|d)\(/.test(entry);
+}
+
 function resolveSessionPath(target) {
     if (existsSync(target)) return target;
     const fromRoot = join(PROJECT_ROOT, target);
@@ -55,7 +69,7 @@ function resolveSessionPath(target) {
 // the --all driver to consume.
 const WORKER_FLAG = '--worker-summary=';
 
-async function singleSessionSummary(sessionPath) {
+async function singleSessionSummary(sessionPath, prngOnly) {
     try {
         const fr = join(PROJECT_ROOT, 'frozen');
         const js = join(PROJECT_ROOT, 'js');
@@ -76,7 +90,9 @@ async function singleSessionSummary(sessionPath) {
     for (const seg of segments) {
         for (const step of seg.steps || []) {
             for (const line of (step.rng || [])) {
-                if (typeof line === 'string') cLog.push({ line, step: stepIdx });
+                if (typeof line !== 'string') continue;
+                if (prngOnly && !isRngCall(line)) continue;
+                cLog.push({ line, step: stepIdx });
             }
             stepIdx++;
         }
@@ -94,7 +110,8 @@ async function singleSessionSummary(sessionPath) {
     } catch (e) {
         jsError = e.message;
     }
-    const jsLog = (game?.getRngLog() || []).map(stripJsIndex);
+    let jsLog = (game?.getRngLog() || []).map(stripJsIndex);
+    if (prngOnly) jsLog = jsLog.filter(isRngCall);
 
     let firstDiv = -1;
     const N = Math.max(cLog.length, jsLog.length);
@@ -122,7 +139,7 @@ async function singleSessionSummary(sessionPath) {
     };
 }
 
-async function runAll() {
+async function runAll(prngOnly) {
     const files = readdirSync(SESSIONS_DIR)
         .filter(f => f.endsWith('.session.json'))
         .sort()
@@ -133,7 +150,9 @@ async function runAll() {
     for (const sf of files) {
         const sessionName = basename(sf).replace(/\.session\.json$/, '');
         process.stderr.write(`  ${sessionName} ... `);
-        const child = spawnSync(process.execPath, [SCRIPT_PATH, `${WORKER_FLAG}${sf}`], {
+        const workerArgs = [SCRIPT_PATH, `${WORKER_FLAG}${sf}`];
+        if (prngOnly) workerArgs.push('--prng-only');
+        const child = spawnSync(process.execPath, workerArgs, {
             cwd: PROJECT_ROOT,
             encoding: 'utf8',
             timeout: timeoutMs,
@@ -170,7 +189,7 @@ async function runAll() {
     });
 
     const padTo = Math.max(40, ...results.map(r => r.session.length));
-    process.stdout.write(`# first-divergence summary across ${results.length} sessions\n`);
+    process.stdout.write(`# first-divergence summary across ${results.length} sessions${prngOnly ? '  [PRNG-only]' : ''}\n`);
     process.stdout.write(`# sort: matched first, then firstDiv ascending (simplest = highest focus priority)\n`);
     process.stdout.write('\n');
     for (const r of results) {
@@ -196,25 +215,26 @@ async function runAll() {
 
 async function main() {
     const args = process.argv.slice(2);
+    const prngOnly = args.includes('--prng-only');
 
     const workerArg = args.find(a => a.startsWith(WORKER_FLAG));
     if (workerArg) {
-        const summary = await singleSessionSummary(workerArg.slice(WORKER_FLAG.length));
+        const summary = await singleSessionSummary(workerArg.slice(WORKER_FLAG.length), prngOnly);
         process.stdout.write('__SUMMARY__\n');
         process.stdout.write(JSON.stringify(summary));
         return;
     }
 
     if (args.includes('--all')) {
-        await runAll();
+        await runAll(prngOnly);
         return;
     }
 
-    const target = args[0];
+    const target = args.find(a => !a.startsWith('--'));
     if (!target) {
         process.stderr.write(
-            'Usage: node scripts/compare-firstdiv.mjs <session>\n' +
-            '       node scripts/compare-firstdiv.mjs --all\n' +
+            'Usage: node scripts/compare-firstdiv.mjs [--prng-only] <session>\n' +
+            '       node scripts/compare-firstdiv.mjs [--prng-only] --all\n' +
             'Example: node scripts/compare-firstdiv.mjs seed0077-rogue-chargen\n'
         );
         process.exit(2);
@@ -250,9 +270,9 @@ async function main() {
     for (const seg of segments) {
         for (const step of seg.steps || []) {
             for (const line of (step.rng || [])) {
-                if (typeof line === 'string') {
-                    cLog.push({ line, step: stepIdx });
-                }
+                if (typeof line !== 'string') continue;
+                if (prngOnly && !isRngCall(line)) continue;
+                cLog.push({ line, step: stepIdx });
             }
             stepIdx++;
         }
@@ -276,7 +296,8 @@ async function main() {
         jsError = e;
     }
 
-    const jsLog = (game?.getRngLog() || []).map(stripJsIndex);
+    let jsLog = (game?.getRngLog() || []).map(stripJsIndex);
+    if (prngOnly) jsLog = jsLog.filter(isRngCall);
 
     // Walk in parallel until the first normalized mismatch.
     let firstDiv = -1;

@@ -141,5 +141,6 @@ what changed, did the aggregate move.
 2026-05-05T14:08Z  4c46062  add AGENTS.md, scripts/compare-firstdiv.mjs (first-divergence localizer); fix 30m→1h cron docs. agg unchanged (infra).
 2026-05-05T14:11Z  d4a4d1a  compare-firstdiv: add --all summary mode for focus selection. agg unchanged (infra).
 2026-05-05T14:23Z  eb34692  fix initRng/enableRngLog wiping rng log on each segment — multi-segment sessions now retain seg0 calls in the cumulative log. PRNG matched 19409 → 25431 (+6022) across 44 sessions; seed0030 alone gained +4987.
-2026-05-05T14:35Z  <next>   STATE.md focus update: identified post-shuffle fastforward.js mismatches as next blocker (wizard-mode rn2(100) skips at role.c:2060, dungeon.c:1022, dungeon.c:572). agg unchanged (focus narrowing).
+2026-05-05T14:35Z  5fa0e94  STATE.md focus update: identified post-shuffle fastforward.js mismatches as next blocker (wizard-mode rn2(100) skips at role.c:2060, dungeon.c:1022, dungeon.c:572). agg unchanged (focus narrowing).
+2026-05-05T14:48Z  <next>   compare-firstdiv: add --prng-only filter so event-bearing sessions show their real PRNG-channel firstDiv (was masked at 0 by C events vs JS PRNG misalignment). Distribution after log-wipe fix: 7 sessions diverge [0,100) — full chargen needed; 13 in [100,200) — pick_role / role_init; 23 in [200,300) — place_level dungeon issues; seed8000 alone at 3103 (fastforward home). place_level cluster is highest-leverage focus.
 ```
