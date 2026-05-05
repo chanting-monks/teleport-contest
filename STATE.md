@@ -259,4 +259,7 @@ what changed, did the aggregate move.
 2026-05-05T17:32Z  ea4db6e  role: add ROLE_DATA bitmask table (foundation for future chargen port). 13 roles' allowed (races, genders, aligns) extracted from C role.c roles[].flags. Not wired into chargen yet — needs UI sim to distinguish menu-letter picks from random.
 2026-05-05T17:55Z  1fb5b96  fastforward: parameterize first rn2 of fastforward_fill_mineralize by JS-computed fillable_room_count (matches C mklev.c:1402 bonus_item_room_countdown). Aggregate p: 45683 → 45693 (+10). seed2200-wizard 1227→1243 (+16) biggest single gain; ~+1 each for several other sessions blocked at makelevel:1410. seed8000 unchanged (computes 8 rooms, matches the prior hardcoded value).
 2026-05-05T17:56Z  a2f0950  allmain: extract countFillableRooms helper using OROOM/THEMEROOM/FILL_NORMAL constants — cleanup, no behavior change.
+2026-05-05T18:00Z  c36c0df  state: log fillable_room_count fix and helper extraction.
+2026-05-05T18:05Z  f8f6d9f  cmd: drop "Unknown command" pline. Stops fabricating messages for non-movement keys where C is silent or has specific message.
+2026-05-05T18:10Z  b37d274  docs/LEARNINGS item 13: JS flush_screen wipes the grid each iteration (clearScreen() then re-render), so persisting _pending_message can't fix screens without a deeper display refactor. Verified empirically — removing the message-clear regressed seed8000 from 15/23 to 1/23 because the welcome message persisted into all later screens.
 ```
