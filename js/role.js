@@ -100,3 +100,34 @@ const ROLE_ENADV_INRND = {
 export function role_enadv_inrnd() {
     return ROLE_ENADV_INRND[game.opts_role || ''] || 0;
 }
+
+// Per-role allowed (races, genders, aligns) bitmask data extracted from
+// nethack-c/upstream/src/role.c roles[].flags. Order matches js/roles.js.
+//
+// Required by the future chargen port (LEARNINGS item #12) to compute
+// pick_race/pick_gend/pick_align rn2 args. NOT YET WIRED INTO chargen
+// because the chargen UI distinguishes "user pressed letter for menu X"
+// from "user pressed * for random" via keystroke inspection of moves;
+// without that distinction, emitting all picks for sessions with empty
+// rc components mismatches sessions where the user pressed letters
+// (e.g., seed0077: only align was random; pick_role/race/gend were
+// menu-picked by letter and emit 0 rn2 calls in C).
+//
+// Future iteration that takes the chargen chunk will (a) parse the
+// chargen-relevant prefix of moves[] to identify menu choices, then
+// (b) emit pick_* only when a menu was random.
+export const ROLE_DATA = [
+    { name: 'Archeologist', races: ['human','dwarf','gnome'],         gens: ['male','female'], aligns: ['lawful','neutral'] },
+    { name: 'Barbarian',    races: ['human','orc'],                   gens: ['male','female'], aligns: ['neutral','chaotic'] },
+    { name: 'Caveman',      races: ['human','dwarf','gnome'],         gens: ['male','female'], aligns: ['lawful','neutral'] },
+    { name: 'Healer',       races: ['human','gnome'],                 gens: ['male','female'], aligns: ['neutral'] },
+    { name: 'Knight',       races: ['human'],                         gens: ['male','female'], aligns: ['lawful'] },
+    { name: 'Monk',         races: ['human'],                         gens: ['male','female'], aligns: ['lawful','neutral','chaotic'] },
+    { name: 'Priest',       races: ['human','elf'],                   gens: ['male','female'], aligns: ['lawful','neutral','chaotic'] },
+    { name: 'Ranger',       races: ['human','elf','gnome','orc'],     gens: ['male','female'], aligns: ['neutral','chaotic'] },
+    { name: 'Rogue',        races: ['human','orc'],                   gens: ['male','female'], aligns: ['chaotic'] },
+    { name: 'Samurai',      races: ['human'],                         gens: ['male','female'], aligns: ['lawful'] },
+    { name: 'Tourist',      races: ['human'],                         gens: ['male','female'], aligns: ['neutral'] },
+    { name: 'Valkyrie',     races: ['human','dwarf'],                 gens: ['female'],        aligns: ['lawful','neutral'] },
+    { name: 'Wizard',       races: ['human','elf','gnome','orc'],     gens: ['male','female'], aligns: ['neutral','chaotic'] },
+];
