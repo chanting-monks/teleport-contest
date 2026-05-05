@@ -11,11 +11,13 @@
 //   node scripts/compare-firstdiv.mjs <session-name-or-path>
 //   node scripts/compare-firstdiv.mjs seed0077-rogue-chargen
 //   node scripts/compare-firstdiv.mjs sessions/seed0077-rogue-chargen.session.json
+//   node scripts/compare-firstdiv.mjs --all     (summary table sorted by firstDiv asc)
 //
 // Exit code: 0 if logs fully match, 1 if a divergence was found, 2 on error.
 
-import { readFileSync, existsSync, writeFileSync } from 'fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync } from 'fs';
 import { join, basename } from 'path';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
@@ -49,11 +51,170 @@ function resolveSessionPath(target) {
     throw new Error(`session not found: ${target}`);
 }
 
+// Worker mode (internal) — emit a single-session summary as JSON for
+// the --all driver to consume.
+const WORKER_FLAG = '--worker-summary=';
+
+async function singleSessionSummary(sessionPath) {
+    try {
+        const fr = join(PROJECT_ROOT, 'frozen');
+        const js = join(PROJECT_ROOT, 'js');
+        for (const f of ['isaac64.js', 'terminal.js']) {
+            const src = join(fr, f);
+            const dst = join(js, f);
+            if (existsSync(src)) writeFileSync(dst, readFileSync(src));
+        }
+    } catch (_) { /* best-effort */ }
+
+    const sessionData = JSON.parse(readFileSync(sessionPath, 'utf8'));
+    const { normalizeSession } = await import(join(PROJECT_ROOT, 'frozen/session_loader.mjs'));
+    const { runSegment } = await import(join(PROJECT_ROOT, 'js/jsmain.js'));
+
+    const segments = normalizeSession(sessionData).segments;
+    const cLog = [];
+    let stepIdx = 0;
+    for (const seg of segments) {
+        for (const step of seg.steps || []) {
+            for (const line of (step.rng || [])) {
+                if (typeof line === 'string') cLog.push({ line, step: stepIdx });
+            }
+            stepIdx++;
+        }
+    }
+
+    let game = null;
+    let jsError = null;
+    try {
+        for (const seg of segments) {
+            game = await runSegment(
+                { seed: seg.seed, datetime: seg.datetime, nethackrc: seg.nethackrc, moves: seg.moves },
+                game
+            );
+        }
+    } catch (e) {
+        jsError = e.message;
+    }
+    const jsLog = (game?.getRngLog() || []).map(stripJsIndex);
+
+    let firstDiv = -1;
+    const N = Math.max(cLog.length, jsLog.length);
+    for (let i = 0; i < N; i++) {
+        const c = cLog[i]?.line;
+        const j = jsLog[i];
+        const cn = c === undefined ? null : normalize(c);
+        const jn = j === undefined ? null : normalize(j);
+        if (cn !== jn) { firstDiv = i; break; }
+    }
+
+    const cLine = firstDiv >= 0 ? cLog[firstDiv]?.line ?? '' : '';
+    const jLine = firstDiv >= 0 ? jsLog[firstDiv] ?? '' : '';
+    const cStep = firstDiv >= 0 ? cLog[firstDiv]?.step ?? -1 : -1;
+
+    return {
+        session: basename(sessionPath).replace(/\.session\.json$/, ''),
+        cLines: cLog.length,
+        jsLines: jsLog.length,
+        firstDiv,
+        cStep,
+        cLine,
+        jLine,
+        error: jsError,
+    };
+}
+
+async function runAll() {
+    const files = readdirSync(SESSIONS_DIR)
+        .filter(f => f.endsWith('.session.json'))
+        .sort()
+        .map(f => join(SESSIONS_DIR, f));
+
+    const timeoutMs = Number(process.env.SESSION_REPLAY_TIMEOUT_MS || 60000);
+    const results = [];
+    for (const sf of files) {
+        const sessionName = basename(sf).replace(/\.session\.json$/, '');
+        process.stderr.write(`  ${sessionName} ... `);
+        const child = spawnSync(process.execPath, [SCRIPT_PATH, `${WORKER_FLAG}${sf}`], {
+            cwd: PROJECT_ROOT,
+            encoding: 'utf8',
+            timeout: timeoutMs,
+            maxBuffer: 64 * 1024 * 1024,
+        });
+        let r;
+        if (child.error || (child.status ?? 0) !== 0) {
+            const err = child.error?.message || (child.stderr || '').trim().split('\n').slice(-1)[0] || `exit ${child.status}`;
+            r = { session: sessionName, cLines: 0, jsLines: 0, firstDiv: -1, cStep: -1, cLine: '', jLine: '', error: err };
+        } else {
+            const out = child.stdout || '';
+            const idx = out.lastIndexOf('__SUMMARY__');
+            if (idx < 0) {
+                r = { session: sessionName, cLines: 0, jsLines: 0, firstDiv: -1, cStep: -1, cLine: '', jLine: '', error: 'missing __SUMMARY__ marker' };
+            } else {
+                r = JSON.parse(out.slice(idx + '__SUMMARY__'.length).trim());
+            }
+        }
+        results.push(r);
+        process.stderr.write(
+            r.error ? `err\n` : `firstDiv@${r.firstDiv} (step ${r.cStep})\n`
+        );
+    }
+
+    // Sort: matches first (firstDiv === -1 and no error), then by firstDiv ascending.
+    // Within the diverging ones, low firstDiv = simpler session = better focus.
+    results.sort((a, b) => {
+        const aMatch = a.firstDiv === -1 && !a.error;
+        const bMatch = b.firstDiv === -1 && !b.error;
+        if (aMatch !== bMatch) return aMatch ? -1 : 1;
+        if (a.error && !b.error) return 1;
+        if (!a.error && b.error) return -1;
+        return (a.firstDiv === -1 ? Infinity : a.firstDiv) - (b.firstDiv === -1 ? Infinity : b.firstDiv);
+    });
+
+    const padTo = Math.max(40, ...results.map(r => r.session.length));
+    process.stdout.write(`# first-divergence summary across ${results.length} sessions\n`);
+    process.stdout.write(`# sort: matched first, then firstDiv ascending (simplest = highest focus priority)\n`);
+    process.stdout.write('\n');
+    for (const r of results) {
+        const name = r.session.padEnd(padTo);
+        if (r.error) {
+            process.stdout.write(`${name}  ERROR  ${r.error.slice(0, 60)}\n`);
+        } else if (r.firstDiv === -1) {
+            process.stdout.write(`${name}  MATCH  (${r.cLines} lines)\n`);
+        } else {
+            process.stdout.write(
+                `${name}  firstDiv@${String(r.firstDiv).padStart(5)}  step=${String(r.cStep).padStart(4)}  C=${r.cLines} JS=${r.jsLines}\n`
+            );
+            const c = r.cLine ? r.cLine.slice(0, 70) : '<JS overshoots>';
+            const j = r.jLine ? r.jLine.slice(0, 70) : '<JS underruns>';
+            process.stdout.write(`${' '.repeat(padTo)}    C: ${c}\n`);
+            process.stdout.write(`${' '.repeat(padTo)}   JS: ${j}\n`);
+        }
+    }
+
+    const matched = results.filter(r => !r.error && r.firstDiv === -1).length;
+    process.stdout.write(`\n# matched=${matched}/${results.length}  diverging=${results.filter(r => r.firstDiv >= 0).length}  errored=${results.filter(r => r.error).length}\n`);
+}
+
 async function main() {
-    const target = process.argv[2];
+    const args = process.argv.slice(2);
+
+    const workerArg = args.find(a => a.startsWith(WORKER_FLAG));
+    if (workerArg) {
+        const summary = await singleSessionSummary(workerArg.slice(WORKER_FLAG.length));
+        process.stdout.write('__SUMMARY__\n');
+        process.stdout.write(JSON.stringify(summary));
+        return;
+    }
+
+    if (args.includes('--all')) {
+        await runAll();
+        return;
+    }
+
+    const target = args[0];
     if (!target) {
         process.stderr.write(
             'Usage: node scripts/compare-firstdiv.mjs <session>\n' +
+            '       node scripts/compare-firstdiv.mjs --all\n' +
             'Example: node scripts/compare-firstdiv.mjs seed0077-rogue-chargen\n'
         );
         process.exit(2);
