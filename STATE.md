@@ -250,4 +250,8 @@ what changed, did the aggregate move.
 2026-05-05T17:08Z  af89e69  mklev: extend mksobj_init — WEAPON, SPBOOK, WAND classes + mkobj_erosions (rn2(100) erodeproof, rn2(80) flammable+do-while, rn2(80) rottable+do-while, rn2(1000) greased). +12 calls.
 2026-05-05T17:12Z  1e4d4bb  mklev: port AMULET_CLASS in mksobj_init — rn2(10) + blessorcurse(10). turnsFully 11→12 (recovered from prior coincidental shift). seed8000 unchanged.
 2026-05-05T17:14Z  536ff81  mklev: faithful WEAPON_CLASS init — rn2(11) + (rne(3)+rn2(2) | rn2(10)+(rne(3)|blessorcurse(10))). 0 immediate gain (no test session exercises WEAPON via mkobj path) but correct C-shape for future unlocks.
+2026-05-05T17:15Z  eb37561  state: log AMULET + WEAPON ports; mksobj_init now covers 7 classes.
+2026-05-05T17:18Z  50335ba  state: enumerate concrete next-chunk priorities (5 chunks with leverage estimates).
+2026-05-05T17:22Z  65534df  dungeon: drop unused rnd import (cleanup, no behavior change).
+2026-05-05T17:24Z  ed61814  mklev: mkcorpstat now respects CORPSTAT_INIT (0x08) flag. Was hardcoded init=false; now derives from caller flags. Affects corpse/statue generation paths to invoke mksobj_init properly.
 ```
