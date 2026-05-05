@@ -35,6 +35,7 @@ export function parseNethackrc(rc) {
                 else if (key === 'gender') result.gender = val;
                 else if (key === 'align') result.align = val;
                 else if (key === 'playmode' && val === 'debug') result.flags.debug = true;
+                else if (key === 'playmode' && val === 'explore') result.flags.explore = true;
                 else if (key === 'pettype' || key === 'pet') {
                     result.flags.pettype = val;
                     if (val === 'none' || val === 'n') result.preferred_pet = 'n';
