@@ -46,9 +46,14 @@ export async function rhack(key) {
         await domove(DIR_DX[ch], DIR_DY[ch]);
         game.context.move = 1;
     } else {
-        // Unknown command
+        // Non-movement command — silent for now. C plines specific
+        // messages for each command (e.g., '+' → "You don't know any
+        // spells right now."), but emitting a generic "Unknown command"
+        // pollutes screens for non-movement commands where C may also
+        // be silent (ESC) or display a different specific message.
+        // Future ports of individual command handlers will pline the
+        // right message at this point.
         game.context.move = 0;
-        await pline(`Unknown command '${ch}'.`);
     }
 }
 
