@@ -19,7 +19,7 @@ import {
     fastforward_fill_mineralize,
 } from './fastforward.js';
 import { init_dungeons } from './dungeon.js';
-import { role_init, chargen_full_random } from './role.js';
+import { role_init, chargen_simulate } from './role.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
 
 // C ref: mklev.c:929 ROOM_IS_FILLABLE macro
@@ -61,17 +61,21 @@ function firstFillableRoomDims(g) { return nthFillableRoomDims(g, 0); }
 export async function newgame() {
     const g = game;
 
-    // Chargen full-random: when the user accepts random selection at
-    // the "Shall I pick a character for you?" prompt, C fires
-    // pick_role/pick_race/pick_gend/pick_align (4 rn2 calls) BEFORE
-    // init_objects. The picked role/race/gender/align is also used by
-    // role_init (nemgend) and the welcome banner.
-    if (g.opts_chargen_full_random) {
-        const picked = chargen_full_random();
-        g.opts_role = picked.role;
-        g.opts_race = picked.race;
-        g.opts_gender = picked.gender;
-        g.opts_align = picked.align;
+    // Chargen UI: when nethackrc doesn't fully specify role/race/gender/
+    // align, C runs the "Shall I pick a character for you?" prompt and
+    // (if the user accepts random) fires pick_role/race/gend/align.
+    // For 'n' manual mode, additional pick_*(PICK_RIGID) rn2 calls fire
+    // via rigid_role_checks when transitioning between menus, when an
+    // unset attribute has exactly 1 valid option. chargen_simulate()
+    // walks the moves keystroke prefix and emits matching rn2 calls.
+    if (g.opts_chargen_needed) {
+        const picked = chargen_simulate(g.opts_chargen_moves || '');
+        if (picked) {
+            g.opts_role = picked.role || g.opts_role;
+            g.opts_race = picked.race || g.opts_race;
+            g.opts_gender = picked.gender || g.opts_gender;
+            g.opts_align = picked.align || g.opts_align;
+        }
     }
 
     // Pre-dungeon: gem_randomize + shuffle_all + init_objects (the

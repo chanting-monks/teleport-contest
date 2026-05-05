@@ -13,7 +13,7 @@ import { game, resetGame } from './gstate.js';
 import { initRng, enableRngLog, clearRngLog, getRngLog } from './rng.js';
 import { pushKey, nhgetch } from './input.js';
 import { newgame, moveloop_core } from './allmain.js';
-import { parseNethackrc, detectFullRandomChargen } from './options.js';
+import { parseNethackrc, detectChargenNeeded } from './options.js';
 import { flush_screen } from './display.js';
 import { GameDisplay } from './game_display.js';
 
@@ -55,10 +55,11 @@ export class NethackGame {
         g.opts_race = (opts.race && opts.race !== -1) ? opts.race : '';
         g.opts_align = (opts.align && opts.align !== -1) ? opts.align : '';
         g.opts_gender = (opts.gender && opts.gender !== -1) ? opts.gender : '';
-        // Chargen full-random ('y'/'a'/space/return at "Shall I pick a
-        // character for you?" prompt). Triggers pick_role+race+gend+align
-        // rn2 calls at the very start of newgame, BEFORE init_objects.
-        g.opts_chargen_full_random = detectFullRandomChargen(opts, this._moves);
+        // Chargen runs interactively whenever any of role/race/gender/
+        // align is unset in nethackrc. role.js's chargen_simulate()
+        // models both 'y' (full-random) and 'n' (manual menu) flows.
+        g.opts_chargen_needed = detectChargenNeeded(opts);
+        g.opts_chargen_moves = this._moves;
 
         // Initialize hero struct
         g.u = { ux: 0, uy: 0, ux0: 0, uy0: 0 };

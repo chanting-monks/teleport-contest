@@ -111,6 +111,172 @@ const RACE_ALIGNS = {
     orc:   ['chaotic'],
 };
 
+// Per-race allowed gender list (all races allow male+female in 5.0).
+const RACE_GENDS = {
+    human: ['male', 'female'],
+    elf:   ['male', 'female'],
+    dwarf: ['male', 'female'],
+    gnome: ['male', 'female'],
+    orc:   ['male', 'female'],
+};
+
+// Role menu accelerator letter → role index. C ref: setup_rolemenu
+// (role.c:2856) — first letter of name, lowercased; collisions get
+// uppercased on the second occurrence (Rogue='r', Ranger='R').
+const ROLE_BY_LETTER = {
+    a: 0, b: 1, c: 2, h: 3, k: 4, m: 5, p: 6,
+    r: 7, R: 8, s: 9, t: 10, v: 11, w: 12,
+};
+const RACE_BY_LETTER = { h: 'human', e: 'elf', d: 'dwarf', g: 'gnome', o: 'orc' };
+const GEND_BY_LETTER = { m: 'male', f: 'female' };
+const ALGN_BY_LETTER = { l: 'lawful', n: 'neutral', c: 'chaotic' };
+
+// Compute valid race indices for a role under current constraints.
+function validRaces(roleIdx, gend, algn) {
+    const rd = ROLE_DATA[roleIdx];
+    return rd.races.filter(race => {
+        if (gend !== null && !RACE_GENDS[race].includes(gend)) return false;
+        if (algn !== null && !RACE_ALIGNS[race].includes(algn)) return false;
+        return true;
+    });
+}
+function validGends(roleIdx, race, algn) {
+    const rd = ROLE_DATA[roleIdx];
+    return rd.gens.filter(g => {
+        if (race && !RACE_GENDS[race].includes(g)) return false;
+        return true;
+    });
+}
+function validAligns(roleIdx, race, gend) {
+    const rd = ROLE_DATA[roleIdx];
+    return rd.aligns.filter(a => {
+        if (race && !RACE_ALIGNS[race].includes(a)) return false;
+        return true;
+    });
+}
+
+// rigid_role_checks (role.c:1235): if role is set, fire pick_race/
+// pick_align/pick_gend in PICK_RIGID mode for any unset attribute.
+// PICK_RIGID returns the single valid option (and emits rn2(1)) if
+// exactly one is valid; otherwise returns ROLE_NONE without rn2.
+//
+// Order in C: race, align, gend (line 1273-1280). Each subsequent
+// pick uses any value just set by the prior one.
+//
+// Mutates state in place; returns nothing.
+function rigid_role_checks(s) {
+    if (s.roleIdx === null) return;
+    if (s.race === null) {
+        const valid = validRaces(s.roleIdx, s.gend, s.algn);
+        if (valid.length === 1) {
+            rn2(1);
+            s.race = valid[0];
+        }
+    }
+    if (s.algn === null) {
+        const valid = validAligns(s.roleIdx, s.race, s.gend);
+        if (valid.length === 1) {
+            rn2(1);
+            s.algn = valid[0];
+        }
+    }
+    if (s.gend === null) {
+        const valid = validGends(s.roleIdx, s.race, s.algn);
+        if (valid.length === 1) {
+            rn2(1);
+            s.gend = valid[0];
+        }
+    }
+}
+
+// Walks the moves[] keystroke prefix, simulating the chargen UI's RNG
+// emission. Returns { role, race, gender, align } when chargen is
+// detected, or null otherwise.
+//
+// C ref: role.c plsel() main loop (line 2249+). Three response modes
+// at the "Shall I pick a character for you? [ynaq]" prompt:
+//   y/a/space/\r/\n/@/*  → pick_role+race+gend+align (4 rn2 calls)
+//   n                    → enter manual menu loop; PICK_RIGID auto-
+//                          picks (rn2(1)) any 1-valid attribute when
+//                          a menu is shown for the next attribute.
+// We model the "n then manual menus" path by replaying menu accelerator
+// keys against ROLE_DATA / RACE_* tables.
+export function chargen_simulate(moves) {
+    if (!moves) return null;
+    let idx = 0;
+    while (idx < moves.length && moves[idx] !== '\r' && moves[idx] !== '\n') idx++;
+    if (idx >= moves.length - 1) return null;
+    idx++;
+    if (idx >= moves.length) return null;
+    const yn = moves[idx]; idx++;
+
+    if (yn === 'y' || yn === 'Y' || yn === 'a' || yn === 'A'
+        || yn === ' ' || yn === '\r' || yn === '\n'
+        || yn === '@' || yn === '*') {
+        return chargen_full_random();
+    }
+
+    if (yn !== 'n' && yn !== 'N') return null;
+
+    const s = { roleIdx: null, race: null, gend: null, algn: null };
+
+    // Stage RS_ROLE — read role letter
+    while (idx < moves.length && !(moves[idx] in ROLE_BY_LETTER)) idx++;
+    if (idx >= moves.length) return null;
+    s.roleIdx = ROLE_BY_LETTER[moves[idx]]; idx++;
+
+    // Stage RS_RACE
+    if (s.race === null) {
+        const races = validRaces(s.roleIdx, s.gend, s.algn);
+        if (races.length > 1) {
+            rigid_role_checks(s);
+            // Read race menu key
+            while (idx < moves.length && !(moves[idx] in RACE_BY_LETTER)) idx++;
+            if (idx >= moves.length) return null;
+            const raceName = RACE_BY_LETTER[moves[idx]]; idx++;
+            if (races.includes(raceName)) s.race = raceName;
+            else s.race = races[0];
+        } else if (races.length === 1) {
+            s.race = races[0];
+        }
+    }
+
+    // Stage RS_GENDER
+    if (s.gend === null) {
+        const gends = validGends(s.roleIdx, s.race, s.algn);
+        if (gends.length > 1) {
+            rigid_role_checks(s);
+            while (idx < moves.length && !(moves[idx] in GEND_BY_LETTER)) idx++;
+            if (idx >= moves.length) return null;
+            const gendName = GEND_BY_LETTER[moves[idx]]; idx++;
+            if (gends.includes(gendName)) s.gend = gendName;
+            else s.gend = gends[0];
+        } else if (gends.length === 1) {
+            s.gend = gends[0];
+        }
+    }
+
+    // Stage RS_ALGNMNT
+    if (s.algn === null) {
+        const aligns = validAligns(s.roleIdx, s.race, s.gend);
+        if (aligns.length > 1) {
+            rigid_role_checks(s);
+            while (idx < moves.length && !(moves[idx] in ALGN_BY_LETTER)) idx++;
+            if (idx >= moves.length) return null;
+            const algnName = ALGN_BY_LETTER[moves[idx]]; idx++;
+            if (aligns.includes(algnName)) s.algn = algnName;
+            else s.algn = aligns[0];
+        } else if (aligns.length === 1) {
+            s.algn = aligns[0];
+        }
+    }
+
+    return {
+        role: ROLE_DATA[s.roleIdx].name,
+        race: s.race, gender: s.gend, align: s.algn,
+    };
+}
+
 // Emits the four pick_role/pick_race/pick_gend/pick_align rn2 calls
 // fired by chargen when the user accepts full-random selection
 // (responding y/a/space/return at the "Shall I pick a character for
