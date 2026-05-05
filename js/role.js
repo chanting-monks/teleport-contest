@@ -211,6 +211,8 @@ function rigid_role_checks(s) {
 export function chargen_simulate(moves) {
     if (!moves) return null;
     let idx = 0;
+    // Capture the typed name (letters before first \r/\n).
+    const initialName = moves.slice(0, indexOfReturn(moves, 0));
     while (idx < moves.length && moves[idx] !== '\r' && moves[idx] !== '\n') idx++;
     if (idx >= moves.length - 1) return null;
     idx++;
@@ -227,16 +229,27 @@ export function chargen_simulate(moves) {
     const isAClass = yn === 'a' || yn === 'A' || yn === '@' || yn === '*';
     if (isYClass || isAClass) {
         const picked = chargen_full_random();
+        picked.name = initialName;
         if (isYClass && idx < moves.length
             && (moves[idx] === 'n' || moves[idx] === 'N')) {
             idx++;
-            return chargen_manual(moves, idx);
+            const m = chargen_manual(moves, idx, initialName);
+            if (m) return m;
+            return picked;
         }
         return picked;
     }
 
     if (yn !== 'n' && yn !== 'N') return null;
-    return chargen_manual(moves, idx);
+    return chargen_manual(moves, idx, initialName);
+}
+
+// Helper: index of first \r or \n at or after `start` in `moves`,
+// or moves.length if none.
+function indexOfReturn(moves, start) {
+    let i = start;
+    while (i < moves.length && moves[i] !== '\r' && moves[i] !== '\n') i++;
+    return i;
 }
 
 // Manual-menu chargen ('n' branch). Walks RS_ROLE/RACE/GENDER/ALGNMNT
@@ -249,13 +262,15 @@ export function chargen_simulate(moves) {
 // role.c:2716 makepicks goto); 'a' → rename flow: skip new name (until
 // \r/\n), then read the next "Is this ok?" response, looping again.
 // 'q' / ESC → quit (chargen ends, return what we have).
-function chargen_manual(moves, idx) {
+function chargen_manual(moves, idx, initialName) {
     let picked = null;
+    let currentName = initialName || '';
     while (true) {
         const result = chargen_manual_pass(moves, idx);
         if (!result) return picked;
         idx = result.idx;
         picked = result.picked;
+        picked.name = currentName;
         // Inner loop: process confirmation responses. 'a' (rename) keeps
         // the picks and re-shows the confirmation; 'n' resets and restarts
         // the whole chargen; 'y'/space/\r/\n/q/ESC ends chargen.
@@ -273,7 +288,10 @@ function chargen_manual(moves, idx) {
                 // rename: skip new name (until \r/\n), then continue inner
                 // loop to process the next confirm prompt. C ref: role.c:2693
                 // preserves ROLE/RACE/GEND/ALGN across rename.
+                const nameStart = idx;
                 while (idx < moves.length && moves[idx] !== '\r' && moves[idx] !== '\n') idx++;
+                currentName = moves.slice(nameStart, idx);
+                picked.name = currentName;
                 if (idx < moves.length) idx++;
                 continue;
             }

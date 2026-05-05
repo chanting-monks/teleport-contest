@@ -75,6 +75,11 @@ export async function newgame() {
             g.opts_race = picked.race || g.opts_race;
             g.opts_gender = picked.gender || g.opts_gender;
             g.opts_align = picked.align || g.opts_align;
+            // chargen_simulate returns the typed name (initial or
+            // post-rename) — overrides plname so the welcome banner and
+            // status line show the right name. C ref: role.c:2693 (rename
+            // preserves picks and replaces svp.plname via plnamesuffix).
+            if (picked.name) g.plname = picked.name;
         }
     }
 
