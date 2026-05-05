@@ -295,6 +295,13 @@ function mksobj_init(otmp, otyp) {
         rn2(10);
         blessorcurse(otmp, 10);
     }
+    // RING_CLASS — port of mkobj.c:1128-1148. Charged-ring path:
+    // blessorcurse(3) + rn2(10) outer + (rn2(10) inner | rn2(2)+rne(3))
+    // + maybe rn2(4)+rn2(3) for spe==0 + maybe rn2(5) for spe<0 curse.
+    // Not yet wired: otypFromClass picks otyp=229 which currently
+    // routes to AMULET branch (overlapping range). Disambiguating
+    // requires real per-class otyp ranges from objects.h enum order;
+    // deferred until the otyp tables are extracted.
     // mkobj_erosions runs for ALL classes at end of mksobj — port of
     // mkobj.c:196-222. Only fires PRNG for erodable classes (weapons,
     // armor, certain tools); other classes have may_generate_eroded()
