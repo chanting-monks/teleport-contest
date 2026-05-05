@@ -14,7 +14,7 @@
 // regenerate this file from dat/dungeon.lua.
 
 import { game } from './gstate.js';
-import { rn2, rnd } from './rng.js';
+import { rn2 } from './rng.js';
 
 // Constants (from include/global.h, include/dgn_file.h).
 export const MAXLEVEL = 32;
