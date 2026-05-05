@@ -431,12 +431,13 @@ function sobj_at(otyp, x, y) { return false; }
 // set_corpsenm stub
 function set_corpsenm(otmp, pm) { /* stub */ }
 
-// mkcorpstat stub
+// mkcorpstat — port. init flag derives from flags & CORPSTAT_INIT
+// (hack.h:1193 — CORPSTAT_INIT = 0x08). Without this, corpses created
+// from level fill code never run mksobj_init's class-specific RNG.
+const CORPSTAT_INIT_FLAG = 0x08;
 function mkcorpstat(objtyp, mtmp, pm, x, y, flags) {
-    // C ref: mkcorpstat calls mksobj(objtyp) then set_corpsenm.
-    // For STATUE: mksobj(STATUE, false, false) then set corpse identity.
-    // RNG: next_ident from mksobj
-    const otmp = mksobj(objtyp, false, false);
+    const init = !!(flags & CORPSTAT_INIT_FLAG);
+    const otmp = mksobj(objtyp, init, false);
     if (pm === null) {
         // rndmonnum — pick random monster
         rndmonnum();
