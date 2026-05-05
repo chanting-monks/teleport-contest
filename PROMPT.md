@@ -13,6 +13,47 @@ building the right diagnostic infrastructure first — so don't.
 
 ---
 
+## Part 0 — You are running in iteration mode
+
+This repository is run by a continuous loop of Claude Code iterations.
+A cron fires every 30 minutes; each iteration ideally works for hours
+and commits many improvements before exiting. The loop NEVER auto-halts.
+
+Before doing anything else on every invocation:
+
+1. Read [`STATE.md`](STATE.md). Honor `halt: true` (commit nothing, exit).
+2. Read [`docs/ITERATION.md`](docs/ITERATION.md). It defines the loop,
+   the kill switch, the leaderboard cadence, and the **mandatory commit
+   message format**.
+3. Run `node scripts/score-table.mjs` to capture the canonical parity
+   table for all 44 public sessions before you make any change. This
+   is your baseline.
+
+Every commit on `main` MUST contain the parity table produced by
+`scripts/score-table.mjs`, with a line per session in the canonical
+form:
+
+```
+seed0008-filename   p:(12)2423/3224   s:(8)8/35   e:(10)123/987   m:(9)16/40
+```
+
+`p:` = PRNG (turns fully matched, calls matched/total). `s:` = Screen
+(boundaries fully matched/total). `e:` = events (placeholder until
+Part 2/3 infrastructure exists). `m:` = map snapshot (placeholder until
+Part 3.5 infrastructure exists). The full spec is in `docs/ITERATION.md`.
+
+**Async human review depends on this table.** Reviewers watch `git log`
+to see whether the agent is making progress; the table makes every
+commit legible without checking out the worktree. Skipping it or
+producing a non-canonical version breaks the review loop.
+
+The rest of this document is the porting manual you consult during
+each iteration's WORK step. Build the diagnostic infrastructure first
+(Parts 2-3), then port. The cardinal rules of Part 5 apply on every
+iteration.
+
+---
+
 ## Part 1 — What you inherit
 
 **Frozen files** (judge overlays from `frozen/` on every scoring run):
@@ -933,12 +974,25 @@ set of bugs from month 1 because nothing was actually solved.
 
 ## Start here
 
-1. Run `bash frozen/score.sh`. Note current state.
-2. Read this entire document. Re-read Part 2.
-3. Build your recorder fork (Part 2). Don't skip.
-4. Add the diagnostic channel (Part 3).
-5. Pick the simplest failing session. Run your event-aware comparator.
-6. Open the C function named by the first divergence's annotation.
-7. Port it. Commit. Re-run. Repeat.
+1. Read [`STATE.md`](STATE.md) and [`docs/ITERATION.md`](docs/ITERATION.md).
+   Honor `halt: true` if set.
+2. Run `node scripts/score-table.mjs` to capture the baseline parity table.
+3. If you're in the very first iteration: build your recorder fork
+   (Part 2), then add the diagnostic channel (Part 3). Don't skip these
+   even if they buy zero immediate score — they pay for themselves
+   within a day.
+4. Pick the focus session per `docs/ITERATION.md` step 4. Run your
+   event-aware comparator (once it exists) or fall back to PRNG-only
+   diff against the official scorer.
+5. Open the C function named by the first divergence's annotation.
+   Port it.
+6. Re-run `scripts/score-table.mjs`. Commit + push to main using the
+   canonical commit message format from `docs/ITERATION.md`. Update
+   STATE.md.
+7. Loop back to step 4 and start the next unit. Don't exit just because
+   one fix landed. Keep going. If you feel stuck, the task is to figure
+   out how to get unstuck — switch focus session, build a new diagnostic,
+   re-read the C function, change the comparator, anything — but do not
+   stop. Stuckness is a problem to solve, not a reason to exit.
 
 Welcome to NetHack.
