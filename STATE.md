@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    536ff81
-last_run_time:      2026-05-05T17:14Z
-last_aggregate:     p:(12/4143) 45683/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(12/4143) 45683/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        536ff81
+last_run_commit:    a2f0950
+last_run_time:      2026-05-05T17:56Z
+last_aggregate:     p:(12/4143) 45693/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(12/4143) 45693/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        a2f0950
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -257,17 +257,6 @@ what changed, did the aggregate move.
 2026-05-05T17:27Z  6845c6d  state: log dungeon-cleanup + mkcorpstat-CORPSTAT_INIT commits.
 2026-05-05T17:30Z  aa7f046  docs/LEARNINGS item 12: chargen port requires per-role bitmask data + UI sim. Documents prerequisites for chargen chunk.
 2026-05-05T17:32Z  ea4db6e  role: add ROLE_DATA bitmask table (foundation for future chargen port). 13 roles' allowed (races, genders, aligns) extracted from C role.c roles[].flags. Not wired into chargen yet — needs UI sim to distinguish menu-letter picks from random.
-
-Investigation this turn (no code change but documented):
-- Multiple sessions blocked at makelevel:1410 fillable_room_count rn2.
-  C emits rn2(7), JS emits rn2(8) — JS counts 1 more fillable room
-  than C. Investigation incomplete; vault is correctly typed VAULT not
-  OROOM, so it's not the source. Some room creation path in JS produces
-  one extra OROOM/THEMEROOM with needfill=FILL_NORMAL that C doesn't.
-- Multiple chargen sessions need per-role allowed-attribute bitmasks
-  (now in ROLE_DATA) plus UI keystroke parsing to know which menus
-  the user chose "*" (random) vs specific letter.
-- Tried chargen port that emits all 4 picks for sessions with empty
-  rc components — over-emits for sessions where user pressed letters
-  via menu. Reverted; data table preserved as ea4db6e.
+2026-05-05T17:55Z  1fb5b96  fastforward: parameterize first rn2 of fastforward_fill_mineralize by JS-computed fillable_room_count (matches C mklev.c:1402 bonus_item_room_countdown). Aggregate p: 45683 → 45693 (+10). seed2200-wizard 1227→1243 (+16) biggest single gain; ~+1 each for several other sessions blocked at makelevel:1410. seed8000 unchanged (computes 8 rooms, matches the prior hardcoded value).
+2026-05-05T17:56Z  a2f0950  allmain: extract countFillableRooms helper using OROOM/THEMEROOM/FILL_NORMAL constants — cleanup, no behavior change.
 ```
