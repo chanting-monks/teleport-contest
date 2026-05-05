@@ -117,6 +117,48 @@ notes:              `node scripts/compare-firstdiv.mjs --prng-only --all` shows 
 
                     Each is a multi-hour port. The session can pick any one and
                     ship a chunk-sized port that preserves seed8000 canary.
+
+                    Update 2026-05-05T17:14Z: mkobj/mksobj_init port (6 commits)
+                    extended class coverage to SCROLL/POTION/ARMOR/WEAPON/SPBOOK/
+                    WAND/AMULET + mkobj_erosions. RING/TOOL/FOOD/GEM remain
+                    stubbed. Real impact small (+33 calls aggregate) because
+                    most non-Tourist sessions diverge BEFORE reaching mkobj
+                    in their PRNG stream — but the port is correct C-shape
+                    and will start contributing once chargen / fill_special_room
+                    / lspo_map ports unlock the level-fill phase.
+
+                    Concrete next chunks (in roughly decreasing leverage order):
+
+                      1. **fill_special_room (sp_lev.c:2731-2900)** — port
+                         the chance-check loop + per-rtype dispatch. Unblocks
+                         seed1500/seed0017/seed0105/seed0383 directly. Requires
+                         room.rtype tracking (already partially in JS) and
+                         per-rtype RNG patterns.
+
+                      2. **mkclass_aligned (makemon.c:1880-1974)** — port the
+                         per-class iteration loop. Need monst[] table data:
+                         per-monster maligntyp, geno, difficulty, mlet. Hard
+                         without parsing monsters.h. Unblocks seed0103/seed0700/
+                         seed0102 + many sessions further into level fill.
+
+                      3. **lspo_map / themerms.lua port (sp_lev.c:6100+,
+                         themerms.lua:1009-1049)** — themed-fill picker plus
+                         contents() functions for each fill type. Big lua-side
+                         port; partial picker-only port unblocks
+                         seed5002/seed0013/seed0399 to advance ~50 calls each.
+
+                      4. **chargen UI (role.c select_role/select_race/...)** —
+                         simulate the keystroke menu, emit pick_role/race/
+                         gend/align rn2 calls when "random" is chosen.
+                         Unblocks 7 sessions currently at firstDiv@0. Needs
+                         per-role race/gender/align bitmasks (data in roles[]).
+
+                      5. **u_init_role / ini_inv (u_init.c)** — replaces the
+                         hardcoded post_mklev fastforward sequence with role-
+                         specific stat rolls and starting inventory. Probably
+                         8-12 PRNG calls per session. Big payoff once role
+                         is plumbed (already done) and other sessions reach
+                         this point.
 ```
 
 The single session being chased this iteration. The first iteration
