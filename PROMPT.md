@@ -16,8 +16,9 @@ building the right diagnostic infrastructure first — so don't.
 ## Part 0 — You are running in iteration mode
 
 This repository is run by a continuous loop of Claude Code iterations.
-A cron fires every 30 minutes; each iteration ideally works for hours
-and commits many improvements before exiting. The loop NEVER auto-halts.
+A cron fires every hour (the routine API's minimum interval); each
+iteration ideally works for hours and commits many improvements before
+exiting. The loop NEVER auto-halts.
 
 Before doing anything else on every invocation:
 

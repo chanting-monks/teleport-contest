@@ -1,0 +1,191 @@
+#!/usr/bin/env node
+// compare-firstdiv.mjs — First-divergence localizer for the JS NetHack
+// port. Walks the JS log and the C session.rng log in parallel, finds
+// the first mismatched line, and prints a context window around it.
+// The C side preserves caller annotations (`@ funcname(file:line)`)
+// even though normalizeRng() strips them for equality checks — this
+// script keeps them visible so you know exactly which C function
+// emitted the divergent event.
+//
+// Usage:
+//   node scripts/compare-firstdiv.mjs <session-name-or-path>
+//   node scripts/compare-firstdiv.mjs seed0077-rogue-chargen
+//   node scripts/compare-firstdiv.mjs sessions/seed0077-rogue-chargen.session.json
+//
+// Exit code: 0 if logs fully match, 1 if a divergence was found, 2 on error.
+
+import { readFileSync, existsSync, writeFileSync } from 'fs';
+import { join, basename } from 'path';
+import { fileURLToPath } from 'url';
+
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const PROJECT_ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+const SESSIONS_DIR = join(PROJECT_ROOT, 'sessions');
+
+const CONTEXT_WINDOW = 8; // lines before AND after the divergence
+
+// Same canonical normalizer ps_test_runner uses for equality. Keep
+// these in sync — this script's notion of "matched" must match the
+// scorer's, otherwise the agent will chase ghosts.
+function normalize(entry) {
+    return entry.replace(/\s*@\s.*$/, '').replace(/^\d+\s+/, '').trim();
+}
+
+// Drop the JS-side leading "<index> " counter that getRngLog emits.
+function stripJsIndex(s) {
+    return s.replace(/^\d+\s+/, '');
+}
+
+function resolveSessionPath(target) {
+    if (existsSync(target)) return target;
+    const fromRoot = join(PROJECT_ROOT, target);
+    if (existsSync(fromRoot)) return fromRoot;
+    const inSessions = join(SESSIONS_DIR, target);
+    if (existsSync(inSessions)) return inSessions;
+    const inSessionsExt = inSessions.endsWith('.session.json')
+        ? inSessions
+        : inSessions + '.session.json';
+    if (existsSync(inSessionsExt)) return inSessionsExt;
+    throw new Error(`session not found: ${target}`);
+}
+
+async function main() {
+    const target = process.argv[2];
+    if (!target) {
+        process.stderr.write(
+            'Usage: node scripts/compare-firstdiv.mjs <session>\n' +
+            'Example: node scripts/compare-firstdiv.mjs seed0077-rogue-chargen\n'
+        );
+        process.exit(2);
+    }
+
+    const sessionPath = resolveSessionPath(target);
+    const sessionName = basename(sessionPath).replace(/\.session\.json$/, '');
+
+    // Overlay frozen files like the scorer does. The comparator must
+    // see the same JS as the scorer, otherwise its first-divergence
+    // line won't be the same one the official runner found.
+    try {
+        const fr = join(PROJECT_ROOT, 'frozen');
+        const js = join(PROJECT_ROOT, 'js');
+        for (const f of ['isaac64.js', 'terminal.js']) {
+            const src = join(fr, f);
+            const dst = join(js, f);
+            if (existsSync(src)) writeFileSync(dst, readFileSync(src));
+        }
+    } catch (_) { /* best-effort */ }
+
+    const sessionData = JSON.parse(readFileSync(sessionPath, 'utf8'));
+    const { normalizeSession } = await import(join(PROJECT_ROOT, 'frozen/session_loader.mjs'));
+    const { runSegment } = await import(join(PROJECT_ROOT, 'js/jsmain.js'));
+
+    const segments = normalizeSession(sessionData).segments;
+
+    // C-side flat log, with each line annotated by which step (input
+    // boundary) it came from. Useful for "C diverged at step 392"
+    // localization that's already routine in this codebase.
+    const cLog = [];
+    let stepIdx = 0;
+    for (const seg of segments) {
+        for (const step of seg.steps || []) {
+            for (const line of (step.rng || [])) {
+                if (typeof line === 'string') {
+                    cLog.push({ line, step: stepIdx });
+                }
+            }
+            stepIdx++;
+        }
+    }
+
+    let game = null;
+    let jsError = null;
+    try {
+        for (const seg of segments) {
+            game = await runSegment(
+                {
+                    seed: seg.seed,
+                    datetime: seg.datetime,
+                    nethackrc: seg.nethackrc,
+                    moves: seg.moves,
+                },
+                game
+            );
+        }
+    } catch (e) {
+        jsError = e;
+    }
+
+    const jsLog = (game?.getRngLog() || []).map(stripJsIndex);
+
+    // Walk in parallel until the first normalized mismatch.
+    let firstDiv = -1;
+    const N = Math.max(cLog.length, jsLog.length);
+    for (let i = 0; i < N; i++) {
+        const c = cLog[i]?.line;
+        const j = jsLog[i];
+        const cn = c === undefined ? null : normalize(c);
+        const jn = j === undefined ? null : normalize(j);
+        if (cn !== jn) { firstDiv = i; break; }
+    }
+
+    if (firstDiv < 0 && cLog.length === jsLog.length) {
+        process.stdout.write(`OK: ${sessionName} — JS and C logs match exactly (${cLog.length} lines)\n`);
+        process.exit(0);
+    }
+
+    // Format context window. Use the C step number as the localizing
+    // anchor — that's what the agent will reach for when reading the C
+    // function the divergence points to.
+    const start = Math.max(0, firstDiv - CONTEXT_WINDOW);
+    const end = Math.min(N, firstDiv + CONTEXT_WINDOW + 1);
+
+    process.stdout.write(`session:    ${sessionName}\n`);
+    process.stdout.write(`first div:  index ${firstDiv}`);
+    if (cLog[firstDiv]?.step !== undefined) {
+        process.stdout.write(`  (C step ${cLog[firstDiv].step})`);
+    }
+    process.stdout.write(`\n`);
+    process.stdout.write(`C lines:    ${cLog.length}\n`);
+    process.stdout.write(`JS lines:   ${jsLog.length}\n`);
+    if (jsError) {
+        process.stdout.write(`JS error:   ${jsError.message}\n`);
+    }
+    process.stdout.write(`\n`);
+
+    const COL = 90;
+    const truncate = (s, n) => (s.length <= n ? s : s.slice(0, n - 1) + '…');
+
+    process.stdout.write(`     ${'C side (with @ annotations)'.padEnd(COL)} | JS side\n`);
+    process.stdout.write(`     ${'-'.repeat(COL)}-+-${'-'.repeat(COL)}\n`);
+    for (let i = start; i < end; i++) {
+        const c = cLog[i]?.line ?? '';
+        const j = jsLog[i] ?? '';
+        const marker = i === firstDiv ? '>>>' : '   ';
+        const stepTag = cLog[i]?.step !== undefined ? `[s${cLog[i].step}]` : '     ';
+        process.stdout.write(
+            `${marker}${stepTag} ${truncate(c, COL).padEnd(COL)} | ${truncate(j, COL)}\n`
+        );
+    }
+    process.stdout.write(`\n`);
+
+    // Pull out the C annotation at the divergence line if present.
+    // This is the actionable single fact: "the C function that emitted
+    // the divergent event lives at file:line."
+    const cLine = cLog[firstDiv]?.line;
+    if (cLine) {
+        const ann = cLine.match(/@\s+([^\s]+\(([^:)]+):(\d+)\))/);
+        if (ann) {
+            process.stdout.write(`C annotation:  ${ann[1]}\n`);
+            process.stdout.write(`  open:        nethack-c/upstream/src/${ann[2]}  line ${ann[3]}\n`);
+        } else {
+            process.stdout.write(`(no C annotation on this line — try inspecting nearby lines or porting via call-chain trace)\n`);
+        }
+    }
+
+    process.exit(1);
+}
+
+main().catch(e => {
+    process.stderr.write(`Fatal: ${e.message}\n${e.stack}\n`);
+    process.exit(2);
+});

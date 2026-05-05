@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    a516487
-last_run_time:      2026-05-05T13:58Z
+last_run_commit:    88ad3c8
+last_run_time:      2026-05-05T14:07Z
 last_aggregate:     p:(12/4143) 19409/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
 best_aggregate:     p:(12/4143) 19409/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        a516487
+best_commit:        88ad3c8
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -99,10 +99,10 @@ the JS port emit matching events/maps, not to instrument C first.
    so that `getRngLog()` returns an interleaved stream the comparator
    can walk. Mirror the C tag format exactly (per `frozen/score.sh`'s
    recordings).
-3. Build an event-aware comparator (`scripts/compare-firstdiv.mjs`):
-   walk JS log and C session.rng in parallel, find first mismatch,
-   print 5 events / RNG calls before, the mismatching pair, 5 after,
-   and the C event's `funcname(file:line)` annotation.
+3. ~~Build an event-aware comparator (`scripts/compare-firstdiv.mjs`).~~
+   **DONE** in commit `<this commit>`. Run
+   `node scripts/compare-firstdiv.mjs <session>` to see the first
+   divergence between JS and C with a context window of ±8 lines.
 4. Once events are flowing for one session: extend score-table.mjs to
    include a `firstDiv` column showing the first divergent event/call
    per session (truncated). This is the actionable signal for the
@@ -134,13 +134,9 @@ YYYY-MM-DDTHH:MMZ  <commit-sha>  <delta-summary>
 ```
 
 Where `<delta-summary>` is a terse human-readable note: what was tried,
-what changed, did the aggregate move. Examples:
+what changed, did the aggregate move.
 
 ```
-2026-05-05T09:30Z  abc1234  built clean recorder; verified seed0007 re-records byte-equal. agg unchanged (infra).
-2026-05-05T11:00Z  def5678  added event tags to mhitm/uhitm; e:(0)0/0 → e:(2)47/180.
-```
-
-```
-(empty)
+2026-05-05T13:58Z  88ad3c8  bootstrap iteration mode: STATE.md, ITERATION.md, PROMPT.md Part 0, scripts/score-table.mjs.
+2026-05-05T14:08Z  <next>   add AGENTS.md, scripts/compare-firstdiv.mjs (first-divergence localizer); fix 30m→1h cron docs. agg unchanged (infra).
 ```

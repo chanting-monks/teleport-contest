@@ -1,9 +1,10 @@
 # The Iteration Loop
 
 This repo is run by Claude Code on a continuous loop. A cron wakes a
-remote agent every 30 minutes; ideally each invocation works for hours,
-making and committing many small improvements, and the cron is just a
-safety net that resumes if a run exits early.
+remote agent every hour (the cloud routine API's minimum interval);
+ideally each invocation works for hours, making and committing many
+small improvements, and the cron is just a safety net that resumes if
+a run exits early.
 
 **The loop never auto-halts.** There is no regression threshold, no
 error budget, no failure cap. If an experiment regresses scores, the
@@ -54,7 +55,7 @@ on wake:
 
 on involuntary exit (context limit, crash, hardware loss):
   - Whatever state was last committed and pushed is the handoff.
-  - The cron will re-invoke within 30m and the next iteration
+  - The cron will re-invoke within ~1h and the next iteration
     resumes from STATE.md.
 ```
 
@@ -159,11 +160,11 @@ After every commit:
 
 ## Cron cadence and the "ideally continuous" expectation
 
-The cron fires every 30 minutes. **30 minutes is the upper bound of how
-often the loop is guaranteed to advance.** A healthy iteration runs for
-hours and commits many times within a single invocation; the cron is
-just a watchdog that re-invokes if Claude exited early (context limit,
-crash, etc.).
+The cron fires every hour (the routine API's minimum interval).
+**~1 hour is the upper bound of how often the loop is guaranteed to
+advance.** A healthy iteration runs for hours and commits many times
+within a single invocation; the cron is just a watchdog that
+re-invokes if Claude exited early (context limit, crash, etc.).
 
 Voluntary early exit IS NOT ALLOWED. If you find yourself reaching for
 "I think I'm done for now" — you're not. Pick a different focus
