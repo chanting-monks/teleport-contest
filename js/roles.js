@@ -12,8 +12,8 @@ export const roles = [
     { name: { m: 'Knight', f: 'Knight' }, mnum: 4 },
     { name: { m: 'Monk', f: 'Monk' }, mnum: 5 },
     { name: { m: 'Priest', f: 'Priestess' }, mnum: 6 },
-    { name: { m: 'Ranger', f: 'Ranger' }, mnum: 7 },
-    { name: { m: 'Rogue', f: 'Rogue' }, mnum: 8 },
+    { name: { m: 'Rogue', f: 'Rogue' }, mnum: 7 },
+    { name: { m: 'Ranger', f: 'Ranger' }, mnum: 8 },
     { name: { m: 'Samurai', f: 'Samurai' }, mnum: 9 },
     { name: { m: 'Tourist', f: 'Tourist' }, mnum: 10,
       title: [
