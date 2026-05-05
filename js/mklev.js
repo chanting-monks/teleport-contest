@@ -283,18 +283,18 @@ function mksobj_init(otmp, otyp, artif) {
         // nartifact_exist() as 0 (no artifacts created yet by this call).
         if (artif) rn2(40);
         isErodable = true;
+    } else if (otyp >= 350 && otyp < 380) {
+        // WAND_CLASS — mkobj.c:1115-1126. Most wands: rn1(5, N) for spe
+        // (logged as rn2(5)), then blessorcurse(17). Skipping per-otyp
+        // specials (WAN_WISHING, WAN_STASIS).
+        rn2(5);
+        blessorcurse(otmp, 17);
     } else if (otyp >= 230 && otyp < 270) {
         blessorcurse(otmp, 4); // POTION_CLASS
     } else if (otyp >= 270 && otyp < 300) {
         blessorcurse(otmp, 4); // SCROLL_CLASS
     } else if (otyp >= 309 && otyp < 350) {
         blessorcurse(otmp, 17); // SPBOOK_CLASS (mkobj.c:1083)
-    } else if (otyp >= 261 && otyp < 309) {
-        // WAND_CLASS — mkobj.c:1115-1126. Most wands: rn1(5, N) for spe
-        // (logged as rn2(5)), then blessorcurse(17). Skipping per-otyp
-        // specials (WAN_WISHING, WAN_STASIS).
-        rn2(5);
-        blessorcurse(otmp, 17);
     } else if (otyp >= 220 && otyp < 230) {
         // AMULET_CLASS — port of mkobj.c:1060-1069. rn2(10) outer check
         // (if non-zero AND otyp is special, curse). For non-special otyps
@@ -417,17 +417,17 @@ function mkobj(oclass, artif) {
     // empirically-best behavior right now (see RING comment in
     // mksobj_init body); changing this regressed seed0030.
     const otypFromClass = {
-        1: 1,    /* WEAPON */
-        2: 28,   /* ARMOR — first ARMOR otyp range */
-        3: 229,  /* RING (currently dispatches via AMULET branch) */
-        4: 261,  /* WAND */
-        5: 270,  /* SCROLL */
-        6: 230,  /* POTION */
-        7: 213,  /* FOOD */
-        8: 152,  /* TOOL */
-        9: 309,  /* SPBOOK */
-        10: 220, /* AMULET */
-        14: 200, /* GEM */
+        1: 1,    /* WEAPON   range [1,28) */
+        2: 28,   /* ARMOR    range [28,95) */
+        3: 229,  /* RING (currently dispatches via AMULET branch — see RING comment) */
+        4: 350,  /* WAND     range [350,380) — distinct from POTION */
+        5: 270,  /* SCROLL   range [270,300) */
+        6: 230,  /* POTION   range [230,270) */
+        7: 213,  /* FOOD     no class init */
+        8: 152,  /* TOOL     no class init */
+        9: 309,  /* SPBOOK   range [309,350) */
+        10: 220, /* AMULET   range [220,230) */
+        14: 200, /* GEM      no class init */
     }[oclass] || 0;
     return mksobj(otypFromClass, true, artif);
 }
