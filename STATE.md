@@ -64,11 +64,34 @@ discovery than a small public-set regression.
 ## focus
 
 ```
-session:            seed5002-wizard-coverage-pair (seg 0)
-first_div_step:     0  (call index 199)
-suspected_c_func:   role_init(role.c:2060)  +  init_dungeon_dungeons(dungeon.c:1022)  +  init_level(dungeon.c:572)
-suspected_js_file:  js/fastforward.js (wizard-mode awareness missing)  +  js/role.js (does not exist)
-notes:              fastforward.js was tuned to seed8000 (Tourist, normal mode). Multi-seed sessions diverge because (a) role-specific rn2(100) at role.c:2060 fires only when nemesis gender is random — Tourist's nemesis isn't, Wizard's is — and (b) several rn2(100) calls in dungeon.c (lines 1022, 572) are guarded by !wizard, which is FALSE in playmode:debug sessions. The pragmatic stepping-stone is a wizard-mode-aware fastforward branch; the principled fix is to port real role_init + init_dungeon_dungeons + init_level. Either way, the post-shuffle ~50 calls of fastforward.js need restructuring before any wizard-mode session can advance past index 199.
+session:            (cluster — see below)
+first_div_step:     0
+suspected_c_func:   place_level(dungeon.c:687)
+suspected_js_file:  js/mklev.js  +  js/fastforward.js
+notes:              `node scripts/compare-firstdiv.mjs --prng-only --all` shows the
+                    actionable focus map. firstDiv distribution (post log-wipe fix):
+
+                      [0,   100):   7 sessions  — full chargen (pick_role/pick_gend/pick_align)
+                      [100, 200):  13 sessions  — role_init / randrole / pick_role
+                      [200, 300):  23 sessions  — place_level dungeon arrangement
+                      3103     :   1 session    — seed8000 (fastforward home)
+
+                    Top blocking C functions across all 44:
+                      20× place_level         (dungeon.c:687)
+                      10× role_init            (role.c:2060)
+                       4× pick_role            (role.c:1032)
+                       3× randrole             (role.c:726)
+                       3× init_dungeon_dungeons (dungeon.c:1074)
+                       2× pick_align           (role.c:1222)
+                       1× pick_gend            (role.c:1157)
+                       1× m_move               (monmove.c:1963)  ← seed8000
+
+                    Highest-leverage single port: place_level — recursive backtracking
+                    in dungeon.c that picks positions for special levels. JS currently
+                    has fastforward.js emitting hardcoded place_level calls tuned to
+                    seed8000 normal-mode. A real port unblocks 20 sessions; partial
+                    correctness blocks fewer. Requires reading C dungeon.c:680-700
+                    plus possible_places() / pick_level() / proto_dungeon data.
 ```
 
 The single session being chased this iteration. The first iteration
@@ -142,5 +165,5 @@ what changed, did the aggregate move.
 2026-05-05T14:11Z  d4a4d1a  compare-firstdiv: add --all summary mode for focus selection. agg unchanged (infra).
 2026-05-05T14:23Z  eb34692  fix initRng/enableRngLog wiping rng log on each segment — multi-segment sessions now retain seg0 calls in the cumulative log. PRNG matched 19409 → 25431 (+6022) across 44 sessions; seed0030 alone gained +4987.
 2026-05-05T14:35Z  5fa0e94  STATE.md focus update: identified post-shuffle fastforward.js mismatches as next blocker (wizard-mode rn2(100) skips at role.c:2060, dungeon.c:1022, dungeon.c:572). agg unchanged (focus narrowing).
-2026-05-05T14:48Z  <next>   compare-firstdiv: add --prng-only filter so event-bearing sessions show their real PRNG-channel firstDiv (was masked at 0 by C events vs JS PRNG misalignment). Distribution after log-wipe fix: 7 sessions diverge [0,100) — full chargen needed; 13 in [100,200) — pick_role / role_init; 23 in [200,300) — place_level dungeon issues; seed8000 alone at 3103 (fastforward home). place_level cluster is highest-leverage focus.
+2026-05-05T14:48Z  0a5524c   compare-firstdiv: add --prng-only filter so event-bearing sessions show their real PRNG-channel firstDiv (was masked at 0 by C events vs JS PRNG misalignment). Distribution after log-wipe fix: 7 sessions diverge [0,100) — full chargen needed; 13 in [100,200) — pick_role / role_init; 23 in [200,300) — place_level dungeon issues; seed8000 alone at 3103 (fastforward home). place_level cluster is highest-leverage focus.
 ```
