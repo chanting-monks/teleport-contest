@@ -199,12 +199,20 @@ let _nextObjId = 1;
 // C ref: mkobj.c next_ident — rnd(2) for item identification
 function next_ident() { rnd(2); }
 
-// C ref: mkobj.c blessorcurse — rn2(4) BUC selection
-function blessorcurse(otmp) {
-    const r = rn2(4);
-    if (otmp) {
-        otmp.cursed = (r === 0);
-        otmp.blessed = false;
+// C ref: mkobj.c:1841 blessorcurse(struct obj *otmp, int chance) — emits
+// rn2(chance) once, and IF that returns 0, also emits rn2(2) to decide
+// curse vs bless. The previous JS stub always emitted rn2(4) and never
+// the conditional rn2(2), which under-emits a PRNG call ~25% of the
+// time (whenever rn2(4)==0). Faithful port that takes the chance arg
+// matches both the call shape and the conditional second draw.
+function blessorcurse(otmp, chance = 4) {
+    if (otmp?.blessed || otmp?.cursed) return;
+    if (rn2(chance) === 0) {
+        if (rn2(2) === 0) {
+            if (otmp) { otmp.cursed = true; otmp.blessed = false; }
+        } else {
+            if (otmp) { otmp.blessed = true; otmp.cursed = false; }
+        }
     }
 }
 
