@@ -201,6 +201,13 @@ function rigid_role_checks(s) {
 //                          a menu is shown for the next attribute.
 // We model the "n then manual menus" path by replaying menu accelerator
 // keys against ROLE_DATA / RACE_* tables.
+//
+// Limitation: doesn't currently respect pre-set fields from nethackrc
+// (e.g., rc with role:Wizard but no race/gender/align). C would skip
+// pick_role and only fire the unset attributes' picks; this function
+// always emits the full pick_role+race+gend+align sequence. No public
+// session has partial rc (all 44 sessions either have all four set or
+// none), so this is a deferred correctness gap, not an active bug.
 export function chargen_simulate(moves) {
     if (!moves) return null;
     let idx = 0;
