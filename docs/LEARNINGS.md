@@ -490,6 +490,34 @@ need it).
 
 ---
 
+## 18. Player name must be threaded through chargen for screen parity
+
+**Lesson.** chargen for sessions without `name:` in nethackrc takes
+the typed name from the moves keystroke prefix (letters before the
+first \r). For sessions that subsequently press 'a' at the "Is X OK?"
+confirmation, role.c:2693 preserves the role/race/gender/align picks
+but replaces svp.plname via plnamesuffix() — the new name is the
+letters between the 'a' keystroke and the next \r. Without
+propagating this through to g.plname, the welcome banner and status
+line show "Hero" (default) instead of the typed/renamed name, so
+every screen comparing player name diverges even with correct PRNG.
+
+**Why.** The status line format is `<name> the <title>` — divergent
+name causes every gameplay screen to mismatch. Screen scoring is
+already bottlenecked on PRNG matching first (LEARNINGS #11.5), but
+once PRNG matches, name match is a prerequisite for screen match.
+
+**How.** chargen_simulate now returns picked.name. allmain.js
+newgame() sets g.plname = picked.name when chargen runs. For 'a'
+rename, the inner confirmation loop captures the new name from
+moves between the 'a' keystroke and the next \r, replacing the
+prior currentName. seed0006 verified: typed "Hextrum", renamed to
+"Hextra"; chargen_simulate returns name="Hextra".
+
+**Commit:** 11a4ed1.
+
+---
+
 ## 14. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
