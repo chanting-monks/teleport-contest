@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    <this commit>
+last_run_commit:    eb34692
 last_run_time:      2026-05-05T14:23Z
 last_aggregate:     p:(12/4143) 25431/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
 best_aggregate:     p:(12/4143) 25431/840507    s:(0/44) 15/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        <this commit>
+best_commit:        eb34692
 ```
 
 Baseline notes (skeleton + fastforward.js):
@@ -64,11 +64,11 @@ discovery than a small public-set regression.
 ## focus
 
 ```
-session:            -
-first_div_step:     -
-suspected_c_func:   -
-suspected_js_file:  -
-notes:              -
+session:            seed5002-wizard-coverage-pair (seg 0)
+first_div_step:     0  (call index 199)
+suspected_c_func:   role_init(role.c:2060)  +  init_dungeon_dungeons(dungeon.c:1022)  +  init_level(dungeon.c:572)
+suspected_js_file:  js/fastforward.js (wizard-mode awareness missing)  +  js/role.js (does not exist)
+notes:              fastforward.js was tuned to seed8000 (Tourist, normal mode). Multi-seed sessions diverge because (a) role-specific rn2(100) at role.c:2060 fires only when nemesis gender is random — Tourist's nemesis isn't, Wizard's is — and (b) several rn2(100) calls in dungeon.c (lines 1022, 572) are guarded by !wizard, which is FALSE in playmode:debug sessions. The pragmatic stepping-stone is a wizard-mode-aware fastforward branch; the principled fix is to port real role_init + init_dungeon_dungeons + init_level. Either way, the post-shuffle ~50 calls of fastforward.js need restructuring before any wizard-mode session can advance past index 199.
 ```
 
 The single session being chased this iteration. The first iteration
@@ -100,7 +100,7 @@ the JS port emit matching events/maps, not to instrument C first.
    can walk. Mirror the C tag format exactly (per `frozen/score.sh`'s
    recordings).
 3. ~~Build an event-aware comparator (`scripts/compare-firstdiv.mjs`).~~
-   **DONE** in commit `<this commit>`. Run
+   **DONE** in commit `eb34692`. Run
    `node scripts/compare-firstdiv.mjs <session>` to see the first
    divergence between JS and C with a context window of ±8 lines.
 4. Once events are flowing for one session: extend score-table.mjs to
@@ -140,5 +140,6 @@ what changed, did the aggregate move.
 2026-05-05T13:58Z  88ad3c8  bootstrap iteration mode: STATE.md, ITERATION.md, PROMPT.md Part 0, scripts/score-table.mjs.
 2026-05-05T14:08Z  4c46062  add AGENTS.md, scripts/compare-firstdiv.mjs (first-divergence localizer); fix 30m→1h cron docs. agg unchanged (infra).
 2026-05-05T14:11Z  d4a4d1a  compare-firstdiv: add --all summary mode for focus selection. agg unchanged (infra).
-2026-05-05T14:23Z  <next>   fix initRng/enableRngLog wiping rng log on each segment — multi-segment sessions now retain seg0 calls in the cumulative log. PRNG matched 19409 → 25431 (+6022) across 44 sessions; seed0030 alone gained +4987.
+2026-05-05T14:23Z  eb34692  fix initRng/enableRngLog wiping rng log on each segment — multi-segment sessions now retain seg0 calls in the cumulative log. PRNG matched 19409 → 25431 (+6022) across 44 sessions; seed0030 alone gained +4987.
+2026-05-05T14:35Z  <next>   STATE.md focus update: identified post-shuffle fastforward.js mismatches as next blocker (wizard-mode rn2(100) skips at role.c:2060, dungeon.c:1022, dungeon.c:572). agg unchanged (focus narrowing).
 ```
