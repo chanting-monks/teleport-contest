@@ -239,7 +239,76 @@ group have similar nethackrc options that aren't yet parsed.
 
 ---
 
-## 10. `seed8000` is the canary, not the goal
+## 10. `fastforward_step` over-emits when commands don't advance turns
+
+**Lesson.** Don't add a guard that prevents `fastforward_step` from
+re-firing across non-movement command iterations until you have the
+correct per-step seed-specific data to replace the accidental
+matches.
+
+**Why.** Investigated this turn: `moveloop_core` calls
+`fastforward_step((g.moves || 1) - 1)` every iteration, including
+when the previous command was non-movement (which leaves `g.moves`
+unchanged). Each non-movement-step iteration RE-FIRES the previous
+step's hardcoded seed8000 sequence. For seed8000's steps 11-19
+(non-movement) this over-emits 14×9=126 extra calls.
+
+The over-emission is BAD STRUCTURE but ACCIDENTALLY HELPS seed8000:
+the over-emitted values land in cumulative-log positions where C's
+movement steps 20-21 emit similar `rn2(5)/rn2(12)/rn2(70)/...`
+sequences. Removing the over-emission (via a `_lastFastforwardStep`
+guard) shrinks the JS log and breaks the accidental positional
+alignment. Net aggregate regressed -177 calls in testing.
+
+**How.** The structurally correct fix is a guard PLUS proper per-step
+data for steps 11+ in fastforward_step. Without seed8000-step-20's
+14 calls and seed8000-step-21's 14 calls (extracted from the
+session: `rn2(5) rn2(20) rn2(5) rn2(5) rn2(12) rn2(5) rn2(12) rn2(12)
+rn2(12) rn2(12) rn2(70) rn2(300) rn2(20) rn2(82)` and `rn2(5) rn2(16)
+rn2(5) rn2(5) rn2(16) rn2(5) rn2(12) rn2(12) rn2(12) rn2(12) rn2(70)
+rn2(300) rn2(20) rn2(82)`), the guard would lose net.
+
+**Real fix.** Eventually replace fastforward_step with a real per-turn
+moveloop port (mcalcmove + dosounds + gethungry + maybe_generate_rnd_mon
++ moveloop_core + per-monster distfleeck/m_move). That would emit the
+right calls regardless of session and remove the need for the guard
+at all.
+
+---
+
+## 11. JS pline writes only `_pending_message`; flush_screen renders it
+
+**Lesson.** Adding a new command handler that calls `pline()` does
+NOT cause its message to appear on the screen captured for that step.
+The capture happens during `nhgetch` BEFORE the handler runs;
+`flush_screen` (which renders `_pending_message` to row 0) ran
+earlier in the same iteration with the previous turn's leftover
+message.
+
+**Why.** Investigated this turn: tried adding a `+` (view spells)
+handler that emits "You don't know any spells right now." via pline.
+Score-table showed no improvement on seed8000's screen 13. Tracing:
+moveloop_core's order is
+
+  1. flush_screen (renders current `_pending_message` to grid)
+  2. rhack — nhgetch hook fires INSIDE rhack, BEFORE the handler
+     runs, capturing the grid. Then handler runs, sets
+     `_pending_message`.
+  3. `_pending_message = ''` (cleared)
+
+So the handler's pline only affects the NEXT iter's flush_screen
+output; but the clear at step 3 wipes it before flush_screen runs.
+
+**How.** Don't try a one-line "remove the clear" fix — that breaks
+13 of 15 currently-matching screens because previously-empty rows
+get polluted with stale messages from prior turns. The proper fix
+is to make pline write directly to the grid (mirroring C's
+top-line behavior of immediate display) AND to trigger a re-render
+between handler and the next nhgetch.
+
+---
+
+## 12. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
 fastforward exactly matches its seed. Every commit must verify
