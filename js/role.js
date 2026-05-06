@@ -279,6 +279,96 @@ function drawChargenPromptRow0(display) {
 // puts the prompt on row 0 with inverse SGR, the picked character
 // description on row 2, and 4 action lines (y/n/a/q) on rows 4-7.
 // Each is positioned at col 41 (right half of screen).
+// Renders the "Pick a race or species" menu shown after role is
+// picked manually. C ref: role.c:2407 plsel_startmenu(RS_RACE).
+// Right-half menu at col 41+, rows 0..N.
+//
+// Items vary by role:
+//   - Title (inverse) on row 0
+//   - Description on row 2: "<role> <race> <gender> <align>"
+//     with picked role and remaining attributes as placeholders.
+//   - Race accelerators on rows 4..4+N-1: each race the role allows.
+//   - "* * Random" after races.
+//   - Blank row.
+//   - "? - Pick another role first"
+//   - "\" - Pick gender first"
+//   - "[ - Pick alignment first" (only if role has > 1 valid align)
+//   - "role forces <align>" (only if role+race forces 1 align — but
+//     at race-menu stage, race not yet picked, so this is shown only
+//     when the role itself is align-constrained: Rogue=chaotic only,
+//     Knight=lawful, Samurai=lawful, etc.)
+//   - "~ - Set role/race/&c filtering"
+//   - "q - Quit"
+//   - "(end)"
+const RACE_LABEL = { human: 'human', elf: 'elf', dwarf: 'dwarf',
+                     gnome: 'gnome', orc: 'orc' };
+const RACE_LETTER_FOR_NAME = { human: 'h', elf: 'e', dwarf: 'd',
+                               gnome: 'g', orc: 'o' };
+
+function drawPickRaceMenu(display, role) {
+    clearScreenNoColor(display);
+    const rd = ROLE_DATA.find(r => r.name === role);
+    if (!rd) return;
+    const roleAlign = rd.aligns.length === 1 ? rd.aligns[0] : '<alignment>';
+    const COL = 41;
+    display.putstr(COL, 0, "Pick a race or species", CHARGEN_NO_COLOR, 1);
+    display.putstr(COL, 2, `${role} <race> <gender> ${roleAlign}`, CHARGEN_NO_COLOR);
+    let row = 4;
+    for (const race of rd.races) {
+        display.putstr(COL, row++, `${RACE_LETTER_FOR_NAME[race]} - ${RACE_LABEL[race]}`, CHARGEN_NO_COLOR);
+    }
+    display.putstr(COL, row++, "* * Random", CHARGEN_NO_COLOR);
+    row++; // blank row
+    display.putstr(COL, row++, "? - Pick another role first", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++, "\" - Pick gender first", CHARGEN_NO_COLOR);
+    if (rd.aligns.length > 1) {
+        display.putstr(COL, row++, "[ - Pick alignment first", CHARGEN_NO_COLOR);
+    } else {
+        display.putstr(COL + 4, row++, `role forces ${rd.aligns[0]}`, CHARGEN_NO_COLOR);
+    }
+    display.putstr(COL, row++, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++, "q - Quit", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++, "(end)", CHARGEN_NO_COLOR);
+}
+
+// Renders the "Pick a gender or sex" menu shown after race is picked.
+// C ref: role.c:2495 plsel_startmenu(RS_GENDER).
+function drawPickGenderMenu(display, role, race) {
+    clearScreenNoColor(display);
+    const rd = ROLE_DATA.find(r => r.name === role);
+    if (!rd) return;
+    const roleAlign = rd.aligns.length === 1 ? rd.aligns[0] :
+                      (RACE_ALIGNS[race]?.length === 1 ? RACE_ALIGNS[race][0] :
+                       (rd.aligns.filter(a => RACE_ALIGNS[race]?.includes(a)).length === 1
+                        ? rd.aligns.filter(a => RACE_ALIGNS[race]?.includes(a))[0]
+                        : '<alignment>'));
+    const raceAdj = { human: 'human', elf: 'elven', dwarf: 'dwarven',
+                       gnome: 'gnomish', orc: 'orcish' }[race] || race;
+    const COL = 41;
+    display.putstr(COL, 0, "Pick a gender or sex", CHARGEN_NO_COLOR, 1);
+    display.putstr(COL, 2, `${role} ${race} <gender> ${roleAlign}`, CHARGEN_NO_COLOR);
+    let row = 4;
+    for (const g of rd.gens) {
+        const letter = g === 'male' ? 'm' : 'f';
+        display.putstr(COL, row++, `${letter} - ${g}`, CHARGEN_NO_COLOR);
+    }
+    display.putstr(COL, row++, "* * Random", CHARGEN_NO_COLOR);
+    row++;
+    display.putstr(COL, row++, "? - Pick another role first", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++, "/ - Pick another race first", CHARGEN_NO_COLOR);
+    // align-constraint message
+    const validAligns = rd.aligns.filter(a => (RACE_ALIGNS[race] || []).includes(a));
+    if (validAligns.length === 1) {
+        const reason = rd.aligns.length === 1 ? 'role' : 'race';
+        display.putstr(COL + 4, row++, `${reason} forces ${validAligns[0]}`, CHARGEN_NO_COLOR);
+    } else {
+        display.putstr(COL, row++, "[ - Pick alignment first", CHARGEN_NO_COLOR);
+    }
+    display.putstr(COL, row++, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++, "q - Quit", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++, "(end)", CHARGEN_NO_COLOR);
+}
+
 // Renders the "Pick a role or profession" menu shown when user selects
 // 'n' (manual chargen). Full-screen menu starting at col 1, rows 0-23.
 // C ref: role.c:2310 plsel_startmenu(RS_ROLE) + setup_rolemenu.
@@ -401,9 +491,37 @@ export async function chargen_simulate_async(moves, display) {
         if (nameIdx + 1 < moves.length) {
             await nhgetch();
         }
+        // For n-branch, render race menu and consume race pick. Then
+        // gender menu, then Is-this-ok. Each rendered before its
+        // corresponding nhgetch so the screen capture matches C.
+        if (isNClass && picked && display) {
+            drawPickRaceMenu(display, picked.role);
+            if (await drainOneIfAny()) {
+                drawPickGenderMenu(display, picked.role, picked.race);
+                if (await drainOneIfAny()) {
+                    const desc = chargenCharDesc(picked.name || '',
+                                                 picked.role, picked.race,
+                                                 picked.gender, picked.align);
+                    drawIsThisOkMenu(display, desc);
+                    await drainOneIfAny();
+                }
+            }
+        }
         return picked;
     }
     return chargen_simulate(moves);
+}
+
+async function drainOneIfAny() {
+    const { nhgetch } = await import('./input.js');
+    // Try to consume one key — but only if queue has any. If not, the
+    // chargen UI rendering ends here.
+    try {
+        await nhgetch();
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 export function chargen_simulate(moves) {
