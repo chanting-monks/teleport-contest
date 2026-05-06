@@ -427,9 +427,12 @@ function drawIsThisOkMenu(display, charDesc, withBanner = true) {
     // left half (cols 0-40) when a menu is shown on the right (col 41+).
     // Re-write banner rows 4-7 with truncated text so cells 9-39
     // (banner) + 40 (menu leading space) + 41+ (menu) match C exactly.
-    // First, clear the banner row content (cols 0-40) to NO_COLOR ' '.
+    // Clear ALL cells on rows 4-8 (banner + menu zone) to NO_COLOR ' '.
+    // This removes banner remnants beyond the menu's right edge that
+    // would otherwise leak into cells 60+ from drawChargenBanner's
+    // unclamped writes (e.g., "Stephenson." period at col 60).
     for (let r = 4; r <= 8; r++) {
-        for (let c = 0; c <= 40; c++) {
+        for (let c = 0; c < 80; c++) {
             display.setCell(c, r, ' ', CHARGEN_NO_COLOR);
         }
     }
@@ -497,18 +500,24 @@ export async function chargen_simulate_async(moves, display) {
     }
     if (nameIdx < moves.length) {
         await nhgetch(); // chargen response (y/n/a/space/return)
-        // Run chargen_simulate eagerly so we have the picked role/
-        // race/gender/align available to render the "Is this ok?" menu.
-        // chargen_simulate emits the rn2 calls synchronously (those are
-        // unaffected by terminal rendering); we use its returned picks
-        // to format the character description string in the menu.
-        const picked = chargen_simulate(moves);
         const yn = moves[nameIdx];
         const isYClass = yn === 'y' || yn === 'Y' || yn === ' '
                       || yn === '\r' || yn === '\n';
         const isNClass = yn === 'n' || yn === 'N';
+        // For y-class: emit the y-branch full-random picks NOW (4 rn2
+        // calls). Use those picks to render the Is-this-ok menu — this
+        // ensures the description shows the y-branch's initial pick
+        // even if the user later rejects ('n') and runs through manual
+        // menus that pick differently.
+        let picked = null;
+        let yBranchPicked = null;
+        const initialName = moves.slice(0, indexOfReturn(moves, 0));
+        if (isYClass) {
+            yBranchPicked = chargen_full_random();
+            yBranchPicked.name = initialName;
+            picked = yBranchPicked;
+        }
         if (isYClass && picked && display) {
-            const initialName = picked.name || moves.slice(0, indexOfReturn(moves, 0));
             const desc = chargenCharDesc(initialName, picked.role,
                                          picked.race, picked.gender, picked.align);
             drawIsThisOkMenu(display, desc);
@@ -526,9 +535,22 @@ export async function chargen_simulate_async(moves, display) {
         }
         const enteredManual = isNClass
             || (isYClass && (confirmKey === 'n' || confirmKey === 'N'));
-        // For n-branch (or y+n rejection), render race menu and consume
-        // race pick. Then gender menu (if not auto-forced), then
-        // Is-this-ok.
+        // For manual mode (n-branch, or y+n rejection): call
+        // chargen_manual directly to emit manual rn2 calls and get
+        // final picks. For pure y-branch (no rejection), picked is
+        // already the y-branch full-random result.
+        if (enteredManual) {
+            // chargen_manual starts AFTER the chargen response key.
+            // For y+n: also after the rejection 'n'.
+            const manualStartIdx = isYClass ? nameIdx + 2 : nameIdx + 1;
+            const finalPicked = chargen_manual(moves, manualStartIdx, initialName);
+            if (finalPicked) picked = finalPicked;
+        } else if (!isYClass && !isAClass(yn) && !isNClass) {
+            // Other response (q/escape/etc.): fall back to chargen_simulate
+            // for backward compatibility, though it shouldn't fire any rn2.
+            picked = chargen_simulate(moves);
+        }
+
         if (enteredManual && picked && display) {
             // For y+n rejection, the role menu hasn't been rendered yet.
             if (isYClass) {
@@ -557,6 +579,10 @@ export async function chargen_simulate_async(moves, display) {
         return picked;
     }
     return chargen_simulate(moves);
+}
+
+function isAClass(yn) {
+    return yn === 'a' || yn === 'A' || yn === '@' || yn === '*';
 }
 
 async function drainOneIfAny() {
