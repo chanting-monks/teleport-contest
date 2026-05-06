@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    pending
-last_run_time:      2026-05-06T12:08Z
+last_run_commit:    a159fcf
+last_run_time:      2026-05-06T12:09Z
 last_aggregate:     p:(21/4143) 53823/840507    s:(0/44) 113/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
 best_aggregate:     p:(21/4143) 53823/840507    s:(0/44) 113/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        pending
+best_commit:        a159fcf
 ```
 
 Baseline notes (skeleton + fastforward.js):
