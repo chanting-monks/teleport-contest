@@ -279,6 +279,36 @@ function drawChargenPromptRow0(display) {
 // puts the prompt on row 0 with inverse SGR, the picked character
 // description on row 2, and 4 action lines (y/n/a/q) on rows 4-7.
 // Each is positioned at col 41 (right half of screen).
+// Renders the "Pick a role or profession" menu shown when user selects
+// 'n' (manual chargen). Full-screen menu starting at col 1, rows 0-23.
+// C ref: role.c:2310 plsel_startmenu(RS_ROLE) + setup_rolemenu.
+function drawPickRoleMenu(display) {
+    clearScreenNoColor(display);
+    // Title with inverse SGR (attr=1)
+    display.putstr(1, 0, "Pick a role or profession", CHARGEN_NO_COLOR, 1);
+    display.putstr(1, 2, "<role> <race> <gender> <alignment>", CHARGEN_NO_COLOR);
+    display.putstr(1, 4, "a - an Archeologist", CHARGEN_NO_COLOR);
+    display.putstr(1, 5, "b - a Barbarian", CHARGEN_NO_COLOR);
+    display.putstr(1, 6, "c - a Caveman/Cavewoman", CHARGEN_NO_COLOR);
+    display.putstr(1, 7, "h - a Healer", CHARGEN_NO_COLOR);
+    display.putstr(1, 8, "k - a Knight", CHARGEN_NO_COLOR);
+    display.putstr(1, 9, "m - a Monk", CHARGEN_NO_COLOR);
+    display.putstr(1, 10, "p - a Priest/Priestess", CHARGEN_NO_COLOR);
+    display.putstr(1, 11, "r - a Rogue", CHARGEN_NO_COLOR);
+    display.putstr(1, 12, "R - a Ranger", CHARGEN_NO_COLOR);
+    display.putstr(1, 13, "s - a Samurai", CHARGEN_NO_COLOR);
+    display.putstr(1, 14, "t - a Tourist", CHARGEN_NO_COLOR);
+    display.putstr(1, 15, "v - a Valkyrie", CHARGEN_NO_COLOR);
+    display.putstr(1, 16, "w - a Wizard", CHARGEN_NO_COLOR);
+    display.putstr(1, 17, "* * Random", CHARGEN_NO_COLOR);
+    display.putstr(1, 18, "/ - Pick race first", CHARGEN_NO_COLOR);
+    display.putstr(1, 19, "\" - Pick gender first", CHARGEN_NO_COLOR);
+    display.putstr(1, 20, "[ - Pick alignment first", CHARGEN_NO_COLOR);
+    display.putstr(1, 21, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
+    display.putstr(1, 22, "q - Quit", CHARGEN_NO_COLOR);
+    display.putstr(1, 23, "(end)", CHARGEN_NO_COLOR);
+}
+
 function drawIsThisOkMenu(display, charDesc) {
     clearRowNoColor(display, 0);
     clearRowNoColor(display, 2);
@@ -357,11 +387,15 @@ export async function chargen_simulate_async(moves, display) {
         const yn = moves[nameIdx];
         const isYClass = yn === 'y' || yn === 'Y' || yn === ' '
                       || yn === '\r' || yn === '\n';
+        const isNClass = yn === 'n' || yn === 'N';
         if (isYClass && picked && display) {
             const initialName = picked.name || moves.slice(0, indexOfReturn(moves, 0));
             const desc = chargenCharDesc(initialName, picked.role,
                                          picked.race, picked.gender, picked.align);
             drawIsThisOkMenu(display, desc);
+        } else if (isNClass && display) {
+            // n-branch: role menu (full-screen) shown next.
+            drawPickRoleMenu(display);
         }
         // Consume the confirmation key (or first menu key for n-branch)
         if (nameIdx + 1 < moves.length) {
