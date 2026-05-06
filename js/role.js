@@ -393,16 +393,17 @@ function drawPickGenderMenu(display, role, race, align = null) {
     display.putstr(COL, row++, role ? "? - Pick another role first" : "? - Pick role first", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, racePicked ? "/ - Pick another race first" : "/ - Pick race first", CHARGEN_NO_COLOR);
     // align-constraint message vs nav option.
-    // Role-forced align (rd.aligns.length===1) always shows "role forces"
-    // regardless of state — C treats this as a permanent constraint.
-    // Race-forced align only kicks in when role allows multiple but
-    // race narrows to one.
+    // - "role forces X" when rd.aligns.length===1 (Rogue/Knight/etc).
+    // - "race forces X" when race narrows align to 1 (e.g. Wizard+orc).
+    // - "[ - Pick alignment first" / "another" otherwise.
+    // C ref: forced labels are derived from rd/race constraints only,
+    // independent of whether rigid_role_checks has populated state.align.
     const validAlignsByRoleRace = (rd && race)
         ? rd.aligns.filter(a => (RACE_ALIGNS[race] || []).includes(a))
         : (rd ? rd.aligns : null);
     if (rd && rd.aligns.length === 1) {
         display.putstr(COL + 4, row++, `role forces ${rd.aligns[0]}`, CHARGEN_NO_COLOR);
-    } else if (!alignPicked && validAlignsByRoleRace && validAlignsByRoleRace.length === 1) {
+    } else if (race && validAlignsByRoleRace && validAlignsByRoleRace.length === 1) {
         display.putstr(COL + 4, row++, `race forces ${validAlignsByRoleRace[0]}`, CHARGEN_NO_COLOR);
     } else {
         display.putstr(COL, row++, alignPicked ? "[ - Pick another alignment first" : "[ - Pick alignment first", CHARGEN_NO_COLOR);
@@ -510,12 +511,21 @@ function drawPickRoleMenu(display, race = null, gender = null, align = null) {
     display.putstr(COL, row++, "(end)", CHARGEN_NO_COLOR);
 }
 
-function drawIsThisOkMenu(display, charDesc, withBanner = true) {
+function drawIsThisOkMenu(display, charDesc, withBanner = true, preserveRename = false) {
     // For n-branch (no banner): clear entire screen first since
     // the previous race/gender menu had right-half content that
     // would otherwise bleed through the Is-this-ok layout.
+    // Exception: for post-rename Is-this-ok, the rename prompt at
+    // row 10 ("Who are you? <newname>") is left visible by C — it
+    // bleeds through under the menu since the menu only paints its
+    // own rows. Preserve row 10 in that case.
     if (!withBanner) {
-        clearScreenNoColor(display);
+        for (let r = 0; r < 24; r++) {
+            if (preserveRename && r === 10) continue;
+            for (let c = 0; c < 80; c++) {
+                display.setCell(c, r, ' ', CHARGEN_NO_COLOR);
+            }
+        }
     }
     // Compute menu_col per C tty_end_menu (line 2729): cw->cols = max
     // over all menu items of (strlen(str) + 2). Empirically the floor
@@ -771,28 +781,48 @@ export async function chargen_simulate_async(moves, display) {
                 // Unknown key (filter '~', '?' rerender, q/escape, etc.).
                 return picked;
             }
-            // Carry merged state forward (preserve picked.name).
-            const finalPicks = {
+            // Is-this-ok menu (n-branch: no banner backdrop).
+            // Use initialName for the FIRST Is-this-ok render — the
+            // pre-rename screen shows the originally typed name even
+            // when chargen_manual has already processed an 'a' rename
+            // and updated picked.name to the post-rename value.
+            const desc = chargenCharDesc(initialName || merged.name || '',
+                                         state.role || merged.role,
+                                         state.race || merged.race,
+                                         state.gender || merged.gender,
+                                         state.align || merged.align);
+            drawIsThisOkMenu(display, desc, false);
+            const confirmCode = await drainOneIfAny();
+            // 'a' rename: re-prompt name on row 10, then re-render
+            // Is-this-ok with the new name and consume the post-rename
+            // confirm key. C ref: role.c:2693.
+            if (confirmCode === 0x61 || confirmCode === 0x41) {
+                if (display) drawRenamePromptOnRow10(display, '');
+                await renderRenameNameCapture(display);
+                // Post-rename Is-this-ok: use the rename's new name from
+                // chargen_manual (which already processed 'a' and stored
+                // the new name in merged.name).
+                const postRenameName = merged.name || initialName;
+                const desc2 = chargenCharDesc(postRenameName,
+                                              state.role || merged.role,
+                                              state.race || merged.race,
+                                              state.gender || merged.gender,
+                                              state.align || merged.align);
+                drawIsThisOkMenu(display, desc2, false, true);
+                await drainOneIfAny();
+                // Note: post-rename rejection 'n' → filter menu '~' →
+                // re-pick role/race/etc. (seed0006 step 21+) is not yet
+                // modeled.
+            }
+            // Carry merged state forward; picked.name from chargen_manual
+            // already reflects any post-rename value for the welcome msg.
+            picked = {
                 role: state.role || merged.role,
                 race: state.race || merged.race,
                 gender: state.gender || merged.gender,
                 align: state.align || merged.align,
                 name: merged.name,
             };
-            // Is-this-ok menu (n-branch: no banner backdrop).
-            const desc = chargenCharDesc(finalPicks.name || '',
-                                         finalPicks.role, finalPicks.race,
-                                         finalPicks.gender, finalPicks.align);
-            drawIsThisOkMenu(display, desc, false);
-            const confirmCode = await drainOneIfAny();
-            // 'a' rename: re-prompt name on row 10. C ref: role.c:2693.
-            if (confirmCode === 0x61 || confirmCode === 0x41) {
-                if (display) drawRenamePromptOnRow10(display, '');
-                await renderRenameNameCapture(display);
-                // Post-rename Is-this-ok / re-entry not modeled (seed0006
-                // pitfall: extra drainOneIfAny shifted PRNG alignment).
-            }
-            picked = finalPicks;
         }
         return picked;
     }
