@@ -22,11 +22,18 @@ clean.
 ## scores
 
 ```
-last_run_commit:    6da1a1d
-last_run_time:      2026-05-06T21:33Z
-last_aggregate:     p:(21/4143) 53829/840507    s:(0/44) 127/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(21/4143) 53829/840507    s:(0/44) 127/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        6da1a1d
+last_run_commit:    7a1271b (post-upstream-merge)
+last_run_time:      2026-05-06T21:51Z
+last_aggregate:     p:(21/4202) 53829/792885    s:(0/44) 127/11284    e:-    m:-
+best_aggregate:     p:(21/4202) 53829/792885    s:(0/44) 127/11284    e:-    m:-
+best_commit:        7a1271b
+
+NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
+counts (127 screens, 21 turns, 53829 calls) are unchanged but corpus
+totals shifted (10902→11284 screens, 4143→4202 active turns,
+840507→792885 PRNG calls).  Events/maps columns are now '-' (no data).
+Per the upstream README update, scoring is now screens-only; PRNG match
+is advisory.
 ```
 
 Baseline notes (skeleton + fastforward.js):
