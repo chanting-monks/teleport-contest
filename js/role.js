@@ -248,6 +248,13 @@ function drawNamePromptOnRow12(display, nameSoFar) {
 // logic for picking role/race/gender/align (those screens are still
 // captured as gameplay states for now; rendering chargen menus is a
 // future increment).
+const CHARGEN_PROMPT_ROW0 = "Shall I pick character's race, role, gender and alignment for you? [ynaq]";
+
+function drawChargenPromptRow0(display) {
+    display.clearRow(0);
+    display.putstr(0, 0, CHARGEN_PROMPT_ROW0, CHARGEN_NO_COLOR);
+}
+
 export async function chargen_simulate_async(moves, display) {
     if (!moves) return null;
     if (display) drawChargenBanner(display);
@@ -264,10 +271,20 @@ export async function chargen_simulate_async(moves, display) {
             drawNamePromptOnRow12(display, moves.slice(0, nameIdx));
         }
     }
-    // Consume the \r/\n
+    // Consume the \r. Then render "Shall I pick?" prompt and consume
+    // the chargen response key so its screen is captured during chargen
+    // (rather than later in moveloop where terminal state has changed).
     if (nameIdx < moves.length) {
         await nhgetch();
         nameIdx++;
+        // Render the chargen prompt on row 0 before the response nhgetch.
+        if (display) drawChargenPromptRow0(display);
+    }
+    if (nameIdx < moves.length) {
+        await nhgetch(); // chargen response (y/n/a/space/return)
+        // Don't increment nameIdx here — we leave moves intact; the
+        // sync chargen_simulate logic walks the same string but uses
+        // its own indexing. The queue is what we needed to drain.
     }
     return chargen_simulate(moves);
 }
