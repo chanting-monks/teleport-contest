@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    7a1271b (post-upstream-merge)
-last_run_time:      2026-05-06T21:51Z
-last_aggregate:     p:(21/4202) 53829/792885    s:(0/44) 127/11284    e:-    m:-
-best_aggregate:     p:(21/4202) 53829/792885    s:(0/44) 127/11284    e:-    m:-
-best_commit:        7a1271b
+last_run_commit:    af17822
+last_run_time:      2026-05-06T22:35Z
+last_aggregate:     p:(21/4202) 53843/792885    s:(0/44) 129/11284    e:-    m:-
+best_aggregate:     p:(21/4202) 53843/792885    s:(0/44) 129/11284    e:-    m:-
+best_commit:        af17822
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
 counts (127 screens, 21 turns, 53829 calls) are unchanged but corpus
