@@ -373,7 +373,10 @@ const MKOBJ_PROBS = [
 //                in the RING() macro → total 28.
 //   AMULET_CLASS = sum of per-amulet prob fields (120+75+115+115+115+115+
 //                  60+75+75+75+60) → total 1000.
-//   GEM_CLASS = 1002 (1000 + a couple of rocks/stones).
+//   GEM_CLASS = 1000 (recomputed at level-init by o_init.c:80; level 1
+//                zeroes the lower 9 gems, leaving 12 gems contributing
+//                171 + rocks/stones contributing 829 = 1000). Empirically
+//                matches C's seed0030 mkobj at call 4981.
 //   WEAPON, ARMOR, FOOD, TOOL, POTION, SCROLL, SPBOOK, WAND = 1000
 //   (default per-class total for the standard NetHack object sets).
 const OCLASS_PROB_TOTALS = {
@@ -387,7 +390,7 @@ const OCLASS_PROB_TOTALS = {
     8 /* TOOL */: 1000,
     9 /* SPBOOK */: 1000,
     10 /* AMULET */: 1000,
-    14 /* GEM */: 1002,
+    14 /* GEM */: 1000,
 };
 
 const RANDOM_CLASS_OCLASS = 0;
