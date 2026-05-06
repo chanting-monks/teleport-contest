@@ -638,12 +638,91 @@ role menu was drawn yet, so the FSM's normal iter 1 handles it.
 from 11 → 16 matched screens (+5). seed0007/seed0077 preserved at
 14/11 after fixing the role-forced label bug.
 
-**Still deferred.** '~' filter sub-menu; '?' role-first re-render;
-seed0006 post-rename rejection re-entry to manual mode; race-forced
-align distinction (vs role-forced).
+**'~' filter menu (RESOLVED).** After post-rename Is-this-ok 'n'
+rejection, render the full-screen role menu and detect '~' as the
+nav key. Then enter a filter loop: render `drawFilterMenu` (page 1
+covering "Unacceptable roles" + "Unacceptable races"), drain one key,
+toggle that role/race in the exclusion set, re-render. '\r'/'\n'
+exits the filter loop. After exit, re-render the role menu with
+filter exclusions applied AND footer "Reset role/race/&c filtering"
+(C uses "Reset" instead of "Set" when filter is active). The
+post-filter role menu uses col 41 (right-half) because the list is
+shorter — `filterActive || constrained` triggers right-half placement
+AND the blank line before nav options.
 
-**Commits:** 8cfbce1, 64252ad ("Pick gender first" partial), then the
-FSM refactor (this iteration).
+**Post-filter chargen flow (RESOLVED).** After filtered role menu's
+role letter, continue with race/gender menus that respect the
+`excluded` set. drawPickRaceMenu and drawPickGenderMenu now accept
+`excluded` and filter both the displayed list and the footer label.
+For seed0006: filter excludes a/b/c/r/R + H/E/D, leaving roles
+[Healer, Wizard] and races [gnome, orc]; user picks 'w' Wizard +
+'g' gnome + 'f' female + neutral (race-forced via gnome). Final
+Is-this-ok renders with new picks.
+
+**Race-forces (vs role-forces) align label (RESOLVED).** When the
+role allows multiple alignments but the chosen race narrows to one
+(e.g. Wizard's [neutral, chaotic] ∩ orc's [chaotic] = [chaotic]),
+the label is "race forces chaotic" — distinct from "role forces"
+which fires when rd.aligns.length === 1. drawPickGenderMenu now
+emits both label types based on rd vs race constraints.
+
+**Post-rename Is-this-ok (RESOLVED).** After 'a' rename, re-render
+Is-this-ok with the new name. The previous "Who are you? <new>"
+prompt at row 10 BLEEDS THROUGH under the menu in C — preserve it
+via a `preserveRename` flag on drawIsThisOkMenu that skips clearing
+row 10. The first Is-this-ok render (pre-rename) must use
+`initialName`, NOT `picked.name`, because chargen_manual processes
+the 'a' command ahead of time and stores the post-rename name there.
+
+**Still deferred.** '?' role-first re-render at non-role menus;
+seed0006's intro story at step 35 (requires correct per-role status
+bar — see status-bar bottleneck below).
+
+**Commits:** 8cfbce1, 64252ad, 83e955c (FSM refactor), a159fcf
+(race-forces + initialName + post-rename Is-this-ok), 8f349b1
+(rejection role menu), f8dfb67 (filter '~' menu loop), 0098c4e
+(post-filter race+gender+Is-this-ok).
+
+---
+
+## 21. Status-bar bottleneck for non-chargen + post-chargen screens
+
+**Lesson.** After chargen UI is fully matched (currently 16-35
+screens for chargen sessions), the next mismatch step is either the
+intro story ("It is written in the Book of <Deity>:") for sessions
+with default `flags.legacy=true`, or the welcome+map screen for
+non-chargen sessions like seed8000 (where !legacy is set in rc).
+
+**Why.** Both intro and welcome screens include the status bar at
+rows 22-23. The status bar reads from `g.u.acurr/uhp/uen/uac/_goldCount`
+which my `allmain.js` HARDCODES to seed8000 Tourist values
+(St:9 Dx:14 Co:12 In:11 Wi:16 Ch:16, HP:10 Pw:2 AC:10, $:757).
+For any non-Tourist role/race the status bar mismatches, blocking
+whole-screen comparison.
+
+**How.** Two non-trivial paths:
+1. **Per-seed stats lookup** (hacky, 44-entry table extracted from
+   each session's first non-intro welcome screen). Works for known
+   public seeds; doesn't generalize to held-out sessions. Quick
+   public-score boost.
+2. **Real `u_init` port** (principled). Port `init_attr(75)` +
+   `init_attr_role_redist` + `vary_init_attr` + `newhp` + `newpw`
+   from C, plus role.attrbase / race.attrbase / role.hpadv / race.hpadv
+   tables. The PRNG sequence at `u_init_misc` time differs per role
+   because `ini_inv` (per-role inventory rolls) has different
+   `rnd(N)` calls per role. Requires also porting per-role `ini_inv`
+   to keep PRNG aligned, which is a multi-day effort.
+
+**Map content also blocks.** Even with status bar correct, the
+welcome+map screens require `mklev` to produce the SAME room/dungeon
+layout as C for non-seed8000 seeds. Currently mklev port matches
+PRNG for ~1000-1500 calls then diverges (e.g. seed0014 diverges at
+call 1447 in `rnd_rect`/`check_room`). The map content thus differs
+from C's recording.
+
+**Verified at this iteration.** Total 127/10902 screens. Most chargen
+UI is fully matched; remaining gains require status-bar + mklev
+port work.
 
 ---
 
