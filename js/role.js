@@ -387,6 +387,31 @@ function drawPickGenderMenu(display, role, race) {
 // Renders the "Pick a role or profession" menu shown when user selects
 // 'n' (manual chargen). Full-screen menu starting at col 1, rows 0-23.
 // C ref: role.c:2310 plsel_startmenu(RS_ROLE) + setup_rolemenu.
+// Renders the "Pick an alignment or creed" menu (right-half, col 41+).
+// C ref: role.c:2580 plsel_startmenu(RS_ALGNMNT) when invoked by '['
+// from another menu. The menu layout has all 3 align letters l/n/c
+// (no role/race filtering applied yet since alignment is being
+// chosen first).
+function drawPickAlignMenu(display, role = null, race = null, gender = null) {
+    clearScreenNoColor(display);
+    const COL = 41;
+    display.putstr(COL, 0, "Pick an alignment or creed", CHARGEN_NO_COLOR, 1);
+    const roleText = role || '<role>';
+    const raceText = race || '<race>';
+    const genderText = gender || '<gender>';
+    display.putstr(COL, 2, `${roleText} ${raceText} ${genderText} <alignment>`, CHARGEN_NO_COLOR);
+    display.putstr(COL, 4, "l - lawful", CHARGEN_NO_COLOR);
+    display.putstr(COL, 5, "n - neutral", CHARGEN_NO_COLOR);
+    display.putstr(COL, 6, "c - chaotic", CHARGEN_NO_COLOR);
+    display.putstr(COL, 7, "* * Random", CHARGEN_NO_COLOR);
+    display.putstr(COL, 9, "? - Pick role first", CHARGEN_NO_COLOR);
+    display.putstr(COL, 10, "/ - Pick race first", CHARGEN_NO_COLOR);
+    display.putstr(COL, 11, "\" - Pick gender first", CHARGEN_NO_COLOR);
+    display.putstr(COL, 12, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
+    display.putstr(COL, 13, "q - Quit", CHARGEN_NO_COLOR);
+    display.putstr(COL, 14, "(end)", CHARGEN_NO_COLOR);
+}
+
 function drawPickRoleMenu(display) {
     clearScreenNoColor(display);
     // Title with inverse SGR (attr=1)
@@ -562,6 +587,25 @@ export async function chargen_simulate_async(moves, display) {
             // For y+n rejection, the role menu hasn't been rendered yet.
             if (isYClass) {
                 drawPickRoleMenu(display);
+                if (!(await drainOneIfAny())) return picked;
+            }
+            // The next key after role menu may be a navigation key:
+            // '[' = Pick alignment first → align menu next
+            // (other navigation: '/'/'"'/'?' deferred)
+            // Find the role-pick key from moves.
+            const roleMenuStartIdx = isYClass ? nameIdx + 2 : nameIdx + 1;
+            let rolePickKey = null;
+            for (let i = roleMenuStartIdx; i < moves.length; i++) {
+                const ch = moves[i];
+                if ((ch in ROLE_BY_LETTER) || ch === '[' || ch === '/' ||
+                    ch === '"' || ch === '?' || ch === '~') {
+                    rolePickKey = ch;
+                    break;
+                }
+            }
+            if (rolePickKey === '[') {
+                // Align menu rendered next, no role/race/gender set yet.
+                drawPickAlignMenu(display);
                 if (!(await drainOneIfAny())) return picked;
             }
             drawPickRaceMenu(display, picked.role);
