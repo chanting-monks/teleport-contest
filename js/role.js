@@ -440,16 +440,16 @@ function drawIsThisOkMenu(display, charDesc) {
     display.putstr(9, 5, bannerLine("By Stichting Mathematisch Centrum and M. Stephenson.", 9), CHARGEN_NO_COLOR);
     display.putstr(9, 6, bannerLine("Version 5.0.0 (Teleport JS port).", 9), CHARGEN_NO_COLOR);
     display.putstr(9, 7, bannerLine("See license for details.", 9), CHARGEN_NO_COLOR);
-    // Row 0 col 41: "Is this ok? [ynaq]" with inverse attribute (1)
-    display.putstr(41, 0, "Is this ok? [ynaq]", CHARGEN_NO_COLOR, 1);
-    // Row 2 col 41: character description
-    display.putstr(41, 2, charDesc, CHARGEN_NO_COLOR);
-    // Rows 4-7 col 41: y/n/a/q menu items (positioned to right of banner)
-    display.putstr(41, 4, "y * Yes; start game", CHARGEN_NO_COLOR);
-    display.putstr(41, 5, "n - No; choose role again", CHARGEN_NO_COLOR);
-    display.putstr(41, 6, "a - Not yet; choose another name", CHARGEN_NO_COLOR);
-    display.putstr(41, 7, "q - Quit", CHARGEN_NO_COLOR);
-    display.putstr(41, 8, "(end)", CHARGEN_NO_COLOR);
+    // Title with inverse attribute (1)
+    display.putstr(COL, 0, "Is this ok? [ynaq]", CHARGEN_NO_COLOR, 1);
+    // Character description on row 2
+    display.putstr(COL, 2, charDesc, CHARGEN_NO_COLOR);
+    // y/n/a/q menu items on rows 4-7
+    display.putstr(COL, 4, "y * Yes; start game", CHARGEN_NO_COLOR);
+    display.putstr(COL, 5, "n - No; choose role again", CHARGEN_NO_COLOR);
+    display.putstr(COL, 6, "a - Not yet; choose another name", CHARGEN_NO_COLOR);
+    display.putstr(COL, 7, "q - Quit", CHARGEN_NO_COLOR);
+    display.putstr(COL, 8, "(end)", CHARGEN_NO_COLOR);
 }
 
 // Build the character description string used in the confirmation menu.
