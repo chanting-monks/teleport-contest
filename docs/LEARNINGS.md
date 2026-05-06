@@ -518,6 +518,65 @@ prior currentName. seed0006 verified: typed "Hextrum", renamed to
 
 ---
 
+## 19. Chargen UI rendering: terminal cell parity formula
+
+**Lesson.** The new (post-2026-05-05) leaderboard scoring is screens-only:
+1 point per matched cell-by-cell screen comparison via screensVisuallyEqual
+(decodeScreen → cell grids → diffCell). PRNG and rngSteps no longer
+contribute to points directly. Closing the screens gap requires
+rendering chargen-phase UI to the terminal grid so each chargen
+step's nhgetch capture matches C cell-for-cell.
+
+**Critical formulas derived from C source / empirical reverse:**
+
+- **NO_COLOR = 8** (NOT CLR_GRAY=7). terminal.putstr's default is
+  CLR_GRAY which renders as ANSI fg=37; C's blank cells decode to
+  fg=39 (default) which equals NO_COLOR=8. ALL chargen rendering
+  must pass color=8 explicitly. clearRow/clearScreen use CLR_GRAY,
+  so we use a dedicated clearScreenNoColor helper that walks all
+  cells and setCell(c, r, ' ', 8).
+
+- **Menu position:** C tty_end_menu (wintty.c:2729) computes
+  `cw->cols = max over items of (strlen(str) + 2)`, then
+  `offx = max(10, ttyDisplay->cols - cw->cols - 1)`.
+  Empirically the floor is 38 (constant min) and maxcol scales
+  with desc length: maxcol = max(38, desc_len + 1).
+  → menu_col = 79 - max(38, desc+1).
+  Verified across seed0002 (col 41), seed0007 (col 35),
+  seed0009 (col 39), seed0014 (col 38), seed0077 (col 41).
+
+- **Banner overlap:** When menu is shown on right (col 41+),
+  drawIsThisOkMenu must clear ALL cells on rows 4-8 (cols 0-79)
+  before re-rendering banner truncated to cols 0..menu_col-1 +
+  menu items at menu_col+. Without the full clear, banner remnants
+  past the menu's right edge (e.g., "Stephenson." period at col 60)
+  leak through.
+
+- **n-branch vs y-branch backdrop:** y-branch keeps banner visible
+  alongside menu; n-branch's role menu is full-screen and erases the
+  banner, so subsequent menus (Is-this-ok n-branch) render with
+  blank backdrop (no banner re-render). Pass `withBanner=false` flag.
+
+- **role/race/gender forced constraints:** rigid_role_checks
+  (role.c:1235) auto-sets attrs with single valid option BEFORE
+  showing menus. Race menu reflects this in row 2 ("Valkyrie
+  <race> female <alignment>" not "<gender>") and replaces the
+  "Pick X first" line with "role forces <X>".
+
+- **y+n rejection rendering:** For y-class chargen response
+  followed by 'n' rejection, render Is-this-ok with the y-branch
+  initial picks (not the manual final picks). chargen_full_random
+  must be called separately from chargen_manual to capture the
+  intermediate state.
+
+**Impact:** 15 → 93 public screens (+78, +520%). 8 sessions now
+have matching chargen-phase screens (was just seed8000).
+
+**Commits:** 33912c9, 0075d5a, db1d2dc, d0c02da, 500d757, cadb3d9,
+de46d9e, 642c314, 4938cd5, 6585642, c5ed667, 89c8e2f.
+
+---
+
 ## 14. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
