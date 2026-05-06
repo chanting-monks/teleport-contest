@@ -216,7 +216,15 @@ export async function newgame() {
     const genderAdj = g.flags?.female ? 'female' : 'male';
     const raceName = g.opts_race || 'human';
     const roleDisplayName = g.flags?.female ? g.urole.name.f : g.urole.name.m;
-    await pline(`Aloha ${g.plname}, welcome to NetHack!  You are a ${alignName} ${genderAdj} ${raceName} ${roleDisplayName}.`);
+    // C ref: role.c:2120 Hello() — role-specific greeting word.
+    const HELLO_BY_ROLE = {
+        Knight: 'Salutations',
+        Samurai: 'Konnichi wa',
+        Tourist: 'Aloha',
+        Valkyrie: 'Velkommen',
+    };
+    const helloWord = HELLO_BY_ROLE[g.opts_role] || 'Hello';
+    await pline(`${helloWord} ${g.plname}, welcome to NetHack!  You are a ${alignName} ${genderAdj} ${raceName} ${roleDisplayName}.`);
 }
 
 // C ref: allmain.c moveloop_core()
