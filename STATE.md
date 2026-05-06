@@ -34,22 +34,32 @@ opportunity from the diagnostic output.
    `hint=message` (row 0-1) often surfaces missing pline messages or
    commands that should advance turn but don't. The seed8000
    search-turn fix (`af17822`, +2 screens) came from exactly this
-   loop: screen-diff → "T:11 vs T:12" → cmd.js 6-line patch.
-2. **Re-apply the GEM_CLASS otyp prob-walk port** — code is fully
-   written and verified bit-exactly correct for seed8000 (LEARN #22
-   spells out the boundaries 171/862/872/882/890/900/1000). It drops
-   1 PRNG turn on seed0030 (a coincidental rn2(1) match per LEARN #22)
-   while preserving screen score. Per the new rubric (screens-only,
-   PRNG advisory) this is a commit-worthy C-faithful improvement.
-3. **Run `node scripts/screen-diff.mjs` on every Tourist session
-   (seed0030, seed0900, seed1800, seed5006)** to find more
-   turn-counter / status mismatches. Other commands besides 's' / '.'
-   that consume a turn: ',' (pickup), 'd' (drop), 'q' (quaff),
-   'r' (read), 'z' (zap), 't' (throw), 'w' (wield), 'W' (wear),
-   'P' (puton), 'T' (takeoff), 'a' (apply), 'e' (eat), '#pray', etc.
-   Adding any of these to cmd.js's turn-consuming branch is a
-   candidate +screens fix for sessions whose status bar matches
-   except for T:.
+   loop: screen-diff → "T:11 vs T:12" → cmd.js 6-line patch. The
+   pline-timing fix (`12afd81`, +2 screens) came the same way: '+'
+   command should produce "You don't know any spells right now." but
+   was being cleared mid-cycle.
+2. **Port the legacy book (`com_pager(legacy)`).** This is the
+   primary blocker: 30+ sessions diverge at step 0 (or post-chargen)
+   showing `It is written in the Book of <god>:` on row 0 of C while
+   JS shows the welcome line. Required pieces: (a) per-role data
+   table (3 god names, rank-1 male/female title), (b) substitution
+   engine for `%d` (god, strip leading `_`), `%G` (`god`/`goddess`
+   based on `_` prefix), `%r` (rank-1 title); (c) renderer that
+   writes each text line at column `8 + leading_spaces` of the
+   template (per `quest.lua` `legacy.text` source) and `--More--` at
+   col 8 after the last paragraph. C source: `questpgr.c:328
+   convert_line` for substitutions, `questpgr.c:236 convert_arg` for
+   the variable lookup. Will only count as +screen for sessions where
+   status bar and remaining map cells also already match — but it's a
+   prerequisite for those, since legacy diverge poisons all later
+   screens too.
+3. **Add more pline-only commands to `cmd.js`.** Now that pline
+   timing is fixed (`12afd81`), simple-pline commands cleanly produce
+   their `next-screen` row-0 message. Easy targets: `,` on empty floor
+   plines `There is nothing here to pick up.` (`hack.c:3845`); `q`
+   with no quaffable plines `You have nothing to drink.`; `r` with no
+   readable plines `You have nothing to read.`; etc. Each is one line
+   in the rhack switch.
 4. **Use `node scripts/step-prng-diff.mjs <session> --matched`** to
    identify coincidentally-matched step boundaries; check whether
    they're `rn2(1)=0` (always 0, per LEARN #22) so future C-faithful
@@ -81,11 +91,11 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    af17822
-last_run_time:      2026-05-06T22:35Z
-last_aggregate:     p:(21/4202) 53843/792885    s:(0/44) 129/11284    e:-    m:-
-best_aggregate:     p:(21/4202) 53843/792885    s:(0/44) 129/11284    e:-    m:-
-best_commit:        af17822
+last_run_commit:    12afd81
+last_run_time:      2026-05-06T23:25Z
+last_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
+best_commit:        12afd81
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
 counts (127 screens, 21 turns, 53829 calls) are unchanged but corpus

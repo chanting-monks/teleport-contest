@@ -786,5 +786,81 @@ after any change to dungeon/role/init code. firstDiv must remain at
 
 ---
 
+## 15. pline buffer must outlive rhack — clear after capture, not after rhack
+
+**Lesson.** A pline issued by an rhack handler (e.g. `'+'` →
+"You don't know any spells right now.") must persist into the *next*
+iteration's `flush_screen`, otherwise the next nh_getch capture
+records an empty topl. The buffer's natural lifetime is one screen
+capture — set by pline (now or earlier), rendered into the terminal
+by `flush_screen`, captured by `_preNhgetchHook`, then cleared.
+
+**Symptom.** Adding rhack handlers that pline a result was a no-op:
+score-table showed the new handler firing but screens stayed
+unchanged. screen-diff confirmed C had `You don't know any spells
+right now.` on row 0 of the next screen, JS had blank.
+
+**Root cause.** `moveloop_core` was clearing `_pending_message`
+*after* `rhack` returned, which happens in the same iteration — the
+new pline was already in the buffer but got wiped before the next
+flush. C's topl semantics are "one nh_getch worth of visibility per
+pline"; we had been clearing one cycle too early.
+
+**Fix.** Move the clear into `_preNhgetchHook` so it fires right
+after each terminal-grid capture. Welcome (plined pre-iter-0) still
+works: it persists through iter 0's flush, gets captured, then is
+cleared just before iter 1.
+
+**Verified gain.** `12afd81` on seed8000-tourist-starter: 17/23 →
+19/23 screens (steps 13 = `+` no-spells, 22 = `:` no-objects).
+
+**Commits:** `12afd81`.
+
+---
+
+## 16. legacy book is the most common screen-0 blocker
+
+**Observation.** ~32 of 44 public sessions have C step 0 row 0 set
+to `It is written in the Book of <god>:`, while JS shows the welcome
+line.  The 6 sessions that *don't* show legacy first all have
+`OPTIONS=!legacy` in their nethackrc (seed0030, seed0398, seed4500,
+seed5002, seed5006, seed8000), turning off `flags.legacy` so
+`com_pager(legacy)` is skipped at allmain.c:831.
+
+**Why this matters.** Without porting `com_pager(legacy)`, ~70% of
+sessions are stuck at 0 screens regardless of how good chargen,
+welcome, or moveloop is — the very first screen mismatches.
+
+**What's needed for a port** (sketched, not yet implemented):
+1. **Per-role data table** with 3 god names and rank-1 male/female
+   title.  Source: `nethack-c/upstream/src/role.c` `roles[]` array,
+   line 30+.  God names with leading `_` indicate goddesses.
+2. **Substitution engine.**  `%d` = god name (strip leading `_`);
+   `%G` = `god`/`goddess` based on `_` prefix; `%r` = rank-1 title.
+   Reference: `questpgr.c:236 convert_arg`, `questpgr.c:328
+   convert_line`.
+3. **Renderer.**  Each text line is rendered at column
+   `8 + leading_spaces_in_template`.  Empty lines remain empty.
+   `--More--` at col 8 after the last paragraph.  The map and status
+   line are still visible underneath where the legacy text doesn't
+   cover (rows 18-23 typically).
+4. **Wiring.**  Call after `role_init` / chargen, before
+   `welcome(TRUE)`, when `flags.legacy` is true.
+
+**Caveats.** Even a perfect legacy port only counts as +screen for
+sessions where the corresponding map render and status line at the
+overlay's exposed rows also match.  For sessions where mklev or
+init_attr is still incomplete, status/map may diverge below the
+overlay, blocking the screen even with legacy correct.  But the
+legacy port is a hard *prerequisite* — its absence poisons all
+later screens for those sessions.
+
+**Note for whoever ports it.**  The Priest role has random gods
+(picked at game start from another role's pantheon, see role.c
+~line 1980 + role.js for the rn2(13) loop); easy stub case is to
+skip Priest until the pantheon RNG is wired.
+
+---
+
 *Append new entries above this line. Each entry numbered, dated, and
 linked to the commit that introduced/fixed it.*
