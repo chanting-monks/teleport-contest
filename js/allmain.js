@@ -19,7 +19,7 @@ import {
     fastforward_fill_mineralize,
 } from './fastforward.js';
 import { init_dungeons } from './dungeon.js';
-import { role_init, chargen_simulate } from './role.js';
+import { role_init, chargen_simulate, chargen_simulate_async } from './role.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
 
 // C ref: mklev.c:929 ROOM_IS_FILLABLE macro
@@ -69,7 +69,11 @@ export async function newgame() {
     // unset attribute has exactly 1 valid option. chargen_simulate()
     // walks the moves keystroke prefix and emits matching rn2 calls.
     if (g.opts_chargen_needed) {
-        const picked = chargen_simulate(g.opts_chargen_moves || '');
+        // Use async chargen so each name keystroke triggers a screen
+        // capture (via nhgetch's _preNhgetchHook). This matches C's
+        // chargen-phase screens 0..N where N=name length.
+        const picked = await chargen_simulate_async(
+            g.opts_chargen_moves || '', g.nhDisplay);
         if (picked) {
             g.opts_role = picked.role || g.opts_role;
             g.opts_race = picked.race || g.opts_race;

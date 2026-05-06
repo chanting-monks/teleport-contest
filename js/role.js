@@ -208,6 +208,70 @@ function rigid_role_checks(s) {
 // always emits the full pick_role+race+gend+align sequence. No public
 // session has partial rc (all 44 sessions either have all four set or
 // none), so this is a deferred correctness gap, not an active bug.
+// Renders the NetHack chargen banner + "Who are you?" prompt onto the
+// terminal grid at the same row positions C tty_putstr writes to. C
+// writes the banner on rows 4-7 (cols 0 and 9) and "Who are you? " on
+// row 12. Replicating these positions is what makes JS's serialized
+// terminal grid match C's screen capture cell-for-cell.
+//
+// C ref: tty_init_nhwindows + tty_player_selection. The version line
+// is normalized to <<VERSION_BANNER>> by frozen/ps_test_runner.mjs's
+// STARTUP_VARIANT_LINES regex, so the exact version string doesn't
+// matter — only the row + leading-9-cols positioning.
+// NO_COLOR = 8 in terminal.js / const.js — matches C's tty_putstr
+// default of CLR_GRAY mapped to NO_COLOR in the recorder. terminal.js
+// putstr defaults to CLR_GRAY=7 which renders as ANSI fg 37; C emits
+// no SGR (color 8 = default). We pass 8 explicitly so the cell color
+// matches C's screen capture cell-for-cell.
+const CHARGEN_NO_COLOR = 8;
+
+function drawChargenBanner(display) {
+    display.clearScreen();
+    display.putstr(0, 4, "NetHack, Copyright 1985-2026", CHARGEN_NO_COLOR);
+    display.putstr(9, 5, "By Stichting Mathematisch Centrum and M. Stephenson.", CHARGEN_NO_COLOR);
+    display.putstr(9, 6, "Version 5.0.0 (Teleport JS port).", CHARGEN_NO_COLOR);
+    display.putstr(9, 7, "See license for details.", CHARGEN_NO_COLOR);
+}
+
+function drawNamePromptOnRow12(display, nameSoFar) {
+    display.clearRow(12);
+    display.putstr(0, 12, "Who are you? " + nameSoFar, CHARGEN_NO_COLOR);
+}
+
+// Async wrapper around chargen_simulate that renders chargen-phase
+// screens to the terminal. Calls await nhgetch() once per name letter
+// (consuming from the input queue, triggering screen capture via the
+// _preNhgetchHook), so chargen-phase screens are captured with banner
+// + "Who are you? <typed>" content matching C's screen layout.
+//
+// After name capture, falls through to the existing chargen_simulate
+// logic for picking role/race/gender/align (those screens are still
+// captured as gameplay states for now; rendering chargen menus is a
+// future increment).
+export async function chargen_simulate_async(moves, display) {
+    if (!moves) return null;
+    if (display) drawChargenBanner(display);
+    let nameIdx = 0;
+    // Render name prompt with empty name BEFORE first nhgetch, so
+    // screen 0 captures "Who are you?".
+    if (display) drawNamePromptOnRow12(display, '');
+    // Consume name letters (each nhgetch captures a screen).
+    const { nhgetch } = await import('./input.js');
+    while (nameIdx < moves.length && moves[nameIdx] !== '\r' && moves[nameIdx] !== '\n') {
+        await nhgetch(); // captures screen, returns char (we use moves[] for logic)
+        nameIdx++;
+        if (display) {
+            drawNamePromptOnRow12(display, moves.slice(0, nameIdx));
+        }
+    }
+    // Consume the \r/\n
+    if (nameIdx < moves.length) {
+        await nhgetch();
+        nameIdx++;
+    }
+    return chargen_simulate(moves);
+}
+
 export function chargen_simulate(moves) {
     if (!moves) return null;
     let idx = 0;
