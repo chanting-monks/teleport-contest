@@ -726,6 +726,45 @@ port work.
 
 ---
 
+## 22. Step-fully-matched coincidences and how to find them
+
+**Lesson.** The score-table `p:(turnsFully)` column counts step
+boundaries where every PRNG call within that step matches in order.
+Some steps have only 1 PRNG call — when that call is `rn2(1)` it
+*always* returns 0, so any divergent JS PRNG state at that flat
+position trivially matches. AGENTS.md §5.4 says "DO NOT REVERT
+high-confidence C-faithful fixes that cause regressions — find the
+coupled bug." When the only "regression" from a C-faithful fix is
+the loss of such a coincidental rn2(1) match, the fix is correct
+and the loss is exposing reality.
+
+**Tool to find which step matched.** `scripts/step-prng-diff.mjs`
+walks the C and JS flat PRNG logs in parallel, slices by per-step
+counts, and reports each step's match status. Empirically validated
+against seed0030 — found the single fully-matched step is step 197,
+n=1, p=21939, with C's call `rn2(1)=0 @ can_make_bones(bones.c:377)`.
+Since rn2(1) is deterministically 0, the match would survive any
+upstream JS PRNG divergence.
+
+**Verified case study.** The GEM_CLASS otyp prob-walk port (mkobj
+captures `pickProb` from rnd(1000); mksobj_init dispatches otyp
+200..204 → rn2(6), 210/211 = LUCKSTONE/LOADSTONE → no rn2)
+advances seed0030 firstDiff +15 calls (correctly aligning with C's
+rn2(6) at mksobj_init for non-LUCKSTONE/LOADSTONE gems). It adds
++5 rn2 calls to JS log (one per GEM mkobj). The +5 shift moves the
+JS log's position 21934 to 21939, breaking the rn2(1) coincidence
+at step 197 (now JS at p=21939 is rn2(100), not rn2(1)).
+
+The port code is fully written and recoverable from the conversation
+history. Re-application is correct once mklev's themed-rooms /
+makeniche / fill_ordinary_room are ported far enough that JS PRNG
+state at C-call-position 21939 actually matches C — at which point
+step 197 will match for the *right* reason instead of coincidentally.
+
+**Commits:** `6da1a1d` (added the diagnostic).
+
+---
+
 ## 14. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
