@@ -458,6 +458,44 @@ const ROLE_MENU_ITEMS = [
     { ch: 'w', label: 'a Wizard', name: 'Wizard' },
 ];
 
+// Filter menu race accelerator letters (uppercase). C ref:
+// setup_filter_menu — races use uppercase first letter.
+const FILTER_RACE_ITEMS = [
+    { ch: 'H', label: 'human', name: 'human' },
+    { ch: 'E', label: 'elf', name: 'elf' },
+    { ch: 'D', label: 'dwarf', name: 'dwarf' },
+    { ch: 'G', label: 'gnome', name: 'gnome' },
+    { ch: 'O', label: 'orc', name: 'orc' },
+];
+
+// Renders the "Pick all that apply" filter menu. Page 1 covers
+// roles + races; page 2 covers genders + alignments.  Each row's
+// marker is '+' (excluded) or '-' (not excluded). C ref:
+// role.c filter_menu via setup_filter_menu (RS_filter).
+function drawFilterMenu(display, excluded) {
+    clearScreenNoColor(display);
+    const COL = 1;
+    display.putstr(COL, 0, "Pick all that apply", CHARGEN_NO_COLOR, 1);
+    display.putstr(COL, 2, "Unacceptable roles", CHARGEN_NO_COLOR);
+    let row = 3;
+    for (const item of ROLE_MENU_ITEMS) {
+        const mark = excluded.roles.has(item.name) ? '+' : '-';
+        display.putstr(COL, row++, `${item.ch} ${mark} ${item.label}`, CHARGEN_NO_COLOR);
+    }
+    row++; // blank
+    display.putstr(COL, row++, "Unacceptable races", CHARGEN_NO_COLOR);
+    for (const item of FILTER_RACE_ITEMS) {
+        const mark = excluded.races.has(item.name) ? '+' : '-';
+        display.putstr(COL, row++, `${item.ch} ${mark} ${item.label}`, CHARGEN_NO_COLOR);
+    }
+    display.putstr(COL, 23, "(1 of 2)", CHARGEN_NO_COLOR);
+}
+
+const FILTER_ROLE_BY_LETTER = Object.fromEntries(
+    ROLE_MENU_ITEMS.map(it => [it.ch, it.name]));
+const FILTER_RACE_BY_LETTER = Object.fromEntries(
+    FILTER_RACE_ITEMS.map(it => [it.ch, it.name]));
+
 // When the user picks an attribute (align/race/gender) before role,
 // the role list is filtered to only compatible roles. The label format
 // also changes (e.g., "Caveman" instead of "Caveman/Cavewoman" when
@@ -811,13 +849,38 @@ export async function chargen_simulate_async(moves, display) {
                 drawIsThisOkMenu(display, desc2, false, true);
                 const postRenameConfirm = await drainOneIfAny();
                 // 'n' rejection → re-show full-screen role menu (step 21
-                // for seed0006) and consume the next key (which may be
-                // a role letter or '~' filter, '['/'/'/'"' nav).
+                // for seed0006) and consume the next key.
                 if (postRenameConfirm === 0x6E || postRenameConfirm === 0x4E) {
                     drawPickRoleMenu(display);
-                    await drainOneIfAny();
-                    // Subsequent filter '~' menu / re-pick flow (seed0006
-                    // steps 22-34) is not modeled.
+                    const navKey = await drainOneIfAny();
+                    // '~' filter menu: render the filter, consume each
+                    // toggle key (a-w roles, H/E/D/G/O races) updating
+                    // the exclusion set + re-rendering, until '\r' or
+                    // '\n' confirms.
+                    if (navKey === 0x7E /* '~' */) {
+                        const excluded = { roles: new Set(), races: new Set() };
+                        // Loop: render filter, drain key, toggle, repeat.
+                        for (let fi = 0; fi < 64; fi++) {
+                            drawFilterMenu(display, excluded);
+                            const k = await drainOneIfAny();
+                            if (!k) return picked;
+                            if (k === 0x0D || k === 0x0A) break; // \r/\n confirm
+                            const ch = String.fromCharCode(k);
+                            if (ch in FILTER_ROLE_BY_LETTER) {
+                                const role = FILTER_ROLE_BY_LETTER[ch];
+                                if (excluded.roles.has(role)) excluded.roles.delete(role);
+                                else excluded.roles.add(role);
+                            } else if (ch in FILTER_RACE_BY_LETTER) {
+                                const race = FILTER_RACE_BY_LETTER[ch];
+                                if (excluded.races.has(race)) excluded.races.delete(race);
+                                else excluded.races.add(race);
+                            }
+                            // Other keys (space for paging, etc.) ignored.
+                        }
+                        // Post-filter: subsequent re-pick flow (role
+                        // menu with filtered list, race/gender/align,
+                        // Is-this-ok with new picks) is not modeled.
+                    }
                 }
             }
             // Carry merged state forward; picked.name from chargen_manual
