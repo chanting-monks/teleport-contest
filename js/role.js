@@ -809,10 +809,16 @@ export async function chargen_simulate_async(moves, display) {
                                               state.gender || merged.gender,
                                               state.align || merged.align);
                 drawIsThisOkMenu(display, desc2, false, true);
-                await drainOneIfAny();
-                // Note: post-rename rejection 'n' → filter menu '~' →
-                // re-pick role/race/etc. (seed0006 step 21+) is not yet
-                // modeled.
+                const postRenameConfirm = await drainOneIfAny();
+                // 'n' rejection → re-show full-screen role menu (step 21
+                // for seed0006) and consume the next key (which may be
+                // a role letter or '~' filter, '['/'/'/'"' nav).
+                if (postRenameConfirm === 0x6E || postRenameConfirm === 0x4E) {
+                    drawPickRoleMenu(display);
+                    await drainOneIfAny();
+                    // Subsequent filter '~' menu / re-pick flow (seed0006
+                    // steps 22-34) is not modeled.
+                }
             }
             // Carry merged state forward; picked.name from chargen_manual
             // already reflects any post-rename value for the welcome msg.
