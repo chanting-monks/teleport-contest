@@ -309,10 +309,14 @@ function drawPickRaceMenu(display, role) {
     clearScreenNoColor(display);
     const rd = ROLE_DATA.find(r => r.name === role);
     if (!rd) return;
-    const roleAlign = rd.aligns.length === 1 ? rd.aligns[0] : '<alignment>';
+    // role-only constraints applied by rigid_role_checks at race-menu setup
+    const genderForced = rd.gens.length === 1 ? rd.gens[0] : null;  // Valkyrie
+    const alignForced = rd.aligns.length === 1 ? rd.aligns[0] : null; // Rogue/Knight/etc.
+    const genderText = genderForced || '<gender>';
+    const alignText = alignForced || '<alignment>';
     const COL = 41;
     display.putstr(COL, 0, "Pick a race or species", CHARGEN_NO_COLOR, 1);
-    display.putstr(COL, 2, `${role} <race> <gender> ${roleAlign}`, CHARGEN_NO_COLOR);
+    display.putstr(COL, 2, `${role} <race> ${genderText} ${alignText}`, CHARGEN_NO_COLOR);
     let row = 4;
     for (const race of rd.races) {
         display.putstr(COL, row++, `${RACE_LETTER_FOR_NAME[race]} - ${RACE_LABEL[race]}`, CHARGEN_NO_COLOR);
@@ -320,11 +324,15 @@ function drawPickRaceMenu(display, role) {
     display.putstr(COL, row++, "* * Random", CHARGEN_NO_COLOR);
     row++; // blank row
     display.putstr(COL, row++, "? - Pick another role first", CHARGEN_NO_COLOR);
-    display.putstr(COL, row++, "\" - Pick gender first", CHARGEN_NO_COLOR);
-    if (rd.aligns.length > 1) {
-        display.putstr(COL, row++, "[ - Pick alignment first", CHARGEN_NO_COLOR);
+    if (genderForced) {
+        display.putstr(COL + 4, row++, `role forces ${genderForced}`, CHARGEN_NO_COLOR);
     } else {
-        display.putstr(COL + 4, row++, `role forces ${rd.aligns[0]}`, CHARGEN_NO_COLOR);
+        display.putstr(COL, row++, "\" - Pick gender first", CHARGEN_NO_COLOR);
+    }
+    if (alignForced) {
+        display.putstr(COL + 4, row++, `role forces ${alignForced}`, CHARGEN_NO_COLOR);
+    } else {
+        display.putstr(COL, row++, "[ - Pick alignment first", CHARGEN_NO_COLOR);
     }
     display.putstr(COL, row++, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, "q - Quit", CHARGEN_NO_COLOR);
