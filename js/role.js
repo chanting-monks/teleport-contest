@@ -305,8 +305,10 @@ const RACE_LABEL = { human: 'human', elf: 'elf', dwarf: 'dwarf',
 const RACE_LETTER_FOR_NAME = { human: 'h', elf: 'e', dwarf: 'd',
                                gnome: 'g', orc: 'o' };
 
-function drawPickRaceMenu(display, role, gender = null, align = null) {
+function drawPickRaceMenu(display, role, gender = null, align = null, excluded = null) {
     clearScreenNoColor(display);
+    const filterActive = !!(excluded && (excluded.roles?.size || excluded.races?.size
+        || excluded.genders?.size || excluded.aligns?.size));
     const rd = role ? ROLE_DATA.find(r => r.name === role) : null;
     // role-only constraints applied by rigid_role_checks at race-menu setup
     const genderForced = rd && rd.gens.length === 1 ? rd.gens[0] : null;  // Valkyrie
@@ -315,13 +317,16 @@ function drawPickRaceMenu(display, role, gender = null, align = null) {
     const alignText = align || alignForced || '<alignment>';
     const genderShown = !!(gender || genderForced);
     const alignPicked = !!align;
-    // Races to list: filter by all current constraints.
+    // Races to list: filter by all current constraints AND filter excl.
     const allRaces = ['human', 'elf', 'dwarf', 'gnome', 'orc'];
-    const races = rd ? rd.races : allRaces.filter(r => {
+    let races = rd ? rd.races : allRaces.filter(r => {
         if (gender && !RACE_GENDS[r].includes(gender)) return false;
         if (align && !RACE_ALIGNS[r].includes(align)) return false;
         return true;
     });
+    if (filterActive && excluded.races?.size) {
+        races = races.filter(r => !excluded.races.has(r));
+    }
     const COL = 41;
     display.putstr(COL, 0, "Pick a race or species", CHARGEN_NO_COLOR, 1);
     const roleText = role || '<role>';
@@ -347,7 +352,9 @@ function drawPickRaceMenu(display, role, gender = null, align = null) {
     } else {
         display.putstr(COL, row++, alignPicked ? "[ - Pick another alignment first" : "[ - Pick alignment first", CHARGEN_NO_COLOR);
     }
-    display.putstr(COL, row++, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++,
+        filterActive ? "~ - Reset role/race/&c filtering"
+                     : "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, "q - Quit", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, "(end)", CHARGEN_NO_COLOR);
 }
@@ -357,8 +364,10 @@ function drawPickRaceMenu(display, role, gender = null, align = null) {
 // shows all genders, the desc has "<role>" placeholder, and the
 // "Pick role first" / "Pick another alignment first" labels reflect
 // state. C ref: role.c:2495 plsel_startmenu(RS_GENDER).
-function drawPickGenderMenu(display, role, race, align = null) {
+function drawPickGenderMenu(display, role, race, align = null, excluded = null) {
     clearScreenNoColor(display);
+    const filterActive = !!(excluded && (excluded.roles?.size || excluded.races?.size
+        || excluded.genders?.size || excluded.aligns?.size));
     const rd = role ? ROLE_DATA.find(r => r.name === role) : null;
     const racePicked = !!race;
     const alignPicked = !!align;
@@ -408,7 +417,9 @@ function drawPickGenderMenu(display, role, race, align = null) {
     } else {
         display.putstr(COL, row++, alignPicked ? "[ - Pick another alignment first" : "[ - Pick alignment first", CHARGEN_NO_COLOR);
     }
-    display.putstr(COL, row++, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
+    display.putstr(COL, row++,
+        filterActive ? "~ - Reset role/race/&c filtering"
+                     : "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, "q - Quit", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, "(end)", CHARGEN_NO_COLOR);
 }
@@ -500,13 +511,18 @@ const FILTER_RACE_BY_LETTER = Object.fromEntries(
 // the role list is filtered to only compatible roles. The label format
 // also changes (e.g., "Caveman" instead of "Caveman/Cavewoman" when
 // gender=male picked, since the female-form is irrelevant).
-function drawPickRoleMenu(display, race = null, gender = null, align = null) {
+function drawPickRoleMenu(display, race = null, gender = null, align = null, excluded = null) {
     clearScreenNoColor(display);
+    const filterActive = !!(excluded && (excluded.roles?.size || excluded.races?.size
+        || excluded.genders?.size || excluded.aligns?.size));
     // C tty positions menu at col 41+ (right-half) when the menu fits
     // there (filtered list); col 1 (full-screen) otherwise. When ANY
-    // constraint is set, the role list is filtered and small enough.
+    // constraint is set OR filter is active (which shrinks the list),
+    // the menu uses right-half. Empirical: seed0006 step 31 (post-
+    // filter, no role/race/etc. picked but filterActive) renders at
+    // col 41.
     const constrained = !!(race || gender || align);
-    const COL = constrained ? 41 : 1;
+    const COL = (constrained || filterActive) ? 41 : 1;
     display.putstr(COL, 0, "Pick a role or profession", CHARGEN_NO_COLOR, 1);
     const roleText = '<role>';
     const raceText = race || '<race>';
@@ -521,6 +537,13 @@ function drawPickRoleMenu(display, race = null, gender = null, align = null) {
         if (align && !rd.aligns.includes(align)) continue;
         if (race && !rd.races.includes(race)) continue;
         if (gender && !rd.gens.includes(gender)) continue;
+        // Filter by '~' exclusions: skip roles excluded outright AND
+        // roles whose every valid race is excluded.
+        if (filterActive) {
+            if (excluded.roles?.has(item.name)) continue;
+            const remainingRaces = rd.races.filter(r => !excluded.races?.has(r));
+            if (remainingRaces.length === 0) continue;
+        }
         // Adjust label based on gender (e.g., "Caveman" not "Caveman/Cavewoman")
         let label = item.label;
         if (gender) {
@@ -534,17 +557,21 @@ function drawPickRoleMenu(display, race = null, gender = null, align = null) {
     }
     display.putstr(COL, row++, "* * Random", CHARGEN_NO_COLOR);
     // C role menu has a BLANK line between "* Random" and "Pick X
-    // first" options when shown on right-half (constrained), but NO
-    // blank when full-screen (unfiltered). Empirical: seed0006 step 9
-    // (full-screen) has no blank; seed0012 step 10 (right-half) has blank.
-    if (constrained) row++;
+    // first" options when ANY constraint is set OR filter is active.
+    // No blank for the very first full-screen unfiltered role menu
+    // (e.g. seed0006 step 9). Empirical: seed0006 step 31 (post-filter,
+    // no role/race/etc. picked but filterActive) HAS a blank.
+    if (constrained || filterActive) row++;
     // When an attribute is already picked, C shows "Pick another X
     // first" (allowing the user to revise); when unset, just "Pick X
     // first". The line is always present for navigation.
     display.putstr(COL, row++, race ? "/ - Pick another race first" : "/ - Pick race first", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, gender ? "\" - Pick another gender first" : "\" - Pick gender first", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, align ? "[ - Pick another alignment first" : "[ - Pick alignment first", CHARGEN_NO_COLOR);
-    display.putstr(COL, row++, "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
+    // Filter active → "Reset"; otherwise "Set".
+    display.putstr(COL, row++,
+        filterActive ? "~ - Reset role/race/&c filtering"
+                     : "~ - Set role/race/&c filtering", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, "q - Quit", CHARGEN_NO_COLOR);
     display.putstr(COL, row++, "(end)", CHARGEN_NO_COLOR);
 }
@@ -877,9 +904,82 @@ export async function chargen_simulate_async(moves, display) {
                             }
                             // Other keys (space for paging, etc.) ignored.
                         }
-                        // Post-filter: subsequent re-pick flow (role
-                        // menu with filtered list, race/gender/align,
-                        // Is-this-ok with new picks) is not modeled.
+                        // Post-filter: re-render role menu with the
+                        // filtered list and footer "Reset role/race/
+                        // &c filtering". seed0006 step 31.
+                        drawPickRoleMenu(display, null, null, null, excluded);
+                        const k = await drainOneIfAny();
+                        // Continue with race/gender menus (filtered by
+                        // exclusions) after the role letter is consumed.
+                        // seed0006: 'w' Wizard → race menu (gnome/orc) →
+                        // gender menu → final Is-this-ok.
+                        if (k) {
+                            const ch = String.fromCharCode(k);
+                            const postRoleState = { role: null, race: null, gender: null, align: null };
+                            if (ch in ROLE_BY_LETTER) {
+                                postRoleState.role = ROLE_DATA[ROLE_BY_LETTER[ch]].name;
+                            }
+                            if (postRoleState.role) {
+                                const rd = ROLE_DATA.find(r => r.name === postRoleState.role);
+                                // Race menu (with filter exclusions).
+                                const validRaces = rd.races.filter(r =>
+                                    !excluded.races?.has(r) &&
+                                    (!postRoleState.gender || RACE_GENDS[r].includes(postRoleState.gender)) &&
+                                    (!postRoleState.align || RACE_ALIGNS[r].includes(postRoleState.align)));
+                                if (validRaces.length > 1) {
+                                    drawPickRaceMenu(display, postRoleState.role, postRoleState.gender, postRoleState.align, excluded);
+                                    const kr = await drainOneIfAny();
+                                    if (kr) {
+                                        const rch = String.fromCharCode(kr);
+                                        if (rch in RACE_BY_LETTER && validRaces.includes(RACE_BY_LETTER[rch])) {
+                                            postRoleState.race = RACE_BY_LETTER[rch];
+                                        }
+                                    }
+                                } else if (validRaces.length === 1) {
+                                    postRoleState.race = validRaces[0];
+                                }
+                                // Gender menu.
+                                if (postRoleState.race) {
+                                    const validGends = rd.gens.filter(g =>
+                                        RACE_GENDS[postRoleState.race].includes(g));
+                                    if (validGends.length > 1) {
+                                        drawPickGenderMenu(display, postRoleState.role, postRoleState.race, postRoleState.align, excluded);
+                                        const kg = await drainOneIfAny();
+                                        if (kg) {
+                                            const gch = String.fromCharCode(kg);
+                                            if (gch in GEND_BY_LETTER) {
+                                                postRoleState.gender = GEND_BY_LETTER[gch];
+                                            }
+                                        }
+                                    } else if (validGends.length === 1) {
+                                        postRoleState.gender = validGends[0];
+                                    }
+                                    // Align: auto-resolve if 1 valid.
+                                    const validAligns = rd.aligns.filter(a =>
+                                        RACE_ALIGNS[postRoleState.race].includes(a));
+                                    if (validAligns.length === 1) {
+                                        postRoleState.align = validAligns[0];
+                                    }
+                                }
+                                // Re-render Is-this-ok with new picks.
+                                if (postRoleState.role && postRoleState.race
+                                    && postRoleState.gender && postRoleState.align) {
+                                    const newName = merged.name || initialName;
+                                    const desc3 = chargenCharDesc(newName,
+                                        postRoleState.role, postRoleState.race,
+                                        postRoleState.gender, postRoleState.align);
+                                    drawIsThisOkMenu(display, desc3, false);
+                                    await drainOneIfAny();
+                                    picked = {
+                                        role: postRoleState.role,
+                                        race: postRoleState.race,
+                                        gender: postRoleState.gender,
+                                        align: postRoleState.align,
+                                        name: newName,
+                                    };
+                                }
+                            }
+                        }
                     }
                 }
             }
