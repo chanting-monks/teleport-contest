@@ -50,10 +50,10 @@ regressing the others).
 ## leaderboard
 
 ```
-last_check_time:    -
-last_check_score:   -
-last_check_rank:    -
-notes:              -
+last_check_time:    2026-05-05T23:56Z
+last_check_score:   public 15/10982 (6.40% rngPct, 62.57% rngStepsPct, 0.14% screenPct); heldOut 0/10486 (5.31% rngPct, 69.43% rngStepsPct, 0% screenPct)
+last_check_rank:    2 of 2 teams
+notes:              jolly-borg (rank 1) has 78/10982 points despite LOWER rngPct (4.66% vs our 6.40%). Difference is screens: they have 0.71% public screenPct (vs our 0.14%, all in seed8000) AND 0.33% heldOut screenPct (vs our 0%). The new scoring rubric (rolled out ~23:55Z; denominator changed 851340→21964→10982) weights screens heavily. Strategic shift: the highest-leverage work now is matching screens in non-seed8000 sessions, particularly held-out generalization. PRNG/rngSteps are essentially tied; screens are the differentiator.
 ```
 
 Fetch [mazesofmenace.ai/leaderboard](https://mazesofmenace.ai/leaderboard/)
