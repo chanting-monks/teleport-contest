@@ -743,6 +743,10 @@ export async function chargen_simulate_async(moves, display) {
             let i = manualStartIdx;
             const state = { role: null, race: null, gender: null, align: null };
             const merged = picked;
+            // Set when post-rename → filter → re-pick produces a SECOND-
+            // PASS set of picks that should override the FSM's first-pass
+            // state at the end.
+            let pickedOverride = null;
             // For n-branch: the role menu was already rendered (line 601)
             // and its key was already drained (line 608). Process that
             // pre-drained key now WITHOUT redrawing — handle role letter
@@ -970,7 +974,7 @@ export async function chargen_simulate_async(moves, display) {
                                         postRoleState.gender, postRoleState.align);
                                     drawIsThisOkMenu(display, desc3, false);
                                     await drainOneIfAny();
-                                    picked = {
+                                    pickedOverride = {
                                         role: postRoleState.role,
                                         race: postRoleState.race,
                                         gender: postRoleState.gender,
@@ -983,9 +987,10 @@ export async function chargen_simulate_async(moves, display) {
                     }
                 }
             }
-            // Carry merged state forward; picked.name from chargen_manual
-            // already reflects any post-rename value for the welcome msg.
-            picked = {
+            // Default carry-forward: state from FSM (first-pass picks).
+            // Post-filter override (if any) takes precedence and reflects
+            // the final second-pass picks.
+            picked = pickedOverride || {
                 role: state.role || merged.role,
                 race: state.race || merged.race,
                 gender: state.gender || merged.gender,
