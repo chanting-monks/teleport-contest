@@ -22,11 +22,11 @@ clean.
 ## scores
 
 ```
-last_run_commit:    6d4a46c
-last_run_time:      2026-05-06T12:34Z
-last_aggregate:     p:(21/4143) 53828/840507    s:(0/44) 127/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_aggregate:     p:(21/4143) 53828/840507    s:(0/44) 127/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
-best_commit:        6d4a46c
+last_run_commit:    db3190f
+last_run_time:      2026-05-06T13:09Z
+last_aggregate:     p:(21/4143) 53829/840507    s:(0/44) 127/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_aggregate:     p:(21/4143) 53829/840507    s:(0/44) 127/10902    e:(0/6382) 0/366370    m:(0/3088) 0/4713
+best_commit:        db3190f
 ```
 
 Baseline notes (skeleton + fastforward.js):
