@@ -183,7 +183,12 @@ function render_map_row(y) {
 function _statusLine1() {
     const u = game.u;
     if (!u) return '';
-    const name = game.plname || 'Hero';
+    // Status-line plname is capitalized in its first letter — C ref:
+    // botl.c:57-59 do_statusline1() — `if ('a' <= newbot1[0] && newbot1[0] <= 'z') newbot1[0] += 'A' - 'a';`.
+    // Affects e.g. wizard-mode plname "wizard" → "Wizard".
+    const rawName = game.plname || 'Hero';
+    const name = rawName && rawName[0] >= 'a' && rawName[0] <= 'z'
+        ? rawName[0].toUpperCase() + rawName.slice(1) : rawName;
     const role = game.urole?.rank?.m || game.urole?.name?.m || 'Adventurer';
     const title = `${name} the ${role}`;
     const stats = `St:${u.acurr?.a?.[0] || '?'} Dx:${u.acurr?.a?.[1] || '?'} Co:${u.acurr?.a?.[2] || '?'} In:${u.acurr?.a?.[3] || '?'} Wi:${u.acurr?.a?.[4] || '?'} Ch:${u.acurr?.a?.[5] || '?'}`;
@@ -198,7 +203,14 @@ function _statusLine1() {
 function _statusLine2() {
     const u = game.u;
     if (!u) return '';
-    return `Dlvl:${u.uz?.dlevel || 1} $:${game._goldCount || 0} HP:${u.uhp || 0}(${u.uhpmax || 0}) Pw:${u.uen || 0}(${u.uenmax || 0}) AC:${u.uac ?? 10} Xp:${u.ulevel || 1}/${u.uexp || 0} T:${game.moves || 1}`;
+    // Xp's /<exp> suffix and T:<moves> suffix are gated on flags.showexp
+    // and flags.time respectively (both default Off per optlist.h:
+    // `showexp` and `time` are Off, set_in_game).  C's row 23 omits them
+    // unless OPTIONS=showexp or OPTIONS=time is in nethackrc.
+    let line = `Dlvl:${u.uz?.dlevel || 1} $:${game._goldCount || 0} HP:${u.uhp || 0}(${u.uhpmax || 0}) Pw:${u.uen || 0}(${u.uenmax || 0}) AC:${u.uac ?? 10} Xp:${u.ulevel || 1}`;
+    if (game.flags?.showexp) line += `/${u.uexp || 0}`;
+    if (game.flags?.time) line += ` T:${game.moves || 1}`;
+    return line;
 }
 
 // ── Serialize terminal grid for screen comparison ──
