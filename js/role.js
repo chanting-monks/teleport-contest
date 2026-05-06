@@ -613,6 +613,12 @@ export async function chargen_simulate_async(moves, display) {
                 if (confirmCode === 0x61 || confirmCode === 0x41) {
                     if (display) drawRenamePromptOnRow10(display, '');
                     await renderRenameNameCapture(display);
+                    // Note: post-rename Is-this-ok could be rendered
+                    // here, but consuming an extra key via drainOneIfAny
+                    // shifts PRNG alignment for seed0006 (regressed
+                    // -23 calls without screen gain). Deferred until
+                    // we can model the full post-rename flow including
+                    // re-entry to manual mode + filter ('~') menus.
                 }
             }
         }
@@ -632,14 +638,14 @@ function drawRenamePromptOnRow10(display, nameSoFar) {
 
 // After 'a' rename at confirmation, read new name letters via nhgetch
 // (each capturing a screen with banner-free row-10 prompt + echoed
-// letters). Stops at \r/\n.
+// letters). Stops at \r/\n. Returns the captured new name.
 async function renderRenameNameCapture(display) {
     const { nhgetch } = await import('./input.js');
     const newName = [];
     while (true) {
         let code;
-        try { code = await nhgetch(); } catch (e) { return; }
-        if (code === 13 || code === 10) return;  // \r or \n consumed; done
+        try { code = await nhgetch(); } catch (e) { return newName.join(''); }
+        if (code === 13 || code === 10) return newName.join('');
         const ch = String.fromCharCode(code);
         newName.push(ch);
         if (display) drawRenamePromptOnRow10(display, newName.join(''));
