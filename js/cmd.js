@@ -45,6 +45,12 @@ export async function rhack(key) {
     if (isMovementKey(ch)) {
         await domove(DIR_DX[ch], DIR_DY[ch]);
         game.context.move = 1;
+    } else if (ch === 's' || ch === '.') {
+        // 's' (search) and '.' (rest) consume a turn.  C ref:
+        // src/cmd.c cmdlist for 's' → dosearch and '.' → donull, both
+        // turn-consuming.  We don't model the search RNG yet but the
+        // turn counter must advance for status-line T: parity.
+        game.context.move = 1;
     } else {
         // Non-movement command — silent for now. C plines specific
         // messages for each command (e.g., '+' → "You don't know any
