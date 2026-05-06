@@ -256,11 +256,13 @@ export async function moveloop_core() {
     await bot();
     await flush_screen(1);
 
-    // Read and execute one command
+    // Read and execute one command.  rhack may pline a result (e.g. '+'
+    // dovspell, ':' look_here) that needs to appear in the *next*
+    // iteration's screen.  The pline buffer is cleared inside
+    // _preNhgetchHook right after each capture, so any pline that
+    // follows the capture stays in _pending_message until the next
+    // flush_screen renders it.
     await rhack(0);
-
-    // Clear message after command is processed
-    g._pending_message = '';
 
     // Advance turn
     if (g.context?.move) {
