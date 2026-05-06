@@ -487,14 +487,24 @@ export async function chargen_simulate_async(moves, display) {
             // n-branch: role menu (full-screen) shown next.
             drawPickRoleMenu(display);
         }
-        // Consume the confirmation key (or first menu key for n-branch)
+        // Consume the confirmation key (or first menu key for n-branch).
+        // Detect a 'y'-branch + 'n' rejection: this triggers manual mode
+        // and the role menu is shown next.
+        let confirmKey = null;
         if (nameIdx + 1 < moves.length) {
             await nhgetch();
+            confirmKey = moves[nameIdx + 1];
         }
-        // For n-branch, render race menu and consume race pick. Then
-        // gender menu, then Is-this-ok. Each rendered before its
-        // corresponding nhgetch so the screen capture matches C.
-        if (isNClass && picked && display) {
+        const enteredManual = isNClass
+            || (isYClass && (confirmKey === 'n' || confirmKey === 'N'));
+        // For n-branch (or y+n rejection), render race menu and consume
+        // race pick. Then gender menu, then Is-this-ok.
+        if (enteredManual && picked && display) {
+            // For y+n rejection, the role menu hasn't been rendered yet.
+            if (isYClass) {
+                drawPickRoleMenu(display);
+                if (!(await drainOneIfAny())) return picked;
+            }
             drawPickRaceMenu(display, picked.role);
             if (await drainOneIfAny()) {
                 drawPickGenderMenu(display, picked.role, picked.race);
