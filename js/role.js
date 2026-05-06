@@ -408,6 +408,13 @@ function drawPickRoleMenu(display) {
 }
 
 function drawIsThisOkMenu(display, charDesc) {
+    // Compute menu_col per C tty_end_menu (line 2729): cw->cols = max
+    // over all menu items of (strlen(str) + 2). Empirically the floor
+    // is 38 (for short descs the menu always uses a min width of 38),
+    // and the offset is desc+1 for longer descs. C: offx = max(10,
+    // ttyDisplay->cols - cw->cols - 1) = 79 - max(38, desc+1) for
+    // desc-dominated menus.
+    const COL = 79 - Math.max(38, charDesc.length + 1);
     clearRowNoColor(display, 0);
     clearRowNoColor(display, 2);
     // C ref: role.c plsel_startmenu narrows the banner display to the
@@ -420,11 +427,19 @@ function drawIsThisOkMenu(display, charDesc) {
             display.setCell(c, r, ' ', CHARGEN_NO_COLOR);
         }
     }
-    // Re-render banner with truncation matching C's plsel layout.
-    display.putstr(0, 4, "NetHack, Copyright 1985-2026", CHARGEN_NO_COLOR);
-    display.putstr(9, 5, "By Stichting Mathematisch Centr", CHARGEN_NO_COLOR);
-    display.putstr(9, 6, "Version 5.0.0 (Teleport JS port)", CHARGEN_NO_COLOR);
-    display.putstr(9, 7, "See license for details.", CHARGEN_NO_COLOR);
+    // Re-render banner truncated to fit within cols 0..COL-1. The
+    // banner content ("NetHack..." 28 chars at row 4 col 0; "By
+    // Stichting..." up to 52 chars at row 5 col 9; etc.) gets
+    // truncated to (COL - 1) chars on each row to leave a 1-col gap
+    // before the menu.
+    const bannerLine = (text, indent) => {
+        const max = COL - 1 - indent;
+        return text.slice(0, Math.max(0, max));
+    };
+    display.putstr(0, 4, bannerLine("NetHack, Copyright 1985-2026", 0), CHARGEN_NO_COLOR);
+    display.putstr(9, 5, bannerLine("By Stichting Mathematisch Centrum and M. Stephenson.", 9), CHARGEN_NO_COLOR);
+    display.putstr(9, 6, bannerLine("Version 5.0.0 (Teleport JS port).", 9), CHARGEN_NO_COLOR);
+    display.putstr(9, 7, bannerLine("See license for details.", 9), CHARGEN_NO_COLOR);
     // Row 0 col 41: "Is this ok? [ynaq]" with inverse attribute (1)
     display.putstr(41, 0, "Is this ok? [ynaq]", CHARGEN_NO_COLOR, 1);
     // Row 2 col 41: character description
