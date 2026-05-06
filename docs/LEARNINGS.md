@@ -577,6 +577,51 @@ de46d9e, 642c314, 4938cd5, 6585642, c5ed667, 89c8e2f.
 
 ---
 
+## 20. Chargen state machine for "Pick X first" navigation
+
+**Lesson.** Beyond the standard role → race → gender → align order,
+C's chargen lets the user jump between menus via these navigation
+keys:
+  '?' — Pick role first (re-show role menu)
+  '/' — Pick race first
+  '"' — Pick gender first
+  '[' — Pick alignment first
+  '~' — Set role/race/&c filtering (opens filter menu)
+
+C handles this via `nextpick` variable + makepicks loop. After each
+menu pick, code checks which attribute is still unset and shows that
+menu next. Pressing a navigation key in any menu reorders the
+remaining stages.
+
+**Examples in public sessions:**
+- seed0007 (Septor → 'y' Caveman → 'n' reject → 'r' Rogue):
+  uses '"' to pick gender before race. Order: role → '"' → gender →
+  race → confirm.
+- seed0012 (Dodeco → 'n'): uses '['. Order: role → '[' → align →
+  role (re-show? actually role) → '"' → gender → '/' → race → role
+  (final) → confirm.
+- seed0006 (Hextrum → 'n' → 'wofa' → rename): standard order until
+  'a' rename; after rename, 'n' triggers manual restart, then '~'
+  filter, then 'HED' filter (race exclusions), then standard order.
+
+**Current handling.** My port handles only:
+- Standard order (role → race → gender → align)
+- '"' Pick gender first (after role): renders gender menu with
+  race=null placeholder; after gender pick if race wasn't yet set,
+  renders race menu with gender now set + "Pick another gender first"
+  navigation option.
+
+**Deferred.** Full state machine for '[' (align first), '/' (race
+first when not at race menu), '~' (filter), nested filter menus.
+Each requires per-attribute tracking + context-aware next-menu
+dispatch. seed0012 (9 screens vs theoretical max ~16) and seed0006's
+post-rename restart (currently 18 screens vs theoretical ~30) would
+benefit. Multi-day work.
+
+**Commits:** 8cfbce1, 64252ad ("Pick gender first" partial).
+
+---
+
 ## 14. `seed8000` is the canary, not the goal
 
 **Lesson.** seed8000-tourist-starter is the only public session whose
