@@ -67,9 +67,63 @@ See `docs/ITERATION.md` for the full commit-message format.
 ```bash
 node scripts/score-table.mjs           # canonical parity table (commit fodder)
 node scripts/compare-firstdiv.mjs S    # first-divergence diff for one session S
+node scripts/screen-diff.mjs S         # per-screen cell-level diff (hint=status|message|map)
+node scripts/step-prng-diff.mjs S      # per-step PRNG match (find coupled-bug boundaries)
 bash frozen/score.sh                   # official PRNG+Screen scoring (frozen)
 node frozen/ps_test_runner.mjs S       # score one session officially
 ```
+
+## Anti-stall rule (READ EVERY TURN)
+
+If you ever find yourself about to write **"state unchanged"**, **"nothing
+new to commit,"** **"I've hit a wall,"** **"the next chunk is multi-hour,"**
+or any variant — STOP. That sentence is the trigger to switch tactics,
+not the conclusion. Do at least one of these instead:
+
+1. **Run a diagnostic on a session you haven't checked yet.**
+   `node scripts/screen-diff.mjs <session> --diverged-only` shows the
+   first row+col of each unmatched screen with a hint
+   (status / message / map). `r=23 hint=status` mismatches are often
+   single-line fixes (turn counter, gold display, attribute math).
+   `r=0 hint=message` mismatches sometimes reveal commands that should
+   advance the turn but don't, or messages that should be plined.
+2. **Write a new diagnostic in `scripts/`.** Phase-1 work per
+   `PROMPT.md` is always available. Diagnostics never regress the
+   parity table and frequently surface bugs the next turn fixes.
+3. **Pick a small experimental fix** even if it seems unhelpful.
+   Re-read one `nethack-c/upstream/src/*.c` function you haven't
+   ported and try porting it. The seed8000 search-turn bug
+   (`af17822`, +2 screens) was a 6-line change found by walking
+   one screen-diff hint to its root cause.
+4. **Don't summarize prior work as a substitute for new work.**
+   Status reports describing what's already pushed are noise unless
+   they're the very last sentence before a real commit.
+
+You are NEVER stuck — only between diagnostic-and-act cycles. Treat
+"I've explored the obvious paths" as the trigger for cycle N+1, not
+the end of cycle N.
+
+## On C-faithful fixes that drop a parity-table sub-metric
+
+**The current upstream scoring rubric (per `README.md`) is screens-only;
+PRNG match is advisory.** Therefore:
+
+- A C-faithful fix that drops `p:(turnsFully)` by 1 while preserving
+  `s:` (screens) is acceptable and should be committed. The lost turn
+  is a coincidental in-step alignment (often `rn2(1)=0` which always
+  returns 0 regardless of state, per LEARN #22) — it represented zero
+  real progress and reverting hides the underlying coupled bug per
+  `PROMPT.md` §5.4.
+- A fix that drops `s:` (screens) is a real regression and should be
+  reverted unless you've found the coupled bug *and* fixed it in the
+  same commit.
+- The matched-call count column (`53843/792885`) tracks PRNG advisory
+  progress — small fluctuations there from C-faithful fixes are
+  expected and not regressions.
+
+In other words: **screens are the score; PRNG turns are advisory; PRNG
+calls are diagnostic.** Optimize for screens, then for screens-via-PRNG-
+correctness, then for diagnostics.
 
 ## Hard rules (from PROMPT.md Part 5; restated here so you never forget)
 

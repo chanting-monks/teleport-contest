@@ -19,6 +19,65 @@ next iteration to no-op cleanly, flip this to `true`. Iterations check
 this flag on startup and exit immediately if set, leaving the worktree
 clean.
 
+## next actions (consume this on every turn — do not stop until empty)
+
+A pinned, always-available menu of concrete next tasks. When the
+obvious-path work is exhausted, pick any item below and act on it. Do
+not summarize work-already-done as a substitute for picking from this
+list. As you complete an action, replace it with the next surfaced
+opportunity from the diagnostic output.
+
+1. **Run `node scripts/screen-diff.mjs <session> --diverged-only` on
+   any session you haven't already mined this turn.** Look for the
+   first `r=R c=C hint=H` line. `hint=status` (rows 22-23) often
+   surfaces 1-line fixes (turn counter, gold, attr formula).
+   `hint=message` (row 0-1) often surfaces missing pline messages or
+   commands that should advance turn but don't. The seed8000
+   search-turn fix (`af17822`, +2 screens) came from exactly this
+   loop: screen-diff → "T:11 vs T:12" → cmd.js 6-line patch.
+2. **Re-apply the GEM_CLASS otyp prob-walk port** — code is fully
+   written and verified bit-exactly correct for seed8000 (LEARN #22
+   spells out the boundaries 171/862/872/882/890/900/1000). It drops
+   1 PRNG turn on seed0030 (a coincidental rn2(1) match per LEARN #22)
+   while preserving screen score. Per the new rubric (screens-only,
+   PRNG advisory) this is a commit-worthy C-faithful improvement.
+3. **Run `node scripts/screen-diff.mjs` on every Tourist session
+   (seed0030, seed0900, seed1800, seed5006)** to find more
+   turn-counter / status mismatches. Other commands besides 's' / '.'
+   that consume a turn: ',' (pickup), 'd' (drop), 'q' (quaff),
+   'r' (read), 'z' (zap), 't' (throw), 'w' (wield), 'W' (wear),
+   'P' (puton), 'T' (takeoff), 'a' (apply), 'e' (eat), '#pray', etc.
+   Adding any of these to cmd.js's turn-consuming branch is a
+   candidate +screens fix for sessions whose status bar matches
+   except for T:.
+4. **Use `node scripts/step-prng-diff.mjs <session> --matched`** to
+   identify coincidentally-matched step boundaries; check whether
+   they're `rn2(1)=0` (always 0, per LEARN #22) so future C-faithful
+   fixes that break them are not real regressions.
+5. **Run `compare-firstdiv.mjs --all --prng-only`** to surface any
+   session whose firstDiff is in a function I might not have ported
+   yet; pick the closest one to a clean port boundary and start
+   tracing.
+6. **Port one specific themed-room contents() function** from
+   `nethack-c/upstream/dat/themerms.lua`. Even a single themed room
+   could unlock multiple sessions whose first divergence is at
+   `lspo_map(sp_lev.c:6163)`.
+7. **Re-create `js/u_init.js` with `init_attr_role_redist` and
+   `vary_init_attr` for Tourist+human** — verified bit-exactly correct
+   for seed8000 (produces `[9, 14, 12, 11, 16, 16]` display order).
+   Once mklev is faithful enough that JS reaches `fastforward_post_mklev`
+   at the right C offset for non-seed8000 Tourist sessions, this
+   produces correct attrs and unlocks status-bar match for those
+   sessions.
+8. **Pick any non-Tourist role's `u_init_role` switch case from
+   `nethack-c/upstream/src/u_init.c:652-790` and port it.** Each role's
+   ini_inv chain is its own bounded chunk; small enough to land in
+   one iteration window.
+
+When you complete one of these, update this list with what you
+discovered (e.g., new candidate sessions, which command was the next
+fix). Treat the menu as a living queue, not a static checklist.
+
 ## scores
 
 ```
