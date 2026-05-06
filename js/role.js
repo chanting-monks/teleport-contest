@@ -407,7 +407,13 @@ function drawPickRoleMenu(display) {
     display.putstr(1, 23, "(end)", CHARGEN_NO_COLOR);
 }
 
-function drawIsThisOkMenu(display, charDesc) {
+function drawIsThisOkMenu(display, charDesc, withBanner = true) {
+    // For n-branch (no banner): clear entire screen first since
+    // the previous race/gender menu had right-half content that
+    // would otherwise bleed through the Is-this-ok layout.
+    if (!withBanner) {
+        clearScreenNoColor(display);
+    }
     // Compute menu_col per C tty_end_menu (line 2729): cw->cols = max
     // over all menu items of (strlen(str) + 2). Empirically the floor
     // is 38 (for short descs the menu always uses a min width of 38),
@@ -427,19 +433,19 @@ function drawIsThisOkMenu(display, charDesc) {
             display.setCell(c, r, ' ', CHARGEN_NO_COLOR);
         }
     }
-    // Re-render banner truncated to fit within cols 0..COL-1. The
-    // banner content ("NetHack..." 28 chars at row 4 col 0; "By
-    // Stichting..." up to 52 chars at row 5 col 9; etc.) gets
-    // truncated to (COL - 1) chars on each row to leave a 1-col gap
-    // before the menu.
-    const bannerLine = (text, indent) => {
-        const max = COL - 1 - indent;
-        return text.slice(0, Math.max(0, max));
-    };
-    display.putstr(0, 4, bannerLine("NetHack, Copyright 1985-2026", 0), CHARGEN_NO_COLOR);
-    display.putstr(9, 5, bannerLine("By Stichting Mathematisch Centrum and M. Stephenson.", 9), CHARGEN_NO_COLOR);
-    display.putstr(9, 6, bannerLine("Version 5.0.0 (Teleport JS port).", 9), CHARGEN_NO_COLOR);
-    display.putstr(9, 7, bannerLine("See license for details.", 9), CHARGEN_NO_COLOR);
+    // For y-branch (banner still visible), re-render banner truncated
+    // to fit within cols 0..COL-1. For n-branch (role menu was
+    // full-screen, banner is gone), leave rows 4-7 as cleared.
+    if (withBanner) {
+        const bannerLine = (text, indent) => {
+            const max = COL - 1 - indent;
+            return text.slice(0, Math.max(0, max));
+        };
+        display.putstr(0, 4, bannerLine("NetHack, Copyright 1985-2026", 0), CHARGEN_NO_COLOR);
+        display.putstr(9, 5, bannerLine("By Stichting Mathematisch Centrum and M. Stephenson.", 9), CHARGEN_NO_COLOR);
+        display.putstr(9, 6, bannerLine("Version 5.0.0 (Teleport JS port).", 9), CHARGEN_NO_COLOR);
+        display.putstr(9, 7, bannerLine("See license for details.", 9), CHARGEN_NO_COLOR);
+    }
     // Title with inverse attribute (1)
     display.putstr(COL, 0, "Is this ok? [ynaq]", CHARGEN_NO_COLOR, 1);
     // Character description on row 2
@@ -521,7 +527,8 @@ export async function chargen_simulate_async(moves, display) {
         const enteredManual = isNClass
             || (isYClass && (confirmKey === 'n' || confirmKey === 'N'));
         // For n-branch (or y+n rejection), render race menu and consume
-        // race pick. Then gender menu, then Is-this-ok.
+        // race pick. Then gender menu (if not auto-forced), then
+        // Is-this-ok.
         if (enteredManual && picked && display) {
             // For y+n rejection, the role menu hasn't been rendered yet.
             if (isYClass) {
@@ -530,14 +537,21 @@ export async function chargen_simulate_async(moves, display) {
             }
             drawPickRaceMenu(display, picked.role);
             if (await drainOneIfAny()) {
-                drawPickGenderMenu(display, picked.role, picked.race);
-                if (await drainOneIfAny()) {
-                    const desc = chargenCharDesc(picked.name || '',
-                                                 picked.role, picked.race,
-                                                 picked.gender, picked.align);
-                    drawIsThisOkMenu(display, desc);
-                    await drainOneIfAny();
+                // Determine if gender menu fires. Skip if role forces
+                // gender (Valkyrie, female only) — the gender was
+                // auto-set by rigid_role_checks during race menu setup.
+                const rd = ROLE_DATA.find(r => r.name === picked.role);
+                const genderForced = rd && rd.gens.length === 1;
+                if (!genderForced) {
+                    drawPickGenderMenu(display, picked.role, picked.race);
+                    if (!(await drainOneIfAny())) return picked;
                 }
+                const desc = chargenCharDesc(picked.name || '',
+                                             picked.role, picked.race,
+                                             picked.gender, picked.align);
+                // n-branch: role menu was full-screen, banner is gone.
+                drawIsThisOkMenu(display, desc, false);
+                await drainOneIfAny();
             }
         }
         return picked;
