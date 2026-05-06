@@ -605,7 +605,15 @@ export async function chargen_simulate_async(moves, display) {
                                              picked.gender, picked.align);
                 // n-branch: role menu was full-screen, banner is gone.
                 drawIsThisOkMenu(display, desc, false);
-                await drainOneIfAny();
+                const confirmCode = await drainOneIfAny();
+                // 'a' rename: re-render "Who are you?" prompt at row 10
+                // (NOT row 12 like initial chargen) and echo new name
+                // letters via additional nhgetch calls.
+                // C ref: role.c:2693 — clears svp.plname, asks again.
+                if (confirmCode === 0x61 || confirmCode === 0x41) {
+                    if (display) drawRenamePromptOnRow10(display, '');
+                    await renderRenameNameCapture(display);
+                }
             }
         }
         return picked;
@@ -617,15 +625,37 @@ function isAClass(yn) {
     return yn === 'a' || yn === 'A' || yn === '@' || yn === '*';
 }
 
+function drawRenamePromptOnRow10(display, nameSoFar) {
+    clearScreenNoColor(display);
+    display.putstr(0, 10, "Who are you? " + nameSoFar, CHARGEN_NO_COLOR);
+}
+
+// After 'a' rename at confirmation, read new name letters via nhgetch
+// (each capturing a screen with banner-free row-10 prompt + echoed
+// letters). Stops at \r/\n.
+async function renderRenameNameCapture(display) {
+    const { nhgetch } = await import('./input.js');
+    const newName = [];
+    while (true) {
+        let code;
+        try { code = await nhgetch(); } catch (e) { return; }
+        if (code === 13 || code === 10) return;  // \r or \n consumed; done
+        const ch = String.fromCharCode(code);
+        newName.push(ch);
+        if (display) drawRenamePromptOnRow10(display, newName.join(''));
+    }
+}
+
 async function drainOneIfAny() {
     const { nhgetch } = await import('./input.js');
     // Try to consume one key — but only if queue has any. If not, the
-    // chargen UI rendering ends here.
+    // chargen UI rendering ends here. Returns the key code (1-based: 0
+    // means nothing consumed; otherwise the char code).
     try {
-        await nhgetch();
-        return true;
+        const code = await nhgetch();
+        return code || -1;  // 0 might be a valid code; use -1 sentinel
     } catch (e) {
-        return false;
+        return 0;
     }
 }
 
