@@ -178,6 +178,10 @@ export async function newgame() {
         Rogue: 'Footpad', Samurai: 'Hatamoto', Tourist: 'Rambler',
         Valkyrie: 'Stripling', Wizard: 'Evoker',
     };
+    // C ref: role.c roles[] — only Caveman/Priest have a female-specific
+    // role name (.name.f); all others store NULL. allmain.c:910 hides
+    // the gender word when name.f is set.
+    const ROLE_NAMES_F = { Caveman: 'Cavewoman', Priest: 'Priestess' };
     const role = g.opts_role || 'Tourist';
     const race = g.opts_race || 'human';
     const align = g.opts_align || 'neutral';
@@ -185,12 +189,13 @@ export async function newgame() {
                                  : (role === 'Tourist'); // seed8000 default
     const isF = female;
     const roleNameM = role;
-    const roleNameF = (role === 'Caveman') ? 'Cavewoman'
-                    : (role === 'Priest') ? 'Priestess' : role;
+    const roleNameF = ROLE_NAMES_F[role] || null;
     g.urole = {
         name: { m: roleNameM, f: roleNameF },
         rank: { m: ROLE_TITLES[role] || 'Rambler',
                 f: ROLE_TITLES_F[role] || ROLE_TITLES[role] || 'Rambler' },
+        // Roles with both genders allowed; only Valkyrie is female-only.
+        allowsBothGenders: role !== 'Valkyrie',
     };
     g.urace = { adj: RACE_ADJ[race] || race };
     g.flags.female = female;
@@ -211,11 +216,19 @@ export async function newgame() {
     await flush_screen(1);
     await bot();
 
-    // Welcome message — uses role/race/gender/align from rc options.
+    // Welcome message — C ref: allmain.c:880-916.
+    // buf assembly: " <align> [gender] <race-adj> <role>"
+    // gender word is suppressed when (a) role allows only one gender or
+    // (b) the role has a female-specific name (e.g. Cavewoman, Priestess).
     const alignName = g._align_name || 'neutral';
-    const genderAdj = g.flags?.female ? 'female' : 'male';
-    const raceName = g.opts_race || 'human';
-    const roleDisplayName = g.flags?.female ? g.urole.name.f : g.urole.name.m;
+    const raceAdj = g.urace?.adj || 'human';
+    const showGender = g.urole.allowsBothGenders && !g.urole.name.f;
+    const genderWord = g.flags?.female ? 'female' : 'male';
+    const roleDisplayName = (g.flags?.female && g.urole.name.f)
+        ? g.urole.name.f : g.urole.name.m;
+    let descBuf = ` ${alignName}`;
+    if (showGender) descBuf += ` ${genderWord}`;
+    descBuf += ` ${raceAdj} ${roleDisplayName}`;
     // C ref: role.c:2120 Hello() — role-specific greeting word.
     const HELLO_BY_ROLE = {
         Knight: 'Salutations',
@@ -224,7 +237,7 @@ export async function newgame() {
         Valkyrie: 'Velkommen',
     };
     const helloWord = HELLO_BY_ROLE[g.opts_role] || 'Hello';
-    await pline(`${helloWord} ${g.plname}, welcome to NetHack!  You are a ${alignName} ${genderAdj} ${raceName} ${roleDisplayName}.`);
+    await pline(`${helloWord} ${g.plname}, welcome to NetHack!  You are a${descBuf}.`);
 }
 
 // C ref: allmain.c moveloop_core()

@@ -604,21 +604,46 @@ remaining stages.
   'a' rename; after rename, 'n' triggers manual restart, then '~'
   filter, then 'HED' filter (race exclusions), then standard order.
 
-**Current handling.** My port handles only:
-- Standard order (role → race → gender → align)
-- '"' Pick gender first (after role): renders gender menu with
-  race=null placeholder; after gender pick if race wasn't yet set,
-  renders race menu with gender now set + "Pick another gender first"
-  navigation option.
+**Current handling (FSM as of 2026-05-06).** chargen_simulate_async
+now uses a generalized state-machine loop:
+1. Start with state = {role, race, gender, align} all null.
+2. After each iter, auto-resolve any attribute whose `validX(state)`
+   has length 1 (rigid_role_checks behavior).
+3. Pick target menu = first unset attribute, in order role → race →
+   gender → align.
+4. Render target menu, drain one key.
+5. If key matches target's letter, set target attribute, loop.
+6. If key is '['/'/'/'"' navigation, render the nav target's menu,
+   drain another key, set the nav target's attribute, loop.
+7. After all set, render Is-this-ok.
 
-**Deferred.** Full state machine for '[' (align first), '/' (race
-first when not at race menu), '~' (filter), nested filter menus.
-Each requires per-attribute tracking + context-aware next-menu
-dispatch. seed0012 (9 screens vs theoretical max ~16) and seed0006's
-post-rename restart (currently 18 screens vs theoretical ~30) would
-benefit. Multi-day work.
+**Crucial: do NOT change role-forced labels based on state.** When a
+role has only one valid alignment (e.g. Rogue → chaotic), C's race/
+gender menus always show "role forces chaotic" — never
+"[ - Pick another alignment first" — even after rigid resolution
+populates state.align. The label is purely a function of
+`rd.aligns.length === 1`. Same for `rd.gens.length === 1`. Forgetting
+this prints "Pick another X first" labels and breaks the seed0007
+race/gender menus.
 
-**Commits:** 8cfbce1, 64252ad ("Pick gender first" partial).
+**Crucial: handle isNClass first-key correctly.** For pure n-branch
+chargen (chargen prompt 'n' typed), the role menu was already rendered
+at line 601 of chargen_simulate_async AND its key was already drained
+by the nhgetch at line 608. The FSM's first iteration must NOT redraw
++ drain — it must process moves[manualStartIdx] as the role-menu key
+directly. For y+n rejection ('y' → reject Is-this-ok with 'n'), no
+role menu was drawn yet, so the FSM's normal iter 1 handles it.
+
+**Verified gain:** seed0012 (Monk + cascade '['/l/'"'/m/'/'/h/m) went
+from 11 → 16 matched screens (+5). seed0007/seed0077 preserved at
+14/11 after fixing the role-forced label bug.
+
+**Still deferred.** '~' filter sub-menu; '?' role-first re-render;
+seed0006 post-rename rejection re-entry to manual mode; race-forced
+align distinction (vs role-forced).
+
+**Commits:** 8cfbce1, 64252ad ("Pick gender first" partial), then the
+FSM refactor (this iteration).
 
 ---
 
