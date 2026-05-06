@@ -130,7 +130,7 @@ diff --git a/src/date.c b/src/date.c
 +     * fixed offsets out of it (year at 7, mday at 4, hour at 12, …).
 +     * Set NETHACK_REAL_BUILD_DATE in env to opt out of pinning. */
 +    Snprintf(tmpbuf1, sizeof tmpbuf1, "%s",
-+             getenv("NETHACK_REAL_BUILD_DATE") ? __DATE__ " " __TIME__ : "Mar 10 2026 12:00:00");
++             getenv("NETHACK_REAL_BUILD_DATE") ? __DATE__ " " __TIME__ : "May  2 2026 12:00:00");
 -    Snprintf(tmpbuf1, sizeof tmpbuf1, "%s %s", __DATE__, __TIME__);
      /* "Feb 12 1996 23:59:01"
          01234567890123456789  */
