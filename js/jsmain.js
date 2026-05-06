@@ -45,6 +45,12 @@ export class NethackGame {
         const opts = parseNethackrc(this._nethackrc);
         g.plname = opts.name || 'Hero';
         g.flags = { verbose: true, ...opts.flags };
+        // Wizard/debug mode forces plname to "wizard" (overriding any
+        // OPTIONS=name:... value).  C ref: src/options.c:10138
+        // set_playmode() — gp.plnamelen = strlen(strcpy(svp.plname,
+        // "wizard")). Affects sessions like seed5006 with
+        // playmode:debug in their rc.
+        if (g.flags.debug) g.plname = 'wizard';
         g.iflags = { ...opts.iflags };
         if (opts.preferred_pet) g.preferred_pet = opts.preferred_pet;
         if (opts.tutorial_set) g.tutorial_set_in_config = true;

@@ -302,6 +302,12 @@ function mksobj_init(otmp, otyp, artif) {
         // through to blessorcurse(10).
         rn2(10);
         blessorcurse(otmp, 10);
+    } else if (otyp >= 200 && otyp < 220) {
+        // GEM_CLASS — port of mkobj.c:976-985 case GEM_CLASS.
+        // mkobj() picked the otyp via the level-1 GEM prob walk; sentinel
+        // otyp 200 = fires rn2(6) (real gems, glasses, TOUCHSTONE/FLINT/ROCK);
+        // sentinel 210 = no rn2 (LUCKSTONE or LOADSTONE).
+        if (otyp === 200) rn2(6);
     }
     // RING_CLASS — port of mkobj.c:1128-1148. NOT YET WIRED. The
     // charged-ring path emits blessorcurse(3) + rn2(10) + spe-dependent
@@ -415,35 +421,50 @@ function mkobj(oclass, artif) {
             tprob -= entry.prob;
             if (tprob <= 0) { pickedClass = entry.oclass; break; }
         }
-        const total = OCLASS_PROB_TOTALS[pickedClass] || 1000;
-        rnd(total);
         oclass = pickedClass;
     }
-    // Pass init=TRUE (matching C mkobj which calls mksobj(otyp, TRUE, artif))
-    // and synthesize an otyp in the picked class's range so mksobj_init
-    // can dispatch class-specific RNG. For class N, pick the FIRST otyp
-    // in that class's typical otyp range (matches the structural shape;
-    // exact otyp identity isn't needed since we don't model game state
-    // beyond PRNG consumption).
-    // Synthetic per-class otyp picked to dispatch into the right
-    // mksobj_init branch. RING currently shares range with AMULET
-    // [220,230) so falls through AMULET's branch — that's the
-    // empirically-best behavior right now (see RING comment in
-    // mksobj_init body); changing this regressed seed0030.
-    const otypFromClass = {
-        1: 1,    /* WEAPON   range [1,28) */
-        2: 28,   /* ARMOR    range [28,95) */
-        3: 229,  /* RING (currently dispatches via AMULET branch — see RING comment) */
-        4: 350,  /* WAND     range [350,380) — distinct from POTION */
-        5: 270,  /* SCROLL   range [270,300) */
-        6: 230,  /* POTION   range [230,270) */
-        7: 213,  /* FOOD     no class init */
-        8: 152,  /* TOOL     no class init */
-        9: 309,  /* SPBOOK   range [309,350) */
-        10: 220, /* AMULET   range [220,230) */
-        14: 200, /* GEM      no class init */
-    }[oclass] || 0;
-    return mksobj(otypFromClass, true, artif);
+    const total = OCLASS_PROB_TOTALS[oclass] || 1000;
+    let pickedOtyp;
+    if (oclass === GEM_CLASS) {
+        // GEM otyp prob walk at dlvl 1 (setgemprobs(level=1)):
+        //   r in [1, 862]    = active real gems (171) + glasses (691) → rn2(6)
+        //   r in [863, 882]  = LUCKSTONE (10) + LOADSTONE (10)        → no rn2
+        //   r in [883, 1000] = TOUCHSTONE (8) + FLINT (10) + ROCK (100) → rn2(6)
+        // C ref: mkobj.c:976-985 case GEM_CLASS — LOADSTONE just curses
+        // (no rn2), LUCKSTONE sets quan=1 (no rn2), all others fire one
+        // rn2(6) (either via rn1(6,6) for ROCK or the != LUCKSTONE branch
+        // for real gems / glasses / TOUCHSTONE / FLINT).
+        const r = rnd(total);
+        // Use a sentinel otyp in [200,220) so mksobj_init's GEM branch
+        // can dispatch correctly. 200 = fires rn2(6); 210 = skip rn2.
+        pickedOtyp = (r >= 863 && r <= 882) ? 210 : 200;
+    } else {
+        rnd(total);
+        // Pass init=TRUE (matching C mkobj which calls mksobj(otyp, TRUE, artif))
+        // and synthesize an otyp in the picked class's range so mksobj_init
+        // can dispatch class-specific RNG. For class N, pick the FIRST otyp
+        // in that class's typical otyp range (matches the structural shape;
+        // exact otyp identity isn't needed since we don't model game state
+        // beyond PRNG consumption).
+        // Synthetic per-class otyp picked to dispatch into the right
+        // mksobj_init branch. RING currently shares range with AMULET
+        // [220,230) so falls through AMULET's branch — that's the
+        // empirically-best behavior right now (see RING comment in
+        // mksobj_init body); changing this regressed seed0030.
+        pickedOtyp = {
+            1: 1,    /* WEAPON   range [1,28) */
+            2: 28,   /* ARMOR    range [28,95) */
+            3: 229,  /* RING (currently dispatches via AMULET branch — see RING comment) */
+            4: 350,  /* WAND     range [350,380) — distinct from POTION */
+            5: 270,  /* SCROLL   range [270,300) */
+            6: 230,  /* POTION   range [230,270) */
+            7: 213,  /* FOOD     no class init */
+            8: 152,  /* TOOL     no class init */
+            9: 309,  /* SPBOOK   range [309,350) */
+            10: 220, /* AMULET   range [220,230) */
+        }[oclass] || 0;
+    }
+    return mksobj(pickedOtyp, true, artif);
 }
 
 function mkobj_at(oclass, x, y, artif) {
