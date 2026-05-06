@@ -91,11 +91,11 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    12afd81
-last_run_time:      2026-05-06T23:25Z
+last_run_commit:    a2ee792
+last_run_time:      2026-05-06T23:48Z
 last_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
-best_commit:        12afd81
+best_commit:        12afd81 (most recent screens-bumping commit; a2ee792 pushes status-line correctness without screen movement)
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
 counts (127 screens, 21 turns, 53829 calls) are unchanged but corpus
