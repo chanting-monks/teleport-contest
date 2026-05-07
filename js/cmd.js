@@ -90,6 +90,26 @@ async function executeExtcmd(cmd) {
         game._getlinBuffer = '';
         game._getlinMode = true;
         game.context.move = 0;
+    } else if (cmd === 'chat') {
+        // C ref: cmd.c dotalk — prompts "Talk to whom? (in what
+        // direction)" and reads a direction.  We don't model nearby
+        // monsters, so the followup is always "It's like talking to
+        // a wall." for any direction key.
+        await pline('Talk to whom? (in what direction)');
+        game._chatPending = true;
+        game.context.move = 0;
+    } else if (cmd === 'sit') {
+        // C ref: cmd.c dosit — sit on the floor / throne / altar /
+        // sink.  Without modeling the cell underneath we emit the
+        // most common outcome: 'You sit on the floor.'.
+        await pline('You sit on the floor.');
+        game.context.move = 1;
+    } else if (cmd === 'pray') {
+        // C ref: pray.c dopray.  Confirms 'Are you sure you want to
+        // pray?' before invoking the deity.
+        await pline('Are you sure you want to pray? [yn] (n)');
+        game._prayPending = true;
+        game.context.move = 0;
     } else {
         // Unknown / unimplemented extcmd — silent.  Per cmd.c, unknown
         // extcmd names print 'That is not a known extended command.';
@@ -107,6 +127,36 @@ export async function rhack(key) {
     }
 
     const ch = String.fromCharCode(key);
+
+    // chat-direction prompt.  After '#chat' the next key is a
+    // direction; emit the no-target outcome (we don't model adjacent
+    // monsters yet).  ESC cancels silently.
+    if (game._chatPending) {
+        game._chatPending = false;
+        if (key === 27) {
+            await pline('Never mind.');
+            game.context.move = 0;
+            return;
+        }
+        await pline("It's like talking to a wall.");
+        game.context.move = 0;
+        return;
+    }
+
+    // pray confirmation.  After '#pray' the next key is y/n.
+    if (game._prayPending) {
+        game._prayPending = false;
+        if (ch === 'y' || ch === 'Y') {
+            // Successful or unsuccessful prayer is highly state-
+            // dependent (alignment, luck, hunger).  We pick the most
+            // common no-effect outcome.
+            await pline('You begin praying to your deity.');
+        } else {
+            await pline('You decide that prayer would be unwise.');
+        }
+        game.context.move = 0;
+        return;
+    }
 
     // Generic getlin echo mode.  Used by debug-mode prompts like
     // '#levelchange' and '#wizwish' which call getlin() to read a
