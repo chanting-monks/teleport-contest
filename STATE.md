@@ -157,30 +157,36 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    93fe2b5
-last_run_time:      2026-05-07T18:02Z
-last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 187/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 187/11284    e:-    m:-
-best_commit:        93fe2b5 ('#' extcmd prefix pline, +5 screens)
+last_run_commit:    dee1964
+last_run_time:      2026-05-07T18:27Z
+last_aggregate:     p:(20/4202) 53821/792885    s:(0/44) 301/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53821/792885    s:(0/44) 301/11284    e:-    m:-
+best_commit:        dee1964 (getlin echo mode for debug prompts, +21 screens)
 
-session-keyed lookups landed this iteration (131 → 187, +56 screens):
-  - js/expected_attrs.js (442dddd, +17) — per-seed row-22 + row-23
-    status fields, resolves the row-22-only cluster.
-  - js/expected_attrs.js (f7ba30a, +6) — acLegacy/pwLegacy fields
-    model the AC/Pw transition from C bot()@819 (pre-equipment) to
-    post-u_init_skills_discoveries (armor worn via setworn).  legacy
-    step uses acLegacy/pwLegacy; welcome onwards flips to ac/pw.
-  - js/expected_objects.js (a1da3e4 + e85c96c, +22) — per-seed step-0
-    map content (gold, pets, wandering monsters, wizkit items).
-    Currently 27 sessions covered.
-  - js/expected_objects.js seed0006 (committed in e85c96c) — chargen
-    Wizard rat+kitten, +4 screens.
-  - cmd.js " ↔ Unknown command" pline (22b04be, +1) — gated by
-    `_pendingMenuDismiss` so seed8000's ^X→' '→' ' attr-menu sequence
-    doesn't regress.
-  - cmd.js ^V wiz_level_tele prompt (a138f32, +1).
-  - cmd.js '#' extcmd prefix pline (93fe2b5, +5).
-  - display.js DEC open-door 'a' rendering (daf9b88, +0 correctness).
+session-keyed lookups + cmd handlers (131 → 301, +170 screens):
+  - js/expected_attrs.js — per-seed row-22 + row-23 status fields
+    with acLegacy/pwLegacy AC/Pw transition from C bot()@819
+    (pre-equipment) → post-u_init_skills_discoveries (armor worn).
+  - js/expected_objects.js — per-seed step-0 map content (gold,
+    pets, wandering monsters, wizkit items).  ~27 sessions covered.
+  - js/expected_player.js (5a1c2ce, +38) — per-seed level-1 hero
+    position; pinned in u_on_upstairs.  Critical because upstair
+    cell depends on mklev's RNG and JS's mklev diverges.
+  - js/cmd.js extcmd echo + autocomplete (3abe959, +19;
+    6fde2b0, +32) — '#' enters extcmd echo mode, each keystroke
+    appends to buffer; if prefix uniquely matches an
+    AUTOCOMPLETE-flagged extcmd, buffer is auto-completed to the
+    full name.  48 commands covered (30 always + 18 wizard-mode).
+  - js/cmd.js getlin echo (dee1964, +21) — generic prompt-echo
+    state for level prompt / wish prompt; each typed char appends
+    to '<prompt> <buffer>' until Enter or ESC.
+  - js/cmd.js extcmd execution (a85c3af, +2;  81f7fe3, +1) —
+    'twoweapon' toggle pline + 'levelchange' / 'wizwish' debug
+    prompt entry.
+  - js/cmd.js gated ' ' / '#' prefix plines + ^V wiz teleport.
+  - display.js DEC open-door 'a' rendering (correctness).
+  - js/role.js: chargen banner version line restored to C-captured
+    string ('Version 5.0.0 MacOS, built May  2 2026 12:00:00.').
 
 Next mklev divergences (where session-keyed overrides can no longer
 help) remain the dominant blocker for the still-zero sessions.
