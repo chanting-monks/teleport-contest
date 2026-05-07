@@ -46,17 +46,33 @@ export async function display_tutorial_menu() {
     }
 
     // Paint each menu line.
-    for (const line of TUTORIAL_LINES) {
-        const attr = line.inverse ? ATTR_INVERSE : 0;
-        for (let i = 0; i < line.text.length && TUTORIAL_LEFT_COL + i < 80; i++) {
-            display.setCell(TUTORIAL_LEFT_COL + i, line.row, line.text[i], NO_COLOR, attr);
+    function paintMenu() {
+        for (let r = 0; r <= 6; r++) {
+            for (let c = 0; c < 80; c++) {
+                display.setCell(c, r, ' ', NO_COLOR, 0);
+            }
+        }
+        for (const line of TUTORIAL_LINES) {
+            const attr = line.inverse ? ATTR_INVERSE : 0;
+            for (let i = 0; i < line.text.length && TUTORIAL_LEFT_COL + i < 80; i++) {
+                display.setCell(TUTORIAL_LEFT_COL + i, line.row, line.text[i], NO_COLOR, attr);
+            }
         }
     }
 
-    // Capture via nh_getch (the dismissal keystroke).  We don't act
-    // on the user's choice since we don't yet model entering the
-    // tutorial level — moveloop_core continues normally.
-    await nhgetch();
+    paintMenu();
+
+    // Loop on invalid input.  Only y / Y / n / N / ESC dismiss the
+    // menu; anything else (including space) redraws the prompt.  C
+    // ref: options.c:430 ask_do_tutorial — the menu re-renders after
+    // each invalid keystroke.
+    while (true) {
+        const key = await nhgetch();
+        const ch = String.fromCharCode(key);
+        if (ch === 'y' || ch === 'Y' || ch === 'n' || ch === 'N' || key === 27) break;
+        // Re-paint and re-prompt for the next captured screen.
+        paintMenu();
+    }
 
     // Clear the menu rows so the next flush_screen draws the map
     // unobscured.
