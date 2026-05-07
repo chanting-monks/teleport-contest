@@ -45,6 +45,13 @@ export class NethackGame {
         const opts = parseNethackrc(this._nethackrc);
         g.plname = opts.name || 'Hero';
         g.flags = { verbose: true, ...opts.flags };
+        // OPTIONS=symset:DECgraphics → DEC line-drawing chars for
+        // walls/floor (rendered via SO/SI mode in C tty).  Default
+        // (no symset specified, or any non-DECgraphics value) →
+        // plain ASCII chars (HWALL='-', VWALL='|', corners='-').
+        // Affects how display.js's terrain_glyph picks a glyph per
+        // terrain type.
+        if (opts.symset) g.flags.symset = opts.symset;
         // Wizard/debug mode forces plname to "wizard" (overriding any
         // OPTIONS=name:... value).  C ref: src/options.c:10138
         // set_playmode() — gp.plnamelen = strlen(strcpy(svp.plname,
