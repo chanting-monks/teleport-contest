@@ -81,6 +81,19 @@ function blocksMove(x, y, forRush = false) {
 // col 32 (left margin from C tty) + multi-line list + (end) +
 // captured at nh_getch.  Subsequent space/ESC dismisses.
 const SEED_INVENTORY = {
+    77: { leftCol: 28, lines: [
+        'Weapons',
+        'a - a +0 short sword (weapon in right hand)',
+        'b - 15 +0 daggers (alternate weapons; not wielded)',
+        'Armor',
+        'c - an uncursed +1 leather armor (being worn)',
+        'Potions',
+        'd - an uncursed potion of sickness',
+        'Tools',
+        'e - an uncursed lock pick',
+        'f - an empty uncursed sack',
+        '(end)',
+    ] },
     900: { leftCol: 1, lines: [
         'Coins',
         '$ - 61 gold pieces',
