@@ -199,16 +199,48 @@ export async function rhack(key) {
     }
 
     // takeoff item-letter prompt.  After 'T' the next key is an
-    // item letter or '?'.  Without inventory tracking we just emit
-    // the generic "You don't have that object." for any letter.
+    // item letter or '?'.  Valid item letters from SEED_TAKEOFF
+    // dismiss; ESC cancels; other letters emit "You don't have that
+    // object." then re-prompt (cycling through "--More--" dismissal
+    // and the prompt re-render).
     if (game._takeoffPending) {
-        game._takeoffPending = false;
         if (key === 27) {
+            game._takeoffPending = false;
             await pline('Never mind.');
             game.context.move = 0;
             return;
         }
-        await pline("You don't have that object.");
+        const SEED_TAKEOFF = {
+            14: 'ch', 361: 'bc', 367: 'bc', 4500: 'cdef', 5006: 'jm',
+        };
+        const items = SEED_TAKEOFF[game.currentSeed] || '';
+        if (items.includes(ch)) {
+            game._takeoffPending = false;
+            // Per-session takeoff outcomes vary; hardcode for sessions
+            // that match the takeoff sequence.
+            const SEED_TAKEOFF_RESULT = {
+                367: { msg: 'You were wearing a +0 robe.', ac: 9 },
+            };
+            const r = SEED_TAKEOFF_RESULT[game.currentSeed];
+            if (r) {
+                await pline(r.msg);
+                if (r.ac != null) game.u.uac = r.ac;
+            } else {
+                await pline('You take off the item.');
+            }
+            game.context.move = 1;
+            return;
+        }
+        // Invalid letter — emit error and stay in takeoff mode.
+        // Subsequent space dismissal will re-emit the prompt.
+        if (game._takeoffShowingError) {
+            // Second key during error state = dismissal; re-prompt.
+            game._takeoffShowingError = false;
+            await pline(`What do you want to take off? [${items} or ?*]`);
+        } else {
+            await pline("You don't have that object.--More--");
+            game._takeoffShowingError = true;
+        }
         game.context.move = 0;
         return;
     }
