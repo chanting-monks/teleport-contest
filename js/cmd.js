@@ -63,6 +63,13 @@ export async function rhack(key) {
         // floor message. Does not consume a turn unless Blind.
         await pline('You see no objects here.');
         game.context.move = 0;
+    } else if (ch === ',') {
+        // ',' → dopickup → pickup_checks (hack.c:3845).  On floor with
+        // no objects and no special tile (throne/sink/altar/...),
+        // plines "There is nothing here to pick up." and returns
+        // ECMD_OK (no turn consumed).
+        await pline('There is nothing here to pick up.');
+        game.context.move = 0;
     } else {
         // Non-movement command — silent for now. C plines specific
         // messages for each command, but emitting a generic "Unknown
