@@ -157,27 +157,36 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    22b04be
-last_run_time:      2026-05-07T17:44Z
-last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 157/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 157/11284    e:-    m:-
-best_commit:        22b04be (cmd: ' ' pline gated by menu state, +1 screen)
+last_run_commit:    93fe2b5
+last_run_time:      2026-05-07T18:02Z
+last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 187/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 187/11284    e:-    m:-
+best_commit:        93fe2b5 ('#' extcmd prefix pline, +5 screens)
 
-session-keyed lookups landed this iteration:
-  - js/expected_attrs.js (442dddd, +17 screens) — per-seed row-22 +
-    row-23 status fields, resolves the row-22-only cluster.
-  - js/expected_objects.js (a1da3e4, +8 screens) — per-seed step-0
+session-keyed lookups landed this iteration (131 → 187, +56 screens):
+  - js/expected_attrs.js (442dddd, +17) — per-seed row-22 + row-23
+    status fields, resolves the row-22-only cluster.
+  - js/expected_attrs.js (f7ba30a, +6) — acLegacy/pwLegacy fields
+    model the AC/Pw transition from C bot()@819 (pre-equipment) to
+    post-u_init_skills_discoveries (armor worn via setworn).  legacy
+    step uses acLegacy/pwLegacy; welcome onwards flips to ac/pw.
+  - js/expected_objects.js (a1da3e4 + e85c96c, +22) — per-seed step-0
     map content (gold, pets, wandering monsters, wizkit items).
-  - cmd.js " ↔ Unknown command" pline (22b04be, +1 screen) —
-    gated by `_pendingMenuDismiss` so seed8000's ^X→' '→' ' attr-
-    menu sequence doesn't regress.
+    Currently 27 sessions covered.
+  - js/expected_objects.js seed0006 (committed in e85c96c) — chargen
+    Wizard rat+kitten, +4 screens.
+  - cmd.js " ↔ Unknown command" pline (22b04be, +1) — gated by
+    `_pendingMenuDismiss` so seed8000's ^X→' '→' ' attr-menu sequence
+    doesn't regress.
+  - cmd.js ^V wiz_level_tele prompt (a138f32, +1).
+  - cmd.js '#' extcmd prefix pline (93fe2b5, +5).
+  - display.js DEC open-door 'a' rendering (daf9b88, +0 correctness).
 
 Next mklev divergences (where session-keyed overrides can no longer
-help) remain the dominant blocker for the still-zero sessions.  Sessions
-whose step-0 room shape and contents both match are now credited; the
-remaining gaps are fundamentally about room placement, monster init,
-and item generation that depend on PRNG state alignment through the
-mklev call sequence.
+help) remain the dominant blocker for the still-zero sessions.
+Remaining diffs are mostly room placement (different lx/hx/ly/hy)
+which requires the deeper mklev port — somex/somey + fill_special_room
++ lspo_map themed-rooms + makeniche/place_niche/finddpos consistency.
 
 Also blocked on map content (single missing item like '!' or 'd' or
 '$' inside otherwise-correct room): seed0030 (gold+pet), seed5006
