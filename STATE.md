@@ -157,21 +157,27 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    ee0bcca
-last_run_time:      2026-05-07T06:01Z
+last_run_commit:    ab00457
+last_run_time:      2026-05-07T07:30Z
 last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
 
-next_screens_unlocks: 10 sessions are now blocked SOLELY at row 22-23
-status (rows 0-21 fully match): seed0016, seed0017, seed0103, seed0116,
-seed0200, seed0367, seed0373, seed0383, seed0501, seed0900, seed1500.
-For each, fixing per-role u_init (stats + HP + Pw + AC + gold) yields
-+1 screen.  This is gated on PRNG state at u_init time matching C —
-which requires mklev call counts to match for non-seed8000 sessions
-(currently they don't, due to incomplete themed rooms / fill_special_room
-/ rnd_rect / mksobj_init RING-class / etc.).  Until the call counts
-align, computed stats won't match C even with a correct u_init port.
+next_screens_unlocks: 12 sessions are now blocked SOLELY at row 22
+status (rows 0-21 + row 23 fully match): seed0016, seed0017, seed0103,
+seed0107, seed0116, seed0200, seed0367, seed0373, seed0383, seed0501,
+seed0900, seed1500.  Each yields +1 screen the moment per-role
+init_attr produces correct stats.
+
+Also blocked on map content (single missing item like '!' or 'd' or
+'$' inside otherwise-correct room): seed0030 (gold+pet), seed5006
+(gold+pet+door), seed0108 (potion).
+
+The init_attr unlock requires PRNG state at u_init time matching C,
+which is gated on mklev call counts matching for non-seed8000
+sessions.  Currently they differ (e.g. seed0017: JS 3147 vs C 3465,
+~318 calls behind) due to incomplete themed rooms, fill_special_room,
+makeniche/place_niche/finddpos consistency, etc.
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
 counts (127 screens, 21 turns, 53829 calls) are unchanged but corpus
