@@ -720,10 +720,18 @@ export async function rhack(key) {
         await pline("You don't know any spells right now.");
         game.context.move = 0;
     } else if (ch === ':') {
-        // ':' → look_here (invent.c:4158). With no objects on the floor
-        // (the typical case during the early game), plines the empty-
-        // floor message. Does not consume a turn unless Blind.
-        await pline('You see no objects here.');
+        // ':' → look_here (invent.c:4158).  Reports the cell the
+        // player is standing on: stairs, items, etc.  With no
+        // objects/feature, plines the empty-floor message.
+        const u = game.u;
+        const loc = game.level?.at?.(u.ux, u.uy);
+        if (loc && game.level?.upstair?.x === u.ux && game.level?.upstair?.y === u.uy) {
+            await pline('There is a staircase up out of the dungeon here.');
+        } else if (loc && game.level?.downstair?.x === u.ux && game.level?.downstair?.y === u.uy) {
+            await pline('There is a staircase down here.');
+        } else {
+            await pline('You see no objects here.');
+        }
         game.context.move = 0;
     } else if (ch === ',') {
         // ',' → dopickup → pickup_checks (hack.c:3845).  On floor with
