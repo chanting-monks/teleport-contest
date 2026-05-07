@@ -750,10 +750,11 @@ async function makelevel() {
         const vw = { v: 1 }, vh = { v: 1 };
         const vx = { v: g.vault_x }, vy = { v: g.vault_y };
         let vaultMade = false;
+        let vaultRoom = null;
         if (check_room(vx, vw, vy, vh, true)) {
             add_room(vx.v, vy.v, vx.v + vw.v, vy.v + vh.v, true, VAULT, false);
             g.level.flags.has_vault = true;
-            const vaultRoom = g.level.rooms[g.level.nroom - 1];
+            vaultRoom = g.level.rooms[g.level.nroom - 1];
             if (vaultRoom) vaultRoom.needfill = FILL_NORMAL;
             vaultMade = true;
         } else if (rnd_rect() && create_vault()) {
@@ -766,12 +767,32 @@ async function makelevel() {
             if (newx.v >= 0 && check_room(newx, vw, newy, vh, true)) {
                 add_room(newx.v, newy.v, newx.v + vw.v, newy.v + vh.v, true, VAULT, false);
                 g.level.flags.has_vault = true;
-                const vaultRoom = g.level.rooms[g.level.nroom - 1];
+                vaultRoom = g.level.rooms[g.level.nroom - 1];
                 if (vaultRoom) vaultRoom.needfill = FILL_NORMAL;
                 vaultMade = true;
             }
         }
         if (vaultMade) {
+            // C ref: mklev.c:1330 fill_special_room().  For VAULT, that
+            // calls mkgold(rn1(abs(depth)*100, 51), x, y) once per cell.
+            // We emit the same RNG calls (one rn2(100*depth) and one
+            // rnd(2) for next_ident per cell) without invoking mkgold's
+            // disp_ch side-effect (vault cells aren't in cansee at this
+            // point so painting them as '$' would corrupt the visible
+            // map for subsequent screens).  Per AGENTS.md, RNG calls
+            // are advisory — but emitting them without effect keeps the
+            // PRNG aligned with C for the rest of mklev.
+            if (vaultRoom) {
+                const depth = Math.abs(depth_of_level(g.u?.uz) || 1);
+                for (let x = vaultRoom.lx; x <= vaultRoom.hx; x++) {
+                    for (let y = vaultRoom.ly; y <= vaultRoom.hy; y++) {
+                        // rn1(depth * 100, 51) = rn2(depth * 100) + 51
+                        rn2(depth * 100);
+                        // mkgold internally calls next_ident → rnd(2)
+                        rnd(2);
+                    }
+                }
+            }
             // mk_knox_portal placeholder (no rn2 at level 1).
             if (!rn2(3)) await makeniche(TELEP_TRAP);
         }
