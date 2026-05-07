@@ -152,15 +152,22 @@ export async function display_legacy() {
         }
     }
 
-    // The menu overlay covers cols [leftCol, 80) of all map rows
-    // (0-21).  Map content in cols [0, leftCol) shows through —
-    // matches C's tty pager which writes one line at a time at the
-    // menu's left col with implicit clear-to-eol after each line, but
-    // doesn't touch cells to the left of the cursor.  Confirmed
-    // against seed0013-friday13 where the map is at cols 5-11 (left
-    // of the legacy menu starting at col 23) and IS visible at rows
-    // 15-19 of the legacy screen, alongside the menu text.
-    for (let r = 0; r <= 21; r++) {
+    // The menu overlay covers cols [leftCol, 80) of rows 0..N where
+    // N is the --More-- row (= subbedLines.length).  Map content in
+    // cols [0, leftCol) of those rows shows through, and rows below
+    // N are untouched entirely.  Matches C's tty pager — one line at
+    // a time at the menu's left col with implicit clear-to-eol after
+    // each line, no clearing of rows the menu didn't visit.
+    // Confirmed via:
+    //   seed0013-friday13 step 0 — room at cols 5-11 rows 15-19 is
+    //     visible alongside the legacy text at cols 23+ on rows 15-17,
+    //     and the room continues unobscured on rows 18-19.
+    //   seed0106-priest step 0 — room at cols 67-72 rows 6-12 is
+    //     within the menu's clear range and gets wiped.
+    //   seed0367-priest-debug step 0 — room at rows 18-19 is below
+    //     the menu's last row (17) and remains visible.
+    const lastMenuRow = subbedLines.length; // index of --More-- row
+    for (let r = 0; r <= lastMenuRow; r++) {
         for (let c = leftCol; c < 80; c++) {
             display.setCell(c, r, ' ', NO_COLOR, 0);
         }
@@ -168,7 +175,7 @@ export async function display_legacy() {
     for (let r = 0; r < subbedLines.length; r++) {
         paintLine(r, subbedLines[r]);
     }
-    paintLine(subbedLines.length, '--More--');
+    paintLine(lastMenuRow, '--More--');
 
     // Capture the overlay (the _preNhgetchHook serializes the grid)
     // and consume the dismiss keystroke.  We do NOT call flush_screen
