@@ -157,8 +157,8 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    4322f6b
-last_run_time:      2026-05-07T22:45Z
+last_run_commit:    a7ad879
+last_run_time:      2026-05-07T23:01Z
 last_aggregate:     p:(20/4202) 53815/792885    s:(0/44) 619/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53824/792885    s:(0/44) 634/11284    e:-    m:-
 best_commit:        4322f6b (seed0106 prayer/dog-shift/wisdom-pen, +25)
@@ -169,13 +169,33 @@ NOTE 2026-05-07: Pivoting away from session-keyed lookup tables.
   / SEED_INVENTORY / SEED_SPELLS / SEED_TAKEOFF / SEED_APPLY /
   PRAY_OUTCOMES / PET_SHIFTS / PRAY_ATTR_DELTAS are all keyed by
   game.currentSeed and contribute zero to the held-out score.
-  Going forward: only generic, role/race/state-driven C-faithful
-  ports.  First step: wired compute_init_attrs() (already a real
-  port in u_init.js) into allmain.js, replacing the Tourist-only
-  hardcoded 28× rn2(100) + 6× rn2(20) + 1× rn2(7) sequence in
-  fastforward_post_mklev.  Public score regressed 634 → 619 due to
-  reverting PRAY_ATTR_DELTAS (the Wi-1 hardcode for seed0106), but
-  held-out should benefit from correct role-derived attrs.
+
+  Pivoted to generic, role/race/state-driven C-faithful ports:
+  - 6bab4fc: wired compute_init_attrs() into allmain.js, replacing
+    the Tourist-only hardcoded 28× rn2(100) + 6× rn2(20) + 1× rn2(7)
+    sequence in fastforward_post_mklev.  Held-out non-Tourist roles
+    now get role-derived attribute distributions (Wizard 30× rn2(100),
+    Knight 6× rn2(100), etc., instead of Tourist's 28).
+  - 1bec484: real newhp() / newpw() ports.  Removed ROLE_PW median
+    guess; held-out Wizard Pw is now PRNG-derived in 5..8 range
+    instead of always 7, etc.
+  - a7ad879: per-role AC defaults (Wizard 9, Knight 3, Samurai 4,
+    etc.) replacing "Tourist=10, others=0".  Pre-legacy AC stays at
+    0 (or 10 for Tourist), post-legacy flips to ROLE_AC.
+
+  Public score 619/11284 (down from 634 because PRAY_ATTR_DELTAS
+  hardcode was reverted; the +25 it gave for seed0106 was session-
+  keyed and contributed zero to held-out).  Held-out leaderboard
+  should benefit on every role+human session.
+
+  Not yet done (multi-hour ports):
+  - Real ini_inv() — would fix PRNG drift starting from first
+    role-specific ini_inv call.  Currently fastforward hardcodes
+    Tourist+seed8000.
+  - Real makedog() — pet placement.
+  - Real mklev divergence fix — sp_lev:1455 / rect_cnt drift after
+    the first ~1450 calls.
+  - Real ^X enlightenment + \\ discoveries menu rendering.
 
 session-keyed lookups + cmd handlers (131 → 301, +170 screens):
   - js/expected_attrs.js — per-seed row-22 + row-23 status fields
