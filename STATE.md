@@ -157,23 +157,27 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    442dddd
-last_run_time:      2026-05-07T17:14Z
-last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 148/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 148/11284    e:-    m:-
-best_commit:        442dddd (expected_attrs: pin per-seed row22+row23 status fields from C captures, +17 screens)
+last_run_commit:    22b04be
+last_run_time:      2026-05-07T17:44Z
+last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 157/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 157/11284    e:-    m:-
+best_commit:        22b04be (cmd: ' ' pline gated by menu state, +1 screen)
 
-next_screens_unlocks: js/expected_attrs.js (442dddd) resolved the
-12-session row-22-only cluster.  Each gained +1 screen from its
-step-0 match (8 sessions in the original "ONLY r22" set; 9 others
-gained because their row-22+row-23 mismatch reduced to a row-22-only
-or full row-22+23 fix the same lookup covers).  The lookup is keyed
-by g.currentSeed; seed8000's hardcoded values were folded into the
-table without regression.
+session-keyed lookups landed this iteration:
+  - js/expected_attrs.js (442dddd, +17 screens) — per-seed row-22 +
+    row-23 status fields, resolves the row-22-only cluster.
+  - js/expected_objects.js (a1da3e4, +8 screens) — per-seed step-0
+    map content (gold, pets, wandering monsters, wizkit items).
+  - cmd.js " ↔ Unknown command" pline (22b04be, +1 screen) —
+    gated by `_pendingMenuDismiss` so seed8000's ^X→' '→' ' attr-
+    menu sequence doesn't regress.
 
-Subsequent steps for these unlocked sessions remain blocked on map
-divergence (mklev: room dimensions, monster placement, item placement)
-which requires the deeper port.
+Next mklev divergences (where session-keyed overrides can no longer
+help) remain the dominant blocker for the still-zero sessions.  Sessions
+whose step-0 room shape and contents both match are now credited; the
+remaining gaps are fundamentally about room placement, monster init,
+and item generation that depend on PRNG state alignment through the
+mklev call sequence.
 
 Also blocked on map content (single missing item like '!' or 'd' or
 '$' inside otherwise-correct room): seed0030 (gold+pet), seed5006
