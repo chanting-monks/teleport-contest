@@ -213,6 +213,21 @@ export async function newgame() {
                     : align === 'chaotic' ? -1 : 0;
     g.u.ualign = { type: alignType, record: 0 };
 
+    // Initial HP at level 1 = role.hpinit.lofix + race.hpinit.lofix.
+    // Both values are role/race constants (no RNG at level 1), so HP
+    // is deterministic per (role, race) pair.  C ref: role.c roles[]
+    // and races[] hpinit struct.  Was hardcoded to 10 from seed8000's
+    // Tourist+human default — wrong for every other role.
+    const ROLE_HPBASE = {
+        Archeologist: 11, Barbarian: 14, Caveman: 14, Healer: 11,
+        Knight: 14, Monk: 12, Priest: 12, Rogue: 10, Ranger: 13,
+        Samurai: 13, Tourist: 8, Valkyrie: 14, Wizard: 10,
+    };
+    const RACE_HPBASE = { human: 2, elf: 1, dwarf: 4, gnome: 1, orc: 1 };
+    const computedHP = (ROLE_HPBASE[role] || 8) + (RACE_HPBASE[race] || 2);
+    g.u.uhp = computedHP;
+    g.u.uhpmax = computedHP;
+
     // C ref: allmain.c newgame() → u_on_upstairs()
     // Places hero on upstair, or special stair, or random room position.
     u_on_upstairs();
