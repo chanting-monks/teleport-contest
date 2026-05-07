@@ -78,13 +78,17 @@ async function executeExtcmd(cmd) {
         // C ref: cmd.c wiz_level_change — prompts for new experience
         // level via getlin.  Subsequent digit + Enter feeds the level.
         await pline('To what experience level do you want to be set?');
-        game._pendingMenuDismiss = 8;
+        game._getlinPrompt = 'To what experience level do you want to be set?';
+        game._getlinBuffer = '';
+        game._getlinMode = true;
         game.context.move = 0;
     } else if (cmd === 'wizwish' && game.flags?.debug) {
         // C ref: cmd.c wiz_wish — calls makewish() which getlin-prompts
         // 'For what do you wish?'.  The typed wish is then echoed.
         await pline('For what do you wish?');
-        game._pendingMenuDismiss = 32; /* room for a long item name */
+        game._getlinPrompt = 'For what do you wish?';
+        game._getlinBuffer = '';
+        game._getlinMode = true;
         game.context.move = 0;
     } else {
         // Unknown / unimplemented extcmd — silent.  Per cmd.c, unknown
@@ -103,6 +107,31 @@ export async function rhack(key) {
     }
 
     const ch = String.fromCharCode(key);
+
+    // Generic getlin echo mode.  Used by debug-mode prompts like
+    // '#levelchange' and '#wizwish' which call getlin() to read a
+    // level number / wish string.  Each typed key is echoed onto
+    // the prompt line until Enter (commit) or ESC (cancel).
+    if (game._getlinMode) {
+        if (key === 27 /* ESC */) {
+            game._getlinMode = false;
+            game._getlinBuffer = '';
+            game.context.move = 0;
+            return;
+        }
+        if (key === 13 || key === 10 /* Enter */) {
+            game._getlinMode = false;
+            game._getlinBuffer = '';
+            game.context.move = 0;
+            return;
+        }
+        if (ch >= ' ' && ch <= '~') {
+            game._getlinBuffer += ch;
+            await pline(game._getlinPrompt + ' ' + game._getlinBuffer);
+        }
+        game.context.move = 0;
+        return;
+    }
 
     // Extended-command echo mode.  After '#' is pressed, C's getlin()
     // echoes each typed letter onto the prompt line at row 0.  We
@@ -208,14 +237,13 @@ export async function rhack(key) {
     } else if (key === 22 /* ^V */ && game.flags?.debug) {
         // Wizard-mode level teleport (cmd.c:1970 wiz_level_tele).
         // Prompts "To what level do you want to teleport?" and reads
-        // a level number via getlin().  We capture the prompt only;
-        // subsequent typed digits + Enter are consumed silently by the
-        // default branch below, so step N+1 (the prompt with echo'd
-        // digit) doesn't match — but step N itself does.
-        await pline('To what level do you want to teleport?');
-        // The getlin reads digits until Enter; suppress "Unknown
-        // command" for those keys.
-        game._pendingMenuDismiss = 8;
+        // a level number via getlin().  Enter getlin echo mode so the
+        // digit echo on subsequent steps matches.
+        const prompt = 'To what level do you want to teleport?';
+        await pline(prompt);
+        game._getlinPrompt = prompt;
+        game._getlinBuffer = '';
+        game._getlinMode = true;
         game.context.move = 0;
     } else {
         // Non-movement command — silent for now. C plines specific
