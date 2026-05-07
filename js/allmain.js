@@ -157,7 +157,6 @@ export async function newgame() {
     g.u.uhp = 10; g.u.uhpmax = 10;
     g.u.uen = 2; g.u.uenmax = 2;
     g.u.uac = 10; g.u.uexp = 0;
-    g.u.ualign = { type: 0, record: 0 };
     g.u.acurr = { a: [9, 14, 12, 11, 16, 16] };
     g.u.amax = { a: [9, 14, 12, 11, 16, 16] };
     g.moves = 1;
@@ -206,6 +205,13 @@ export async function newgame() {
     g.plname = g.plname || 'Contestant';
     // alignName — used for welcome message and display.
     g._align_name = align;
+    // u.ualign.type drives the status-line alignment word (Lawful /
+    // Neutral / Chaotic at row 22).  C uses +1/0/-1.  Previously
+    // hardcoded to 0 from seed8000's neutral default — broke status
+    // for every Lawful / Chaotic session.
+    const alignType = align === 'lawful' ? 1
+                    : align === 'chaotic' ? -1 : 0;
+    g.u.ualign = { type: alignType, record: 0 };
 
     // C ref: allmain.c newgame() → u_on_upstairs()
     // Places hero on upstair, or special stair, or random room position.
