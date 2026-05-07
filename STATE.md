@@ -38,21 +38,14 @@ opportunity from the diagnostic output.
    pline-timing fix (`12afd81`, +2 screens) came the same way: '+'
    command should produce "You don't know any spells right now." but
    was being cleared mid-cycle.
-2. **Port the legacy book (`com_pager(legacy)`).** This is the
-   primary blocker: 30+ sessions diverge at step 0 (or post-chargen)
-   showing `It is written in the Book of <god>:` on row 0 of C while
-   JS shows the welcome line. Required pieces: (a) per-role data
-   table (3 god names, rank-1 male/female title), (b) substitution
-   engine for `%d` (god, strip leading `_`), `%G` (`god`/`goddess`
-   based on `_` prefix), `%r` (rank-1 title); (c) renderer that
-   writes each text line at column `8 + leading_spaces` of the
-   template (per `quest.lua` `legacy.text` source) and `--More--` at
-   col 8 after the last paragraph. C source: `questpgr.c:328
-   convert_line` for substitutions, `questpgr.c:236 convert_arg` for
-   the variable lookup. Will only count as +screen for sessions where
-   status bar and remaining map cells also already match — but it's a
-   prerequisite for those, since legacy diverge poisons all later
-   screens too.
+2. **DONE (a6dca81): legacy book port (`com_pager(legacy)`)**.
+   js/legacy.js renders the role + alignment-specific intro story as
+   a centered overlay between docrt() and welcome().  Confirmed
+   bit-correct for seed0006 step 35 (rows 0-21 match; only status
+   line at rows 22-23 differs because u_init is unported for
+   non-Tourist roles).  Same shape for seed0900, seed1800, seed0017
+   — the legacy text renders correctly; status-line stat values are
+   the next blocker.
 3. **Add more pline-only commands to `cmd.js`.** Now that pline
    timing is fixed (`12afd81`), simple-pline commands cleanly produce
    their `next-screen` row-0 message. Easy targets: `,` on empty floor
@@ -60,6 +53,16 @@ opportunity from the diagnostic output.
    with no quaffable plines `You have nothing to drink.`; `r` with no
    readable plines `You have nothing to read.`; etc. Each is one line
    in the rhack switch.
+
+⚠ **Important note on `js/terminal.js`.** The frozen overlay lives at
+`frozen/terminal.js`; the version checked into git lacks the
+`serialize()` method that `_preNhgetchHook` reads.  `score-table.mjs`
+copies `frozen/terminal.js` → `js/terminal.js` at startup (worker
+mode, line 308) — so after running scoring, `git status` will show
+`js/terminal.js` as modified.  **Do not `git checkout` it back** —
+that breaks all local screen-diff / single-session tests until
+score-table is run again.  The diff is benign and gets reapplied on
+every score run.
 4. **Use `node scripts/step-prng-diff.mjs <session> --matched`** to
    identify coincidentally-matched step boundaries; check whether
    they're `rn2(1)=0` (always 0, per LEARN #22) so future C-faithful

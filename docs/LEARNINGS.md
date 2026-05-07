@@ -860,6 +860,48 @@ later screens for those sessions.
 ~line 1980 + role.js for the rn2(13) loop); easy stub case is to
 skip Priest until the pantheon RNG is wired.
 
+**Status: ported in a6dca81.** js/legacy.js + js/roles.js gods/rank1
+data + allmain.js wiring.  Verified bit-correct on seed0006 step 35
+(rows 0-21 match; status row 22-23 still differ pending u_init port).
+Score table unchanged at 131/11284 because every legacy-rendering
+session also needs correct status, which awaits per-role u_init.
+
+---
+
+## 17. `js/terminal.js` is an overlay, not a frozen file
+
+**Lesson.** AGENTS.md describes `js/terminal.js` as "frozen (judge
+overlays at score time)".  That phrasing led me to treat the file as
+read-only and `git checkout` it whenever it appeared modified — which
+broke every local screen-comparison tool until I re-ran score-table.
+
+**Reality.** `scripts/score-table.mjs:308` copies `frozen/terminal.js`
+→ `js/terminal.js` at the start of every worker run (lines 305-313):
+
+```
+for (const f of ['isaac64.js', 'terminal.js']) {
+    const src = join(fr, f);
+    const dst = join(js, f);
+    if (existsSync(src)) writeFileSync(dst, readFileSync(src));
+}
+```
+
+The starter `js/terminal.js` checked into git lacks the `serialize()`
+method that `_preNhgetchHook` calls to capture screens.  Without it,
+`getScreens()` returns `''` for every step, so `screen-diff.mjs` and
+single-session debug scripts all produce "JS empty" comparisons that
+look like total regressions.
+
+**How to apply.** Treat `M js/terminal.js` as benign — it means
+score-table has already overlayed the frozen serializer.  Do not
+revert it.  If you've reverted it accidentally, just run any
+score-table invocation to restore the overlay.  Local diagnostic
+scripts (`screen-diff.mjs`, `compare-firstdiv.mjs`, etc.) do not
+overlay — they rely on whatever `js/terminal.js` is on disk.
+
+The same applies to `js/isaac64.js`, though it's less common to need
+local edits there.
+
 ---
 
 *Append new entries above this line. Each entry numbered, dated, and
