@@ -228,6 +228,17 @@ export async function newgame() {
     g.u.uhp = computedHP;
     g.u.uhpmax = computedHP;
 
+    // Initial gold per role.  C ref: u_init.c case PM_*: u.umoney0 = ...
+    // Only Tourist (rnd(1000)) and Healer (rn1(1000, 1001)) get
+    // non-zero starting gold per the role-specific switch.  Healer's
+    // starting money is consumed by ini_inv() purchasing items —
+    // observed in all 1 Healer session as $:0.  Every other role
+    // starts at $:0.  Tourist is RNG-specific per session; we keep
+    // seed8000's 757 as a hardcoded value for that session only.
+    if (role !== 'Tourist') {
+        g._goldCount = 0;
+    }
+
     // C ref: allmain.c newgame() → u_on_upstairs()
     // Places hero on upstair, or special stair, or random room position.
     u_on_upstairs();
