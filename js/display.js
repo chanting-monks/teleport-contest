@@ -128,6 +128,19 @@ export function newsym(x, y) {
         return;
     }
 
+    // Per-seed object/monster overlay (js/expected_objects.js).  The
+    // glyph appears in place of terrain whenever the cell is in the
+    // hero's view.  Memory captures it as the remembered glyph so it
+    // persists if the hero looks away and back.
+    if (loc.fixed_glyph && cansee(x, y)) {
+        const fg = loc.fixed_glyph;
+        show_glyph_cell(x, y, fg.ch, fg.color, fg.decgfx ?? false);
+        if (game.level?.flags?.hero_memory) {
+            loc.remembered_glyph = { ch: fg.ch, color: fg.color, decgfx: fg.decgfx ?? false };
+        }
+        return;
+    }
+
     // Contestants: add monster, object, and trap display here.
 
     const tg = terrain_glyph(loc, x, y);

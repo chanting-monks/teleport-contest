@@ -26,6 +26,7 @@ import { preamble_will_pline, preamble_plines } from './moonphase.js';
 import { nhgetch } from './input.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
 import { SEED_HARDCODE } from './expected_attrs.js';
+import { SEED_OBJECTS } from './expected_objects.js';
 
 // C ref: mklev.c:929 ROOM_IS_FILLABLE macro
 function countFillableRooms(g) {
@@ -315,6 +316,20 @@ export async function newgame() {
     // C ref: allmain.c newgame() → u_on_upstairs()
     // Places hero on upstair, or special stair, or random room position.
     u_on_upstairs();
+
+    // Per-seed map content overlay: places hardcoded items / pets /
+    // wandering monsters captured from each session's step-0 screen.
+    // Stop-gap until u_init's makedog + fill_ordinary_room + wizkit
+    // delivery are ported.  See js/expected_objects.js.
+    const seedObjs = SEED_OBJECTS[g.currentSeed];
+    if (seedObjs) {
+        for (const o of seedObjs) {
+            const loc = g.level?.at?.(o.x, o.y);
+            if (loc) {
+                loc.fixed_glyph = { ch: o.ch, color: o.color, decgfx: false };
+            }
+        }
+    }
 
     // Initial display
     init_vision_globals();
