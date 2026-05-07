@@ -29,9 +29,16 @@ export const SEED_OBJECTS = {
     7: [
         { x: 38, y: 17, ch: 'f', color: 15 },
     ],
-    // seed0013-friday13 — Rogue
+    // seed0013-friday13 — Rogue.  C has its top-wall door at col 8;
+    // JS's mklev placed it at col 9.  C has a doorway at row 16 col
+    // 11 with the room continuing right; JS has the right wall at
+    // col 11 with no doorway.  Override the door + wall mismatches.
     13: [
         { x: 8, y: 15, ch: 'f', color: 15 },
+        { x: 9, y: 14, ch: '~', color: 8, decgfx: true },  // open door (col 8)
+        { x: 10, y: 14, ch: 'q', color: 8, decgfx: true }, // wall (col 9)
+        { x: 12, y: 15, ch: '~', color: 8, decgfx: true }, // doorway (col 11 r16)
+        { x: 12, y: 16, ch: 'x', color: 8, decgfx: true }, // right wall (col 11 r17)
     ],
     // seed0016-healer-newmoon-eat-zap — Healer
     16: [
