@@ -104,6 +104,13 @@ async function executeExtcmd(cmd) {
         // most common outcome: 'You sit on the floor.'.
         await pline('You sit on the floor.');
         game.context.move = 1;
+    } else if (cmd === 'jump') {
+        // C ref: cmd.c dojump.  Jump prompts 'Where do you want to
+        // jump?' with a target-selection cursor.  We just emit the
+        // prompt; subsequent direction or position keys are not
+        // handled.
+        await pline('Where do you want to jump?');
+        game.context.move = 0;
     } else if (cmd === 'pray') {
         // C ref: pray.c dopray.  Confirms 'Are you sure you want to
         // pray?' before invoking the deity.
