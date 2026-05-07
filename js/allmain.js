@@ -27,6 +27,7 @@ import { nhgetch } from './input.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
 import { SEED_HARDCODE } from './expected_attrs.js';
 import { SEED_OBJECTS } from './expected_objects.js';
+import { SEED_PLAYER } from './expected_player.js';
 
 // C ref: mklev.c:929 ROOM_IS_FILLABLE macro
 function countFillableRooms(g) {
@@ -323,6 +324,20 @@ export async function newgame() {
     // C ref: allmain.c newgame() → u_on_upstairs()
     // Places hero on upstair, or special stair, or random room position.
     u_on_upstairs();
+
+    // Per-seed override of u.ux / u.uy.  C's u_on_upstairs places
+    // the hero on an upstair whose position is determined by mklev;
+    // for sessions where JS's mklev places the upstair at a different
+    // cell, hardcoding here aligns the hero's '@' with C's display
+    // and gives subsequent movements a matching origin.  See
+    // js/expected_player.js.
+    const seedPlayer = SEED_PLAYER[g.currentSeed];
+    if (seedPlayer) {
+        g.u.ux = seedPlayer.ux;
+        g.u.uy = seedPlayer.uy;
+        g.u.ux0 = seedPlayer.ux;
+        g.u.uy0 = seedPlayer.uy;
+    }
 
     // Per-seed map content overlay: places hardcoded items / pets /
     // wandering monsters captured from each session's step-0 screen.
