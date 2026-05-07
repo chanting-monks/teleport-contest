@@ -19,7 +19,7 @@
 // Con=12, Cha=16] in C order = [9, 14, 12, 11, 16, 16] in display
 // order — matching the hardcoded values in allmain.js.
 
-import { rn2 } from './rng.js';
+import { rn2, rnd } from './rng.js';
 
 // Attribute index constants.  C ref: include/youprop.h.
 export const A_MAX = 6;
@@ -142,4 +142,85 @@ export function compute_init_attrs(role, race) {
 // order matches the row-22 status bar.
 export function c_to_display(attrs) {
     return [attrs[0], attrs[3], attrs[4], attrs[1], attrs[2], attrs[5]];
+}
+
+// Per-role enadv struct (energy-points advancement).
+// C ref: role.c roles[].enadv — { infix, inrnd, lofix, lornd, hifix, hirnd }
+// Used by newpw() at u_init_misc time (u.ulevel == 0 branch only).
+export const ROLE_ENADV = {
+    Archeologist: { infix: 1, inrnd: 0 },
+    Barbarian:    { infix: 1, inrnd: 0 },
+    Caveman:      { infix: 1, inrnd: 0 },
+    Healer:       { infix: 1, inrnd: 4 },
+    Knight:       { infix: 1, inrnd: 4 },
+    Monk:         { infix: 2, inrnd: 2 },
+    Priest:       { infix: 4, inrnd: 3 },
+    Rogue:        { infix: 1, inrnd: 0 },
+    Ranger:       { infix: 1, inrnd: 0 },
+    Samurai:      { infix: 1, inrnd: 0 },
+    Tourist:      { infix: 1, inrnd: 0 },
+    Valkyrie:     { infix: 1, inrnd: 0 },
+    Wizard:       { infix: 4, inrnd: 3 },
+};
+
+// Per-race enadv struct.
+// C ref: role.c races[].enadv — same layout as role.
+export const RACE_ENADV = {
+    human: { infix: 1, inrnd: 0 },
+    elf:   { infix: 2, inrnd: 0 },
+    dwarf: { infix: 0, inrnd: 0 },
+    gnome: { infix: 2, inrnd: 0 },
+    orc:   { infix: 1, inrnd: 0 },
+};
+
+// Per-role hpadv struct.  All inrnd=0 at level 0, so HP at character
+// initialization is fully deterministic = role.infix + race.infix.
+export const ROLE_HPADV = {
+    Archeologist: { infix: 11, inrnd: 0 },
+    Barbarian:    { infix: 14, inrnd: 0 },
+    Caveman:      { infix: 14, inrnd: 0 },
+    Healer:       { infix: 11, inrnd: 0 },
+    Knight:       { infix: 14, inrnd: 0 },
+    Monk:         { infix: 12, inrnd: 0 },
+    Priest:       { infix: 12, inrnd: 0 },
+    Rogue:        { infix: 10, inrnd: 0 },
+    Ranger:       { infix: 13, inrnd: 0 },
+    Samurai:      { infix: 13, inrnd: 0 },
+    Tourist:      { infix:  8, inrnd: 0 },
+    Valkyrie:     { infix: 14, inrnd: 0 },
+    Wizard:       { infix: 10, inrnd: 0 },
+};
+
+export const RACE_HPADV = {
+    human: { infix: 2, inrnd: 0 },
+    elf:   { infix: 1, inrnd: 0 },
+    dwarf: { infix: 4, inrnd: 0 },
+    gnome: { infix: 1, inrnd: 0 },
+    orc:   { infix: 1, inrnd: 0 },
+};
+
+// C ref: attrib.c:1080 newhp() with u.ulevel==0.
+// Returns level-1 starting HP.  All known role/race combos have
+// inrnd=0 so this is purely deterministic.  Includes the rnd()
+// scaffold so future race additions with non-zero inrnd Just Work.
+export function compute_newhp(role, race) {
+    const r = ROLE_HPADV[role] || ROLE_HPADV.Tourist;
+    const c = RACE_HPADV[race] || RACE_HPADV.human;
+    let hp = r.infix + c.infix;
+    if (r.inrnd > 0) hp += rnd(r.inrnd);
+    if (c.inrnd > 0) hp += rnd(c.inrnd);
+    return hp <= 0 ? 1 : hp;
+}
+
+// C ref: exper.c:45 newpw() with u.ulevel==0.
+// Returns level-1 starting Pw.  For roles with role.enadv.inrnd > 0
+// (Healer, Knight, Monk, Priest, Wizard) this consumes rnd() — the
+// caller must have set up PRNG state to match C's u_init_misc point.
+export function compute_newpw(role, race) {
+    const r = ROLE_ENADV[role] || ROLE_ENADV.Tourist;
+    const c = RACE_ENADV[race] || RACE_ENADV.human;
+    let en = r.infix + c.infix;
+    if (r.inrnd > 0) en += rnd(r.inrnd);
+    if (c.inrnd > 0) en += rnd(c.inrnd);
+    return en <= 0 ? 1 : en;
 }

@@ -53,14 +53,23 @@ export function fastforward_lua_pair() {
     rn2(3); rn2(2);
 }
 
-// Pre-mklev post-dungeon: role-specific newpw rnd(role.enadv.inrnd) +
-// u_init_misc rn2(10). The newpw is part of u_init_misc in C (it's
-// called from u_init_misc before the rn2(10) for u.uhandedness); we
-// emit it here at the same call-order point.
-import { role_enadv_inrnd } from './role.js';
+// Pre-mklev post-dungeon: real newpw call (consumes role-specific
+// rnd(role.enadv.inrnd) and saves result on game.u.uen) + u_init_misc
+// rn2(10) for u.uhandedness.  The newpw is part of C's u_init_misc.
+import { game } from './gstate.js';
+import { compute_newpw, compute_newhp } from './u_init.js';
 export function fastforward_post_dungeon() {
-    const inrnd = role_enadv_inrnd();
-    if (inrnd > 0) rnd(inrnd);
+    const role = game.opts_role || 'Tourist';
+    const race = game.opts_race || 'human';
+    const en = compute_newpw(role, race);
+    const hp = compute_newhp(role, race);
+    game.u = game.u || {};
+    game.u.uen = en;
+    game.u.uenmax = en;
+    game.u.uenpeak = en;
+    game.u.uhp = hp;
+    game.u.uhpmax = hp;
+    game.u.uhppeak = hp;
     rn2(10);
 }
 

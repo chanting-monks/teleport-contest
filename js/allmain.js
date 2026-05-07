@@ -238,20 +238,14 @@ export async function newgame() {
                     : align === 'chaotic' ? -1 : 0;
     g.u.ualign = { type: alignType, record: 0 };
 
-    // Initial HP at level 1 = role.hpinit.lofix + race.hpinit.lofix.
-    // Both values are role/race constants (no RNG at level 1), so HP
-    // is deterministic per (role, race) pair.  C ref: role.c roles[]
-    // and races[] hpinit struct.  Was hardcoded to 10 from seed8000's
-    // Tourist+human default — wrong for every other role.
-    const ROLE_HPBASE = {
-        Archeologist: 11, Barbarian: 14, Caveman: 14, Healer: 11,
-        Knight: 14, Monk: 12, Priest: 12, Rogue: 10, Ranger: 13,
-        Samurai: 13, Tourist: 8, Valkyrie: 14, Wizard: 10,
-    };
-    const RACE_HPBASE = { human: 2, elf: 1, dwarf: 4, gnome: 1, orc: 1 };
-    const computedHP = (ROLE_HPBASE[role] || 8) + (RACE_HPBASE[race] || 2);
-    g.u.uhp = computedHP;
-    g.u.uhpmax = computedHP;
+    // HP / Pw at level 1: now set in fastforward_post_dungeon via
+    // compute_newhp / compute_newpw (C-faithful u_init.js port).
+    // Those run earlier than this point; preserve the values here.
+    // (Tourist/Knight/Wizard sessions' p:(N) PRNG-fully-matched
+    // counts may shift slightly because the rnd(role.enadv.inrnd)
+    // call now consumes its result instead of being discarded —
+    // intentional and C-faithful per AGENTS.md "screens are the
+    // score; PRNG turns are advisory".)
 
     // Initial gold per role.  C ref: u_init.c case PM_*: u.umoney0 = ...
     //   Healer:  u.umoney0 = rn1(1000, 1001)   (range 1001..2000)
@@ -289,30 +283,8 @@ export async function newgame() {
         g.u.uac = 0;
     }
 
-    // Initial Pw per role.  C ref: exper.c:45 newpw() —
-    //   en = role.enadv.infix + race.enadv.infix + rnd(role.enadv.inrnd) + rnd(race.enadv.inrnd)
-    // Roles with role.enadv.inrnd=0 produce deterministic Pw =
-    // role.infix + race.infix.  Tourist+human: 1+1=2 (already
-    // matched by the hardcoded default).  High-Pw roles (Wizard,
-    // Healer, Priest, Knight, Monk) include rnd() additions that
-    // vary per session.  Without per-session PRNG state at u_init
-    // time matching C, we pick the most-frequently-observed Pw
-    // value for each role+race in the public corpus — at least
-    // some sessions match per role rather than zero.
-    const ROLE_PW = {
-        Healer: 6,    // observed: only Pw=6 (1 session)
-        Knight: 4,    // observed: 3, 4, 5 — 4 is median
-        Monk: 5,      // observed: only Pw=5 (1 session)
-        Priest: 7,    // observed: 6, 7, 8 — 7 is median
-        Wizard: 7,    // observed: 6, 7, 8 — 7 is median (5 of 9 sessions)
-        // Tourist, Rogue, Samurai, Valkyrie, Barbarian, Caveman,
-        // Archeologist, Ranger: Pw=2 deterministic (role.inrnd=0,
-        // race.inrnd=0).  Already matched by the hardcoded default.
-    };
-    if (ROLE_PW[role] != null) {
-        g.u.uen = ROLE_PW[role];
-        g.u.uenmax = ROLE_PW[role];
-    }
+    // Pw is now computed via compute_newpw() in fastforward_post_dungeon.
+    // No override here.
 
     // Per-seed override: the captured C row-22 + row-23 values from each
     // public session.  Until the real PRNG-driven u_init port lands and
