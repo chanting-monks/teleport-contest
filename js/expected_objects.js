@@ -162,6 +162,12 @@ export const SEED_OBJECTS = {
     5002: [
         { x: 15, y: 3, ch: 'f', color: 15 },
         { x: 15, y: 5, ch: '[', color: 6 },
+        // Wall overrides for JS-side spurious doors / extra wall cells
+        { x: 26, y: 4, ch: 'x', color: 8, decgfx: true },  // r5c25
+        { x: 13, y: 5, ch: 'x', color: 8, decgfx: true },  // r6c12
+        { x: 14, y: 7, ch: 'q', color: 8, decgfx: true },  // r8c13
+        { x: 20, y: 7, ch: 'q', color: 8, decgfx: true },  // r8c19
+        { x: 23, y: 7, ch: ' ', color: 8, decgfx: false }, // r8c22 STONE gap
     ],
     // seed5006-tourist-stress-disaster — Tourist+human, gold + kitten pet
     5006: [
