@@ -56,6 +56,7 @@ export function fastforward_lua_pair() {
 // Pre-mklev post-dungeon: real newpw call (consumes role-specific
 // rnd(role.enadv.inrnd) and saves result on game.u.uen) + u_init_misc
 // rn2(10) for u.uhandedness.  The newpw is part of C's u_init_misc.
+// C ref: u_init.c:1031  u.uhandedness = rn2(10) ? RIGHT_HANDED : LEFT_HANDED;
 import { game } from './gstate.js';
 import { compute_newpw, compute_newhp } from './u_init.js';
 export function fastforward_post_dungeon() {
@@ -70,7 +71,10 @@ export function fastforward_post_dungeon() {
     game.u.uhp = hp;
     game.u.uhpmax = hp;
     game.u.uhppeak = hp;
-    rn2(10);
+    // Capture handedness from rn2(10) result.  ~10% chance of LEFT.
+    // Surfaces on the ^X enlightenment menu's "You are left/right-handed"
+    // line for any session that opens that menu.
+    game.u.uhandedness = rn2(10) ? 'right' : 'left';
 }
 
 // Pre-mklev startup: o_init shuffles, dungeon init, u_init_misc
