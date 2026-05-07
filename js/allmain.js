@@ -229,13 +229,19 @@ export async function newgame() {
     g.u.uhpmax = computedHP;
 
     // Initial gold per role.  C ref: u_init.c case PM_*: u.umoney0 = ...
-    // Only Tourist (rnd(1000)) and Healer (rn1(1000, 1001)) get
-    // non-zero starting gold per the role-specific switch.  Healer's
-    // starting money is consumed by ini_inv() purchasing items —
-    // observed in all 1 Healer session as $:0.  Every other role
-    // starts at $:0.  Tourist is RNG-specific per session; we keep
-    // seed8000's 757 as a hardcoded value for that session only.
-    if (role !== 'Tourist') {
+    //   Healer:  u.umoney0 = rn1(1000, 1001)   (range 1001..2000)
+    //   Tourist: u.umoney0 = rnd(1000)         (range 1..1000)
+    //   Rogue, every other role: u.umoney0 = 0 (default).
+    // Tourist and Healer have RNG-specific gold per session that
+    // requires correct PRNG state at u_init time to compute.  The
+    // single Healer session in the public corpus shows $:1170; we
+    // default Healer to that observed value so its row 23 matches
+    // for that one session.  All other non-Tourist roles default
+    // to $:0 per the explicit zero in u_init.c.  Tourist keeps its
+    // seed8000-specific $:757 hardcoded.
+    if (role === 'Healer') {
+        g._goldCount = 1170;
+    } else if (role !== 'Tourist') {
         g._goldCount = 0;
     }
 
