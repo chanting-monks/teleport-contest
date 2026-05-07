@@ -132,6 +132,19 @@ every score run.
    at the right C offset for non-seed8000 Tourist sessions, this
    produces correct attrs and unlocks status-bar match for those
    sessions.
+
+   **Specific finding (after the row 22-23 correctness sweep):**
+   seed0017 (Samurai), seed0373 (Barbarian) are now blocked
+   *only* at row 22 stats — every other row (legacy + welcome +
+   moon + tutorial menu + map outline + status row 23) matches C
+   exactly.  Each will unlock a screen the moment per-role
+   init_attr produces correct stats.  The blocker is precisely
+   that JS's mklev call count differs from C's, so PRNG state at
+   u_init time is offset.  Fixing requires the mklev port (full
+   somex/somey + fill_special_room + lspo_map themed-rooms +
+   makeniche/place_niche/finddpos consistency) so the call count
+   aligns with C — at which point the existing fastforward 124-call
+   burn would land at the right C-position.
 8. **Pick any non-Tourist role's `u_init_role` switch case from
    `nethack-c/upstream/src/u_init.c:652-790` and port it.** Each role's
    ini_inv chain is its own bounded chunk; small enough to land in
@@ -144,8 +157,8 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    1a4c7e1
-last_run_time:      2026-05-07T05:56Z
+last_run_commit:    ee0bcca
+last_run_time:      2026-05-07T06:01Z
 last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
