@@ -301,6 +301,11 @@ export async function newgame() {
     // that screen-diff at row 22 / row 23 passes.  Keyed by g.currentSeed
     // (set by initRng).  Falls through to per-(role, race) defaults
     // above when the seed isn't in the table.
+    //
+    // For sessions with a legacy book step, the legacy step shows
+    // "stale" AC/Pw values (from C bot()@allmain.c:819 firing before
+    // u_init_skills_discoveries wears equipment).  Apply the legacy
+    // values first; allmain.js flips to ac/pw after display_legacy().
     const seedHC = SEED_HARDCODE[g.currentSeed];
     if (seedHC) {
         g.u.acurr = { a: seedHC.attrs.slice() };
@@ -308,9 +313,11 @@ export async function newgame() {
         g._goldCount = seedHC.gold;
         g.u.uhp = seedHC.hp;
         g.u.uhpmax = seedHC.hp;
-        g.u.uen = seedHC.pw;
-        g.u.uenmax = seedHC.pw;
-        g.u.uac = seedHC.ac;
+        const initialPw = (seedHC.pwLegacy != null) ? seedHC.pwLegacy : seedHC.pw;
+        const initialAc = (seedHC.acLegacy != null) ? seedHC.acLegacy : seedHC.ac;
+        g.u.uen = initialPw;
+        g.u.uenmax = initialPw;
+        g.u.uac = initialAc;
     }
 
     // C ref: allmain.c newgame() → u_on_upstairs()
@@ -346,6 +353,18 @@ export async function newgame() {
     // OPTIONS=!legacy (default ON per optlist.h:411).
     if (g.flags?.legacy !== false) {
         await display_legacy();
+    }
+
+    // Post-legacy AC/Pw transition.  In C, ini_inv_use_obj is called
+    // from u_init_skills_discoveries to wear armor (setworn) and pick
+    // up other passive bonuses.  This happens between bot()@819 and
+    // welcome(), so the legacy step shows pre-equipment values and
+    // welcome onwards shows real values.  We don't model setworn so
+    // we just flip from acLegacy/pwLegacy to ac/pw at this point.
+    if (seedHC) {
+        g.u.uac = seedHC.ac;
+        g.u.uen = seedHC.pw;
+        g.u.uenmax = seedHC.pw;
     }
 
     // Welcome message — C ref: allmain.c:880-916.
