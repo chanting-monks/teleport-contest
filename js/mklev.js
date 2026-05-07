@@ -23,6 +23,7 @@ import {
     ICE, MOAT, POOL, WATER, LAVAPOOL, LAVAWALL, DBWALL,
     A_LAWFUL, Align2amask,
     LR_UPTELE,
+    HI_GOLD,
 } from './const.js';
 
 // Object/class constants (normally from objects.js, not in contest template)
@@ -481,6 +482,21 @@ function mkgold(amount, x, y) {
     }
     // mksobj_at(GOLD_PIECE) calls next_ident
     next_ident();
+    // Paint '$' on the level so display.js renders it.  C colors gold
+    // via HI_GOLD = CLR_YELLOW (objects.c:1416 GOLD_PIECE).  Note: this
+    // only fires when fill_ordinary_room calls our mkgold directly;
+    // sessions that go through fastforward_fill_mineralize (which
+    // emits the RNG calls but doesn't invoke mkgold) won't see the
+    // glyph.  Wired here for correctness once the fastforward path is
+    // replaced with a real fill.
+    if (typeof x === 'number' && typeof y === 'number' && game.level?.at) {
+        const loc = game.level.at(x, y);
+        if (loc) {
+            loc.disp_ch = '$';
+            loc.disp_color = HI_GOLD;
+            loc.disp_decgfx = false;
+        }
+    }
 }
 
 function place_object(otmp, x, y) { /* stub */ }
