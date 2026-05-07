@@ -76,18 +76,25 @@ export async function display_tutorial_menu() {
 
     paintMenu(TUTORIAL_LINES);
 
-    // Loop on invalid input.  Only y / Y / n / N / ESC dismiss the
-    // menu; anything else (including space) redraws the prompt with
-    // an added "(Please choose 'y' or 'n'.)" hint.  C ref:
-    // options.c:430 ask_do_tutorial.
+    // Loop on selection or unselected-confirmation.  Only y/Y/n/N
+    // (selecting an item) and ESC (cancel) dismiss the menu.  Space
+    // and Return inside select_menu(PICK_ONE) return n=0 with no
+    // selection — C re-renders the menu with the "(Please choose...)"
+    // hint.  Other chars are silently re-prompted without the hint.
+    // C ref: options.c:430 ask_do_tutorial.
     let invalid = false;
     while (true) {
         const key = await nhgetch();
         const ch = String.fromCharCode(key);
         if (ch === 'y' || ch === 'Y' || ch === 'n' || ch === 'N' || key === 27) break;
-        invalid = true;
-        // Re-paint with the invalid-input hint for the next capture.
-        paintMenu(TUTORIAL_LINES_INVALID);
+        if (key === 32 /* space */ || key === 13 || key === 10 /* return */) {
+            invalid = true;
+            paintMenu(TUTORIAL_LINES_INVALID);
+        }
+        // Other keys: silently re-await (no re-render).  The screen
+        // capture between presses still reflects the previously-
+        // painted menu (with or without the hint, depending on
+        // whether space/return was pressed earlier).
     }
 
     // Clear the menu rows so the next flush_screen draws the map
