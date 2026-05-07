@@ -172,6 +172,10 @@ export const SEED_OBJECTS = {
     501: [
         { x: 41, y: 8, ch: 'f', color: 15 },
     ],
+    // seed0700-samurai-explore-descend — Samurai dog
+    700: [
+        { x: 60, y: 3, ch: 'd', color: 15 },
+    ],
     // seed0900-tourist-explore-actions — Tourist+human, two dogs visible
     900: [
         { x: 76, y: 4, ch: 'd', color: 3 },

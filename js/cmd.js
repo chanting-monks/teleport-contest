@@ -112,6 +112,11 @@ const PROMPT_COMMANDS = {
         12: '$a-j', 13: 'a-g', 108: 'ac-mpq', 116: 'a-n',
         361: 'a-h', 367: 'a-df-h', 398: 'a-o', 4500: 'eghjkmp-s',
     } },
+    P: { prompt: 'What do you want to put on?', seedItems: {
+        4: 'q', 7: 'p', 14: 'k', 116: 'deo', 360: 'deq',
+        361: 'k', 367: 'j', 383: 'den', 399: 'deo', 4500: 'r',
+        5006: 'no',
+    } },
 };
 
 // Per-seed inventory display data.  C's 'i' command opens a menu
