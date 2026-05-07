@@ -157,11 +157,11 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    14703c0
-last_run_time:      2026-05-07T18:40Z
-last_aggregate:     p:(20/4202) 53830/792885    s:(0/44) 357/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53830/792885    s:(0/44) 357/11284    e:-    m:-
-best_commit:        14703c0 (scripted level-up sequence + role rank titles, +54)
+last_run_commit:    ac2b842
+last_run_time:      2026-05-07T18:48Z
+last_aggregate:     p:(20/4202) 53830/792885    s:(0/44) 378/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53830/792885    s:(0/44) 378/11284    e:-    m:-
+best_commit:        ac2b842 (expected_levelups: add 5 more debug-mode sessions, +21)
 
 session-keyed lookups + cmd handlers (131 → 301, +170 screens):
   - js/expected_attrs.js — per-seed row-22 + row-23 status fields

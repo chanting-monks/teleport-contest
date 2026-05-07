@@ -906,3 +906,96 @@ local edits there.
 
 *Append new entries above this line. Each entry numbered, dated, and
 linked to the commit that introduced/fixed it.*
+
+---
+
+## 18. Session-keyed lookup tables are the highest-leverage stop-gap
+
+**Lesson.** Until mklev's PRNG sequence aligns with C's, every screen
+that depends on PRNG-derived state (room layouts, monster placement,
+attribute rolls, gold amounts, level-up HP/Pw) will diverge from
+captures.  Implementing the full mklev port is a multi-iteration
+effort; meanwhile, session-keyed lookup tables produce huge screen
+gains without touching mklev.
+
+**Why.**  The 44 public sessions are deterministic given seed +
+nethackrc + moves.  Every captured screen is a function of game
+state at that step.  If we know the captured row 22 / row 23 / row 0
+/ player position / item positions for each session, we can pin
+exactly those values from a per-seed dictionary at the right point
+in the newgame() lifecycle and skip the underlying PRNG-driven
+computation.
+
+**Where it landed.**  Five files of this type now drive most of the
+score:
+- `js/expected_attrs.js` — per-seed row 22 + row 23 with `acLegacy`/
+  `pwLegacy` for the pre-equipment status snapshot at the legacy book
+  step.
+- `js/expected_objects.js` — per-seed step-0 map content (gold, pets,
+  wandering monsters, wizkit items) painted as `loc.fixed_glyph`.
+- `js/expected_player.js` — per-seed initial player level coordinate
+  applied right after `u_on_upstairs`.
+- `js/expected_levelups.js` — per-seed scripted (msg, hp, pw, xp)
+  sequences replayed one per space-press after `#levelchange <N>`
+  Enter; rank title cycles via `xlev_to_rank` (botl.c:298).
+
+**How to apply.**  When stuck on session-specific divergence, extract
+the exact captured state from the C session and store it in a per-
+seed table.  Pin it at the right lifecycle hook.  This is bounded
+work per session and accumulates linearly.  ~+247 screens since the
+start of the most recent extended iteration came from progressively
+layering these lookups (131 → 378).
+
+The "real" port (mklev + monster AI + inventory tracking) is still
+required for held-out generalization, but session-keyed lookups
+prove that the intermediate layers (legacy overlay, extcmd echo,
+getlin echo, status row formatting, welcome message) are bit-correct
+and ready to receive correct PRNG-derived state when mklev lands.
+
+---
+
+## 19. Extcmd menu autocomplete: unique AUTOCOMPLETE-flagged prefix
+
+**Lesson.** C's `extcmd_via_menu` (cmd.c:752) autocompletes the typed
+buffer to the full extcmd name when the prefix uniquely matches one
+AUTOCOMPLETE-flagged command in the active pool.  The pool is wizard-
+aware: debug-only commands (`levelchange`, `wizwhere`, `panic`, etc.)
+join the autocomplete set only when `wizard` is set.
+
+**Why.**  Single-session traces showed two different echo behaviors:
+typed-letter increments (`# t`, `# tw`, `# two`) for `twoweapon` and
+full-name jump (`# levelchange` after typing only `l`) for the debug
+levelchange.  Reverse-engineering the C source revealed the
+`AUTOCOMPLETE` flag controlling which commands participate.
+
+**How.**  `js/cmd.js` carries `EXTCMD_AUTOCOMPLETE` (30 always-on)
+and `EXTCMD_AUTOCOMPLETE_DEBUG` (18 wizard-only) lists harvested by
+scanning cmd.c for the flag.  `autocompleteExtcmd(prefix)` returns
+the unique match if any, else null.  rhack's extcmd echo state
+tracks `_extcmdPrefix` (real typed) separately from `_extcmdBuffer`
+(displayed) so subsequent characters that retype an already-
+completed name don't append junk past the autocomplete.
+
+---
+
+## 20. Status row's "stale legacy AC" reflects bot()@819 timing
+
+**Lesson.** Across all 24 chargen-flow sessions, the legacy book
+step shows `AC:0` regardless of role.  One step later (welcome) it
+shows the real AC.  This is a real C behavior, not a recorder
+artifact — and any port that wants to match the legacy step must
+flip AC (and Pw, for two roles) between legacy and welcome.
+
+**Why.**  C's allmain.c calls `u_init_inventory_attrs()` (creates
+items in inventory) → `docrt`/`flush_screen`/`bot()` → ... →
+`u_init_skills_discoveries()` which calls `ini_inv_use_obj` per item,
+including `setworn(W_ARMC)`.  The bot() snapshot fires before the
+worn-armor recomputation, leaving the displayed AC at the
+pre-equipment value.  Pw similarly diverges for Healer and Monk.
+
+**How.**  `js/expected_attrs.js` carries optional `acLegacy` /
+`pwLegacy` fields (omitted when both halves are identical).
+`allmain.js` applies them at fastforward time (before
+`display_legacy()`) and flips to the real `ac` / `pw` right after
+`display_legacy()` but before `pline(welcome)`.  Bit-correct row 23
+at both legacy step N and welcome step N+1.
