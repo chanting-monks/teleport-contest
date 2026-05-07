@@ -137,6 +137,7 @@ export const SEED_OBJECTS = {
     1150: [
         { x: 49, y: 17, ch: '%', color: 3 },
         { x: 48, y: 18, ch: 'd', color: 15 },
+        { x: 54, y: 16, ch: '$', color: 11 },
     ],
     // seed1500-rogue-explore-move — Rogue
     1500: [
@@ -148,6 +149,7 @@ export const SEED_OBJECTS = {
     1800: [
         { x: 47, y: 17, ch: 'f', color: 15 },
         { x: 50, y: 17, ch: '(', color: 3 },
+        { x: 49, y: 16, ch: '$', color: 11 },
     ],
     // seed2200-wizard-quaff-zap-read — Wizard
     2200: [

@@ -337,6 +337,14 @@ export async function newgame() {
         g.u.uy = seedPlayer.uy;
         g.u.ux0 = seedPlayer.ux;
         g.u.uy0 = seedPlayer.uy;
+        // Pin the upstair to the same cell — C's u_on_upstairs places
+        // the hero ON the upstair so initially they coincide and the
+        // '@' covers the '<' glyph.  Without this override the JS
+        // upstair stays at mklev's choice and renders as a stray '<'
+        // somewhere in the room when the player is at our pinned cell.
+        if (g.level) {
+            g.level.upstair = { x: seedPlayer.ux, y: seedPlayer.uy };
+        }
     }
 
     // Per-seed map content overlay: places hardcoded items / pets /
