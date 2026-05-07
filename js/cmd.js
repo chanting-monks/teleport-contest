@@ -104,7 +104,7 @@ const PROMPT_COMMANDS = {
         4: '$bmn', 14: '$bj', 101: 'bcd', 108: 'a', 360: '*',
         399: '$q', 1800: '$a', 4500: 'b',
     } },
-    z: { prompt: 'What do you want to zap?', fallback: 'You have nothing to zap.', seedItems: {
+    z: { prompt: 'What do you want to zap?', fallback: 'You have nothing to zap.', dirPrompt: true, seedItems: {
         2: 'hp', 14: 'n', 16: 'f', 116: 'cp', 398: 'co',
         2200: 'c', 4500: 'p', 5002: 'cnopq', 5006: 's',
     } },
@@ -476,15 +476,38 @@ export async function rhack(key) {
 
     // Generic item-letter prompt response.  After e/q/r/W/w/t/z/d
     // the next key is an item letter or ESC.  Valid letter consumes
-    // a turn; ESC cancels.  Specific outcome plines per item type
-    // are session-specific and not modeled.
+    // a turn; ESC cancels.  For commands flagged with dirPrompt
+    // (zap, throw), C follows with 'In what direction?' which we
+    // handle via game._itemLetterDirPending.
     if (game._itemLetterPending) {
+        const wantDir = game._itemLetterDirPrompt;
         game._itemLetterPending = false;
+        game._itemLetterDirPrompt = false;
         if (key === 27) {
             await pline('Never mind.');
             game.context.move = 0;
             return;
         }
+        if (wantDir) {
+            await pline('In what direction?');
+            game._itemLetterDirPending = true;
+            game.context.move = 0;
+            return;
+        }
+        game.context.move = 1;
+        return;
+    }
+
+    // Direction prompt after zap (or similar item-then-direction).
+    if (game._itemLetterDirPending) {
+        game._itemLetterDirPending = false;
+        if (key === 27) {
+            await pline('Never mind.');
+            game.context.move = 0;
+            return;
+        }
+        // Generic outcome — turn consumed.  Specific zap effects
+        // (light, lightning, magic missile, etc.) vary widely.
         game.context.move = 1;
         return;
     }
@@ -787,6 +810,7 @@ export async function rhack(key) {
         if (items) {
             await pline(`${cmdInfo.prompt} [${items} or ?*]`);
             game._itemLetterPending = true;
+            game._itemLetterDirPrompt = !!cmdInfo.dirPrompt;
         } else if (cmdInfo.fallback) {
             await pline(cmdInfo.fallback);
         }
