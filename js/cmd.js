@@ -9,7 +9,7 @@ import { game } from './gstate.js';
 import { nhgetch } from './input.js';
 import { newsym, flush_screen, pline } from './display.js';
 import { vision_recalc } from './vision.js';
-import { COLNO, ROWNO, STONE, DOOR, D_CLOSED, D_LOCKED,
+import { COLNO, ROWNO, STONE, DOOR, D_CLOSED, D_LOCKED, D_ISOPEN,
          IS_WALL, IS_OBSTRUCTED } from './const.js';
 import { SEED_LEVELUPS } from './expected_levelups.js';
 
@@ -905,6 +905,24 @@ async function domove(dx, dy) {
     const u = game.u;
     const newx = u.ux + dx;
     const newy = u.uy + dy;
+
+    // C ref: hack.c domove — walking into a closed but unlocked
+    // door auto-opens it.  C plines 'The door opens.' and the
+    // player enters the now-open door.  Locked doors block.
+    const newLoc = game.level?.at?.(newx, newy);
+    if (newLoc && newLoc.typ === DOOR && (newLoc.doormask & D_CLOSED) && !(newLoc.doormask & D_LOCKED)) {
+        // Auto-open (no turn-cost in C — opens this turn, walk in next).
+        // Actually C consumes a turn for the open and the player
+        // doesn't move into the cell on the same turn; walking in
+        // happens on the next move.  Match that: emit pline, set
+        // door open, don't move yet.
+        newLoc.doormask = (newLoc.doormask & ~D_CLOSED) | D_ISOPEN;
+        await pline('The door opens.');
+        game.context.move = 1;
+        // Update display to show open door.
+        newsym(newx, newy);
+        return;
+    }
 
     if (blocksMove(newx, newy)) {
         // Can't move there - turn not consumed.
