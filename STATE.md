@@ -144,8 +144,8 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    7a4678b
-last_run_time:      2026-05-07T03:31Z
+last_run_commit:    1a4c7e1
+last_run_time:      2026-05-07T05:56Z
 last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
