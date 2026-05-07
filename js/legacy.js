@@ -167,8 +167,13 @@ export async function display_legacy() {
     //   seed0367-priest-debug step 0 — room at rows 18-19 is below
     //     the menu's last row (17) and remains visible.
     const lastMenuRow = subbedLines.length; // index of --More-- row
+    // C's tty menu reserves a 1-col left margin between map content
+    // and the menu's leftmost text — paint leftCol-1 with ' ' too so
+    // sessions whose room extends right up against the menu don't
+    // show wall chars peeking through.
+    const clearStart = Math.max(0, leftCol - 1);
     for (let r = 0; r <= lastMenuRow; r++) {
-        for (let c = leftCol; c < 80; c++) {
+        for (let c = clearStart; c < 80; c++) {
             display.setCell(c, r, ' ', NO_COLOR, 0);
         }
     }
