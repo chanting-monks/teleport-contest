@@ -157,11 +157,11 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    70b17ad
-last_run_time:      2026-05-07T21:22Z
-last_aggregate:     p:(20/4202) 53790/792885    s:(0/44) 576/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53790/792885    s:(0/44) 576/11284    e:-    m:-
-best_commit:        70b17ad (PROMPT_COMMANDS unified table for q/r/W/w/t/z/d, +5)
+last_run_commit:    3df8f90
+last_run_time:      2026-05-07T21:33Z
+last_aggregate:     p:(20/4202) 53836/792885    s:(0/44) 584/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53836/792885    s:(0/44) 584/11284    e:-    m:-
+best_commit:        3df8f90 (zap direction prompt, +1)
 
 session-keyed lookups + cmd handlers (131 → 301, +170 screens):
   - js/expected_attrs.js — per-seed row-22 + row-23 status fields
