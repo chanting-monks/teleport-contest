@@ -104,6 +104,8 @@ export const SEED_OBJECTS = {
     104: [
         { x: 20, y: 7, ch: 'u', color: 3 },
         { x: 22, y: 8, ch: '%', color: 1 },
+        { x: 24, y: 9, ch: 'F', color: 10 },
+        { x: 23, y: 10, ch: ':', color: 15 },
     ],
     // seed0105-valk-chat-lamp-ration — Valkyrie
     105: [
