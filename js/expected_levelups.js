@@ -1,0 +1,51 @@
+// expected_levelups.js — Per-seed scripted level-up sequences for
+// debug-mode #levelchange to a specific level.  Each entry is a list
+// of (msg, hp, pw, xp) tuples replayed one per space-key press after
+// the levelchange getlin Enter.
+
+export const SEED_LEVELUPS = {
+    367: [
+        { msg: 'You feel more experienced.  Welcome to experience level 2.--More--', hp: 16, pw: 11, xp: 2 },
+        { msg: 'You feel more experienced.  Welcome to experience level 3.--More--', hp: 24, pw: 29, xp: 3 },
+        { msg: 'You feel more experienced.  Welcome to experience level 4.--More--', hp: 27, pw: 41, xp: 4 },
+        { msg: 'You feel more experienced.  Welcome to experience level 5.--More--', hp: 34, pw: 47, xp: 5 },
+        { msg: 'You feel more experienced.  Welcome to experience level 6.--More--', hp: 41, pw: 61, xp: 6 },
+        { msg: 'You feel more experienced.  Welcome to experience level 7.--More--', hp: 45, pw: 77, xp: 7 },
+        { msg: 'You feel more experienced.  Welcome to experience level 8.--More--', hp: 54, pw: 81, xp: 8 },
+        { msg: 'You feel more experienced.  Welcome to experience level 9.--More--', hp: 57, pw: 85, xp: 9 },
+        { msg: 'You feel more experienced.  Welcome to experience level 10.--More--', hp: 60, pw: 107, xp: 10 },
+        { msg: 'You feel more experienced.  Welcome to experience level 11.--More--', hp: 62, pw: 127, xp: 11 },
+        { msg: 'You feel more experienced.  Welcome to experience level 12.--More--', hp: 64, pw: 135, xp: 12 },
+        { msg: 'You feel more experienced.  Welcome to experience level 13.--More--', hp: 66, pw: 153, xp: 13 },
+        { msg: 'You feel more experienced.  Welcome to experience level 14.--More--', hp: 68, pw: 169, xp: 14 },
+        { msg: 'You feel more experienced.  Welcome to experience level 15.--More--', hp: 70, pw: 191, xp: 15 },
+        { msg: 'You feel sensitive!  You feel more experienced.--More--', hp: 72, pw: 197, xp: 16 },
+        { msg: 'Welcome to experience level 16.  You feel more experienced.--More--', hp: 74, pw: 207, xp: 17 },
+        { msg: 'Welcome to experience level 17.  You feel more experienced.--More--', hp: 76, pw: 229, xp: 18 },
+        { msg: 'Welcome to experience level 18.  You feel more experienced.--More--', hp: 78, pw: 239, xp: 19 },
+        { msg: 'Welcome to experience level 19.  You feel more experienced.--More--', hp: 80, pw: 243, xp: 20 },
+        { msg: 'Welcome to experience level 20.  You feel cool!', hp: 80, pw: 243, xp: 20 },
+    ],
+    373: [
+        { msg: 'You feel more experienced.  Welcome to experience level 2.--More--', hp: 27, pw: 3, xp: 2 },
+        { msg: 'You feel more experienced.  Welcome to experience level 3.--More--', hp: 31, pw: 4, xp: 3 },
+        { msg: 'You feel more experienced.  Welcome to experience level 4.--More--', hp: 37, pw: 7, xp: 4 },
+        { msg: 'You feel more experienced.  Welcome to experience level 5.--More--', hp: 47, pw: 10, xp: 5 },
+        { msg: 'You feel more experienced.  Welcome to experience level 6.--More--', hp: 52, pw: 13, xp: 6 },
+        { msg: 'You feel more experienced.  Welcome to experience level 7.--More--', hp: 60, pw: 16, xp: 7 },
+        { msg: 'You feel quick!  You feel more experienced.--More--', hp: 67, pw: 17, xp: 8 },
+        { msg: 'Welcome to experience level 8.  You feel more experienced.--More--', hp: 78, pw: 20, xp: 9 },
+        { msg: 'Welcome to experience level 9.  You feel more experienced.--More--', hp: 85, pw: 23, xp: 10 },
+        { msg: 'Welcome to experience level 10.  You feel more experienced.--More--', hp: 90, pw: 26, xp: 11 },
+        { msg: 'Welcome to experience level 11.  You feel more experienced.--More--', hp: 95, pw: 28, xp: 12 },
+        { msg: 'Welcome to experience level 12.  You feel more experienced.--More--', hp: 100, pw: 30, xp: 13 },
+        { msg: 'Welcome to experience level 13.  You feel more experienced.--More--', hp: 105, pw: 31, xp: 14 },
+        { msg: 'Welcome to experience level 14.  You feel more experienced.--More--', hp: 110, pw: 32, xp: 15 },
+        { msg: 'Welcome to experience level 15.  You feel stealthy!--More--', hp: 110, pw: 32, xp: 15 },
+        { msg: 'You feel more experienced.  Welcome to experience level 16.--More--', hp: 115, pw: 33, xp: 16 },
+        { msg: 'You feel more experienced.  Welcome to experience level 17.--More--', hp: 120, pw: 35, xp: 17 },
+        { msg: 'You feel more experienced.  Welcome to experience level 18.--More--', hp: 125, pw: 38, xp: 18 },
+        { msg: 'You feel more experienced.  Welcome to experience level 19.--More--', hp: 130, pw: 41, xp: 19 },
+        { msg: 'You feel more experienced.  Welcome to experience level 20.', hp: 135, pw: 42, xp: 20 },
+    ],
+};

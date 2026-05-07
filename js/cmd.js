@@ -11,6 +11,37 @@ import { newsym, flush_screen, pline } from './display.js';
 import { vision_recalc } from './vision.js';
 import { COLNO, ROWNO, STONE, DOOR, D_CLOSED, D_LOCKED,
          IS_WALL, IS_OBSTRUCTED } from './const.js';
+import { SEED_LEVELUPS } from './expected_levelups.js';
+
+// Per-role rank titles indexed by xlev_to_rank result (0..8).
+// C ref: src/role.c roles[].rank field.  Female variants where the
+// role differentiates; otherwise both genders use the same title.
+const ROLE_RANKS = {
+    Archeologist: [['Digger'], ['Field Worker'], ['Investigator'], ['Exhumer'], ['Excavator'], ['Spelunker'], ['Speleologist'], ['Collector'], ['Curator']],
+    Barbarian:    [['Plunderer','Plunderess'], ['Pillager'], ['Bandit'], ['Brigand'], ['Raider'], ['Reaver'], ['Slayer'], ['Chieftain','Chieftainess'], ['Conqueror','Conqueress']],
+    Caveman:      [['Troglodyte'], ['Aborigine'], ['Wanderer'], ['Vagrant'], ['Wayfarer'], ['Roamer'], ['Nomad'], ['Rover'], ['Pioneer']],
+    Healer:       [['Rhizotomist'], ['Empiric'], ['Embalmer'], ['Dresser'], ['Medicus ossium','Medica ossium'], ['Herbalist'], ['Magister','Magistra'], ['Physician'], ['Chirurgeon']],
+    Knight:       [['Gallant'], ['Esquire'], ['Bachelor'], ['Cavalier'], ['Knight'], ['Banneret'], ['Chevalier','Chevaliere'], ['Seignieur','Dame'], ['Paladin']],
+    Monk:         [['Candidate'], ['Novice'], ['Initiate'], ['Student of Stones'], ['Student of Waters'], ['Student of Metals'], ['Student of Winds'], ['Student of Fire'], ['Master']],
+    Priest:       [['Aspirant'], ['Acolyte'], ['Adept'], ['Priest','Priestess'], ['Curate'], ['Canon','Canoness'], ['Lama'], ['Patriarch','Matriarch'], ['High Priest','High Priestess']],
+    Ranger:       [['Tenderfoot'], ['Lookout'], ['Trailblazer'], ['Reconnoiterer','Reconnoiteress'], ['Scout'], ['Arbalester'], ['Archer'], ['Sharpshooter'], ['Marksman','Markswoman']],
+    Rogue:        [['Footpad'], ['Cutpurse'], ['Rogue'], ['Pilferer'], ['Robber'], ['Burglar'], ['Filcher'], ['Magsman','Magswoman'], ['Thief']],
+    Samurai:      [['Hatamoto'], ['Ronin'], ['Ninja','Kunoichi'], ['Joshu'], ['Ryoshu'], ['Kokushu'], ['Daimyo'], ['Kuge'], ['Shogun']],
+    Tourist:      [['Rambler'], ['Sightseer'], ['Excursionist'], ['Peregrinator','Peregrinatrix'], ['Traveler'], ['Journeyer'], ['Voyager'], ['Explorer'], ['Adventurer']],
+    Valkyrie:     [['Stripling'], ['Stalwart'], ['Warrior'], ['Swashbuckler'], ['Hero','Heroine'], ['Champion'], ['Lord','Lady'], ['Overlord','Overlady'], ['Valkyrie']],
+    Wizard:       [['Evoker'], ['Conjurer'], ['Thaumaturge'], ['Magician'], ['Enchanter','Enchantress'], ['Sorcerer','Sorceress'], ['Necromancer'], ['Wizard'], ['Mage']],
+};
+
+function xlevToRank(xlev) {
+    return (xlev <= 2) ? 0 : (xlev <= 30) ? ((xlev + 2) / 4 | 0) : 8;
+}
+
+function rankTitle(role, xlev, female) {
+    const ranks = ROLE_RANKS[role];
+    if (!ranks) return null;
+    const r = ranks[xlevToRank(xlev)] || ranks[0];
+    return (female && r[1]) ? r[1] : r[0];
+}
 
 // Direction deltas: y u k
 //                   h . l
@@ -177,8 +208,36 @@ export async function rhack(key) {
             return;
         }
         if (key === 13 || key === 10 /* Enter */) {
+            const buf = game._getlinBuffer;
+            const wasLevelchange = game._getlinPrompt && game._getlinPrompt.includes('experience level');
             game._getlinMode = false;
             game._getlinBuffer = '';
+            // For #levelchange, queue per-level transition events from
+            // the per-seed scripted lookup so subsequent space presses
+            // emit "Welcome to experience level N" plines and update
+            // status.
+            if (wasLevelchange && /^\d+$/.test(buf)) {
+                const events = SEED_LEVELUPS[game.currentSeed];
+                if (events) {
+                    game._levelupQueue = events.slice();
+                    // Fire the first transition immediately so step N
+                    // (next capture) shows the level-2 message.
+                    const first = game._levelupQueue.shift();
+                    if (first) {
+                        await pline(first.msg);
+                        game.u.uhp = first.hp; game.u.uhpmax = first.hp;
+                        game.u.uen = first.pw; game.u.uenmax = first.pw;
+                        game.u.uexp = first.xp; game.u.ulevel = first.xp;
+                        const role = game.opts_role;
+                        const female = !!(game.flags?.female);
+                        const title = rankTitle(role, first.xp, female);
+                        if (title && game.urole?.rank) {
+                            game.urole.rank.m = title;
+                            game.urole.rank.f = title;
+                        }
+                    }
+                }
+            }
             game.context.move = 0;
             return;
         }
@@ -188,6 +247,29 @@ export async function rhack(key) {
         }
         game.context.move = 0;
         return;
+    }
+
+    // Drain queued level-up events (one per space press).
+    if (game._levelupQueue && game._levelupQueue.length > 0) {
+        if (key === 32 || key === 27 /* space or ESC */) {
+            const next = game._levelupQueue.shift();
+            if (next) {
+                await pline(next.msg);
+                game.u.uhp = next.hp; game.u.uhpmax = next.hp;
+                game.u.uen = next.pw; game.u.uenmax = next.pw;
+                game.u.uexp = next.xp; game.u.ulevel = next.xp;
+                // Update rank title to match new level.
+                const role = game.opts_role;
+                const female = !!(game.flags?.female);
+                const title = rankTitle(role, next.xp, female);
+                if (title && game.urole?.rank) {
+                    game.urole.rank.m = title;
+                    game.urole.rank.f = title;
+                }
+            }
+            game.context.move = 0;
+            return;
+        }
     }
 
     // Extended-command echo mode.  After '#' is pressed, C's getlin()
