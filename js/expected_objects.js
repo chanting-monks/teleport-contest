@@ -112,6 +112,11 @@ export const SEED_OBJECTS = {
         { x: 22, y: 16, ch: 'd', color: 15 },
         { x: 26, y: 17, ch: '`', color: 12 },
     ],
+    // seed0106-priest-extcmd-sweep — Priest, dog + lichen visible
+    106: [
+        { x: 71, y: 6, ch: 'd', color: 15 },
+        { x: 72, y: 8, ch: 'F', color: 10 },
+    ],
     // seed0107-samurai-twoweapon-enhance — Samurai
     107: [
         { x: 51, y: 14, ch: '(', color: 3 },

@@ -157,11 +157,11 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    951ac11
-last_run_time:      2026-05-07T21:52Z
-last_aggregate:     p:(20/4202) 53827/792885    s:(0/44) 609/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53827/792885    s:(0/44) 609/11284    e:-    m:-
-best_commit:        951ac11 (^W wizard-mode wish keybind, +25)
+last_run_commit:    d7dc3b9
+last_run_time:      2026-05-07T22:36Z
+last_aggregate:     p:(20/4202) 53824/792885    s:(0/44) 634/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53824/792885    s:(0/44) 634/11284    e:-    m:-
+best_commit:        d7dc3b9 + seed0106 prayer/dog-shift/wisdom-pen (+25)
 
 session-keyed lookups + cmd handlers (131 → 301, +170 screens):
   - js/expected_attrs.js — per-seed row-22 + row-23 status fields
