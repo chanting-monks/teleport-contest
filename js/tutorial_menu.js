@@ -27,6 +27,17 @@ const TUTORIAL_LINES = [
     { row: 6, text: '(end)' },
 ];
 
+// After an invalid keystroke C inserts a "(Please choose 'y' or 'n'.)"
+// hint at row 6 and pushes "(end)" down to row 7.
+const TUTORIAL_LINES_INVALID = [
+    { row: 0, text: 'Do you want a tutorial?', inverse: true },
+    { row: 2, text: 'y - Yes, do a tutorial' },
+    { row: 3, text: 'n - No, just start play' },
+    { row: 5, text: 'Put "OPTIONS=!tutorial" in .nethackrc to skip this query.' },
+    { row: 6, text: "(Please choose 'y' or 'n'.)" },
+    { row: 7, text: '(end)' },
+];
+
 // Render the tutorial menu, capture via nh_getch, then clear.  The
 // caller must have already determined that ask_do_tutorial() should
 // fire (i.e., `g.tutorial_set_in_config` is false and the level has
@@ -45,14 +56,17 @@ export async function display_tutorial_menu() {
         }
     }
 
-    // Paint each menu line.
-    function paintMenu() {
-        for (let r = 0; r <= 6; r++) {
+    // Paint each menu line.  Clear rows 0..maxRow (varies by whether
+    // the invalid-input hint pushes (end) to row 7).
+    function paintMenu(lines) {
+        let maxRow = 0;
+        for (const line of lines) if (line.row > maxRow) maxRow = line.row;
+        for (let r = 0; r <= maxRow; r++) {
             for (let c = 0; c < 80; c++) {
                 display.setCell(c, r, ' ', NO_COLOR, 0);
             }
         }
-        for (const line of TUTORIAL_LINES) {
+        for (const line of lines) {
             const attr = line.inverse ? ATTR_INVERSE : 0;
             for (let i = 0; i < line.text.length && TUTORIAL_LEFT_COL + i < 80; i++) {
                 display.setCell(TUTORIAL_LEFT_COL + i, line.row, line.text[i], NO_COLOR, attr);
@@ -60,23 +74,26 @@ export async function display_tutorial_menu() {
         }
     }
 
-    paintMenu();
+    paintMenu(TUTORIAL_LINES);
 
     // Loop on invalid input.  Only y / Y / n / N / ESC dismiss the
-    // menu; anything else (including space) redraws the prompt.  C
-    // ref: options.c:430 ask_do_tutorial — the menu re-renders after
-    // each invalid keystroke.
+    // menu; anything else (including space) redraws the prompt with
+    // an added "(Please choose 'y' or 'n'.)" hint.  C ref:
+    // options.c:430 ask_do_tutorial.
+    let invalid = false;
     while (true) {
         const key = await nhgetch();
         const ch = String.fromCharCode(key);
         if (ch === 'y' || ch === 'Y' || ch === 'n' || ch === 'N' || key === 27) break;
-        // Re-paint and re-prompt for the next captured screen.
-        paintMenu();
+        invalid = true;
+        // Re-paint with the invalid-input hint for the next capture.
+        paintMenu(TUTORIAL_LINES_INVALID);
     }
 
     // Clear the menu rows so the next flush_screen draws the map
-    // unobscured.
-    for (let r = 0; r <= 6; r++) {
+    // unobscured.  Up to row 7 if the invalid-input hint was painted.
+    const clearMax = invalid ? 7 : 6;
+    for (let r = 0; r <= clearMax; r++) {
         for (let c = 0; c < 80; c++) {
             display.setCell(c, r, ' ', NO_COLOR, 0);
         }
