@@ -92,6 +92,17 @@ export async function rhack(key) {
         // dismissal candidate so cmd.js doesn't pline for it.
         game._pendingMenuDismiss = 2;
         game.context.move = 0;
+    } else if (ch === '#') {
+        // Extended command prefix.  C calls extcmd_via_menu (cmd.c) which
+        // first prints '#' at row 0 col 0 as a prompt indicator, then
+        // calls getlin() to read the command name (echoed as the user
+        // types).  We just emit the initial '#' prompt for step-N match;
+        // subsequent typed letters won't echo correctly without the
+        // full getlin port, but the next ESC / unknown command bails
+        // out cleanly.
+        await pline('#');
+        game._pendingMenuDismiss = 16;
+        game.context.move = 0;
     } else if (key === 22 /* ^V */ && game.flags?.debug) {
         // Wizard-mode level teleport (cmd.c:1970 wiz_level_tele).
         // Prompts "To what level do you want to teleport?" and reads
