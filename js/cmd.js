@@ -60,16 +60,18 @@ function blocksMove(x, y, forRush = false) {
     if (loc.typ === STONE) return true;
     if (IS_WALL(loc.typ)) return true;
     if (loc.typ === DOOR && (loc.doormask & (D_CLOSED | D_LOCKED))) return true;
-    // Rush also stops when an obstacle is on or adjacent to the
-    // destination (monster, item).  Use fixed_glyph as a stand-in
-    // for the unported monster/object lists.  Single-step domove
-    // ignores fixed_glyph so the player can walk over items.
+    // Rush stops on monsters (alphabetic glyphs) but walks over
+    // items (symbols like $/!/?/(...).  C ref: hack.c domove —
+    // movement-locked when a monster or item-of-interest is at the
+    // destination; rush also stops when monster is adjacent, items
+    // don't block rush.
     if (forRush && loc.fixed_glyph) {
         const ch = loc.fixed_glyph.ch;
-        // Letters = monsters; symbols like $/(/?/[/% don't block rush
-        // immediately but stop adjacent.  Rough heuristic: any
-        // non-' ' fixed_glyph stops the rush at the cell BEFORE.
-        if (ch !== ' ') return true;
+        // Letters are monster classes (a-z, A-Z); other chars are
+        // items / dungeon features that don't block rush.
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+            return true;
+        }
     }
     return false;
 }
