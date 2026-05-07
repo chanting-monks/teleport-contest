@@ -4,7 +4,7 @@
 import { game } from './gstate.js';
 import { cansee } from './vision.js';
 import {
-    COLNO, ROWNO, STONE, ROOM, CORR, DOOR, STAIRS,
+    COLNO, ROWNO, STONE, ROOM, CORR, DOOR, SDOOR, STAIRS,
     HWALL, VWALL, TLCORNER, TRCORNER, BLCORNER, BRCORNER,
     CROSSWALL, TUWALL, TDWALL, TLWALL, TRWALL,
     D_NODOOR, D_ISOPEN, D_CLOSED, D_LOCKED,
@@ -45,6 +45,20 @@ function terrain_glyph(loc, x, y) {
         if (loc.doormask & D_ISOPEN) return { ch: '|', color: CLR_BROWN, dec: false };
         if (loc.doormask & (D_CLOSED | D_LOCKED)) return { ch: '+', color: CLR_BROWN, dec: false };
         return { ch: '~', color: NO_COLOR, dec: true };  // D_NODOOR = floor
+    case SDOOR: {
+        // Hidden secret door — appears as the wall it's embedded in.
+        // C ref: display.c wall_to_glyph — looks at adjacent cells to
+        // pick a horizontal vs vertical wall.  Simplified: peek at
+        // the cells left and above; if either is a horizontal wall
+        // (HWALL) treat as HWALL, else default to VWALL.
+        const lvl = game.level;
+        const left = lvl?.at?.(x - 1, y);
+        const right = lvl?.at?.(x + 1, y);
+        if ((left && left.typ === HWALL) || (right && right.typ === HWALL)) {
+            return { ch: 'q', color: NO_COLOR, dec: true };
+        }
+        return { ch: 'x', color: NO_COLOR, dec: true };
+    }
     case STAIRS:
         // Check upstair vs downstair
         if (game.level?.upstair?.x === x && game.level?.upstair?.y === y)
