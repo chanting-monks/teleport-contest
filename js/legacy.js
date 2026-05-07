@@ -152,12 +152,16 @@ export async function display_legacy() {
         }
     }
 
-    // The menu overlay covers the entire map area (rows 0-21) so the
-    // map underneath doesn't show through paragraph-separator rows OR
-    // the rows after --More-- but before the status line.  C's pager
-    // fills the same area; status (rows 22-23) is preserved.
+    // The menu overlay covers cols [leftCol, 80) of all map rows
+    // (0-21).  Map content in cols [0, leftCol) shows through —
+    // matches C's tty pager which writes one line at a time at the
+    // menu's left col with implicit clear-to-eol after each line, but
+    // doesn't touch cells to the left of the cursor.  Confirmed
+    // against seed0013-friday13 where the map is at cols 5-11 (left
+    // of the legacy menu starting at col 23) and IS visible at rows
+    // 15-19 of the legacy screen, alongside the menu text.
     for (let r = 0; r <= 21; r++) {
-        for (let c = 0; c < 80; c++) {
+        for (let c = leftCol; c < 80; c++) {
             display.setCell(c, r, ' ', NO_COLOR, 0);
         }
     }
