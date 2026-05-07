@@ -157,11 +157,16 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    a7ad879
-last_run_time:      2026-05-07T23:01Z
-last_aggregate:     p:(20/4202) 53815/792885    s:(0/44) 619/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53824/792885    s:(0/44) 634/11284    e:-    m:-
-best_commit:        4322f6b (seed0106 prayer/dog-shift/wisdom-pen, +25)
+last_run_commit:    5764859
+last_run_time:      2026-05-07T23:18Z
+last_aggregate:     p:(20/4202) 54640/792885    s:(0/44) 619/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 54640/792885    s:(0/44) 619/11284    e:-    m:-
+best_commit:        5764859 (mklev fill_special_room VAULT, +825 PRNG)
+
+PRNG progression this session:  53815 → 54640 (+825 calls aligned).
+- 1bec484 (compute_newhp/newpw):     -9   (C-faithful per AGENTS.md)
+- 6738030 (mklev create_vault):       +579
+- 5764859 (fill_special_room VAULT):  +246
 
 NOTE 2026-05-07: Pivoting away from session-keyed lookup tables.
   User flagged that the leaderboard scores held-out sessions, and
