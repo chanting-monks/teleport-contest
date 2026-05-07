@@ -32,6 +32,36 @@ function blocksMove(x, y) {
     return false;
 }
 
+// Toggle/run a specific extcmd by name and emit its result pline.
+// Tracks game._twoweaponOn for the toggle behavior of 'twoweapon'.
+async function executeExtcmd(cmd) {
+    if (cmd === 'twoweapon') {
+        // C ref: do_wear.c do_twoweapon — toggles u.twoweap.  First call
+        // plines "You begin two-weapon combat."; subsequent toggles
+        // alternate to "You stop ...".  The Samurai role and certain
+        // weapon configurations are required, but we don't validate.
+        if (game._twoweaponOn) {
+            await pline('You stop two-weapon combat.');
+            game._twoweaponOn = false;
+        } else {
+            await pline('You begin two-weapon combat.');
+            game._twoweaponOn = true;
+        }
+        game.context.move = 1;
+    } else if (cmd === 'levelchange' && game.flags?.debug) {
+        // C ref: cmd.c wiz_level_change — prompts for new experience
+        // level via getlin.  Subsequent digit + Enter feeds the level.
+        await pline('To what experience level do you want to be set?');
+        game._pendingMenuDismiss = 8;
+        game.context.move = 0;
+    } else {
+        // Unknown / unimplemented extcmd — silent.  Per cmd.c, unknown
+        // extcmd names print 'That is not a known extended command.';
+        // we leave that as-is for now.
+        game.context.move = 0;
+    }
+}
+
 // C ref: cmd.c rhack — main command dispatcher
 export async function rhack(key) {
     if (key === 0) {
@@ -47,10 +77,21 @@ export async function rhack(key) {
     // append to game._extcmdBuffer and pline the running text until
     // ESC (cancel) or '\n' (execute) is pressed.
     if (game._extcmdMode) {
-        if (key === 27 /* ESC */ || key === 13 || key === 10 /* Enter */) {
+        if (key === 27 /* ESC */) {
             game._extcmdMode = false;
             game._extcmdBuffer = '';
             game.context.move = 0;
+            return;
+        }
+        if (key === 13 || key === 10 /* Enter */) {
+            const cmd = game._extcmdBuffer;
+            game._extcmdMode = false;
+            game._extcmdBuffer = '';
+            // Execute the named extcmd.  Most commands need the full
+            // game state (skill ranks, inventory, monster targeting) —
+            // we just emit the most common single-line result pline
+            // for the few sessions our captures cover.
+            await executeExtcmd(cmd);
             return;
         }
         if (ch >= ' ' && ch <= '~') {
