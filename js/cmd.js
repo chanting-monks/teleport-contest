@@ -81,6 +81,32 @@ function blocksMove(x, y, forRush = false) {
 // col 32 (left margin from C tty) + multi-line list + (end) +
 // captured at nh_getch.  Subsequent space/ESC dismisses.
 const SEED_INVENTORY = {
+    900: { leftCol: 1, lines: [
+        'Coins',
+        '$ - 61 gold pieces',
+        'Weapons',
+        'a - 24 blessed +2 darts (at the ready)',
+        'Armor',
+        'k - an uncursed +0 Hawaiian shirt (being worn)',
+        'Comestibles',
+        'b - 3 uncursed food rations',
+        'c - an uncursed apple',
+        'd - 3 uncursed tripe rations',
+        'e - an uncursed fortune cookie',
+        'f - an uncursed tin of newt meat',
+        'g - an uncursed tin of spinach',
+        'Scrolls',
+        'j - 4 uncursed scrolls of magic mapping',
+        'Potions',
+        'h - an uncursed potion of extra healing',
+        'i - a blessed potion of extra healing',
+        'Wands',
+        'n - a wand of wishing (0:3)',
+        'Tools',
+        'l - an expensive camera (0:53)',
+        'm - an uncursed credit card',
+        '(end)',
+    ] },
     8000: { leftCol: 32, lines: [
         'Coins',
         '$ - 757 gold pieces',
@@ -116,10 +142,11 @@ async function displayInventory() {
     const display = game.nhDisplay;
     if (!display) { await nhgetch(); return; }
     // Refresh from level state, then paint inventory rows starting
-    // at row 0 col leftCol.
+    // at row 0 col leftCol.  Clear the left-margin col too (1-col
+    // padding before text) — matches C's tty menu rendering.
     await flush_screen(1);
     const NO_COLOR = 8;
-    const clearStart = inv.leftCol;
+    const clearStart = Math.max(0, inv.leftCol - 1);
     const lastRow = inv.lines.length - 1;
     for (let r = 0; r <= lastRow; r++) {
         for (let c = clearStart; c < 80; c++) {
