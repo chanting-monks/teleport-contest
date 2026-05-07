@@ -869,6 +869,15 @@ export async function rhack(key) {
         game._extcmdBuffer = '';
         game._extcmdPrefix = '';
         game.context.move = 0;
+    } else if (key === 23 /* ^W */ && game.flags?.debug) {
+        // Wizard-mode wish (cmd.c bound to '\x17'/wizmakewish via
+        // accelerator).  Same prompt as #wizwish.
+        const prompt = 'For what do you wish?';
+        await pline(prompt);
+        game._getlinPrompt = prompt;
+        game._getlinBuffer = '';
+        game._getlinMode = true;
+        game.context.move = 0;
     } else if (key === 22 /* ^V */ && game.flags?.debug) {
         // Wizard-mode level teleport (cmd.c:1970 wiz_level_tele).
         // Prompts "To what level do you want to teleport?" and reads
