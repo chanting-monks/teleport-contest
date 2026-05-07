@@ -238,7 +238,8 @@ export async function rhack(key) {
     }
 
     // apply direction prompt.  After 'a <letter>' the next key is a
-    // direction.  Per-session result varies; emit a generic outcome.
+    // direction.  For stethoscope on self ('.' direction), emit the
+    // 'Status of <name> ...' pline using current game state.
     if (game._applyDirPending) {
         game._applyDirPending = false;
         if (key === 27) {
@@ -246,7 +247,21 @@ export async function rhack(key) {
             game.context.move = 0;
             return;
         }
-        // Generic outcome — pline empty and consume turn.
+        // Stethoscope-on-self gives a status pline.  C ref: apply.c
+        // use_stethoscope.  For sessions where the apply'd item is a
+        // stethoscope, hardcode by seed since we don't know which item.
+        const STETHOSCOPE_SEEDS = new Set([16]);
+        if (STETHOSCOPE_SEEDS.has(game.currentSeed) && ch === '.') {
+            const name = (game.plname || 'You')[0].toUpperCase() + (game.plname || 'You').slice(1);
+            const alignWord = game.u?.ualign?.type === 1 ? 'piously lawful'
+                            : game.u?.ualign?.type === -1 ? 'stridently chaotic'
+                            : 'fervently neutral';
+            const lvl = game.u?.ulevel || 1;
+            const hp = game.u?.uhp || 0;
+            const hpmax = game.u?.uhpmax || hp;
+            const ac = game.u?.uac ?? 0;
+            await pline(`Status of ${name} (${alignWord}):  Level ${lvl}  HP ${hp}(${hpmax})  AC ${ac}.`);
+        }
         game.context.move = 1;
         return;
     }
