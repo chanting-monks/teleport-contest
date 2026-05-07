@@ -460,8 +460,27 @@ async function domove(dx, dy) {
         return;
     }
 
-    // Move the hero
+    // Pet-swap: if the destination cell has a fixed_glyph that's a
+    // pet ('d' or 'f'), swap places — pet moves to player's old cell,
+    // player moves to destination.  C ref: hack.c displaceum +
+    // domove pline 'You swap places with your little dog/cat.'
+    const destLoc = game.level?.at(newx, newy);
     const oldx = u.ux, oldy = u.uy;
+    if (destLoc?.fixed_glyph) {
+        const ch = destLoc.fixed_glyph.ch;
+        if (ch === 'd' || ch === 'f') {
+            const oldLoc = game.level?.at(oldx, oldy);
+            if (oldLoc) {
+                // Move pet to player's old cell.
+                oldLoc.fixed_glyph = destLoc.fixed_glyph;
+                destLoc.fixed_glyph = null;
+                const petName = (ch === 'd') ? 'little dog' : 'kitten';
+                await pline(`You swap places with your ${petName}.`);
+            }
+        }
+    }
+
+    // Move the hero
     u.ux0 = oldx;
     u.uy0 = oldy;
     u.ux = newx;
