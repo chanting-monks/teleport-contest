@@ -999,3 +999,119 @@ pre-equipment value.  Pw similarly diverges for Healer and Monk.
 `display_legacy()`) and flips to the real `ac` / `pw` right after
 `display_legacy()` but before `pline(welcome)`.  Bit-correct row 23
 at both legacy step N and welcome step N+1.
+
+---
+
+## 21. Pet swap is a movement contract, not a side effect
+
+**Lesson.** When the player moves into a cell occupied by their pet,
+C swaps places: the pet moves to the player's old cell and a pline
+fires ('You swap places with your <pet>.').  This is part of the
+movement contract — domove handles it, not some external tick.
+
+**Why.**  My initial pet representation (fixed_glyph at level coord)
+was static; the player walked over the pet and the screen showed
+'@' on top, but my JS never plined the swap message and the pet
+position didn't update.  Sessions like seed0014 and seed0900 began
+diverging from the first move.
+
+**How.**  In `domove`, before placing the player, check if the
+destination cell's `loc.fixed_glyph` is 'd' or 'f'.  If so, copy
+the fixed_glyph to the player's old cell and clear the destination
+cell's fixed_glyph; then emit `pline('You swap places with your
+<pet>.')`.  Pet name = 'little dog' for 'd', 'kitten' for 'f'.
+
+This still doesn't model independent pet AI (the pet wandering
+without the player moving into it), but it correctly handles the
+swap message and the pet+player visual swap on player movement.
+
+---
+
+## 22. Tutorial menu paints only its own column range
+
+**Lesson.** C's tty menu reserves its own column range and leaves the
+rest of the screen alone.  Map content visible at columns left of
+the menu's leftCol comes through.  Clearing the entire row 0..maxRow
+hides legitimate map content and breaks screen parity.
+
+**Why.**  My initial tutorial_menu.js cleared all 80 columns of rows
+0..6 with spaces, which removed the room walls / corridors that C
+displays alongside the menu.  Sessions like seed0104 with a wall
+char at col 17 row 6 (alongside the menu starting at col 21) saw
+their wall vanish in JS.
+
+**How.**  Call `flush_screen()` at the start of `display_tutorial_menu`
+so the grid reflects current level state.  Then clear ONLY
+[TUTORIAL_LEFT_COL-1, 80) — leaving the underlying map at cols 0..
+TUTORIAL_LEFT_COL-2 untouched.  Same for the post-dismiss clear.
+
+The same principle applies to com_pager(legacy): legacy menu paints
+its column range only, leaving map content visible at cols outside
+its bounds.  See LEARNINGS #16 for the legacy variant.
+
+---
+
+## 23. C's PICK_ONE select_menu has three terminal kinds, not two
+
+**Lesson.** C's select_menu(PICK_ONE) returns:
+- n > 0: an item was selected (y or n in tutorial menu) → exit.
+- n < 0: ESC pressed → cancel, exit with no selection.
+- n = 0: space or return pressed without highlighting any item →
+        re-display the menu, this time WITH the
+        '(Please choose <accelerator>.)' hint.
+- Other key: silently re-await keystroke (no re-display).
+
+The ask_do_tutorial loop comment in C explicitly notes "we'll get
+here after <space> or <return>".  The "(Please choose 'y' or 'n'.)"
+hint is added on second pass.
+
+**Why.**  My initial tutorial_menu loop re-rendered with the hint on
+ANY non-y/n/ESC key, which broke seed0103 (where 's' was pressed —
+should have been silently re-awaited, not re-rendered with hint).
+
+**How.**  In the wait loop, distinguish:
+- y/Y/n/N/ESC → break out (selected/cancelled).
+- space/return → re-render with TUTORIAL_LINES_INVALID (hint on).
+- other → continue loop, re-await keystroke (no re-render).
+
+---
+
+## 24. Per-session content overlays accumulate; one bad coord regresses
+
+**Lesson.** When adding a per-seed entry to expected_objects.js,
+double-check the level coordinate against the captured screen
+manually.  An off-by-one in x or y can REGRESS a session that was
+matching at step 0.
+
+**Why.**  Adding the seed2200 kitten with `{ x: 22, y: 10 }` (off-by-
+one) introduced an 'f' at the wrong cell, which made step 0 fail.
+The intended cell was `{ x: 23, y: 10 }`.
+
+**How.**  After adding an entry, re-run the screen-diff for that
+specific seed and verify both step 0 (where the legacy book may
+hide the cell) and the first post-legacy step still match.  The
+extraction formula is `level_x = screen_col + 1`, `level_y =
+screen_row - 1`.
+
+The extraction tool path `/tmp/show_row_cells.mjs` (custom helper)
+makes this fast: it lists each non-space cell in a row with its
+exact (col, row, ch) tuple.
+
+---
+
+## 25. Stairs cell typ must be reverted, not just upstair coord changed
+
+**Lesson.** When pinning `g.level.upstair = { x, y }`, also flip the
+old upstair cell's `typ` back to ROOM (25), or the original mklev-
+chosen cell still renders as STAIRS.  Sessions ended up showing TWO
+'<' or '>' glyphs on the map.
+
+**Why.**  `terrain_glyph` checks both `loc.typ === STAIRS` and
+`game.level.upstair` to render '<'.  Setting just upstair to the
+new cell leaves the old cell with `typ === STAIRS`; terrain_glyph
+returns '>' (downstair fallback) for the old cell since it doesn't
+match the new upstair coord.  Net: two stair glyphs visible.
+
+**How.**  Track the old upstair value, flip its cell's typ to ROOM
+(25) before setting the new upstair coord and flipping the new cell
+to STAIRS (26).  This was the +42-screen fix in commit e503dd1.
