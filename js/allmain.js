@@ -343,8 +343,17 @@ export async function newgame() {
         // upstair stays at mklev's choice and renders as a stray '<'
         // somewhere in the room when the player is at our pinned cell.
         // Also flip the cell typ to STAIRS so terrain_glyph returns
-        // '<' once the player walks off the cell.
+        // '<' once the player walks off the cell.  Revert the original
+        // upstair cell back to ROOM so we don't end up with two stairs
+        // visible on the map.
         if (g.level) {
+            const oldStair = g.level.upstair;
+            if (oldStair && (oldStair.x !== seedPlayer.ux || oldStair.y !== seedPlayer.uy)) {
+                const oldCell = g.level.at?.(oldStair.x, oldStair.y);
+                if (oldCell && oldCell.typ === 26 /* STAIRS */) {
+                    oldCell.typ = 25 /* ROOM */;
+                }
+            }
             g.level.upstair = { x: seedPlayer.ux, y: seedPlayer.uy };
             const stairCell = g.level.at?.(seedPlayer.ux, seedPlayer.uy);
             if (stairCell) stairCell.typ = 26 /* STAIRS */;
