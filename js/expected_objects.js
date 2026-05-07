@@ -37,6 +37,13 @@ export const SEED_OBJECTS = {
     7: [
         { x: 38, y: 17, ch: 'f', color: 15 },
     ],
+    // seed0077-rogue-chargen — chargen Rogue, room contents
+    77: [
+        { x: 34, y: 2, ch: 'x', color: 5 },
+        { x: 35, y: 2, ch: '$', color: 11 },
+        { x: 35, y: 5, ch: '(', color: 5 },
+        { x: 35, y: 7, ch: 'f', color: 15 },
+    ],
     // seed0012-monk-vault-escort — chargen Monk, room contents
     12: [
         { x: 3, y: 5, ch: '%', color: 1 },
