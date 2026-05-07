@@ -248,58 +248,71 @@ export async function newgame() {
         Valkyrie: 'Velkommen',
     };
     const helloWord = HELLO_BY_ROLE[g.opts_role] || 'Hello';
-    await pline(`${helloWord} ${g.plname}, welcome to NetHack!  You are a${descBuf}.`);
+    const welcomeMsg = `${helloWord} ${g.plname}, welcome to NetHack!  You are a${descBuf}.`;
+    await pline(welcomeMsg);
 
     // moveloop_preamble (allmain.c:48-68) — moon phase + friday13
     // status messages that fire BEFORE moveloop_core's first iter.
     // These come AFTER welcome and AFTER notice_all_mons (which we
     // don't yet model).  Each pline either appends to topl or, if
-    // the topl is full / next pline is queued, forces --More--.
+    // the topl is full / next pline can't fit, forces --More--.
     //
-    // For our purposes, we model two specific pline-overflow points:
-    //   (a) welcome → moon : welcome (~74 chars) + --More-- (~8) > 80,
-    //       so --More-- lands on row 1 below welcome.
-    //   (b) moon → tutorial : moon (~33 chars) fits with --More-- on
-    //       the same row 0.  Tutorial menu (when ask_do_tutorial fires
-    //       — i.e., tutorial wasn't explicit in rc) is NOT yet ported,
-    //       so we don't emit the second --More-- here; sessions that
-    //       hit that path will mismatch starting at the moon-screen's
-    //       row 0 trailing chars.
+    // C's tty pline (toplines.c) places --More-- on the same row as
+    // the message when it fits (row width >= msg.length + 8 [or +9
+    // with separator] for "--More--"), else drops to row 1 col 0.
+    // Empirically:
+    //   seed0007 welcome (71 chars) + --More-- (8) = 79 → r0 col 71.
+    //   seed5006 welcome (74 chars) + --More-- (8) = 82 → r1 col 0.
     const preamblePlines = preamble_plines(g.datetime);
+    // Tutorial menu fires after preamble plines when tutorial wasn't
+    // explicit in rc (ask_do_tutorial at allmain.c:574).  When it's
+    // queued, the LAST preamble pline must also force --More-- to
+    // clear topl before the menu renders.
+    const tutorialQueued = !g.tutorial_set_in_config;
+
     if (preamblePlines.length > 0) {
-        // welcome's pline overflow: paint --More-- on row 1, capture
-        // the welcome+--More-- screen, then clear --More-- so the
-        // next pline (moon) renders cleanly.
+        // welcome's pline overflow: paint --More-- after welcome (or
+        // on row 1) and consume the dismiss key.  Then clear --More--
+        // so the next pline (moon) renders cleanly.
         await flush_screen(1);
-        await topl_more_on_row(1);
-        // Pline the moon/friday13 messages.  The LAST one stays in
-        // _pending_message for moveloop_core's first flush_screen to
-        // pick up; intermediate ones would need their own --More--
-        // (only relevant when both moon AND friday13 fire — only seed0013
-        // sessions hit that, which we already mismatch elsewhere).
+        await render_topl_more_after(welcomeMsg, 0);
+        // Pline preamble messages, with --More-- between consecutive
+        // plines and after the last one if tutorial is queued.
         for (let i = 0; i < preamblePlines.length; i++) {
-            await pline(preamblePlines[i]);
+            const msg = preamblePlines[i];
+            await pline(msg);
+            const isLast = i === preamblePlines.length - 1;
+            const moreNeeded = !isLast || tutorialQueued;
+            if (moreNeeded) {
+                await flush_screen(1);
+                await render_topl_more_after(msg, 0);
+            }
         }
     }
 }
 
-// Paint "--More--" at column leftCol of the given row, capture the
-// resulting screen via nhgetch (the _preNhgetchHook serializes), then
-// clear the cells so the next flush_screen draws cleanly.  Used for
-// pline-overflow points that aren't routed through display_legacy.
-async function topl_more_on_row(rowIdx, leftCol = 0) {
+// Render "--More--" after a topl message of length `msgLen` on the
+// given row.  If msg + " " + "--More--" fits in 80 cols, --More--
+// lands at col msgLen on the same row (no separator — C concatenates
+// directly per the captured screen format); otherwise it goes to
+// row+1 col 0.  Captures via nhgetch, then clears the painted cells.
+async function render_topl_more_after(msg, row) {
     const display = game.nhDisplay;
     if (!display) { await nhgetch(); return; }
-    const text = '--More--';
+    const more = '--More--';
     const NO_COLOR = 8;
-    for (let i = 0; i < text.length && leftCol + i < 80; i++) {
-        display.setCell(leftCol + i, rowIdx, text[i], NO_COLOR, 0);
+    const onSameRow = (msg.length + more.length) <= 80;
+    const paintRow = onSameRow ? row : row + 1;
+    const paintCol = onSameRow ? msg.length : 0;
+    for (let i = 0; i < more.length && paintCol + i < 80; i++) {
+        display.setCell(paintCol + i, paintRow, more[i], NO_COLOR, 0);
     }
     await nhgetch();
-    for (let c = leftCol; c < leftCol + text.length && c < 80; c++) {
-        display.setCell(c, rowIdx, ' ', NO_COLOR, 0);
+    for (let c = paintCol; c < paintCol + more.length && c < 80; c++) {
+        display.setCell(c, paintRow, ' ', NO_COLOR, 0);
     }
 }
+
 
 // C ref: allmain.c moveloop_core()
 export async function moveloop_core() {
