@@ -265,6 +265,15 @@ export async function newgame() {
     //   seed0007 welcome (71 chars) + --More-- (8) = 79 → r0 col 71.
     //   seed5006 welcome (74 chars) + --More-- (8) = 82 → r1 col 0.
     const preamblePlines = preamble_plines(g.datetime);
+    // Explore-mode notice (sys/unix/unixmain.c:673):
+    //   You("are in non-scoring explore/discovery mode.");
+    // Plined when `discover` is true.  In our model that maps to
+    // OPTIONS=playmode:explore (= flags.explore set by options.js).
+    // Captured order in C sessions has this AFTER welcome and
+    // AFTER moon/friday13, so we append it to the preamble queue.
+    if (g.flags?.explore) {
+        preamblePlines.push('You are in non-scoring explore/discovery mode.');
+    }
     // Tutorial menu fires after preamble plines when tutorial wasn't
     // explicit in rc (ask_do_tutorial at allmain.c:574).  When it's
     // queued, the LAST pline before the menu must force --More-- to
