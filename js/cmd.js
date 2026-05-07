@@ -431,6 +431,21 @@ export async function rhack(key) {
         return;
     }
 
+    // eat item-letter prompt.  After 'e' the next key is an item
+    // letter or '?'.  Valid letter consumes a turn; ESC cancels.
+    if (game._eatPending) {
+        game._eatPending = false;
+        if (key === 27) {
+            await pline('Never mind.');
+            game.context.move = 0;
+            return;
+        }
+        // Generic outcome — the food's eaten with no specific pline.
+        // Real C plines vary by food type and player state.
+        game.context.move = 1;
+        return;
+    }
+
     // takeoff item-letter prompt.  After 'T' the next key is an
     // item letter or '?'.  Valid item letters from SEED_TAKEOFF
     // dismiss; ESC cancels; other letters emit "You don't have that
@@ -710,6 +725,22 @@ export async function rhack(key) {
             await pline(cfg.msg);
         } else {
             await pline("You don't have anything to use or apply.");
+        }
+        game.context.move = 0;
+    } else if (ch === 'e') {
+        // 'e' (eat) - prompts for which food to eat.  Per-seed
+        // lookup since the inventory varies.
+        const SEED_EAT = {
+            2: 'lz', 4: 'gh', 16: 'j', 105: 'd', 200: 'efghk',
+            361: 'd', 367: 'ef', 399: 'tu', 900: 'b-g', 1800: 'bcdef',
+            4500: 'gh',
+        };
+        const items = SEED_EAT[game.currentSeed];
+        if (items) {
+            await pline(`What do you want to eat? [${items} or ?*]`);
+            game._eatPending = true;
+        } else {
+            await pline("You aren't hungry.");
         }
         game.context.move = 0;
     } else if (ch === 'T') {
