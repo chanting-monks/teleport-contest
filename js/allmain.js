@@ -266,11 +266,15 @@ export async function newgame() {
     const preamblePlines = preamble_plines(g.datetime);
     // Tutorial menu fires after preamble plines when tutorial wasn't
     // explicit in rc (ask_do_tutorial at allmain.c:574).  When it's
-    // queued, the LAST preamble pline must also force --More-- to
+    // queued, the LAST pline before the menu must force --More-- to
     // clear topl before the menu renders.
     const tutorialQueued = !g.tutorial_set_in_config;
+    // Welcome itself needs --More-- if any subsequent pline OR the
+    // tutorial menu is queued — anything that would force topl to
+    // clear before its content renders.
+    const welcomeNeedsMore = preamblePlines.length > 0 || tutorialQueued;
 
-    if (preamblePlines.length > 0) {
+    if (welcomeNeedsMore) {
         // welcome's pline overflow: paint --More-- after welcome (or
         // on row 1) and consume the dismiss key.  Then clear --More--
         // so the next pline (moon) renders cleanly.
@@ -301,7 +305,15 @@ async function render_topl_more_after(msg, row) {
     if (!display) { await nhgetch(); return; }
     const more = '--More--';
     const NO_COLOR = 8;
-    const onSameRow = (msg.length + more.length) <= 80;
+    // C tty's pline puts --More-- on the same row only when there's
+    // strict room (msg.length + 8 < 80, i.e. msg.length < 72).  At
+    // exactly 72-char welcome the message ends at col 72, --More--
+    // would need cols 72-79, leaving no trailing column for cursor —
+    // C drops to the next row.  Verified empirically:
+    //   seed0007 welcome (71 chars) → same row, --More-- at col 71.
+    //   seed0013 welcome (72 chars) → next row, --More-- at col 0.
+    //   seed5006 welcome (74 chars) → next row.
+    const onSameRow = (msg.length + more.length) < 80;
     const paintRow = onSameRow ? row : row + 1;
     const paintCol = onSameRow ? msg.length : 0;
     for (let i = 0; i < more.length && paintCol + i < 80; i++) {
