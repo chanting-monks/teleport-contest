@@ -47,14 +47,25 @@ opportunity from the diagnostic output.
    — the legacy text renders correctly; status-line stat values are
    the next blocker.
 
-2b. **DONE (3d3d0aa, 9f714c3): moon/friday13 plines + --More-- chain**.
+2b. **DONE (3d3d0aa, 9f714c3, 5301181): moon/friday13 plines + --More-- chain**.
    js/moonphase.js + allmain wiring.  After welcome, plines preamble
    messages with --More-- between them and after the last when
    tutorial menu is queued.  --More-- placement matches C tty: same
-   row when (msg+8 ≤ 80), else next row col 0.  Verified seed0007
-   step 15 firstdiff r=0 c=71 → r=11; seed0006 step 36/37 firstdiff
-   r=1 → r=13.  Status line at r=22-23 is still the screen-level
-   blocker for these sessions.
+   row when (msg+8 < 80) strict, else next row col 0.  Welcome itself
+   forces --More-- when ANY follow-up (preamble pline OR tutorial
+   menu) is queued — fix at 5301181 catches the seed0002-no-moon-but-
+   tutorial-pending case.  Verified seed0007 step 15 firstdiff r=0 →
+   r=11; seed0013 step 1 r=0 → r=2; seed0006 step 36/37 r=1 → r=13.
+
+2c. **DONE (1ab5b01): tutorial menu render**.  js/tutorial_menu.js +
+   allmain wiring.  Renders the fixed-layout 5-line "Do you want a
+   tutorial?" menu at col 21 (header in REVERSE VIDEO at row 0,
+   items at rows 2-3, hint at row 5, "(end)" at row 6) when
+   `g.tutorial_set_in_config` is false.  Captures via nh_getch that
+   consumes the user's 'y'/'n' choice; doesn't act on it (we don't
+   yet model entering the tutorial level).  Verified seed0002 step
+   10, seed0006 step 38, seed0007 step 17 all match rows 0-6 of the
+   menu (firstdiff falls through to the map row mismatch beneath).
 3. **Add more pline-only commands to `cmd.js`.** `,` already added
    (`9b51b7e` — empty-floor pickup).  Other targets: `q` with no
    quaffable plines `You have nothing to drink.`; `r` with no
@@ -109,10 +120,10 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    9f714c3
-last_run_time:      2026-05-07T01:36Z
-last_aggregate:     p:(20/4202) 53846/792885    s:(0/44) 131/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53846/792885    s:(0/44) 131/11284    e:-    m:-
+last_run_commit:    1ab5b01
+last_run_time:      2026-05-07T03:02Z
+last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
