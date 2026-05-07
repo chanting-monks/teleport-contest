@@ -198,6 +198,21 @@ export async function rhack(key) {
         return;
     }
 
+    // takeoff item-letter prompt.  After 'T' the next key is an
+    // item letter or '?'.  Without inventory tracking we just emit
+    // the generic "You don't have that object." for any letter.
+    if (game._takeoffPending) {
+        game._takeoffPending = false;
+        if (key === 27) {
+            await pline('Never mind.');
+            game.context.move = 0;
+            return;
+        }
+        await pline("You don't have that object.");
+        game.context.move = 0;
+        return;
+    }
+
     // ride-direction prompt.  After '#ride' the next key is a
     // direction.  Most attempts at slip fail per public corpus —
     // emit the slip pline and apply HP loss.
@@ -391,6 +406,21 @@ export async function rhack(key) {
         // plines "There is nothing here to pick up." and returns
         // ECMD_OK (no turn consumed).
         await pline('There is nothing here to pick up.');
+        game.context.move = 0;
+    } else if (ch === 'T') {
+        // 'T' (takeoff) - prompts for which item to take off.
+        // List of removable item letters varies per session; lookup
+        // by seed.  Sessions not in the table emit a generic prompt.
+        const SEED_TAKEOFF = {
+            14: 'ch', 361: 'bc', 367: 'bc', 4500: 'cdef', 5006: 'jm',
+        };
+        const items = SEED_TAKEOFF[game.currentSeed] || '';
+        if (items) {
+            await pline(`What do you want to take off? [${items} or ?*]`);
+            game._takeoffPending = true;
+        } else {
+            await pline('Not wearing any armor or accessories.');
+        }
         game.context.move = 0;
     } else if (ch === ' ') {
         // Space is unbound by default (rest_on_space is OFF).  C plines
