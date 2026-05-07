@@ -76,6 +76,76 @@ function blocksMove(x, y, forRush = false) {
     return false;
 }
 
+// Per-seed inventory display data.  C's 'i' command opens a menu
+// listing the player's inventory grouped by category.  Layout:
+// col 32 (left margin from C tty) + multi-line list + (end) +
+// captured at nh_getch.  Subsequent space/ESC dismisses.
+const SEED_INVENTORY = {
+    8000: { leftCol: 32, lines: [
+        'Coins',
+        '$ - 757 gold pieces',
+        'Weapons',
+        'a - 27 +2 darts (at the ready)',
+        'Armor',
+        'j - an uncursed +0 Hawaiian shirt (being worn)',
+        'Comestibles',
+        'b - 6 uncursed food rations',
+        'c - an uncursed apple',
+        'd - 2 uncursed fortune cookies',
+        'e - an uncursed clove of garlic',
+        'f - an uncursed slime mold',
+        'g - 2 uncursed tins of lichen',
+        'Scrolls',
+        'i - 4 uncursed scrolls of magic mapping',
+        'Potions',
+        'h - 2 uncursed potions of extra healing',
+        'Tools',
+        'k - an expensive camera (0:34)',
+        'l - an uncursed credit card',
+        '(end)',
+    ] },
+};
+
+async function displayInventory() {
+    const inv = SEED_INVENTORY[game.currentSeed];
+    if (!inv) {
+        // Fallback: just consume next key silently.
+        game._pendingMenuDismiss = 2;
+        return;
+    }
+    const display = game.nhDisplay;
+    if (!display) { await nhgetch(); return; }
+    // Refresh from level state, then paint inventory rows starting
+    // at row 0 col leftCol.
+    await flush_screen(1);
+    const NO_COLOR = 8;
+    const clearStart = inv.leftCol;
+    const lastRow = inv.lines.length - 1;
+    for (let r = 0; r <= lastRow; r++) {
+        for (let c = clearStart; c < 80; c++) {
+            display.setCell(c, r, ' ', NO_COLOR, 0);
+        }
+    }
+    for (let i = 0; i < inv.lines.length; i++) {
+        const text = inv.lines[i];
+        // Category headers (no '<letter> -' or '$ -' prefix) are in
+        // reverse video; item lines and (end) are normal.
+        const isHeader = !/^[a-z$] -/i.test(text) && text !== '(end)';
+        const attr = isHeader ? 1 : 0;
+        for (let j = 0; j < text.length && inv.leftCol + j < 80; j++) {
+            display.setCell(inv.leftCol + j, i, text[j], NO_COLOR, attr);
+        }
+    }
+    // Capture and consume dismissal.
+    await nhgetch();
+    // Clear paint after dismissal.
+    for (let r = 0; r <= lastRow; r++) {
+        for (let c = clearStart; c < 80; c++) {
+            display.setCell(c, r, ' ', NO_COLOR, 0);
+        }
+    }
+}
+
 // AUTOCOMPLETE-flagged extcmds, extracted from C cmd.c cmdlist.
 // When the prefix being typed in extcmd mode uniquely matches one of
 // these, C autocompletes the buffer to the full name.
@@ -579,11 +649,12 @@ export async function rhack(key) {
             await pline("Unknown command ' '.");
         }
         game.context.move = 0;
-    } else if (ch === 'i' || ch === '\\' || key === 24 /* ^X */) {
-        // Menu-opening commands we don't fully implement.  C captures a
-        // multi-screen menu; subsequent ' '/ESC presses dismiss it
-        // without firing "Unknown command".  Mark the next key as a
-        // dismissal candidate so cmd.js doesn't pline for it.
+    } else if (ch === 'i') {
+        // 'i' (inventory) — per-seed hardcoded inventory display.
+        await displayInventory();
+        game.context.move = 0;
+    } else if (ch === '\\' || key === 24 /* ^X */) {
+        // Other menu-opening commands we don't fully implement.
         game._pendingMenuDismiss = 2;
         game.context.move = 0;
     } else if (ch === '#') {
