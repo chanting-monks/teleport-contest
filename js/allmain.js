@@ -21,6 +21,7 @@ import {
 import { init_dungeons } from './dungeon.js';
 import { role_init, chargen_simulate, chargen_simulate_async } from './role.js';
 import { display_legacy } from './legacy.js';
+import { display_tutorial_menu } from './tutorial_menu.js';
 import { preamble_will_pline, preamble_plines } from './moonphase.js';
 import { nhgetch } from './input.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
@@ -292,6 +293,14 @@ export async function newgame() {
                 await render_topl_more_after(msg, 0);
             }
         }
+    }
+
+    // ask_do_tutorial — C ref: options.c:430, called from
+    // allmain.c:574 maybe_do_tutorial() (just after moveloop_preamble).
+    // Fires when tutorial wasn't explicitly set in rc; renders a
+    // 2-option menu and consumes one keystroke.
+    if (tutorialQueued) {
+        await display_tutorial_menu();
     }
 }
 
