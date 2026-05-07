@@ -342,8 +342,12 @@ export async function newgame() {
         // '@' covers the '<' glyph.  Without this override the JS
         // upstair stays at mklev's choice and renders as a stray '<'
         // somewhere in the room when the player is at our pinned cell.
+        // Also flip the cell typ to STAIRS so terrain_glyph returns
+        // '<' once the player walks off the cell.
         if (g.level) {
             g.level.upstair = { x: seedPlayer.ux, y: seedPlayer.uy };
+            const stairCell = g.level.at?.(seedPlayer.ux, seedPlayer.uy);
+            if (stairCell) stairCell.typ = 26 /* STAIRS */;
         }
     }
 

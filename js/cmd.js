@@ -314,6 +314,18 @@ export async function rhack(key) {
     if (isMovementKey(ch)) {
         await domove(DIR_DX[ch], DIR_DY[ch]);
         game.context.move = 1;
+    } else if ('HJKLYUBN'.includes(ch)) {
+        // Uppercase movement = rush in that direction until blocked.
+        // C ref: cmd.c — `M_PREFIX` movement variant `do_rush`.
+        // Treats walls / closed doors / boundary as obstacles.
+        const lc = ch.toLowerCase();
+        const dx = DIR_DX[lc], dy = DIR_DY[lc];
+        for (let i = 0; i < 80; i++) {
+            const before = { x: game.u.ux, y: game.u.uy };
+            await domove(dx, dy);
+            if (game.u.ux === before.x && game.u.uy === before.y) break;
+        }
+        game.context.move = 1;
     } else if (ch === 's' || ch === '.') {
         // 's' (search) and '.' (rest) consume a turn.  C ref:
         // src/cmd.c cmdlist for 's' → dosearch and '.' → donull, both
