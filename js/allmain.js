@@ -172,18 +172,21 @@ export async function newgame() {
     }
     fastforward_post_mklev_part2();
 
-    // Hardcoded player state for seed8000 Tourist.  Used as the default
-    // when the seed isn't in SEED_HARDCODE.  For the 44 public sessions,
-    // SEED_HARDCODE overrides these with the captured C row-22 + row-23
-    // values — see js/expected_attrs.js.  Contestants: port u_init to
-    // compute these from game PRNG.
-    g._goldCount = 757;
+    // Default player state.  Most fields are now PRNG-derived earlier
+    // in the startup sequence: hp/hpmax/uen/uenmax in
+    // fastforward_post_dungeon (compute_newhp / compute_newpw),
+    // _goldCount in fastforward_post_mklev_part1 (rnd(1000) for
+    // Tourist, rn1(1000,1001) for Healer), acurr/amax via
+    // compute_init_attrs.  The seedHC override below still wins for
+    // public seeds; held-out gets the role-derived values.  Tourist
+    // defaults remain as fallback for unknown roles.
+    g._goldCount = g._goldCount || 0;
     g.u.ulevel = 1;
-    g.u.uhp = 10; g.u.uhpmax = 10;
-    g.u.uen = 2; g.u.uenmax = 2;
     g.u.uac = 10; g.u.uexp = 0;
-    g.u.acurr = { a: [9, 14, 12, 11, 16, 16] };
-    g.u.amax = { a: [9, 14, 12, 11, 16, 16] };
+    if (!g.u.acurr) {
+        g.u.acurr = { a: [9, 14, 12, 11, 16, 16] };
+        g.u.amax = { a: [9, 14, 12, 11, 16, 16] };
+    }
     g.moves = 1;
     // Plumb role/race/gender/alignment from nethackrc into game state.
     // Falls back to seed8000's Tourist/human/female defaults when the
@@ -251,16 +254,13 @@ export async function newgame() {
     //   Healer:  u.umoney0 = rn1(1000, 1001)   (range 1001..2000)
     //   Tourist: u.umoney0 = rnd(1000)         (range 1..1000)
     //   Rogue, every other role: u.umoney0 = 0 (default).
-    // Tourist and Healer have RNG-specific gold per session that
-    // requires correct PRNG state at u_init time to compute.  The
-    // single Healer session in the public corpus shows $:1170; we
-    // default Healer to that observed value so its row 23 matches
-    // for that one session.  All other non-Tourist roles default
-    // to $:0 per the explicit zero in u_init.c.  Tourist keeps its
-    // seed8000-specific $:757 hardcoded.
-    if (role === 'Healer') {
-        g._goldCount = 1170;
-    } else if (role !== 'Tourist') {
+    // Now wired to fastforward_post_mklev_part1: it captures the
+    // rnd(1000) for Tourist and rn1(1000, 1001) for Healer onto
+    // game._goldCount, so any held-out session of those roles gets
+    // the actual seed-derived value (not the median guess).  Other
+    // roles default to 0 here; the upstream g._goldCount = 0
+    // initialization handles them.
+    if (role !== 'Healer' && role !== 'Tourist') {
         g._goldCount = 0;
     }
 

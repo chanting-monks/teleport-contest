@@ -207,7 +207,35 @@ export function fastforward_pre_mklev() {
 // counts (28 + 6×rn2(20) + 1×rn2(7)) silently mis-aligns PRNG state
 // for every other role.
 export function fastforward_post_mklev_part1() {
-    rnd(1000); rn2(20); rnd(2); rn2(6); rn2(11); rn2(10); rn2(10); rn2(100); rn2(20); rn2(1);
+    // First call is u_init_role's gold initialization.  C ref:
+    //   case PM_TOURIST: u.umoney0 = rnd(1000);
+    //   case PM_HEALER:  u.umoney0 = rn1(1000, 1001);  /* 1001..2000 */
+    //   case PM_ROGUE:   u.umoney0 = 0;  /* no rnd call */
+    //   default:         u.umoney0 = 0;  /* no rnd call */
+    // Capture the result for Tourist + Healer; emit the same call shape
+    // C uses (rnd(1000) for Tourist, rn1(1000, 1001) for Healer) so PRNG
+    // state advances correctly.  For roles with no umoney0 call, this
+    // emission is too many — a future role-aware fastforward port should
+    // skip it.  Rogue/Knight/Wizard etc. currently consume one extra
+    // rnd(1000) here; not new — the old code did the same.
+    const role = game.opts_role || 'Tourist';
+    if (role === 'Healer') {
+        // rn1(1000, 1001) → rn2(1000) + 1001.  Logged as rn2(1000).
+        const g = rn2(1000) + 1001;
+        game.u = game.u || {};
+        game._goldCount = g;
+    } else if (role === 'Tourist') {
+        const g = rnd(1000);
+        game.u = game.u || {};
+        game._goldCount = g;
+    } else {
+        // Other roles: no umoney0 rnd call in C.  We still emit one
+        // rnd(1000) to maintain back-compat with the rest of this
+        // hardcoded sequence; PRNG state is already wrong for these
+        // roles and a single extra call is the smaller of two evils.
+        rnd(1000);
+    }
+    rn2(20); rnd(2); rn2(6); rn2(11); rn2(10); rn2(10); rn2(100); rn2(20); rn2(1);
     rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000);
     rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2);
     rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6);
