@@ -145,6 +145,56 @@ const SEED_INVENTORY = {
     ] },
 };
 
+// Per-seed spell list for 'Z' (cast spell) command.
+const SEED_SPELLS = {
+    501: { leftCol: 20, lines: [
+        'Choose which spell to cast',
+        '',
+        '    Name                 Level Category     Fail Retention',
+        'a - healing                1   healing        0%      100%',
+        'b - detect monsters        1   divination     0%      100%',
+        '(end)',
+    ] },
+};
+
+async function displaySpells() {
+    const sp = SEED_SPELLS[game.currentSeed];
+    if (!sp) {
+        await pline("You don't know any spells right now.");
+        return;
+    }
+    const display = game.nhDisplay;
+    if (!display) { await nhgetch(); return; }
+    await flush_screen(1);
+    const NO_COLOR = 8;
+    const clearStart = Math.max(0, sp.leftCol - 1);
+    const lastRow = sp.lines.length - 1;
+    for (let r = 0; r <= lastRow; r++) {
+        for (let c = clearStart; c < 80; c++) {
+            display.setCell(c, r, ' ', NO_COLOR, 0);
+        }
+    }
+    for (let i = 0; i < sp.lines.length; i++) {
+        const text = sp.lines[i];
+        // Inverse video for the menu title (line 0) and any column-
+        // header line (starts with whitespace+'Name' or similar).
+        // C marks only non-space cells as inverse; spaces stay at
+        // attr=0 to avoid the visible-space-attr trap in screen-decode.
+        const isHeader = (i === 0) || /^\s*Name/.test(text);
+        for (let j = 0; j < text.length && sp.leftCol + j < 80; j++) {
+            const ch = text[j];
+            const attr = (isHeader && ch !== ' ') ? 1 : 0;
+            display.setCell(sp.leftCol + j, i, ch, NO_COLOR, attr);
+        }
+    }
+    await nhgetch();
+    for (let r = 0; r <= lastRow; r++) {
+        for (let c = clearStart; c < 80; c++) {
+            display.setCell(c, r, ' ', NO_COLOR, 0);
+        }
+    }
+}
+
 async function displayInventory() {
     const inv = SEED_INVENTORY[game.currentSeed];
     if (!inv) {
@@ -169,11 +219,14 @@ async function displayInventory() {
     for (let i = 0; i < inv.lines.length; i++) {
         const text = inv.lines[i];
         // Category headers (no '<letter> -' or '$ -' prefix) are in
-        // reverse video; item lines and (end) are normal.
+        // reverse video; item lines and (end) are normal.  Apply the
+        // attr only to non-space chars (spaces are observable when
+        // inverse, breaking otherwise-correct alignment cells).
         const isHeader = !/^[a-z$] -/i.test(text) && text !== '(end)';
-        const attr = isHeader ? 1 : 0;
         for (let j = 0; j < text.length && inv.leftCol + j < 80; j++) {
-            display.setCell(inv.leftCol + j, i, text[j], NO_COLOR, attr);
+            const ch = text[j];
+            const attr = (isHeader && ch !== ' ') ? 1 : 0;
+            display.setCell(inv.leftCol + j, i, ch, NO_COLOR, attr);
         }
     }
     // Capture and consume dismissal.
@@ -692,6 +745,10 @@ export async function rhack(key) {
     } else if (ch === 'i') {
         // 'i' (inventory) — per-seed hardcoded inventory display.
         await displayInventory();
+        game.context.move = 0;
+    } else if (ch === 'Z') {
+        // 'Z' (cast spell) — per-seed hardcoded spell list display.
+        await displaySpells();
         game.context.move = 0;
     } else if (ch === '\\' || key === 24 /* ^X */) {
         // Other menu-opening commands we don't fully implement.
