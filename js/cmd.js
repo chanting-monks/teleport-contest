@@ -688,8 +688,10 @@ export async function rhack(key) {
     }
 
     if (isMovementKey(ch)) {
+        // domove sets context.move=1 on success, 0 if blocked.
+        // Don't override here — blocked moves shouldn't advance the
+        // turn counter.  C ref: hack.c domove return value.
         await domove(DIR_DX[ch], DIR_DY[ch]);
-        game.context.move = 1;
     } else if ('HJKLYUBN'.includes(ch)) {
         // Uppercase movement = rush in that direction until blocked.
         // C ref: cmd.c — `M_PREFIX` movement variant `do_rush`.
@@ -864,10 +866,12 @@ async function domove(dx, dy) {
     const newy = u.uy + dy;
 
     if (blocksMove(newx, newy)) {
-        // Can't move there
+        // Can't move there - turn not consumed.
         game.context.move = 0;
         return;
     }
+    // Successful move - turn consumed.
+    game.context.move = 1;
 
     // Pet-swap: if the destination cell has a fixed_glyph that's a
     // pet ('d' or 'f'), swap places — pet moves to player's old cell,
