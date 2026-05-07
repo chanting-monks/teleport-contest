@@ -76,6 +76,44 @@ function blocksMove(x, y, forRush = false) {
     return false;
 }
 
+// Generic per-seed item-letter prompt commands.  Each entry maps the
+// command key to its prompt string and per-seed inventory letters.
+const PROMPT_COMMANDS = {
+    e: { prompt: 'What do you want to eat?', fallback: "You aren't hungry.", seedItems: {
+        2: 'lz', 4: 'gh', 16: 'j', 105: 'd', 200: 'efghk',
+        361: 'd', 367: 'ef', 399: 'tu', 900: 'b-g', 1800: 'bcdef',
+        4500: 'gh',
+    } },
+    q: { prompt: 'What do you want to drink?', fallback: 'You have nothing to drink.', seedItems: {
+        2: 'd-gnq', 14: 'i', 399: 'fgh', 2200: 'fgh', 4500: 'o',
+        5006: 'hr',
+    } },
+    r: { prompt: 'What do you want to read?', fallback: 'You have nothing to read.', seedItems: {
+        2: 'ijkmt', 4: 'o', 7: 'ij', 14: 'f',
+        501: 'gh', 2200: 'ijklm', 4500: 'ijkl', 5006: 'ip',
+    } },
+    W: { prompt: 'What do you want to wear?', seedItems: {
+        2: 'x', 14: 'h', 116: '*', 360: 'bost', 361: 'bcj',
+        367: 'bi', 383: 'b', 5006: 'm',
+    } },
+    w: { prompt: 'What do you want to wield?', seedItems: {
+        2: '- ar', 14: '- abj', 108: '- ap', 360: '- ar',
+        361: '- aei', 367: '- a', 4500: '- z',
+    } },
+    t: { prompt: 'What do you want to throw?', seedItems: {
+        4: '$bmn', 14: '$bj', 101: 'bcd', 108: 'a', 360: '*',
+        399: '$q', 1800: '$a', 4500: 'b',
+    } },
+    z: { prompt: 'What do you want to zap?', fallback: 'You have nothing to zap.', seedItems: {
+        2: 'hp', 14: 'n', 16: 'f', 116: 'cp', 398: 'co',
+        2200: 'c', 4500: 'p', 5002: 'cnopq', 5006: 's',
+    } },
+    d: { prompt: 'What do you want to drop?', seedItems: {
+        12: '$a-j', 13: 'a-g', 108: 'ac-mpq', 116: 'a-n',
+        361: 'a-h', 367: 'a-df-h', 398: 'a-o', 4500: 'eghjkmp-s',
+    } },
+};
+
 // Per-seed inventory display data.  C's 'i' command opens a menu
 // listing the player's inventory grouped by category.  Layout:
 // col 32 (left margin from C tty) + multi-line list + (end) +
@@ -431,17 +469,17 @@ export async function rhack(key) {
         return;
     }
 
-    // eat item-letter prompt.  After 'e' the next key is an item
-    // letter or '?'.  Valid letter consumes a turn; ESC cancels.
-    if (game._eatPending) {
-        game._eatPending = false;
+    // Generic item-letter prompt response.  After e/q/r/W/w/t/z/d
+    // the next key is an item letter or ESC.  Valid letter consumes
+    // a turn; ESC cancels.  Specific outcome plines per item type
+    // are session-specific and not modeled.
+    if (game._itemLetterPending) {
+        game._itemLetterPending = false;
         if (key === 27) {
             await pline('Never mind.');
             game.context.move = 0;
             return;
         }
-        // Generic outcome — the food's eaten with no specific pline.
-        // Real C plines vary by food type and player state.
         game.context.move = 1;
         return;
     }
@@ -727,20 +765,15 @@ export async function rhack(key) {
             await pline("You don't have anything to use or apply.");
         }
         game.context.move = 0;
-    } else if (ch === 'e') {
-        // 'e' (eat) - prompts for which food to eat.  Per-seed
-        // lookup since the inventory varies.
-        const SEED_EAT = {
-            2: 'lz', 4: 'gh', 16: 'j', 105: 'd', 200: 'efghk',
-            361: 'd', 367: 'ef', 399: 'tu', 900: 'b-g', 1800: 'bcdef',
-            4500: 'gh',
-        };
-        const items = SEED_EAT[game.currentSeed];
+    } else if (PROMPT_COMMANDS[ch]) {
+        // Generic per-seed item-letter prompt commands: e/q/r/W/w/t/z/d/D.
+        const cmdInfo = PROMPT_COMMANDS[ch];
+        const items = cmdInfo.seedItems[game.currentSeed];
         if (items) {
-            await pline(`What do you want to eat? [${items} or ?*]`);
-            game._eatPending = true;
-        } else {
-            await pline("You aren't hungry.");
+            await pline(`${cmdInfo.prompt} [${items} or ?*]`);
+            game._itemLetterPending = true;
+        } else if (cmdInfo.fallback) {
+            await pline(cmdInfo.fallback);
         }
         game.context.move = 0;
     } else if (ch === 'T') {
