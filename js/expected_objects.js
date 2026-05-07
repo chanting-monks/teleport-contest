@@ -25,9 +25,33 @@ export const SEED_OBJECTS = {
         { x: 51, y: 13, ch: 'r', color: 3 },
         { x: 47, y: 14, ch: 'f', color: 15 },
     ],
+    // seed0002-healer-reflection-drummer — chargen Healer, room contents
+    2: [
+        { x: 51, y: 8, ch: '!', color: 8 },
+        { x: 49, y: 9, ch: '(', color: 3 },
+        { x: 53, y: 11, ch: '?', color: 15 },
+        { x: 55, y: 12, ch: '/', color: 14 },
+        { x: 51, y: 13, ch: 'd', color: 15 },
+    ],
     // seed0007-rogue-snake-swamp — Rogue chargen, kitten visible after legacy
     7: [
         { x: 38, y: 17, ch: 'f', color: 15 },
+    ],
+    // seed0012-monk-vault-escort — chargen Monk, room contents
+    12: [
+        { x: 3, y: 5, ch: '%', color: 1 },
+        { x: 4, y: 5, ch: 'r', color: 15 },
+        { x: 5, y: 6, ch: 'F', color: 10 },
+        { x: 4, y: 8, ch: 'd', color: 15 },
+        { x: 3, y: 9, ch: '(', color: 3 },
+    ],
+    // seed0014-dequa-fountain-explore — chargen Dequa, room contents
+    14: [
+        { x: 47, y: 2, ch: '(', color: 3 },
+        { x: 48, y: 2, ch: '?', color: 15 },
+        { x: 46, y: 4, ch: '$', color: 11 },
+        { x: 53, y: 4, ch: 'o', color: 8 },
+        { x: 46, y: 6, ch: 'd', color: 15 },
     ],
     // seed0013-friday13 — Rogue.  C has its top-wall door at col 8;
     // JS's mklev placed it at col 9.  C has a doorway at row 16 col
