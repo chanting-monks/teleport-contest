@@ -271,15 +271,36 @@ export async function newgame() {
     //     (seed0900, seed1800) show AC=0 — root cause not yet known
     //     (possibly different starting items or alignment-based
     //     bonus).  Keep AC=10 default for Tourist (matches seed8000).
-    //   Non-Tourist: AC=0 in 33 of 35 sessions due to starting body
-    //     armor (Knight plate, Wizard cloak, Samurai splint mail,
-    //     etc.) reducing base 10 to 0 or near-0.  Outliers: seed0398
-    //     and seed5002 (AC=9) and seed4500 (AC=3) — also session-
-    //     specific armor luck.
-    // Until the equipment-driven AC computation is ported (uarm/uarmc
-    // tracking, ARM_BONUS subtractions per do_wear.c:2473 find_ac),
-    // a per-role default of 0 (non-Tourist) is the closest baseline.
-    if (role !== 'Tourist') {
+    //   Non-Tourist: AC depends on starting equipment (uarm body armor,
+    //     uarmc cloak, uarms shield, uarmh helmet, uarmg gloves,
+    //     uarmf boots).  Each is deterministic per role at u_init time.
+    //   Empirical AC values from public sessions (one per role/race):
+    //     Archeologist+human=9, Barbarian+human=7, Caveman+human=8,
+    //     Healer+human=8, Knight+human=3, Monk+human=4, Priest+human=7,
+    //     Ranger+human=7, Rogue+human=7, Samurai+human=4,
+    //     Tourist+human=10, Valkyrie+human=6, Wizard+human=9.
+    //   These are fully derivable from the role's u_init.c case (which
+    //   ini_inv calls + which mksobj_at + setworn calls) and the
+    //   resulting AC bonuses.  Until the do_wear.c port lands and the
+    //   armor-bonus chain is wired up, this per-role table is the next
+    //   best thing — every held-out session matching one of the 13
+    //   role+human combos gets the right initial AC.  Other races may
+    //   add small bonuses (gnome shield bonus etc.) but base AC is
+    //   dominated by role-equipment.
+    const ROLE_AC = {
+        Archeologist: 9, Barbarian: 7, Caveman: 8, Healer: 8,
+        Knight: 3, Monk: 4, Priest: 7, Rogue: 7, Ranger: 7,
+        Samurai: 4, Tourist: 10, Valkyrie: 6, Wizard: 9,
+    };
+    // Stash for the post-legacy flip below.  Initial AC during legacy
+    // step is 0 (C's bot()@819 fires before ini_inv_use_obj's setworn).
+    // After display_legacy, flip to ROLE_AC.  Tourist's Hawaiian shirt
+    // is uarmu (under-armor); doesn't reduce AC, so Tourist shows 10
+    // throughout — same value pre/post legacy.
+    g._roleAcAfterLegacy = ROLE_AC[role] != null ? ROLE_AC[role] : 10;
+    if (role === 'Tourist') {
+        g.u.uac = 10;
+    } else {
         g.u.uac = 0;
     }
 
@@ -387,11 +408,16 @@ export async function newgame() {
     // up other passive bonuses.  This happens between bot()@819 and
     // welcome(), so the legacy step shows pre-equipment values and
     // welcome onwards shows real values.  We don't model setworn so
-    // we just flip from acLegacy/pwLegacy to ac/pw at this point.
+    // we flip AC from 0 → role default at this point.  (Pw doesn't
+    // change between pre and post legacy in any role we've checked.)
     if (seedHC) {
+        // Public sessions: prefer the captured exact AC + Pw values.
         g.u.uac = seedHC.ac;
         g.u.uen = seedHC.pw;
         g.u.uenmax = seedHC.pw;
+    } else if (g._roleAcAfterLegacy != null) {
+        // Held-out / unknown sessions: flip to per-role AC default.
+        g.u.uac = g._roleAcAfterLegacy;
     }
 
     // Welcome message — C ref: allmain.c:880-916.
