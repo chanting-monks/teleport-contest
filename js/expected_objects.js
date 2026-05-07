@@ -166,6 +166,7 @@ export const SEED_OBJECTS = {
     2200: [
         { x: 17, y: 10, ch: 'x', color: 15 },
         { x: 18, y: 10, ch: '(', color: 3 },
+        { x: 23, y: 10, ch: 'f', color: 15 },
     ],
     // seed4500-knight-coverage — Knight
     4500: [
