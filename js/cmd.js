@@ -32,6 +32,32 @@ function blocksMove(x, y) {
     return false;
 }
 
+// AUTOCOMPLETE-flagged extcmds, extracted from C cmd.c cmdlist.
+// When the prefix being typed in extcmd mode uniquely matches one of
+// these, C autocompletes the buffer to the full name.
+const EXTCMD_AUTOCOMPLETE = [
+    'adjust', 'annotate', 'chat', 'chronicle', 'conduct', 'dip',
+    'enhance', 'force', 'genocided', 'herecmdmenu', 'history',
+    'invoke', 'jump', 'loot', 'monster', 'name', 'offer', 'overview',
+    'pray', 'ride', 'rub', 'sit', 'terrain', 'therecmdmenu', 'tip',
+    'turn', 'untrap', 'vanquished', 'version', 'wipe',
+];
+const EXTCMD_AUTOCOMPLETE_DEBUG = [
+    'levelchange', 'lightsources', 'panic', 'polyself', 'stats',
+    'timeout', 'vision', 'wizbury', 'wizdispmacros', 'wizintrinsic',
+    'wizmondiff', 'wizrumorcheck', 'wizseenv', 'wizshownhuuid',
+    'wizsmell', 'wiztelekinesis', 'wizwhere', 'wmode',
+];
+
+function autocompleteExtcmd(prefix) {
+    if (!prefix) return null;
+    const list = game.flags?.debug
+        ? EXTCMD_AUTOCOMPLETE.concat(EXTCMD_AUTOCOMPLETE_DEBUG)
+        : EXTCMD_AUTOCOMPLETE;
+    const matches = list.filter(c => c.startsWith(prefix));
+    return matches.length === 1 ? matches[0] : null;
+}
+
 // Toggle/run a specific extcmd by name and emit its result pline.
 // Tracks game._twoweaponOn for the toggle behavior of 'twoweapon'.
 async function executeExtcmd(cmd) {
@@ -86,6 +112,7 @@ export async function rhack(key) {
         if (key === 27 /* ESC */) {
             game._extcmdMode = false;
             game._extcmdBuffer = '';
+            game._extcmdPrefix = '';
             game.context.move = 0;
             return;
         }
@@ -93,6 +120,7 @@ export async function rhack(key) {
             const cmd = game._extcmdBuffer;
             game._extcmdMode = false;
             game._extcmdBuffer = '';
+            game._extcmdPrefix = '';
             // Execute the named extcmd.  Most commands need the full
             // game state (skill ranks, inventory, monster targeting) —
             // we just emit the most common single-line result pline
@@ -101,7 +129,14 @@ export async function rhack(key) {
             return;
         }
         if (ch >= ' ' && ch <= '~') {
-            game._extcmdBuffer += ch;
+            // Track raw typed prefix separately from displayed buffer.
+            // C's menu autocomplete fills in the rest of a uniquely-
+            // matched name into the prompt while the user can continue
+            // typing — extra chars don't append because the menu state
+            // anchors to the real prefix.
+            game._extcmdPrefix = (game._extcmdPrefix || '') + ch;
+            const completed = autocompleteExtcmd(game._extcmdPrefix);
+            game._extcmdBuffer = completed || game._extcmdPrefix;
             await pline('# ' + game._extcmdBuffer);
         }
         game.context.move = 0;
@@ -168,6 +203,7 @@ export async function rhack(key) {
         await pline('#');
         game._extcmdMode = true;
         game._extcmdBuffer = '';
+        game._extcmdPrefix = '';
         game.context.move = 0;
     } else if (key === 22 /* ^V */ && game.flags?.debug) {
         // Wizard-mode level teleport (cmd.c:1970 wiz_level_tele).
