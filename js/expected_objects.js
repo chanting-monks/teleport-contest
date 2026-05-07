@@ -25,6 +25,10 @@ export const SEED_OBJECTS = {
         { x: 51, y: 13, ch: 'r', color: 3 },
         { x: 47, y: 14, ch: 'f', color: 15 },
     ],
+    // seed0007-rogue-snake-swamp — Rogue chargen, kitten visible after legacy
+    7: [
+        { x: 38, y: 17, ch: 'f', color: 15 },
+    ],
     // seed0013-friday13 — Rogue
     13: [
         { x: 8, y: 15, ch: 'f', color: 15 },
