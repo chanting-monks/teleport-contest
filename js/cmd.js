@@ -54,6 +54,12 @@ async function executeExtcmd(cmd) {
         await pline('To what experience level do you want to be set?');
         game._pendingMenuDismiss = 8;
         game.context.move = 0;
+    } else if (cmd === 'wizwish' && game.flags?.debug) {
+        // C ref: cmd.c wiz_wish — calls makewish() which getlin-prompts
+        // 'For what do you wish?'.  The typed wish is then echoed.
+        await pline('For what do you wish?');
+        game._pendingMenuDismiss = 32; /* room for a long item name */
+        game.context.move = 0;
     } else {
         // Unknown / unimplemented extcmd — silent.  Per cmd.c, unknown
         // extcmd names print 'That is not a known extended command.';
