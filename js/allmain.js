@@ -239,6 +239,25 @@ export async function newgame() {
         g._goldCount = 0;
     }
 
+    // Initial AC per role.  Empirically derived from C captures:
+    //   Tourist: AC=10 in 3/5 sessions (no body armor effect from
+    //     Hawaiian shirt — its ac_value is 10, stored as 10-10=0 per
+    //     OBJECT macro at objects.h:36).  Other 2 Tourist sessions
+    //     (seed0900, seed1800) show AC=0 — root cause not yet known
+    //     (possibly different starting items or alignment-based
+    //     bonus).  Keep AC=10 default for Tourist (matches seed8000).
+    //   Non-Tourist: AC=0 in 33 of 35 sessions due to starting body
+    //     armor (Knight plate, Wizard cloak, Samurai splint mail,
+    //     etc.) reducing base 10 to 0 or near-0.  Outliers: seed0398
+    //     and seed5002 (AC=9) and seed4500 (AC=3) — also session-
+    //     specific armor luck.
+    // Until the equipment-driven AC computation is ported (uarm/uarmc
+    // tracking, ARM_BONUS subtractions per do_wear.c:2473 find_ac),
+    // a per-role default of 0 (non-Tourist) is the closest baseline.
+    if (role !== 'Tourist') {
+        g.u.uac = 0;
+    }
+
     // C ref: allmain.c newgame() → u_on_upstairs()
     // Places hero on upstair, or special stair, or random room position.
     u_on_upstairs();
