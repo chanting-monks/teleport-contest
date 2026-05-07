@@ -46,13 +46,19 @@ opportunity from the diagnostic output.
    non-Tourist roles).  Same shape for seed0900, seed1800, seed0017
    — the legacy text renders correctly; status-line stat values are
    the next blocker.
-3. **Add more pline-only commands to `cmd.js`.** Now that pline
-   timing is fixed (`12afd81`), simple-pline commands cleanly produce
-   their `next-screen` row-0 message. Easy targets: `,` on empty floor
-   plines `There is nothing here to pick up.` (`hack.c:3845`); `q`
-   with no quaffable plines `You have nothing to drink.`; `r` with no
+3. **Add more pline-only commands to `cmd.js`.** `,` already added
+   (`9b51b7e` — empty-floor pickup).  Other targets: `q` with no
+   quaffable plines `You have nothing to drink.`; `r` with no
    readable plines `You have nothing to read.`; etc. Each is one line
    in the rhack switch.
+
+   **Reality check before adding more:** every session that uses
+   these commands at game start currently diverges much earlier
+   (legacy/status/map mismatch).  These commits are pure groundwork;
+   they only land as +screen once the upstream divergences are also
+   fixed.  Don't add a command without first running screen-diff to
+   confirm the relevant session reaches that command's screen with
+   all prior rows matching.
 
 ⚠ **Important note on `js/terminal.js`.** The frozen overlay lives at
 `frozen/terminal.js`; the version checked into git lacks the
@@ -94,11 +100,11 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    a2ee792
-last_run_time:      2026-05-06T23:48Z
+last_run_commit:    396ffb8
+last_run_time:      2026-05-07T00:33Z
 last_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
-best_commit:        12afd81 (most recent screens-bumping commit; a2ee792 pushes status-line correctness without screen movement)
+best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
 counts (127 screens, 21 turns, 53829 calls) are unchanged but corpus
