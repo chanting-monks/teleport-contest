@@ -9,6 +9,7 @@
 
 import { game } from './gstate.js';
 import { nhgetch } from './input.js';
+import { flush_screen } from './display.js';
 
 const NO_COLOR = 8;
 const ATTR_INVERSE = 0x1;  // observable in screen-decode.mjs SPACE_VISIBLE_ATTRS
@@ -47,22 +48,27 @@ export async function display_tutorial_menu() {
     const display = game.nhDisplay;
     if (!display) { await nhgetch(); return; }
 
-    // Clear the menu rows in case anything from preamble plines is
-    // still lingering.  Leave rows 7+ untouched — the map underneath
-    // is partially visible below the menu in C captures.
+    // Refresh the grid from level state so the map under the menu
+    // matches C's behavior (C's menu paints only its own cols,
+    // leaving map content visible at cols 0..TUTORIAL_LEFT_COL-2).
+    await flush_screen(1);
+
+    // Clear ONLY the menu's column range — the map at cols
+    // [0, TUTORIAL_LEFT_COL-2] shows through.  TUTORIAL_LEFT_COL-1
+    // is a 1-col left margin (paint as space).
+    const clearStart = Math.max(0, TUTORIAL_LEFT_COL - 1);
     for (let r = 0; r <= 6; r++) {
-        for (let c = 0; c < 80; c++) {
+        for (let c = clearStart; c < 80; c++) {
             display.setCell(c, r, ' ', NO_COLOR, 0);
         }
     }
 
-    // Paint each menu line.  Clear rows 0..maxRow (varies by whether
-    // the invalid-input hint pushes (end) to row 7).
+    // Paint each menu line.  Re-clear menu cols only on each repaint.
     function paintMenu(lines) {
         let maxRow = 0;
         for (const line of lines) if (line.row > maxRow) maxRow = line.row;
         for (let r = 0; r <= maxRow; r++) {
-            for (let c = 0; c < 80; c++) {
+            for (let c = clearStart; c < 80; c++) {
                 display.setCell(c, r, ' ', NO_COLOR, 0);
             }
         }
@@ -97,11 +103,11 @@ export async function display_tutorial_menu() {
         // whether space/return was pressed earlier).
     }
 
-    // Clear the menu rows so the next flush_screen draws the map
-    // unobscured.  Up to row 7 if the invalid-input hint was painted.
+    // Clear the menu's column range so the next flush_screen draws
+    // the map unobscured.  Up to row 7 if invalid-hint was painted.
     const clearMax = invalid ? 7 : 6;
     for (let r = 0; r <= clearMax; r++) {
-        for (let c = 0; c < 80; c++) {
+        for (let c = clearStart; c < 80; c++) {
             display.setCell(c, r, ' ', NO_COLOR, 0);
         }
     }
