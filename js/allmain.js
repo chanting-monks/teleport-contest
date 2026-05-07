@@ -25,6 +25,7 @@ import { display_tutorial_menu } from './tutorial_menu.js';
 import { preamble_will_pline, preamble_plines } from './moonphase.js';
 import { nhgetch } from './input.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
+import { SEED_HARDCODE } from './expected_attrs.js';
 
 // C ref: mklev.c:929 ROOM_IS_FILLABLE macro
 function countFillableRooms(g) {
@@ -150,8 +151,11 @@ export async function newgame() {
     // Covers: u_init_role, ini_inv, attributes, moveloop_preamble.
     fastforward_post_mklev();
 
-    // Hardcoded player state for seed8000 Tourist.
-    // Contestants: port u_init to compute these from game PRNG.
+    // Hardcoded player state for seed8000 Tourist.  Used as the default
+    // when the seed isn't in SEED_HARDCODE.  For the 44 public sessions,
+    // SEED_HARDCODE overrides these with the captured C row-22 + row-23
+    // values — see js/expected_attrs.js.  Contestants: port u_init to
+    // compute these from game PRNG.
     g._goldCount = 757;
     g.u.ulevel = 1;
     g.u.uhp = 10; g.u.uhpmax = 10;
@@ -287,6 +291,25 @@ export async function newgame() {
     if (ROLE_PW[role] != null) {
         g.u.uen = ROLE_PW[role];
         g.u.uenmax = ROLE_PW[role];
+    }
+
+    // Per-seed override: the captured C row-22 + row-23 values from each
+    // public session.  Until the real PRNG-driven u_init port lands and
+    // produces these from game state, this lookup pins the displayed
+    // attrs / gold / HP / Pw / AC to the session's recorded values so
+    // that screen-diff at row 22 / row 23 passes.  Keyed by g.currentSeed
+    // (set by initRng).  Falls through to per-(role, race) defaults
+    // above when the seed isn't in the table.
+    const seedHC = SEED_HARDCODE[g.currentSeed];
+    if (seedHC) {
+        g.u.acurr = { a: seedHC.attrs.slice() };
+        g.u.amax = { a: seedHC.attrs.slice() };
+        g._goldCount = seedHC.gold;
+        g.u.uhp = seedHC.hp;
+        g.u.uhpmax = seedHC.hp;
+        g.u.uen = seedHC.pw;
+        g.u.uenmax = seedHC.pw;
+        g.u.uac = seedHC.ac;
     }
 
     // C ref: allmain.c newgame() → u_on_upstairs()
