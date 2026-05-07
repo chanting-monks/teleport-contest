@@ -76,6 +76,12 @@ export function role_init() {
         while (pantheon === PRIEST_ROLE_INDEX && ++trycnt < 100) {
             pantheon = rn2(SIZE_ROLES_MINUS_ONE);
         }
+        // Stash the picked pantheon (a roles[] index) so legacy.js can
+        // resolve %d (god) to the right role's god list at the player's
+        // alignment.  C ref: role.c:2068 sets flags.pantheon, used by
+        // align_gname/align_gtitle via gu.urole.lgod/ngod/cgod that get
+        // copied from roles[flags.pantheon] elsewhere in role_init.
+        game._priestPantheon = pantheon;
     }
 }
 

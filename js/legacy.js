@@ -53,19 +53,31 @@ function stripUnderscore(s) {
 // Resolve %d / %G / %r for the player's current role + alignment.
 // alignType: -1 chaotic, 0 neutral, 1 lawful (matches aligns[].value).
 // female: boolean for selecting rank1.f.
-function buildSubstitutions(roleName, alignType, female) {
+function buildSubstitutions(roleName, alignType, female, priestPantheon) {
     const role = roles.find(r => r.name.m === roleName ||
                                   (r.name.f && r.name.f === roleName));
     if (!role) return null;
-    if (!role.gods) return null; // Priest — random pantheon, not yet wired.
 
     // gods[] is [lawful, neutral, chaotic]; map align value 1/0/-1
-    // to index 0/1/2.
+    // to index 0/1/2.  For Priest the gods come from a randomly
+    // chosen role's pantheon (rn2(13) loop in role_init); we read
+    // the picked role index from `game._priestPantheon` set by
+    // role_init.
+    let godsSource = role.gods;
+    if (!godsSource) {
+        if (typeof priestPantheon !== 'number') return null;
+        const pantheonRole = roles[priestPantheon];
+        if (!pantheonRole || !pantheonRole.gods) return null;
+        godsSource = pantheonRole.gods;
+    }
+
     const alignIdx = alignType === 1 ? 0 : alignType === 0 ? 1 : 2;
-    const rawGod = role.gods[alignIdx];
+    const rawGod = godsSource[alignIdx];
     const god = stripUnderscore(rawGod);
     const title = (rawGod && rawGod[0] === '_') ? 'goddess' : 'god';
 
+    // For Priest, rank1 is from the Priest role itself ("Aspirant"),
+    // not from the pantheon role — only the gods are borrowed.
     const rank1 = (female && role.rank1.f) ? role.rank1.f : role.rank1.m;
 
     return { d: god, G: title, r: rank1 };
@@ -104,8 +116,8 @@ export async function display_legacy() {
                     : alignName === 'chaotic' ? -1 : 0;
     const female = !!(g.flags?.female);
 
-    const subs = buildSubstitutions(role, alignType, female);
-    if (!subs) return; // unknown role or Priest with random pantheon — skip.
+    const subs = buildSubstitutions(role, alignType, female, g._priestPantheon);
+    if (!subs) return; // unknown role or Priest pantheon not resolved.
 
     // Substitute each template line in place; preserve leading spaces.
     const rawLines = LEGACY_TEMPLATE.split('\n');
@@ -140,15 +152,11 @@ export async function display_legacy() {
         }
     }
 
-    // Lines occupy rows 0..N (where N = subbedLines.length - 1),
-    // then --More-- at row N+1.  Total rows used = subbedLines.length + 1.
-    // First clear all rows the menu occupies — C's pager covers the
-    // map underneath, so rows that are empty in the template (e.g. the
-    // paragraph-separator rows 1, 8, 11) display as blank rather than
-    // letting the map show through.  Rows after --More-- are not
-    // touched (status line, partial map below).
-    const lastMenuRow = subbedLines.length; // index of --More-- row
-    for (let r = 0; r <= lastMenuRow; r++) {
+    // The menu overlay covers the entire map area (rows 0-21) so the
+    // map underneath doesn't show through paragraph-separator rows OR
+    // the rows after --More-- but before the status line.  C's pager
+    // fills the same area; status (rows 22-23) is preserved.
+    for (let r = 0; r <= 21; r++) {
         for (let c = 0; c < 80; c++) {
             display.setCell(c, r, ' ', NO_COLOR, 0);
         }
