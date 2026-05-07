@@ -70,6 +70,28 @@ export async function rhack(key) {
         // ECMD_OK (no turn consumed).
         await pline('There is nothing here to pick up.');
         game.context.move = 0;
+    } else if (ch === ' ') {
+        // Space is unbound by default (rest_on_space is OFF).  C plines
+        // "Unknown command ' '." via cmd.c:3834.  But when a menu-
+        // opening command was just pressed (^X enlightenment, 'i'
+        // inventory, '\\' discoveries, '+' spell list, '#' extcmd),
+        // C has captured the menu and the space dismisses it without
+        // a pline.  We don't model menus yet, so suppress the pline
+        // when we're plausibly in that "menu being dismissed" state —
+        // tracked by game._pendingMenuDismiss set by the openers.
+        if (game._pendingMenuDismiss > 0) {
+            game._pendingMenuDismiss--;
+        } else {
+            await pline("Unknown command ' '.");
+        }
+        game.context.move = 0;
+    } else if (ch === 'i' || ch === '\\' || key === 24 /* ^X */) {
+        // Menu-opening commands we don't fully implement.  C captures a
+        // multi-screen menu; subsequent ' '/ESC presses dismiss it
+        // without firing "Unknown command".  Mark the next key as a
+        // dismissal candidate so cmd.js doesn't pline for it.
+        game._pendingMenuDismiss = 2;
+        game.context.move = 0;
     } else {
         // Non-movement command — silent for now. C plines specific
         // messages for each command, but emitting a generic "Unknown
