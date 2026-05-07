@@ -254,7 +254,7 @@ function drawChargenBanner(display) {
     clearScreenNoColor(display);
     display.putstr(0, 4, "NetHack, Copyright 1985-2026", CHARGEN_NO_COLOR);
     display.putstr(9, 5, "By Stichting Mathematisch Centrum and M. Stephenson.", CHARGEN_NO_COLOR);
-    display.putstr(9, 6, "Version 5.0.0 (Teleport JS port).", CHARGEN_NO_COLOR);
+    display.putstr(9, 6, "Version 5.0.0 MacOS, built May  2 2026 12:00:00.", CHARGEN_NO_COLOR);
     display.putstr(9, 7, "See license for details.", CHARGEN_NO_COLOR);
 }
 
@@ -630,7 +630,7 @@ function drawIsThisOkMenu(display, charDesc, withBanner = true, preserveRename =
         };
         display.putstr(0, 4, bannerLine("NetHack, Copyright 1985-2026", 0), CHARGEN_NO_COLOR);
         display.putstr(9, 5, bannerLine("By Stichting Mathematisch Centrum and M. Stephenson.", 9), CHARGEN_NO_COLOR);
-        display.putstr(9, 6, bannerLine("Version 5.0.0 (Teleport JS port).", 9), CHARGEN_NO_COLOR);
+        display.putstr(9, 6, bannerLine("Version 5.0.0 MacOS, built May  2 2026 12:00:00.", 9), CHARGEN_NO_COLOR);
         display.putstr(9, 7, bannerLine("See license for details.", 9), CHARGEN_NO_COLOR);
     }
     // Title with inverse attribute (1)

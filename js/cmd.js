@@ -42,6 +42,25 @@ export async function rhack(key) {
 
     const ch = String.fromCharCode(key);
 
+    // Extended-command echo mode.  After '#' is pressed, C's getlin()
+    // echoes each typed letter onto the prompt line at row 0.  We
+    // append to game._extcmdBuffer and pline the running text until
+    // ESC (cancel) or '\n' (execute) is pressed.
+    if (game._extcmdMode) {
+        if (key === 27 /* ESC */ || key === 13 || key === 10 /* Enter */) {
+            game._extcmdMode = false;
+            game._extcmdBuffer = '';
+            game.context.move = 0;
+            return;
+        }
+        if (ch >= ' ' && ch <= '~') {
+            game._extcmdBuffer += ch;
+            await pline('# ' + game._extcmdBuffer);
+        }
+        game.context.move = 0;
+        return;
+    }
+
     if (isMovementKey(ch)) {
         await domove(DIR_DX[ch], DIR_DY[ch]);
         game.context.move = 1;
@@ -96,12 +115,12 @@ export async function rhack(key) {
         // Extended command prefix.  C calls extcmd_via_menu (cmd.c) which
         // first prints '#' at row 0 col 0 as a prompt indicator, then
         // calls getlin() to read the command name (echoed as the user
-        // types).  We just emit the initial '#' prompt for step-N match;
-        // subsequent typed letters won't echo correctly without the
-        // full getlin port, but the next ESC / unknown command bails
-        // out cleanly.
+        // types).  Enter extcmd echo mode so subsequent keystrokes
+        // append to the prompt.  ESC cancels, Enter executes (we don't
+        // implement the actual execution).
         await pline('#');
-        game._pendingMenuDismiss = 16;
+        game._extcmdMode = true;
+        game._extcmdBuffer = '';
         game.context.move = 0;
     } else if (key === 22 /* ^V */ && game.flags?.debug) {
         // Wizard-mode level teleport (cmd.c:1970 wiz_level_tele).
