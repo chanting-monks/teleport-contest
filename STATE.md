@@ -66,6 +66,30 @@ opportunity from the diagnostic output.
    yet model entering the tutorial level).  Verified seed0002 step
    10, seed0006 step 38, seed0007 step 17 all match rows 0-6 of the
    menu (firstdiff falls through to the map row mismatch beneath).
+
+2d. **DONE (41197fa): explore-mode pline**.  Sessions with
+   `OPTIONS=playmode:explore` now pline "You are in non-scoring
+   explore/discovery mode." after the moon/friday13 plines.  Per
+   sys/unix/unixmain.c:673.  Verified seed0900 step 1 firstdiff
+   r=1 → r=5; step 2 firstdiff r=0 → r=5.
+
+2e. **DONE (524bb66): u.ualign.type derived from session alignment**.
+   Was hardcoded to 0 (Neutral); now Lawful/Neutral/Chaotic word at
+   row 22 matches C exactly across all sessions.  Knight/Samurai/
+   Valkyrie/Monk-lawful and Rogue/Barbarian-chaotic sessions now
+   show their correct alignment word.
+
+2f. **DONE (2dea756): dosdoor stores in loc.doormask**.  Was wrongly
+   writing loc.flags, so doors rendered as the D_NODOOR floor
+   decoration.  Now closed/locked doors render as '+' and open
+   doors as '|'.  Verified seed0030 step 0 row 6 went from `·····`
+   to `+···+`.
+
+2g. **DONE (7a4678b): SDOOR rendering**.  display.js's terrain_glyph
+   now handles the SDOOR (secret door) case — renders as the wall
+   it's embedded in (HWALL or VWALL) by peeking at adjacent cells.
+   Was hitting the default '?' branch.  Verified seed0006 step 36
+   row 17 went from `└──────?─┘` to `└────────┘`.
 3. **Add more pline-only commands to `cmd.js`.** `,` already added
    (`9b51b7e` — empty-floor pickup).  Other targets: `q` with no
    quaffable plines `You have nothing to drink.`; `r` with no
@@ -120,11 +144,21 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    1ab5b01
-last_run_time:      2026-05-07T03:02Z
+last_run_commit:    7a4678b
+last_run_time:      2026-05-07T03:31Z
 last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
 best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
+
+next_screens_unlocks: 10 sessions are now blocked SOLELY at row 22-23
+status (rows 0-21 fully match): seed0016, seed0017, seed0103, seed0116,
+seed0200, seed0367, seed0373, seed0383, seed0501, seed0900, seed1500.
+For each, fixing per-role u_init (stats + HP + Pw + AC + gold) yields
++1 screen.  This is gated on PRNG state at u_init time matching C —
+which requires mklev call counts to match for non-seed8000 sessions
+(currently they don't, due to incomplete themed rooms / fill_special_room
+/ rnd_rect / mksobj_init RING-class / etc.).  Until the call counts
+align, computed stats won't match C even with a correct u_init port.
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
 counts (127 screens, 21 turns, 53829 calls) are unchanged but corpus
