@@ -92,6 +92,18 @@ export async function rhack(key) {
         // dismissal candidate so cmd.js doesn't pline for it.
         game._pendingMenuDismiss = 2;
         game.context.move = 0;
+    } else if (key === 22 /* ^V */ && game.flags?.debug) {
+        // Wizard-mode level teleport (cmd.c:1970 wiz_level_tele).
+        // Prompts "To what level do you want to teleport?" and reads
+        // a level number via getlin().  We capture the prompt only;
+        // subsequent typed digits + Enter are consumed silently by the
+        // default branch below, so step N+1 (the prompt with echo'd
+        // digit) doesn't match — but step N itself does.
+        await pline('To what level do you want to teleport?');
+        // The getlin reads digits until Enter; suppress "Unknown
+        // command" for those keys.
+        game._pendingMenuDismiss = 8;
+        game.context.move = 0;
     } else {
         // Non-movement command — silent for now. C plines specific
         // messages for each command, but emitting a generic "Unknown
