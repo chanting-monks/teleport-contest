@@ -15,9 +15,12 @@ import {
     fastforward_lua_pair,
     fastforward_post_dungeon,
     fastforward_post_mklev,
+    fastforward_post_mklev_part1,
+    fastforward_post_mklev_part2,
     fastforward_step,
     fastforward_fill_mineralize,
 } from './fastforward.js';
+import { compute_init_attrs, c_to_display } from './u_init.js';
 import { init_dungeons } from './dungeon.js';
 import { role_init, chargen_simulate, chargen_simulate_async } from './role.js';
 import { display_legacy } from './legacy.js';
@@ -149,9 +152,25 @@ export async function newgame() {
         fastforward_fill_mineralize(countFillableRooms(g), r1.w, r1.h, r2.w, r2.h, r3.w, r3.h);
     }
 
-    // Fast-forward through post-mklev startup RNG calls.
-    // Covers: u_init_role, ini_inv, attributes, moveloop_preamble.
-    fastforward_post_mklev();
+    // Fast-forward through post-mklev startup RNG calls in three
+    // phases: pre-attr ini_inv, real init_attr + vary_init_attr, then
+    // post-vary u_init_carry_attr_boost.  The split moves the role/
+    // race-specific attribute RNG calls (28× rn2(100) for Tourist; 30
+    // for Wizard; 6 for Knight; etc.) into the real C-faithful port,
+    // and saves the resulting attrs onto g.u.acurr/amax so non-Tourist
+    // roles get correct stats instead of the Tourist defaults.
+    fastforward_post_mklev_part1();
+    {
+        const role0 = g.opts_role || 'Tourist';
+        const race0 = g.opts_race || 'human';
+        const computed = compute_init_attrs(role0, race0);
+        if (computed) {
+            const disp = c_to_display(computed);
+            g.u.acurr = { a: disp.slice() };
+            g.u.amax = { a: disp.slice() };
+        }
+    }
+    fastforward_post_mklev_part2();
 
     // Hardcoded player state for seed8000 Tourist.  Used as the default
     // when the seed isn't in SEED_HARDCODE.  For the 44 public sessions,

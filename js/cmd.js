@@ -612,40 +612,6 @@ export async function rhack(key) {
             };
             const outcome = PRAY_OUTCOMES[game.currentSeed];
             if (outcome) {
-                // Per-seed pet motion during the multi-turn prayer.
-                // The player is busy for ~5 turns; the dog AI runs.
-                // For each {fromX,fromY,toX,toY} tuple, move the
-                // glyph from its current cell to the new cell.
-                const PET_SHIFTS = {
-                    106: [{ from: { x: 71, y: 6 }, to: { x: 69, y: 6 }, ch: 'd', color: 15 }],
-                };
-                const shifts = PET_SHIFTS[game.currentSeed];
-                if (shifts && game.level) {
-                    for (const sh of shifts) {
-                        const fromLoc = game.level.at?.(sh.from.x, sh.from.y);
-                        const toLoc = game.level.at?.(sh.to.x, sh.to.y);
-                        if (fromLoc && toLoc) {
-                            fromLoc.fixed_glyph = null;
-                            // Also clear the remembered glyph at the
-                            // 'from' cell so newsym repaints terrain.
-                            fromLoc.remembered_glyph = null;
-                            toLoc.fixed_glyph = { ch: sh.ch, color: sh.color, decgfx: false };
-                            newsym(sh.from.x, sh.from.y);
-                            newsym(sh.to.x, sh.to.y);
-                        }
-                    }
-                }
-                // Per-seed attribute penalty applied during prayer.
-                // 'attrDelta' is a 6-element diff over [St,Dx,Co,In,Wi,Ch].
-                const PRAY_ATTR_DELTAS = {
-                    106: [0, 0, 0, 0, -1, 0],   // "Thou must relearn" -> -Wi
-                };
-                const delta = PRAY_ATTR_DELTAS[game.currentSeed];
-                if (delta && game.u?.acurr?.a) {
-                    for (let i = 0; i < 6 && i < delta.length; i++) {
-                        game.u.acurr.a[i] += delta[i];
-                    }
-                }
                 await pline(outcome[0]);
                 if (outcome.length > 1) {
                     game._prayQueue = outcome.slice(1);

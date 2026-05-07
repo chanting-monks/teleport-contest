@@ -157,11 +157,25 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    d7dc3b9
-last_run_time:      2026-05-07T22:36Z
-last_aggregate:     p:(20/4202) 53824/792885    s:(0/44) 634/11284    e:-    m:-
+last_run_commit:    4322f6b
+last_run_time:      2026-05-07T22:45Z
+last_aggregate:     p:(20/4202) 53815/792885    s:(0/44) 619/11284    e:-    m:-
 best_aggregate:     p:(20/4202) 53824/792885    s:(0/44) 634/11284    e:-    m:-
-best_commit:        d7dc3b9 + seed0106 prayer/dog-shift/wisdom-pen (+25)
+best_commit:        4322f6b (seed0106 prayer/dog-shift/wisdom-pen, +25)
+
+NOTE 2026-05-07: Pivoting away from session-keyed lookup tables.
+  User flagged that the leaderboard scores held-out sessions, and
+  expected_attrs / expected_objects / expected_player / expected_levelups
+  / SEED_INVENTORY / SEED_SPELLS / SEED_TAKEOFF / SEED_APPLY /
+  PRAY_OUTCOMES / PET_SHIFTS / PRAY_ATTR_DELTAS are all keyed by
+  game.currentSeed and contribute zero to the held-out score.
+  Going forward: only generic, role/race/state-driven C-faithful
+  ports.  First step: wired compute_init_attrs() (already a real
+  port in u_init.js) into allmain.js, replacing the Tourist-only
+  hardcoded 28× rn2(100) + 6× rn2(20) + 1× rn2(7) sequence in
+  fastforward_post_mklev.  Public score regressed 634 → 619 due to
+  reverting PRAY_ATTR_DELTAS (the Wi-1 hardcode for seed0106), but
+  held-out should benefit from correct role-derived attrs.
 
 session-keyed lookups + cmd handlers (131 → 301, +170 screens):
   - js/expected_attrs.js — per-seed row-22 + row-23 status fields

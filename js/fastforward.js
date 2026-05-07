@@ -183,7 +183,21 @@ export function fastforward_pre_mklev() {
 
 // Post-mklev startup: u_init_role, ini_inv, attributes, moveloop_preamble
 // 124 leaf RNG calls (regenerated from session data)
-export function fastforward_post_mklev() {
+//
+// SPLIT into three phases so the attribute init can be computed by
+// the real compute_init_attrs() port (js/u_init.js):
+//
+//   fastforward_post_mklev_part1()  — pre-attr: 87 ini_inv calls
+//   <real init_attr + vary_init_attr>  — role/race-specific count
+//   fastforward_post_mklev_part2()  — post-vary: u_init_carry_attr_boost
+//
+// The intermediate phase MUST be the real compute_init_attrs.  The
+// number of rn2(100) calls in init_attr is `75 - sum(role.attrbase)`
+// — Tourist 28, Wizard 30, Knight 6, etc.  And vary_init_attr's rn2(7)
+// count varies 0..6 per session.  Hardcoding the seed8000 Tourist
+// counts (28 + 6×rn2(20) + 1×rn2(7)) silently mis-aligns PRNG state
+// for every other role.
+export function fastforward_post_mklev_part1() {
     rnd(1000); rn2(20); rnd(2); rn2(6); rn2(11); rn2(10); rn2(10); rn2(100); rn2(20); rn2(1);
     rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000);
     rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2); rn2(6); rnd(1000); rnd(2);
@@ -192,11 +206,24 @@ export function fastforward_post_mklev() {
     rn2(6); rn2(1); rnd(2); rn2(4); rn2(2); rnd(2); rn2(4); rn2(2); rn2(1); rnd(2); rn2(4);
     rnd(2); rn2(4); rnd(2); rn2(4); rnd(2); rn2(4); rn2(1); rnd(2); rn2(10); rn2(11); rn2(10);
     rn2(10); rn2(1); rnd(2); rn2(70); rn2(1); rn2(1); rnd(2); rn2(1); rn2(25); rn2(25); rn2(25);
-    rn2(20); rn2(1); rnd(2); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100);
-    rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100);
-    rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100);
-    rn2(100); rn2(100); rn2(100); rn2(20); rn2(20); rn2(20); rn2(7); rn2(20); rn2(20); rn2(20);
+    rn2(20); rn2(1); rnd(2);
+}
+export function fastforward_post_mklev_part2() {
     rnd(9000); rnd(30);
+}
+
+// Back-compat shim — keeps the old call sites working for now.  Calls
+// part1 + the original Tourist-specific attr/vary inline + part2.
+// allmain.js should switch to the split form once it's wired up.
+export function fastforward_post_mklev() {
+    fastforward_post_mklev_part1();
+    // Tourist seed8000 attr fingerprint (28× rn2(100) + 6× rn2(20) + 1× rn2(7)).
+    rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100);
+    rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100);
+    rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100); rn2(100);
+    rn2(100); rn2(100); rn2(100);
+    rn2(20); rn2(20); rn2(20); rn2(7); rn2(20); rn2(20); rn2(20);
+    fastforward_post_mklev_part2();
 }
 
 // Per-step leaf RNG calls
