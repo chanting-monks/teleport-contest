@@ -54,12 +54,23 @@ function isMovementKey(ch) {
 }
 
 // C ref: hack.c — check if a cell blocks movement
-function blocksMove(x, y) {
+function blocksMove(x, y, forRush = false) {
     const loc = game.level?.at(x, y);
     if (!loc) return true;
     if (loc.typ === STONE) return true;
     if (IS_WALL(loc.typ)) return true;
     if (loc.typ === DOOR && (loc.doormask & (D_CLOSED | D_LOCKED))) return true;
+    // Rush also stops when an obstacle is on or adjacent to the
+    // destination (monster, item).  Use fixed_glyph as a stand-in
+    // for the unported monster/object lists.  Single-step domove
+    // ignores fixed_glyph so the player can walk over items.
+    if (forRush && loc.fixed_glyph) {
+        const ch = loc.fixed_glyph.ch;
+        // Letters = monsters; symbols like $/(/?/[/% don't block rush
+        // immediately but stop adjacent.  Rough heuristic: any
+        // non-' ' fixed_glyph stops the rush at the cell BEFORE.
+        if (ch !== ' ') return true;
+    }
     return false;
 }
 
@@ -317,10 +328,13 @@ export async function rhack(key) {
     } else if ('HJKLYUBN'.includes(ch)) {
         // Uppercase movement = rush in that direction until blocked.
         // C ref: cmd.c — `M_PREFIX` movement variant `do_rush`.
-        // Treats walls / closed doors / boundary as obstacles.
+        // Treats walls / closed doors / boundary AND fixed_glyph
+        // objects (our monster/item stand-ins) as obstacles.
         const lc = ch.toLowerCase();
         const dx = DIR_DX[lc], dy = DIR_DY[lc];
         for (let i = 0; i < 80; i++) {
+            const next = { x: game.u.ux + dx, y: game.u.uy + dy };
+            if (blocksMove(next.x, next.y, /*forRush*/ true)) break;
             const before = { x: game.u.ux, y: game.u.uy };
             await domove(dx, dy);
             if (game.u.ux === before.x && game.u.uy === before.y) break;
