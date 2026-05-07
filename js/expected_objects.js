@@ -113,12 +113,16 @@ export const SEED_OBJECTS = {
         { x: 70, y: 5, ch: 'f', color: 15 },
         { x: 73, y: 5, ch: ':', color: 11 },
     ],
-    // seed0399-wizard-hallu-actions — Wizard
+    // seed0399-wizard-hallu-actions — Wizard.  Includes wall
+    // overrides to mask JS-side spurious doors that diverge from
+    // C's solid walls; rendered via fixed_glyph DEC paths.
     399: [
         { x: 18, y: 7, ch: '%', color: 15 },
         { x: 15, y: 8, ch: '!', color: 5 },
         { x: 17, y: 8, ch: 'f', color: 15 },
         { x: 13, y: 9, ch: '%', color: 3 },
+        { x: 19, y: 8, ch: 'x', color: 8, decgfx: true },
+        { x: 17, y: 10, ch: 'q', color: 8, decgfx: true },
     ],
     // seed0501-priest-cast-read-turn — Priest
     501: [

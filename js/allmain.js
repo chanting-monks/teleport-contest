@@ -348,7 +348,7 @@ export async function newgame() {
         for (const o of seedObjs) {
             const loc = g.level?.at?.(o.x, o.y);
             if (loc) {
-                loc.fixed_glyph = { ch: o.ch, color: o.color, decgfx: false };
+                loc.fixed_glyph = { ch: o.ch, color: o.color, decgfx: !!o.decgfx };
             }
         }
     }
