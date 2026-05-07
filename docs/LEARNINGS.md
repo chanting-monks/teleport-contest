@@ -1115,3 +1115,106 @@ match the new upstair coord.  Net: two stair glyphs visible.
 **How.**  Track the old upstair value, flip its cell's typ to ROOM
 (25) before setting the new upstair coord and flipping the new cell
 to STAIRS (26).  This was the +42-screen fix in commit e503dd1.
+
+---
+
+## 26. C's hack.c domove returns the move-success boolean — port that contract
+
+**Lesson.** C's `domove` returns FALSE when the destination cell
+is blocked (wall, closed door, edge of level).  The caller doesn't
+advance the turn counter on a blocked move.  My JS rhack was
+unconditionally setting `context.move=1` after `domove()` — even
+when domove had set it to 0 — which made T: drift +1 every time
+the player walked into a wall.
+
+**Why.**  Sessions like seed0700 and seed0016 walk along walls in
+narrow rooms, with several keystrokes blocked by the room's left
+wall.  C's T: stays at the previous value for those keys; JS's
+T: ticked up.  Hard to spot from a single screen-diff but adds up
+across the session.
+
+**How.**  domove now sets `context.move=1` ONLY on the success
+branch (after blocksMove returns false).  rhack's movement-key
+arm no longer overrides — `await domove(...)` is the entire arm.
+Single-commit fix in `a996cda` (+2 screens; +6 for seed0016 alone).
+
+---
+
+## 27. Tutorial-menu hint logic: select_menu(PICK_ONE) tri-state
+
+**Lesson.** C's `select_menu(PICK_ONE)` returns three distinct
+codes that govern ask_do_tutorial's loop:
+- > 0: an item was selected (y/Y/n/N) → caller exits with that.
+- < 0: ESC pressed → caller exits with cancel.
+- = 0: space or return pressed without highlighting → re-loop with
+       the "(Please choose 'y' or 'n'.)" hint added.
+- Any other key: silently re-await keystroke (no re-render).
+
+**Why.**  An over-eager interpretation ("any non-y/n/ESC re-renders
+with hint") matches the C structure superficially but breaks
+sessions where the user typed a non-menu letter ('s', 'l') —
+those should silently re-await without redrawing.  seed0103 lost
+its tutorial-menu match because of this.
+
+**How.**  In tutorial_menu's wait loop:
+- y/Y/n/N or ESC → break out.
+- space (32) or return (10/13) → mark `invalid=true` and re-paint
+  with TUTORIAL_LINES_INVALID (which has the hint at row 6 and
+  pushes "(end)" to row 7).
+- Other keys → `continue` without re-painting.
+
+---
+
+## 28. Menu rendering preserves underlying map; clearing the row hides it
+
+**Lesson.** C's tty menu paints only its own column range
+([leftCol-1, 80) for the standard 1-col left margin).  Map content
+in cols < leftCol-1 shows through and appears in captures.  My
+JS implementations were clearing the entire row (cols 0..79) with
+spaces, which hid legitimate map content like room walls peeking
+through to the left of the menu.
+
+**Why.**  At the tutorial step of debug-mode sessions, C captures
+included `'--- (end)'` where the `'---'` was a wall fragment from
+the room beneath.  My JS lost that wall, so the screen-diff failed
+even when my menu structure matched.
+
+**How.**  In tutorial_menu (and similar future menus):
+1. Call `flush_screen(1)` first to refresh display.grid from level
+   state, putting underlying map content in place.
+2. Clear ONLY [leftCol-1, 80) before painting menu lines.
+3. On exit, clear ONLY [leftCol-1, 80) so the next flush_screen
+   redraws map without menu artifacts in cols < leftCol-1.
+
+The same pattern applies to the legacy book overlay (com_pager) —
+already done in legacy.js.
+
+---
+
+## 29. Per-cell attr=1 only for non-space chars (visible-attr trap)
+
+**Lesson.** When painting a menu line in inverse video (attr=1),
+do NOT set attr=1 on space cells — only non-space characters.
+The screen-decode `observableState` treats `attr=1` on a space
+as visually distinguishable (since inverse video paints the
+background as the foreground color), so `' '` with attr=1 is
+NOT the same cell as `' '` with attr=0 even though both look
+"blank" to the eye.
+
+**Why.**  My initial inverse-paint of inventory category headers
+('Coins', 'Weapons', etc.) set attr=1 on every cell from leftCol
+to leftCol+text.length.  C only marks the non-space text cells
+as inverse, leaving inter-word and trailing spaces at attr=0.
+diffCell flagged the seed8000 inventory at every space cell.
+
+**How.**  When painting an inverse-video line, gate the attr per
+character: `const cellAttr = (isInverse && ch !== ' ') ? 1 : 0;`.
+Applied to both displayInventory and displaySpells, plus any
+future menu drawing code.
+
+(Note: this rule does NOT apply uniformly to all C menu rendering
+— sometimes C does set attr=1 on selected spaces inside a column
+header for alignment purposes, which is why seed0501's spell-menu
+column header line still doesn't fully match.  When it matters,
+extract the exact attr pattern from a C capture rather than
+guessing.)
