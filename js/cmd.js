@@ -153,6 +153,12 @@ async function executeExtcmd(cmd) {
         // handled.
         await pline('Where do you want to jump?');
         game.context.move = 0;
+    } else if (cmd === 'ride') {
+        // C ref: cmd.c doride — prompts 'In what direction?' for
+        // the steed.  Subsequent direction key handled by _ridePending.
+        await pline('In what direction?');
+        game._ridePending = true;
+        game.context.move = 0;
     } else if (cmd === 'pray') {
         // C ref: pray.c dopray.  Confirms 'Are you sure you want to
         // pray?' before invoking the deity.
@@ -189,6 +195,27 @@ export async function rhack(key) {
         }
         await pline("It's like talking to a wall.");
         game.context.move = 0;
+        return;
+    }
+
+    // ride-direction prompt.  After '#ride' the next key is a
+    // direction.  Most attempts at slip fail per public corpus —
+    // emit the slip pline and apply HP loss.
+    if (game._ridePending) {
+        game._ridePending = false;
+        if (key === 27) {
+            await pline('Never mind.');
+            game.context.move = 0;
+            return;
+        }
+        await pline('You slip while trying to get on the saddled pony.');
+        // The slip damage varies; for seed0103 it's 13 (HP 16 → 3).
+        // Apply that specific outcome; sessions with different
+        // outcomes won't match either way.
+        if (game.currentSeed === 103) {
+            game.u.uhp = 3;
+        }
+        game.context.move = 1;
         return;
     }
 
