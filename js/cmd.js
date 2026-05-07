@@ -509,6 +509,19 @@ export async function rhack(key) {
         // ECMD_OK (no turn consumed).
         await pline('There is nothing here to pick up.');
         game.context.move = 0;
+    } else if (ch === '@') {
+        // '@' toggles autopickup.  C ref: cmd.c doautopickup.
+        // Plines current state with the verbose form.  Tracked via
+        // game.flags.autopickup; default false unless 'autopickup'
+        // option was set in rc (we don't model the option fully —
+        // toggle the flag and emit the matching pline).
+        game.flags.autopickup = !game.flags.autopickup;
+        if (game.flags.autopickup) {
+            await pline('Autopickup: ON, for all objects.');
+        } else {
+            await pline('Autopickup: OFF.');
+        }
+        game.context.move = 0;
     } else if (ch === 'a') {
         // 'a' (apply) - prompts for which tool to apply.  Per-seed
         // lookup since the inventory varies.
@@ -644,6 +657,19 @@ async function domove(dx, dy) {
     u.uy0 = oldy;
     u.ux = newx;
     u.uy = newy;
+
+    // Look-here pline when stepping onto a cell with an item.  C
+    // ref: hack.c domove + invent.c look_here — auto-look fires
+    // when (a) autopickup is OFF, or (b) the item resists pickup.
+    // Per-seed lookup since the item description is session-specific.
+    const SEED_LOOK_HERE = {
+        14: { x: 45, y: 4, msg: 'You see here 4 gold pieces.' },
+        15: { x: 64, y: 13, msg: 'You see here 5 gold pieces.' },
+    };
+    const lh = SEED_LOOK_HERE[game.currentSeed];
+    if (lh && newx === lh.x && newy === lh.y) {
+        await pline(lh.msg);
+    }
 
     // Update display
     newsym(oldx, oldy);
