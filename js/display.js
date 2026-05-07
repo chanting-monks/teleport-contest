@@ -50,12 +50,26 @@ function terrain_glyph(loc, x, y) {
         ? { ch: '~', color: NO_COLOR, dec: true }   // DEC middle dot
         : { ch: '.', color: NO_COLOR, dec: false };
     case CORR:      return { ch: '#', color: NO_COLOR, dec: false };
-    case DOOR:
-        if (loc.doormask & D_ISOPEN) return { ch: '|', color: CLR_BROWN, dec: false };
+    case DOOR: {
+        if (loc.doormask & D_ISOPEN) {
+            // Open-door orientation: S_vodoor ('-') if door is in a
+            // vertical wall (column flanked by HWALL is a horizontal
+            // run, so… inverted: horizontal-wall door → S_hodoor '|';
+            // vertical-wall door → S_vodoor '-').  In DEC both map to
+            // 'a' (the checkerboard, rendered as ▒).
+            // C ref: include/defsym.h PCHAR2(13/14) + symset DECgraphics.
+            const lvl = game.level;
+            const left = lvl?.at?.(x - 1, y);
+            const right = lvl?.at?.(x + 1, y);
+            const horizWall = (left && left.typ === HWALL) || (right && right.typ === HWALL);
+            if (dec) return { ch: 'a', color: CLR_BROWN, dec: true };
+            return { ch: horizWall ? '|' : '-', color: CLR_BROWN, dec: false };
+        }
         if (loc.doormask & (D_CLOSED | D_LOCKED)) return { ch: '+', color: CLR_BROWN, dec: false };
         return dec
             ? { ch: '~', color: NO_COLOR, dec: true }
             : { ch: '.', color: NO_COLOR, dec: false };
+    }
     case SDOOR: {
         // Hidden secret door — appears as the wall it's embedded in.
         // C ref: display.c wall_to_glyph — looks at adjacent cells to
