@@ -51,6 +51,10 @@ export class NethackGame {
         // "wizard")). Affects sessions like seed5006 with
         // playmode:debug in their rc.
         if (g.flags.debug) g.plname = 'wizard';
+        // Plumb the session's recorded datetime so moveloop_preamble's
+        // moon/friday13 plines (allmain.c:48-68) can be derived from
+        // it.  Format is "YYYYMMDDHHMMSS" — see js/moonphase.js.
+        g.datetime = this._datetime || null;
         g.iflags = { ...opts.iflags };
         if (opts.preferred_pet) g.preferred_pet = opts.preferred_pet;
         if (opts.tutorial_set) g.tutorial_set_in_config = true;
@@ -154,14 +158,15 @@ export class NethackGame {
 // Cross-segment C-side state (bones, record file, save) is the
 // contestant's responsibility — see how the C side preserves it.
 export async function runSegment(input, prevGame = null) {
-    const { seed, nethackrc } = input;
+    const { seed, nethackrc, datetime } = input;
     const moves = input.moves || '';
 
-    const nhGame = prevGame || new NethackGame({ seed, nethackrc, moves });
+    const nhGame = prevGame || new NethackGame({ seed, nethackrc, moves, datetime });
     if (prevGame) {
         nhGame._seed = seed;
         nhGame._nethackrc = nethackrc;
         nhGame._moves = moves;
+        nhGame._datetime = datetime || null;
     }
 
     const display = new GameDisplay(null);

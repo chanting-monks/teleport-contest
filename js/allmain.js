@@ -21,6 +21,8 @@ import {
 import { init_dungeons } from './dungeon.js';
 import { role_init, chargen_simulate, chargen_simulate_async } from './role.js';
 import { display_legacy } from './legacy.js';
+import { preamble_will_pline, preamble_plines } from './moonphase.js';
+import { nhgetch } from './input.js';
 import { OROOM, THEMEROOM, FILL_NORMAL } from './const.js';
 
 // C ref: mklev.c:929 ROOM_IS_FILLABLE macro
@@ -247,6 +249,56 @@ export async function newgame() {
     };
     const helloWord = HELLO_BY_ROLE[g.opts_role] || 'Hello';
     await pline(`${helloWord} ${g.plname}, welcome to NetHack!  You are a${descBuf}.`);
+
+    // moveloop_preamble (allmain.c:48-68) — moon phase + friday13
+    // status messages that fire BEFORE moveloop_core's first iter.
+    // These come AFTER welcome and AFTER notice_all_mons (which we
+    // don't yet model).  Each pline either appends to topl or, if
+    // the topl is full / next pline is queued, forces --More--.
+    //
+    // For our purposes, we model two specific pline-overflow points:
+    //   (a) welcome → moon : welcome (~74 chars) + --More-- (~8) > 80,
+    //       so --More-- lands on row 1 below welcome.
+    //   (b) moon → tutorial : moon (~33 chars) fits with --More-- on
+    //       the same row 0.  Tutorial menu (when ask_do_tutorial fires
+    //       — i.e., tutorial wasn't explicit in rc) is NOT yet ported,
+    //       so we don't emit the second --More-- here; sessions that
+    //       hit that path will mismatch starting at the moon-screen's
+    //       row 0 trailing chars.
+    const preamblePlines = preamble_plines(g.datetime);
+    if (preamblePlines.length > 0) {
+        // welcome's pline overflow: paint --More-- on row 1, capture
+        // the welcome+--More-- screen, then clear --More-- so the
+        // next pline (moon) renders cleanly.
+        await flush_screen(1);
+        await topl_more_on_row(1);
+        // Pline the moon/friday13 messages.  The LAST one stays in
+        // _pending_message for moveloop_core's first flush_screen to
+        // pick up; intermediate ones would need their own --More--
+        // (only relevant when both moon AND friday13 fire — only seed0013
+        // sessions hit that, which we already mismatch elsewhere).
+        for (let i = 0; i < preamblePlines.length; i++) {
+            await pline(preamblePlines[i]);
+        }
+    }
+}
+
+// Paint "--More--" at column leftCol of the given row, capture the
+// resulting screen via nhgetch (the _preNhgetchHook serializes), then
+// clear the cells so the next flush_screen draws cleanly.  Used for
+// pline-overflow points that aren't routed through display_legacy.
+async function topl_more_on_row(rowIdx, leftCol = 0) {
+    const display = game.nhDisplay;
+    if (!display) { await nhgetch(); return; }
+    const text = '--More--';
+    const NO_COLOR = 8;
+    for (let i = 0; i < text.length && leftCol + i < 80; i++) {
+        display.setCell(leftCol + i, rowIdx, text[i], NO_COLOR, 0);
+    }
+    await nhgetch();
+    for (let c = leftCol; c < leftCol + text.length && c < 80; c++) {
+        display.setCell(c, rowIdx, ' ', NO_COLOR, 0);
+    }
 }
 
 // C ref: allmain.c moveloop_core()
