@@ -46,6 +46,15 @@ opportunity from the diagnostic output.
    non-Tourist roles).  Same shape for seed0900, seed1800, seed0017
    — the legacy text renders correctly; status-line stat values are
    the next blocker.
+
+2b. **DONE (3d3d0aa, 9f714c3): moon/friday13 plines + --More-- chain**.
+   js/moonphase.js + allmain wiring.  After welcome, plines preamble
+   messages with --More-- between them and after the last when
+   tutorial menu is queued.  --More-- placement matches C tty: same
+   row when (msg+8 ≤ 80), else next row col 0.  Verified seed0007
+   step 15 firstdiff r=0 c=71 → r=11; seed0006 step 36/37 firstdiff
+   r=1 → r=13.  Status line at r=22-23 is still the screen-level
+   blocker for these sessions.
 3. **Add more pline-only commands to `cmd.js`.** `,` already added
    (`9b51b7e` — empty-floor pickup).  Other targets: `q` with no
    quaffable plines `You have nothing to drink.`; `r` with no
@@ -100,10 +109,10 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    396ffb8
-last_run_time:      2026-05-07T00:33Z
-last_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53843/792885    s:(0/44) 131/11284    e:-    m:-
+last_run_commit:    9f714c3
+last_run_time:      2026-05-07T01:36Z
+last_aggregate:     p:(20/4202) 53846/792885    s:(0/44) 131/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53846/792885    s:(0/44) 131/11284    e:-    m:-
 best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
 
 NOTE: upstream merge at 7a1271b re-recorded all 44 sessions.  My matched
