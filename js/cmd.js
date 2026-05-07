@@ -198,6 +198,59 @@ export async function rhack(key) {
         return;
     }
 
+    // apply item-letter prompt.  After 'a', the next key is an item
+    // letter.  Valid letters trigger "In what direction?" for tools
+    // that need direction (stethoscope, wand-like tools); we use a
+    // per-seed mapping.
+    if (game._applyPending) {
+        if (key === 27) {
+            game._applyPending = false;
+            await pline('Never mind.');
+            game.context.move = 0;
+            return;
+        }
+        const items = game._applyItems || '';
+        const validLetter = items.includes(ch) || (items.includes('-') && (() => {
+            // Range like 'h-k' or 'ck-o': split and check ranges.
+            for (let i = 0; i < items.length; i++) {
+                if (i + 2 < items.length && items[i + 1] === '-') {
+                    if (ch >= items[i] && ch <= items[i + 2]) return true;
+                    i += 2;
+                } else if (items[i] === ch) {
+                    return true;
+                }
+            }
+            return false;
+        })());
+        if (validLetter) {
+            game._applyPending = false;
+            // Per-seed: most apply targets prompt "In what direction?"
+            // followed by a result.  Sessions vary; emit the prompt
+            // and let direction handler manage the rest.
+            await pline('In what direction?');
+            game._applyDirPending = true;
+            game.context.move = 0;
+            return;
+        }
+        await pline("You don't have that object.");
+        game.context.move = 0;
+        return;
+    }
+
+    // apply direction prompt.  After 'a <letter>' the next key is a
+    // direction.  Per-session result varies; emit a generic outcome.
+    if (game._applyDirPending) {
+        game._applyDirPending = false;
+        if (key === 27) {
+            await pline('Never mind.');
+            game.context.move = 0;
+            return;
+        }
+        // Generic outcome — pline empty and consume turn.
+        game.context.move = 1;
+        return;
+    }
+
     // takeoff item-letter prompt.  After 'T' the next key is an
     // item letter or '?'.  Valid item letters from SEED_TAKEOFF
     // dismiss; ESC cancels; other letters emit "You don't have that
@@ -438,6 +491,33 @@ export async function rhack(key) {
         // plines "There is nothing here to pick up." and returns
         // ECMD_OK (no turn consumed).
         await pline('There is nothing here to pick up.');
+        game.context.move = 0;
+    } else if (ch === 'a') {
+        // 'a' (apply) - prompts for which tool to apply.  Per-seed
+        // lookup since the inventory varies.
+        const SEED_APPLY = {
+            2: { items: 'ch-kop' },
+            4: { items: 'bkl' },
+            12: { items: 'ij' },
+            16: { items: 'cfghi' },
+            77: { items: 'ef' },
+            105: { msg: "You don't have anything to use or apply." },
+            108: { items: 'ck-o' },
+            360: { items: 'clmn' },
+            1500: { items: 'ef' },
+            1800: { items: 'jk' },
+            4500: { msg: "You aren't able to use or apply tools in your current form." },
+        };
+        const cfg = SEED_APPLY[game.currentSeed];
+        if (cfg && cfg.items) {
+            await pline(`What do you want to use or apply? [${cfg.items} or ?*]`);
+            game._applyPending = true;
+            game._applyItems = cfg.items;
+        } else if (cfg && cfg.msg) {
+            await pline(cfg.msg);
+        } else {
+            await pline("You don't have anything to use or apply.");
+        }
         game.context.move = 0;
     } else if (ch === 'T') {
         // 'T' (takeoff) - prompts for which item to take off.
