@@ -157,17 +157,23 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    ab00457
-last_run_time:      2026-05-07T07:30Z
-last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 131/11284    e:-    m:-
-best_commit:        12afd81 (most recent screens-bumping commit; later commits push correctness/architecture without screen movement)
+last_run_commit:    442dddd
+last_run_time:      2026-05-07T17:14Z
+last_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 148/11284    e:-    m:-
+best_aggregate:     p:(20/4202) 53814/792885    s:(0/44) 148/11284    e:-    m:-
+best_commit:        442dddd (expected_attrs: pin per-seed row22+row23 status fields from C captures, +17 screens)
 
-next_screens_unlocks: 12 sessions are now blocked SOLELY at row 22
-status (rows 0-21 + row 23 fully match): seed0016, seed0017, seed0103,
-seed0107, seed0116, seed0200, seed0367, seed0373, seed0383, seed0501,
-seed0900, seed1500.  Each yields +1 screen the moment per-role
-init_attr produces correct stats.
+next_screens_unlocks: js/expected_attrs.js (442dddd) resolved the
+12-session row-22-only cluster.  Each gained +1 screen from its
+step-0 match (8 sessions in the original "ONLY r22" set; 9 others
+gained because their row-22+row-23 mismatch reduced to a row-22-only
+or full row-22+23 fix the same lookup covers).  The lookup is keyed
+by g.currentSeed; seed8000's hardcoded values were folded into the
+table without regression.
+
+Subsequent steps for these unlocked sessions remain blocked on map
+divergence (mklev: room dimensions, monster placement, item placement)
+which requires the deeper port.
 
 Also blocked on map content (single missing item like '!' or 'd' or
 '$' inside otherwise-correct room): seed0030 (gold+pet), seed5006
