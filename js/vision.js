@@ -540,4 +540,20 @@ export function init_vision_globals() {
     game.cs_rows = null;
     game.cs_left = null;
     game.cs_right = null;
+    // Expose the level vision arrays via game.* so translated
+    // vision code (view_from, right_side, left_side, do_clear_area)
+    // can read them.  C ref: these are module-static globals in
+    // vision.c (viz_clear, left_ptrs, right_ptrs).  Without this,
+    // translated do_clear_area called from non-hero origins
+    // (e.g. pet's dog_goal) reads game.right_ptrs[y][x] = 0 for
+    // every cell, hangs in right_side's while loop (LEARNINGS
+    // §16.2 seed0004 iter 18 hang).
+    game.viz_clear = viz_clear;
+    game.left_ptrs = left_ptrs;
+    game.right_ptrs = right_ptrs;
+    // viz_clear_rows is an alias — translated vision_init() sets
+    // viz_clear_rows[i] = viz_clear[i].  Set both up-front so
+    // anything that reads viz_clear_rows before vision_init runs
+    // sees the proper data.
+    game.viz_clear_rows = viz_clear;
 }

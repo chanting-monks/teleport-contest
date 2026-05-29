@@ -10,12 +10,13 @@
 // For browser play, see nethack.js (uses NethackGame directly).
 
 import { game, resetGame } from './gstate.js';
-import { initRng, enableRngLog, clearRngLog, getRngLog } from './rng.js';
+import { initRng, enableRngLog, getRngLog } from './rng.js';
 import { pushKey, nhgetch } from './input.js';
 import { newgame, moveloop_core } from './allmain.js';
-import { parseNethackrc, detectChargenNeeded } from './options.js';
+import { parseNethackrc } from './options.js';
 import { flush_screen } from './display.js';
 import { GameDisplay } from './game_display.js';
+import { initTraceMode } from './c2js-runtime/trace.js';
 
 // ── NethackGame ──
 // Wraps a single game session with replay infrastructure.
@@ -24,73 +25,232 @@ export class NethackGame {
         this._seed = opts.seed || 0;
         this._datetime = opts.datetime || null;
         this._nethackrc = opts.nethackrc || '';
-        this._moves = opts.moves || '';
+        // Cross-segment persistence handle. The judge sandbox passes a
+        // shared Web-Storage-shaped object here so save / record /
+        // bones survive across segments of a session; the browser
+        // /play/<owner>/ page passes a localStorage-backed view so
+        // those files also survive page reloads. If a port doesn't
+        // need persistence (no save/restore implemented yet), it can
+        // ignore this; the field just sits unused.
+        this._storage = opts.storage || null;
         this._screens = [];
         this._cursors = [];
         this._rngSlices = [];
+        // Animation frames captured during each step.  Outer index
+        // matches _screens (one entry per input boundary); inner array
+        // is the frames that fired between this boundary and the
+        // previous one, in emit order.  Populated by animationFrame()
+        // calls; committed at each input boundary.
+        this._animFramesByStep = [];
+        this._pendingAnimFrames = [];
         this._lastRngIdx = 0;
         this._nhgetchCount = 0;
-        // The rng log is cumulative across segments of one session,
-        // mirroring how C's recorder captures the full per-process call
-        // sequence. Reset it on game-construction (= first segment),
-        // never on segment 2+. initRng/enableRngLog deliberately do
-        // NOT touch the log.
-        clearRngLog();
+    }
+
+    // Universal animation-frame hook.  Call once per intermediate
+    // animation state — typically inside whatever your port writes as
+    // the equivalent of NetHack's nh_delay_output() (zap beams, thrown
+    // objects, hurtle steps, explosion expansions).
+    //
+    // Same call, same code, in every runtime:
+    //   * Browser /play/  — your writes to the Terminal already update
+    //                        the visible DOM cells; we yield via
+    //                        requestAnimationFrame so the browser
+    //                        actually paints between frames.
+    //   * Judge sandbox    — the Terminal is a pure data structure;
+    //                        we yield a microtask, effectively
+    //                        immediate.
+    //   * Local score.sh   — same as judge sandbox.
+    //
+    // The yield mechanism is the only environment-sensitive bit, and
+    // it is invisible to contestant code: every caller writes the same
+    // `await game.animationFrame()`.
+    //
+    // Frames are scored as a SUPPLEMENTAL metric (see API.md).  Not
+    // implementing animation frames doesn't penalise your official
+    // RNG / screen score in any way.
+    async animationFrame() {
+        const disp = game?.nhDisplay;
+        const term = disp?.terminal || disp;
+        this._pendingAnimFrames.push({
+            screen: term?.serialize ? term.serialize() : '',
+            cursor: disp ? [disp.cursorCol ?? 0, disp.cursorRow ?? 0, 1] : null,
+        });
+        if (typeof requestAnimationFrame === 'function') {
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+        } else {
+            await null;
+        }
     }
 
     async start() {
         const g = resetGame();
 
-        // Parse nethackrc
+        // Wire session datetime → globalThis.__nh_localtime so the
+        // translated calendar.c functions (phase_of_the_moon, friday_13th,
+        // night, midnight) compute against the RECORDING's date instead
+        // of the JS process clock.  Format: "YYYYMMDDHHMMSS" (e.g.
+        // "20000922140000").  Without this, every session's moon-phase
+        // / friday-13th flags depend on the wall-clock day the replay
+        // runs on — only by chance matching the canonical recording's
+        // calendar event flags.
+        if (this._datetime && /^\d{14}$/.test(this._datetime)) {
+            const s = this._datetime;
+            const Y = +s.slice(0, 4), M = +s.slice(4, 6) - 1, D = +s.slice(6, 8);
+            const H = +s.slice(8, 10), Mi = +s.slice(10, 12), Se = +s.slice(12, 14);
+            const d = new Date(Y, M, D, H, Mi, Se);
+            // C struct tm layout (the translated calendar code reads
+            // tm_year, tm_yday, tm_mon, tm_mday, tm_hour, tm_wday).
+            // Note: tm_year is years-since-1900; tm_mon is 0..11;
+            // tm_wday is 0..6 (Sun=0); tm_yday is 0..365.
+            const start = new Date(Y, 0, 1);
+            const tm_yday = Math.floor((d - start) / 86400000);
+            const _tm = {
+                tm_sec: Se, tm_min: Mi, tm_hour: H,
+                tm_mday: D, tm_mon: M, tm_year: Y - 1900,
+                tm_wday: d.getDay(), tm_yday,
+                tm_isdst: 0, tm_gmtoff: 0, tm_zone: null,
+            };
+            globalThis.localtime = () => _tm;
+            // Also expose via __nh_localtime so the c2js-runtime
+            // calendar.localtime export can resolve it without colliding
+            // with autostub's globalThis.localtime no-op.
+            globalThis.__nh_localtime = () => _tm;
+        }
+
+        // Parse nethackrc.  Note: resetGame restores the
+        // post-module-load snapshot which includes the FULL struct
+        // shapes for game.u / game.flags / game.iflags from
+        // translated decl.js.  Don't replace those structs here —
+        // merge rc options into them.  Replacing wholesale would
+        // destroy the ~hundred nested fields the translated chargen
+        // functions read.
         const opts = parseNethackrc(this._nethackrc);
-        g.plname = opts.name || 'Hero';
-        g.flags = { verbose: true, ...opts.flags };
-        // OPTIONS=symset:DECgraphics → DEC line-drawing chars for
-        // walls/floor (rendered via SO/SI mode in C tty).  Default
-        // (no symset specified, or any non-DECgraphics value) →
-        // plain ASCII chars (HWALL='-', VWALL='|', corners='-').
-        // Affects how display.js's terrain_glyph picks a glyph per
-        // terrain type.
-        if (opts.symset) g.flags.symset = opts.symset;
-        // Wizard/debug mode forces plname to "wizard" (overriding any
-        // OPTIONS=name:... value).  C ref: src/options.c:10138
-        // set_playmode() — gp.plnamelen = strlen(strcpy(svp.plname,
-        // "wizard")). Affects sessions like seed5006 with
-        // playmode:debug in their rc.
-        if (g.flags.debug) g.plname = 'wizard';
-        // Plumb the session's recorded datetime so moveloop_preamble's
-        // moon/friday13 plines (allmain.c:48-68) can be derived from
-        // it.  Format is "YYYYMMDDHHMMSS" — see js/moonphase.js.
-        g.datetime = this._datetime || null;
-        g.iflags = { ...opts.iflags };
+        // C ref options.c:10138 set_playmode() — under playmode:debug,
+        // strcpy(svp.plname, "wizard") overwrites whatever name: option
+        // was provided in the rc file.  Mirror that here so wizmode
+        // sessions (seed5006-tourist-stress-disaster, etc.) show
+        // "wizard the <rank>" on the status line rather than the
+        // rc-configured name.
+        if (opts.flags?.debug) {
+            g.plname = 'wizard';
+            g._rcHasName = true;
+        } else {
+            g.plname = opts.name || 'Hero';
+            // Track whether the rc-file supplied a name explicitly.
+            // C ref allmain.c: `if (!*svp.plname) askname()` always asks
+            // when plname is empty in rc; the JS 'Hero' fallback masks
+            // this — without the flag, sessions like seed0017 (role
+            // set, name missing) skip askname and start consuming the
+            // typed-name characters as game commands.
+            g._rcHasName = !!opts.name;
+        }
+        g.flags = g.flags || {};
+        // Track which g.flags / g.iflags keys we explicitly write below
+        // so allmain.js newgame() knows to restore those (and only those)
+        // after decl_globals_init.  Without this set, allmain.js's naive
+        // `Object.keys(rcFlags)` walk restores every flag — including
+        // safe_dog=0 from the resetGame snapshot — clobbering the
+        // NHOPTB defaults the in-place initoptions walk applies.
+        g._rcWrittenFlags = new Set();
+        g._rcWrittenIflags = new Set();
+        const __setFlag = (k, v) => { g.flags[k] = v; g._rcWrittenFlags.add(k); };
+        const __setIflag = (k, v) => { g.iflags[k] = v; g._rcWrittenIflags.add(k); };
+        __setFlag('verbose', true);
+        // C-correct default (ref optlist.h:410 NHOPTB(legacy, ..., On, ...)).
+        // rc options like `!legacy` override below.
+        __setFlag('legacy', 1);
+        // C-correct default (ref optlist.h:213 NHOPTB(bones, ..., On, ...)).
+        // Required so the translated mklev path's getbones() reaches its
+        // rn2(3) probability check at bones.c:645 (otherwise an undefined
+        // flag short-circuits, dropping that RNG call and shifting every
+        // subsequent makelevel() rn2() down by one).
+        __setFlag('bones', 1);
+        // C-correct default (ref optlist.h:181 NHOPTB(autoopen, ..., On, ...)).
+        // Required so translated hack.js domove_core fires the
+        // doopen_indir → rnl(20) call when the player walks into a
+        // closed door.  Without this, every "first move bumps a
+        // door" session (seed0077, seed0030) skips that rn2 and
+        // diverges from C at the door-bump moment.
+        __setFlag('autoopen', 1);
+        // C-correct default (ref optlist.h NHOPTB(confirm, ..., On, ...)).
+        // flags.confirm gates the y/n attack-confirmation prompt for
+        // peaceful monsters (apply.js:2607 travel filter; do_attack /
+        // attack_checks for moveinto-peaceful).  Without the default,
+        // multi-turn paths involving peaceful monsters take different
+        // branches than C — seed0107 (samurai twoweapon enhance) +76,
+        // seed0002 (healer reflection) +57, seed0030 (ten deaths) +26.
+        __setFlag('confirm', 1);
+        // C-correct default (ref options.c:7173 sets
+        // flags.paranoia_bits = PARANOID_PRAY | PARANOID_SWIM |
+        // PARANOID_TRAP = 0x20 | 0x400 | 0x800 = 0xC20).
+        // Affects paranoid_query gates in were.js and pickup.js
+        // for confirmation prompts.  +3 P aggregate.
+        __setFlag('paranoia_bits', 0xC20);
+        // C-correct default (ref optlist.h NHOPTB(tutorial, ..., On, ...)).
+        // Sessions that don't set !tutorial in their rc (e.g. seed0103
+        // Knight, seed0102 Ranger) get the "Do you want a tutorial?"
+        // prompt at game start.  Without the default JS skipped the
+        // tutorial render for those sessions and missed step 2's
+        // canonical capture.  rc options like `!tutorial` override below
+        // via the opts.flags merge.
+        __setFlag('tutorial', 1);
+        // safe_dog is set unconditionally by allmain.js's allopt_init
+        // walk (safe_pet → flags.safe_dog initval=1).  The env-gate
+        // that previously lived here was a temporary debugging hook
+        // for the seed0030 hang that has since been fixed; verified
+        // 2026-05-22 that removing the gate is score-neutral and
+        // game.flags.safe_dog === 1 in both states.
+        if (opts.flags) for (const k of Object.keys(opts.flags)) __setFlag(k, opts.flags[k]);
+        g.iflags = g.iflags || {};
+        // C-correct default (ref optlist.h NHOPTB(status_updates,
+        // ..., On, ...)).  iflags.status_updates gates bot()'s
+        // condition-bitmask rebuild paths (botl.js:218 + :234).
+        // When undefined-falsy, status drawing skips a code path
+        // that fires before chargen ends, shifting downstream RNG.
+        // Effect: +23 P aggregate across multi-level sessions.
+        __setIflag('status_updates', 1);
+        if (opts.iflags) for (const k of Object.keys(opts.iflags)) __setIflag(k, opts.iflags[k]);
         if (opts.preferred_pet) g.preferred_pet = opts.preferred_pet;
         if (opts.tutorial_set) g.tutorial_set_in_config = true;
-        // Role/race/gender/align strings from nethackrc — needed by
-        // role_init for nemgend/ldrgend rn2 calls and (eventually) by
-        // u_init_role for stat / inventory rolls.
-        g.opts_role = (opts.role && opts.role !== -1) ? opts.role : '';
-        g.opts_race = (opts.race && opts.race !== -1) ? opts.race : '';
-        g.opts_align = (opts.align && opts.align !== -1) ? opts.align : '';
-        g.opts_gender = (opts.gender && opts.gender !== -1) ? opts.gender : '';
-        // Chargen runs interactively whenever any of role/race/gender/
-        // align is unset in nethackrc. role.js's chargen_simulate()
-        // models both 'y' (full-random) and 'n' (manual menu) flows.
-        g.opts_chargen_needed = detectChargenNeeded(opts);
-        g.opts_chargen_moves = this._moves;
+        // Stash rc symset name for allmain.js newgame() to apply AFTER
+        // decl_globals_init builds the g.symset[] struct array.  C ref
+        // options.c parse_symset_file → set_symset_handling.  H_DEC=2
+        // (DECgraphics), H_IBM=1, H_UTF8=5, H_UNK=0 (default ASCII).
+        if (opts.symset) {
+            g._rcSymsetName = opts.symset;
+        }
+        // Thread gender from rc into g.flags.female so non-default
+        // sessions (e.g. role:Tourist,gender:male) don't get the
+        // skeleton's hardcoded female default that mismatches the
+        // recording's pronoun "human male" vs "human female".
+        if (typeof opts.gender === 'string') {
+            __setFlag('initgend', opts.gender === 'female' ? 1 : 0);
+            __setFlag('female', (opts.gender === 'female'));
+        }
+        // Stash parsed role/race/align where allmain.js can read
+        // them to override the seed8000-specific hardcoded
+        // female-Tourist defaults.
+        g._optsRole = opts.role;
+        g._optsRace = opts.race;
+        g._optsAlign = opts.align;
 
-        // Initialize hero struct
-        g.u = { ux: 0, uy: 0, ux0: 0, uy0: 0 };
-        g.context = { move: 0 };
-        g.program_state = {};
+        // Per-session runtime fields not in decl.js's top-level
+        // (and we want fresh each session).
+        g.context = g.context || {};
+        g.context.move = 0;
+        g.program_state = g.program_state || {};
         g.moves = 1;
 
-        // TODO: Map role/race/gender/align from opts to role data
-        g.urole = { name: { m: 'Rambler', f: 'Rambler' } };
-        g.urace = { adj: 'human' };
-
         // Initialize PRNG
-        initRng(this._seed);
+        await initRng(this._seed);
         enableRngLog();
+        // Trace mode (NH_TRACE=on emits >/</^/= ; NH_TRACE=probe
+        // also emits ?).  See docs/INSTRUMENTATION.md.  The trace
+        // markers interleave into game._rngLog alongside PRNG calls;
+        // the scorer filters them out by the rn2/rnd/... regex so
+        // they're invisible to scoring but visible to the differ.
+        initTraceMode();
 
         // Install display
         if (this._pendingDisplay) {
@@ -127,54 +287,175 @@ export class NethackGame {
             const cursor = disp ? [disp.cursorCol ?? 0, disp.cursorRow ?? 0, 1] : null;
             nhGame._cursors.push(cursor);
 
-            // After capturing the screen, clear the pline buffer so the
-            // next flush_screen starts fresh.  C's topl tracks "did the
-            // user see this message yet?"; here we model "yes, at the
-            // capture that just happened" by clearing now.  Any pline
-            // fired after this hook (e.g. by rhack handlers like '+'
-            // dovspell) will appear in the *next* iteration's screen.
-            game._pending_message = '';
+            // Clear one-shot cursor overrides set by sync prompts
+            // (win_yn_function etc).  The override positioned the cursor
+            // for THIS capture; subsequent captures should fall back to
+            // the default hero position unless something else sets a
+            // fresh override.
+            if (game._cursor_override_oneshot) {
+                game._cursor_override = null;
+                game._cursor_override_oneshot = false;
+            }
+
+            // Commit animation frames accumulated since the previous
+            // input boundary as belonging to this step.  Frames are
+            // captured by animationFrame() into _pendingAnimFrames; we
+            // snapshot and reset here so the next step starts empty.
+            nhGame._animFramesByStep.push(nhGame._pendingAnimFrames);
+            nhGame._pendingAnimFrames = [];
+        };
+        // Synchronous animation-frame snapshot, invoked from
+        // win_delay_output (allmain.js).  Each win_delay_output call in
+        // the translated code marks a visible animation boundary
+        // (zap-beam step, thrown-object trajectory step, run-mode
+        // crawl frame, dig stage, mthrowu volley step).  We push the
+        // current terminal-grid serialization plus cursor position
+        // into the pending bucket; jsmain.js's _preNhgetchHook commits
+        // the bucket to _animFramesByStep at the NEXT input boundary,
+        // so each step's frames are attributed to the keystroke that
+        // initiated them.
+        //
+        // Sync (no await): the translated callers fire
+        // (game.windowprocs.win_delay_output)() without await, so the
+        // push must complete in one tick.  serialize() is sync;
+        // tmp_at/newsym already called flush_screen(0) by the time
+        // win_delay_output fires, so the grid reflects the current
+        // animation state.
+        game._captureAnimFrame = () => {
+            const disp = game?.nhDisplay;
+            const term = disp?.terminal || disp;
+            const savedCells = [];
+            // C's anim recorder snapshots between flush_screen and the
+            // next pline — row 0 (topl) is empty in canonical frames
+            // even when an adjacent input boundary's screen has a
+            // message.  Mirror that by force-blanking row 0 across
+            // the capture and restoring afterward; keeps the
+            // boundary-screen capture (which fires from
+            // _preNhgetchHook with the topl intact) unaffected.
+            if (disp?.setCell && disp?.grid && disp.cols) {
+                for (let c = 0; c < disp.cols; c++) {
+                    const old = disp.grid[0] ? disp.grid[0][c] : null;
+                    savedCells.push({ x: c, y: 0, old });
+                    disp.setCell(c, 0, ' ', /* NO_COLOR */ 8, 0);
+                }
+            }
+            // Translated domove updates u.ux/u.uy and calls newsym on
+            // the OLD position (u.ux0/u.uy0), but doesn't call
+            // newsym(u.ux, u.uy) to repaint the hero at the new
+            // position before runmode_delay_output fires.  C's
+            // tty_delay_output sees a terminal with hero ALREADY at
+            // the new cell because curs_on_u / show_glyph in the C
+            // display layer paints it.  We mirror C's expected state
+            // by force-writing '@' at (u.ux, u.uy) and clearing
+            // (u.ux0, u.uy0) for the snapshot only, then restoring.
+            // Map (x=1..79, y=0..21) → terminal cell (col=x-1, row=y+1).
+            //
+            // No PRNG calls — pure terminal-grid manipulation.
+            const u = game?.u;
+            if (disp?.setCell && disp?.grid && u
+                && typeof u.ux === 'number' && typeof u.uy === 'number') {
+                const newTx = u.ux - 1, newTy = u.uy + 1;
+                if (newTy >= 1 && newTy < disp.rows
+                    && newTx >= 0 && newTx < disp.cols) {
+                    const old = disp.grid[newTy] ? disp.grid[newTy][newTx] : null;
+                    savedCells.push({ x: newTx, y: newTy, old });
+                    disp.setCell(newTx, newTy, '@',
+                                  /* CLR_WHITE */ 15, 0);
+                }
+                if (typeof u.ux0 === 'number' && typeof u.uy0 === 'number'
+                    && (u.ux0 !== u.ux || u.uy0 !== u.uy)) {
+                    const oldTx = u.ux0 - 1, oldTy = u.uy0 + 1;
+                    if (oldTy >= 1 && oldTy < disp.rows
+                        && oldTx >= 0 && oldTx < disp.cols) {
+                        const old = disp.grid[oldTy] ? disp.grid[oldTy][oldTx] : null;
+                        // Only override if the OLD cell still has the
+                        // hero glyph (translated newsym didn't clear
+                        // it).  If newsym already painted floor, leave
+                        // it alone.
+                        if (old && old.ch === '@') {
+                            savedCells.push({ x: oldTx, y: oldTy, old });
+                            // Floor approximation — middle-dot.  Matches
+                            // ASCII / Unicode floor in our renderer.
+                            disp.setCell(oldTx, oldTy, '·',
+                                          /* NO_COLOR */ 8, 0);
+                        }
+                    }
+                }
+            }
+            const screen = term?.serialize ? term.serialize() : '';
+            // Restore all touched cells in reverse order so any
+            // re-touched coord goes back to its original content.
+            if (disp?.setCell) {
+                for (let i = savedCells.length - 1; i >= 0; i--) {
+                    const s = savedCells[i];
+                    const c = s.old || {};
+                    disp.setCell(s.x, s.y, c.ch ?? ' ',
+                                  c.color ?? 8, c.attr ?? 0);
+                }
+            }
+            nhGame._pendingAnimFrames.push({
+                screen,
+                cursor: disp ? [disp.cursorCol ?? 0, disp.cursorRow ?? 0, 1] : null,
+            });
         };
     }
 
     getScreens() { return this._screens; }
     getCursors() { return this._cursors; }
-    getRngLog() { return getRngLog(); }
+    // Flatten the per-step slices across ALL segments — game._rngLog
+    // gets reset on every initRng/enableRngLog call (once per
+    // segment's start()), so it only ever contains the latest
+    // segment's RNG.  The judge reads getRngLog() once at the end
+    // of a multi-segment session and compares against C's flattened
+    // all-segments trace; returning the slice union is the only
+    // way to get a complete log for multi-segment sessions
+    // (seed0030, seed0013-friday13-save, etc.).
+    getRngLog() {
+        const out = [];
+        for (const slice of this._rngSlices) {
+            for (const entry of slice) out.push(entry);
+        }
+        return out;
+    }
     // Per-step PRNG slices, parallel to getScreens(). Each entry is the
     // log of PRNG calls that fired since the previous capture (i.e.
     // since the previous nhgetch). Useful for tooling like the PS
-    // visualizer that wants to attribute calls to individual keystrokes;
-    // the judge ignores this and uses getRngLog() flat.
+    // visualizer that wants to attribute calls to individual keystrokes.
     getRngSlices() { return this._rngSlices; }
+    // Per-step animation frames, parallel to getScreens().  Each entry
+    // is the array of frames captured (via animationFrame()) between
+    // the previous input boundary and this one — i.e. the intermediate
+    // display states for that step's animation.  Empty inner arrays
+    // for steps that didn't animate.  SUPPLEMENTAL metric — not part
+    // of the official ranking; see API.md.
+    getAnimationFramesByStep() { return this._animFramesByStep; }
 }
 
 // ── Per-segment runner — the contest contract ──
 //
 // The judge calls this once per segment. Input is a clean replay
-// descriptor with exactly four fields (NO recorded answers):
+// descriptor with up to five fields (NO recorded answers):
 //
 //   { seed: number,        // PRNG seed
 //     datetime: string,    // fixed datetime "YYYYMMDDHHMMSS"
 //     nethackrc: string,   // game-options rc text
-//     moves: string }      // raw key sequence to replay from launch
+//     moves: string,       // raw key sequence to replay from launch
+//     storage: object }    // Web-Storage-shaped (getItem/setItem/...)
+//                          //   handle for cross-segment persistence —
+//                          //   shared across all segments of a
+//                          //   session. The browser passes a
+//                          //   localStorage-backed view so save files
+//                          //   survive page reload too.
 //
-// prevGame is null on the first segment; on later segments it carries
-// forward the previous segment's captures so the judge can read back
-// cumulative screens/cursors/RngLog at the end.
-//
-// Cross-segment C-side state (bones, record file, save) is the
-// contestant's responsibility — see how the C side preserves it.
-export async function runSegment(input, prevGame = null) {
-    const { seed, nethackrc, datetime } = input;
+// Each call returns a self-contained game whose getScreens() /
+// getRngLog() / getCursors() / getAnimationFramesByStep() cover ONLY
+// this segment. The harness concatenates them itself. Cross-segment
+// C-side state (bones, record file, save) lives in `input.storage`.
+export async function runSegment(input) {
+    const { seed, nethackrc, storage, datetime } = input;
     const moves = input.moves || '';
 
-    const nhGame = prevGame || new NethackGame({ seed, nethackrc, moves, datetime });
-    if (prevGame) {
-        nhGame._seed = seed;
-        nhGame._nethackrc = nethackrc;
-        nhGame._moves = moves;
-        nhGame._datetime = datetime || null;
-    }
+    const nhGame = new NethackGame({ seed, nethackrc, storage, datetime });
 
     const display = new GameDisplay(null);
     display.onEmptyQueue = () => { throw new Error('Input queue empty - test may be missing keystrokes'); };

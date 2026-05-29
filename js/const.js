@@ -2598,12 +2598,12 @@ const gr = { rogue_syms: null };
 
 // Autotranslated from symbols.c:306
 export function update_primary_symset(symp, val) {
-  gp.primary_syms = val;
+  game.primary_syms = val;
 }
 
 // Autotranslated from symbols.c:312
 export function update_rogue_symset(symp, val) {
-  gr.rogue_syms = val;
+  game.rogue_syms = val;
 }
 
 // symset_is_compatible — moved to drawing.js
@@ -2613,9 +2613,9 @@ const known_handling = ["UNKNOWN", "IBM", "DEC", "UTF8", null];
 
 export function set_symhandling(handling, which_set) {
   let i = 0;
-  gs.symset[which_set].handling = H_UNK;
+  game.symset[which_set].handling = H_UNK;
   while (known_handling[i]) {
-    if (known_handling[i].toLowerCase() === handling.toLowerCase()) { gs.symset[which_set].handling = i; return; }
+    if (known_handling[i].toLowerCase() === handling.toLowerCase()) { game.symset[which_set].handling = i; return; }
     i++;
   }
 }
