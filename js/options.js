@@ -66,18 +66,3 @@ export function parseNethackrc(rc) {
     }
     return result;
 }
-
-// Detects whether chargen will run interactively at game start, i.e.,
-// at least one of role/race/gender/align is unset in the nethackrc.
-// When this returns true, role.js's chargen_simulate() walks the moves
-// keystroke prefix to model both the 'y'/'a' (full-random) and 'n'
-// (manual menu) chargen flows and emit the matching rn2 calls.
-//
-// C ref: role.c:2249-2301 — "Shall I pick a character for you? [ynaq]".
-export function detectChargenNeeded(opts) {
-    const hasRole = opts.role && opts.role !== -1;
-    const hasRace = opts.race && opts.race !== -1;
-    const hasGend = opts.gender && opts.gender !== -1;
-    const hasAlgn = opts.align && opts.align !== -1;
-    return !(hasRole && hasRace && hasGend && hasAlgn);
-}

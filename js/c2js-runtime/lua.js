@@ -1,0 +1,971 @@
+// lua.js — Lua bridge backed by the fengari Lua 5.3 interpreter.
+//
+// NetHack 5.0 calls into Lua heavily for declarative content
+// (dungeon.lua) AND for procedural content (themerms.lua, nhlib.lua,
+// etc.).  A data-only parser handles the declarative subset; the
+// procedural side needs a real Lua VM.  fengari is a faithful Lua
+// 5.3 port written in JS — we use it to execute .lua source while
+// preserving every PRNG side-effect.
+//
+// The C bridge translated from src/nhlua.c calls lua_getfield,
+// lua_pop, get_table_str, etc.  We re-export those names here, each
+// implemented as a thin wrapper over the corresponding fengari API.
+//
+// The single most important contract: PRNG calls inside Lua flow
+// through `nh.rn2` / `nh.random` and MUST land in our js/rng.js so
+// the recorded sequence matches.  We bind those globals before
+// running any user code.
+
+// Lua state machinery.  The JS-native shim lives in lua-state.mjs
+// and is API-compatible with fengari; switching by toggling the
+// import below.  Today we still import fengari — the shim is
+// scaffolded (see lua-state.mjs commit) but a few subtle behaviors
+// (PRNG-faithful order of operations across the 200+ lua_X calls
+// in sp_lev.js) need follow-up validation before we flip the import.
+// Test runs under the shim: lua tests + dungeon-data init pass; full
+// seed8000 reaches 366/3130 before a PRNG-order divergence.
+import {
+    lua, lauxlib, lualib,
+    to_jsstring as fengari_to_jsstring,
+    to_luastring as fengari_to_luastring,
+} from './lua-state.mjs';
+
+// Re-export Lua type constants under the C names the bridge code uses.
+export const LUA_TNIL = lua.LUA_TNIL;
+export const LUA_TBOOLEAN = lua.LUA_TBOOLEAN;
+export const LUA_TLIGHTUSERDATA = lua.LUA_TLIGHTUSERDATA;
+export const LUA_TNUMBER = lua.LUA_TNUMBER;
+export const LUA_TSTRING = lua.LUA_TSTRING;
+export const LUA_TTABLE = lua.LUA_TTABLE;
+export const LUA_TFUNCTION = lua.LUA_TFUNCTION;
+export const LUA_TUSERDATA = lua.LUA_TUSERDATA;
+export const LUA_TTHREAD = lua.LUA_TTHREAD;
+export const LUA_TNONE = lua.LUA_TNONE;
+export const LUA_OK = lua.LUA_OK;
+
+const to_lstr = (s) => fengari_to_luastring(s, true);
+const from_lstr = (s) => (s == null ? null : fengari_to_jsstring(s));
+
+// Pre-loaded data registry.  The harness installs entries before any
+// translated init code calls `nhl_loadlua`.  The map name → either:
+//   - `{ kind: 'source', src: <Lua source text> }` for files that
+//     should be interpreted by fengari (run as a chunk), or
+//   - `{ kind: 'data', value: <pre-parsed JS object> }` for files
+//     that the data parser already turned into a JS structure (we
+//     materialize it on the Lua state as globals).
+const dataRegistry = new Map();
+export function registerLuaData(name, data) {
+    dataRegistry.set(name, { kind: 'data', value: data });
+}
+export function registerLuaSource(name, src) {
+    dataRegistry.set(name, { kind: 'source', src });
+}
+// Register a Lua file that was pre-parsed by the templatic
+// transpiler (tools/c2js/lua-templatic.mjs).  `calls` is an array
+// of { ns, method, args } records.  nhl_loadlua replays them
+// through the existing Lua state, avoiding fengari's parser and
+// (when the JS-native lspo_* bridge lands) fengari entirely.
+export function registerLuaTemplatic(name, calls) {
+    dataRegistry.set(name, { kind: 'templatic', calls });
+}
+// Register a Lua file that was hand-ported or transpiled into a
+// JS ES module.  `loader` is an async function `(env) => any`
+// where `env` is built at load time with des/selection/nhlib
+// helpers and other namespaces the module needs.  nhl_loadlua
+// invokes the loader, completely bypassing fengari.  This is
+// the path to dropping fengari (per project_nh_emit_async.md).
+export function registerLuaJsModule(name, loader) {
+    dataRegistry.set(name, { kind: 'jsmodule', loader });
+}
+
+// nh.rn2 / nh.random wiring — bound to whatever the harness installs
+// on globalThis.__nh_lua_bindings.rn2 / random.  Defaults call
+// globalThis.rn2 if available, falling back to a noisy stub.
+function bound_rn2(x) {
+    const fn = globalThis.__nh_lua_bindings?.rn2 || globalThis.rn2;
+    if (typeof fn !== 'function') return 0;
+    return fn(x);
+}
+function bound_random(low, count) {
+    const fn = globalThis.__nh_lua_bindings?.random || globalThis.nh_random;
+    if (typeof fn === 'function') return fn(low, count);
+    return low + bound_rn2(count);
+}
+
+// Build the `nh` global table with the subset of helpers themerms.lua
+// and nhlib.lua actually use.  Stubs return 0 / empty for things we
+// don't model; they're safe because each is invoked only for
+// side-effects inside `contents` functions whose room-painting calls
+// aren't on the seed8000 PRNG-diff hot path.
+function install_nh_globals(L) {
+    const T = lua.lua_gettop(L);
+    lua.lua_newtable(L);
+
+    const push_jsfn = (key, fn) => {
+        lua.lua_pushjsfunction(L, fn);
+        lua.lua_setfield(L, -2, to_lstr(key));
+    };
+
+    push_jsfn('rn2', (L) => {
+        const x = lua.lua_tointeger(L, 1);
+        lua.lua_pushinteger(L, bound_rn2(x));
+        return 1;
+    });
+    push_jsfn('random', (L) => {
+        const low = lua.lua_tointeger(L, 1);
+        const count = lua.lua_tointeger(L, 2);
+        lua.lua_pushinteger(L, bound_random(low, count));
+        return 1;
+    });
+    push_jsfn('rnd', (L) => {
+        const x = lua.lua_tointeger(L, 1);
+        lua.lua_pushinteger(L, 1 + bound_rn2(x));
+        return 1;
+    });
+    push_jsfn('impossible', (L) => {
+        const msg = from_lstr(lua.lua_tostring(L, 1));
+        if (typeof globalThis.impossible === 'function') globalThis.impossible(msg);
+        else if (msg) console.warn('nh.impossible:', msg);
+        return 0;
+    });
+    push_jsfn('level_difficulty', (L) => {
+        const fn = globalThis.level_difficulty;
+        const v = (typeof fn === 'function') ? fn() : 1;
+        lua.lua_pushinteger(L, v);
+        return 1;
+    });
+    push_jsfn('rn2_on_display_rng', (L) => {
+        const x = lua.lua_tointeger(L, 1);
+        const fn = globalThis.rn2_on_display_rng || bound_rn2;
+        lua.lua_pushinteger(L, fn(x));
+        return 1;
+    });
+    push_jsfn('start_timer_at', () => 0);
+    push_jsfn('mon_difficulty', () => { return 0; });
+    push_jsfn('makeplural', (L) => { lua.lua_pushvalue(L, 1); return 1; });
+    push_jsfn('an', (L) => { lua.lua_pushvalue(L, 1); return 1; });
+    // Debug / introspection helpers themerms.lua expects to exist;
+    // we return nil so the file's "if x == nil" guards take the
+    // skip path and no debug log is produced.
+    push_jsfn('debug_themerm', (L) => { lua.lua_pushnil(L); return 1; });
+    push_jsfn('debug_flags', (L) => { lua.lua_pushinteger(L, 0); return 1; });
+    push_jsfn('getmap', (L) => { lua.lua_pushnil(L); return 1; });
+    push_jsfn('mksobj_at', () => 0);
+    push_jsfn('mkmap', () => 0);
+    push_jsfn('start_eating', () => 0);
+    push_jsfn('mongender', (L) => { lua.lua_pushinteger(L, 0); return 1; });
+    push_jsfn('feature', () => 0);
+    push_jsfn('finddpos', (L) => { lua.lua_pushinteger(L, 0); return 1; });
+    push_jsfn('parse_config', () => 0);
+    push_jsfn('text_to_obj', (L) => { lua.lua_pushnil(L); return 1; });
+    push_jsfn('callback', () => 0);
+    push_jsfn('curr_role', (L) => { lua.lua_pushstring(L, to_lstr('Tourist')); return 1; });
+    push_jsfn('curr_race', (L) => { lua.lua_pushstring(L, to_lstr('human')); return 1; });
+    push_jsfn('curr_alignment', (L) => { lua.lua_pushstring(L, to_lstr('neutral')); return 1; });
+    push_jsfn('gamestate', (L) => { lua.lua_pushinteger(L, 0); return 1; });
+
+    lua.lua_setglobal(L, to_lstr('nh'));
+    lua.lua_settop(L, T);
+}
+
+// Install Lua-side wrappers for the themerms.lua entry points
+// (pre_themerooms_generate, themerooms_generate, post_themerooms_generate,
+// themeroom_fill, post_level_generate, filler_region) into the given
+// Lua state.  Each wrapper invokes the corresponding `globalThis.NAME`
+// JS function (async).  The wrapAsyncForLua adapter installed by
+// luaL_setfuncs handles the Promise-stash; nhl_pcall_handle awaits
+// it after lua_pcall returns.
+//
+// Used when themerms.lua's fengari load is bypassed via the
+// JS_MODULE_REPLACEMENTS map.  The JS functions must be populated
+// on globalThis by the loader (e.g. by running the transpiled
+// themerms.lua's default export, which sets globalThis.themerooms /
+// globalThis.themerooms_generate / etc.).
+//
+// PRNG note: each wrapper is a thin delegation; the actual PRNG
+// fires inside the JS-side themerooms_generate implementation.
+// For parity with fengari's themerms.lua execution, the JS impl
+// must produce the same rn2 sequence (reservoir sampling + each
+// closure's contents() body).  Today the transpiled output uses
+// JS Selection helpers — selection.percentage() and similar fire
+// rn2 directly via the same `nh.rn2` binding fengari uses.
+// Convert the Lua value at absolute stack index `idx` to a JS value.
+// Handles scalars and (recursively) tables — array-style sequences
+// become JS arrays, key-value tables become JS objects.  Used by the
+// installThemermsWrappers arg-marshal so transpiled JS-side functions
+// receive the same `rm` / `room` data the fengari interpretation
+// would have seen.  Tables nested deeper than ~10 levels (cycles
+// would also recurse forever) are bounded by a visited Set.
+function luaValueToJs(L, idx, visited = null) {
+    // Use lua_type for explicit dispatch — lua_isnumber/isstring
+    // accept cross-type-convertible values (numbers are stringy,
+    // strings are number-y) which silently miscategorize tables.
+    const t = lua.lua_type(L, idx);
+    if (t === lua.LUA_TNIL || t === lua.LUA_TNONE) return null;
+    if (t === lua.LUA_TBOOLEAN) return !!lua.lua_toboolean(L, idx);
+    if (t === lua.LUA_TNUMBER) return lua.lua_tonumber(L, idx);
+    if (t === lua.LUA_TSTRING) return from_lstr(lua.lua_tostring(L, idx));
+    if (t !== lua.LUA_TTABLE) return null;
+    // Cycle guard.
+    if (!visited) visited = new Set();
+    // We can't easily get a JS handle to the Lua table for cycle
+    // detection, so bound by depth instead.
+    if (visited.size > 16) return null;
+    visited.add(idx);
+    // Walk via lua_next.  Detect array-style: if all keys are
+    // consecutive ints from 1, produce array; else produce object.
+    const entries = [];
+    lua.lua_pushnil(L);  // first key
+    const tableAbsIdx = idx < 0 ? lua.lua_gettop(L) + idx + 1 : idx;
+    while (lua.lua_next(L, tableAbsIdx) !== 0) {
+        // stack: ..., key, value
+        const valTop = lua.lua_gettop(L);
+        const keyIdx = valTop - 1;
+        let key;
+        if (lua.lua_isnumber(L, keyIdx)) {
+            key = lua.lua_tonumber(L, keyIdx);
+        } else if (lua.lua_isstring(L, keyIdx)) {
+            key = from_lstr(lua.lua_tostring(L, keyIdx));
+        } else {
+            key = null;
+        }
+        const val = luaValueToJs(L, valTop, visited);
+        entries.push([key, val]);
+        lua.lua_pop(L, 1);  // pop value, keep key for next iter
+    }
+    // Decide shape.
+    const allIntKeys = entries.length > 0
+        && entries.every(([k]) => typeof k === 'number' && Number.isInteger(k));
+    if (allIntKeys) {
+        const sorted = entries.slice().sort(([a], [b]) => a - b);
+        const minKey = sorted[0][0];
+        if (minKey === 1) {
+            // Lua sequence: emit as JS array (0-indexed at the JS
+            // boundary).  Sparse-ok via assignment.
+            const arr = [];
+            for (const [k, v] of sorted) arr[k - 1] = v;
+            return arr;
+        }
+    }
+    const obj = {};
+    for (const [k, v] of entries) if (k != null) obj[k] = v;
+    return obj;
+}
+
+export function installThemermsWrappers(L) {
+    const fnNames = [
+        'pre_themerooms_generate',
+        'themerooms_generate',
+        'post_themerooms_generate',
+        'themeroom_fill',
+        'post_level_generate',
+        'filler_region',
+    ];
+    for (const name of fnNames) {
+        lua.lua_pushjsfunction(L, (innerL) => {
+            const fn = globalThis[name];
+            if (typeof fn !== 'function') {
+                // No JS implementation registered — match fengari's
+                // "function not defined" behavior by returning 0
+                // (mklev will see no values pushed, eventually
+                // tripping themeroom_failed via the safety net).
+                return 0;
+            }
+            // Args from the Lua stack (if any) — themeroom_fill
+            // and filler_region take args.
+            const argc = lua.lua_gettop(innerL);
+            const args = [];
+            for (let i = 1; i <= argc; i++) {
+                args.push(luaValueToJs(innerL, i));
+            }
+            // Invoke JS function; return value becomes the Promise
+            // stashed by wrapAsyncForLua.
+            return fn(...args);
+        });
+        lua.lua_setglobal(L, to_lstr(name));
+    }
+}
+
+// Install JS-backed Lua callbacks for the nhlib.lua helpers
+// (math.random override, shuffle, percent, d) into the given L.
+// Used when nhlib.lua's fengari load is bypassed via a JS module
+// replacement — themerms.lua (still fengari-loaded) calls these
+// helpers and they must resolve at the Lua level.
+//
+// math.random calls nh.rn2 / nh.random (same routing as
+// nhlib.lua's override).  shuffle/percent/d match nhlib.lua's
+// semantics byte-for-byte:
+//   percent(t)  ::=  math.random(0, 99) < t
+//   d(n)        ::=  math.random(1, n)
+//   d(d, f)     ::=  sum of d math.random(1, f) calls
+//   shuffle(t)  ::=  for i = #t, 2, -1 do swap t[i], t[math.random(i)]
+export function installNhlibLuaGlobals(L) {
+    const T = lua.lua_gettop(L);
+
+    // math.random override.  Get the existing math table, replace
+    // its `random` field with our JS callback.
+    lua.lua_getglobal(L, to_lstr('math'));
+    if (lua.lua_istable(L, -1)) {
+        lua.lua_pushjsfunction(L, (innerL) => {
+            const argc = lua.lua_gettop(innerL);
+            if (argc === 1) {
+                const n = lua.lua_tointeger(innerL, 1);
+                lua.lua_pushinteger(innerL, 1 + bound_rn2(n));
+                return 1;
+            }
+            if (argc === 2) {
+                const low = lua.lua_tointeger(innerL, 1);
+                const high = lua.lua_tointeger(innerL, 2);
+                lua.lua_pushinteger(innerL, bound_random(low, high + 1 - low));
+                return 1;
+            }
+            lauxlib.luaL_error(innerL, to_lstr('NetHack math.random requires at least one parameter'));
+            return 0;
+        });
+        lua.lua_setfield(L, -2, to_lstr('random'));
+    }
+    lua.lua_pop(L, 1);  // drop math table
+
+    // Lua's math.random equivalent in JS — closures over bound_rn2.
+    const jsMathRandom = (...args) => {
+        if (args.length === 1) return 1 + bound_rn2(args[0]);
+        if (args.length === 2) return bound_random(args[0], args[1] + 1 - args[0]);
+        throw new Error('math.random requires at least one parameter');
+    };
+
+    // global `percent(threshold)` = math.random(0,99) < threshold.
+    lua.lua_pushjsfunction(L, (innerL) => {
+        const t = lua.lua_tointeger(innerL, 1);
+        const v = jsMathRandom(0, 99);
+        lua.lua_pushboolean(L, v < t ? 1 : 0);
+        return 1;
+    });
+    lua.lua_setglobal(L, to_lstr('percent'));
+
+    // global `d(dice, faces?)` — sum dice d-faces rolls.
+    lua.lua_pushjsfunction(L, (innerL) => {
+        const argc = lua.lua_gettop(innerL);
+        if (argc === 1) {
+            const n = lua.lua_tointeger(innerL, 1);
+            lua.lua_pushinteger(innerL, jsMathRandom(1, n));
+            return 1;
+        }
+        const dice = lua.lua_tointeger(innerL, 1);
+        const faces = lua.lua_tointeger(innerL, 2);
+        let sum = 0;
+        for (let i = 0; i < dice; i++) sum += jsMathRandom(1, faces);
+        lua.lua_pushinteger(innerL, sum);
+        return 1;
+    });
+    lua.lua_setglobal(L, to_lstr('d'));
+
+    // global `shuffle(list)` — Fisher-Yates over the Lua table at
+    // arg 1.  Uses lua_rawgeti / lua_rawseti to manipulate slots.
+    // Faithful to nhlib.lua:17-22 (`for i = #list, 2, -1`).
+    lua.lua_pushjsfunction(L, (innerL) => {
+        const len = lauxlib.luaL_len(innerL, 1);
+        for (let i = len; i >= 2; i--) {
+            const j = jsMathRandom(i);
+            if (j !== i) {
+                lua.lua_rawgeti(innerL, 1, i);     // push list[i]
+                lua.lua_rawgeti(innerL, 1, j);     // push list[j]
+                lua.lua_rawseti(innerL, 1, i);     // list[i] = (popped) list[j]
+                lua.lua_rawseti(innerL, 1, j);     // list[j] = (popped) list[i]
+            }
+        }
+        return 0;
+    });
+    lua.lua_setglobal(L, to_lstr('shuffle'));
+
+    lua.lua_settop(L, T);
+}
+
+// Cache of the real des.* registrar function.  Set by the harness
+// once sp_lev.js is available (it's a translated C TU and forms a
+// circular dep otherwise).
+let _des_register_fn = null;
+export function setDesRegistrar(fn) { _des_register_fn = fn; }
+
+function install_des_table(L) {
+    if (typeof _des_register_fn === 'function') {
+        try {
+            _des_register_fn(L);
+            return;
+        } catch (e) {
+            console.warn('[lua] l_register_des failed:', e.message);
+        }
+    }
+    install_no_op_table(L, 'des');
+}
+
+// Stub `des` / `selection` / `monster` / `obj` tables — themerms.lua
+// uses these for room painting, which doesn't drive PRNG on the
+// seed8000 path (the PRNG comes from `nh.rn2` calls in selection
+// logic, before des.* draws).  We push tables with __index returning
+// no-op functions so any method call yields harmlessly.
+function install_no_op_table(L, name) {
+    const T = lua.lua_gettop(L);
+    install_no_op_stub(L);
+    lua.lua_setglobal(L, to_lstr(name));
+    lua.lua_settop(L, T);
+}
+
+// Push onto the stack a no-op table whose __index returns a no-op
+// FUNCTION (Lua-callable) that returns another no-op stub.  This
+// supports both:
+//   selection.room        — read field, returns the no-op function
+//   selection.room()      — call the function, returns no-op stub
+//   selection.room():x()  — recursive chain works the same
+// Prior version had a buggy `L[L.length - 1] || arguments[0]`
+// recovery that silently pushed nothing, so the call returned nil
+// and downstream `:method()` errored with "attempt to index a nil
+// value".  Themerooms / themeroom_fills callers caught the error
+// via pcall, abandoning the contents() function and skipping every
+// percent() / nh.random call inside.
+function install_no_op_stub(L) {
+    lua.lua_newtable(L);
+    lua.lua_newtable(L); // metatable
+    // __index returns a no-op function-on-call that returns recursive stub
+    lua.lua_pushjsfunction(L, (innerL) => {
+        // innerL is the lua_State that invoked __index.
+        // Push a Lua function whose body returns a fresh stub.
+        lua.lua_pushjsfunction(innerL, (innerL2) => {
+            install_no_op_stub(innerL2);
+            return 1;
+        });
+        return 1;
+    });
+    lua.lua_setfield(L, -2, to_lstr('__index'));
+    lua.lua_setmetatable(L, -2);
+}
+
+// ── Public C-API surface ───────────────────────────────────────────
+
+export async function nhl_init(_sbi) {
+    const L = lauxlib.luaL_newstate();
+    lualib.luaL_openlibs(L);
+    install_nh_globals(L);
+    // Install ancillary nh-environment tables.  Real `des` will be
+    // populated by sp_lev's l_register_des on first invocation; the
+    // others stay as no-op metatables until we wire their handlers.
+    for (const t of ['selection', 'monster', 'obj', 'level']) {
+        install_no_op_table(L, t);
+    }
+    // Try to wire des.* to translated lspo_* handlers.  Loaded
+    // lazily because sp_lev.js isn't available at this module's
+    // import time (circular).
+    install_des_table(L);
+    // C's nhl_init() finishes by loading nhlib.lua so subsequent
+    // user scripts can rely on its helpers (math.random override,
+    // shuffle, percent, d, ...).  Mirror that here — and the
+    // nhlib.lua top-level shuffle's PRNG calls naturally fall
+    // through to our captured rn2.
+    if (dataRegistry.has('nhlib.lua')) {
+        await nhl_loadlua(L, 'nhlib.lua');
+    }
+    return L;
+}
+export function nhl_done(_L) { /* fengari GC handles cleanup */ }
+
+// Run the registered .lua content for `filename` in the given state.
+// Pre-parsed declarative data (e.g. dungeon.lua) gets injected as
+// globals; procedural .lua source gets compiled and executed by
+// fengari.  Returns 1 on success, 0 on failure (matching C bool).
+export async function nhl_loadlua(L, filename) {
+    const fname = (typeof filename === 'string') ? filename : from_lstr(filename);
+    if (globalThis.__nhLoadLuaLog) globalThis.__nhLoadLuaLog.push(fname);
+    const entry = dataRegistry.get(fname);
+    if (!entry) {
+        throw new Error(`nhl_loadlua: no registered data for "${fname}"`);
+    }
+    if (entry.kind === 'data') {
+        // Convert the parsed-JS data into Lua tables and assign to
+        // each top-level global.
+        for (const [k, v] of Object.entries(entry.value)) {
+            push_js_value(L, v);
+            lua.lua_setglobal(L, to_lstr(k));
+        }
+        return 1;
+    }
+    if (entry.kind === 'jsmodule') {
+        // A hand-ported JS ES module replaces this Lua file's
+        // fengari load.  `entry.loader(L)` may return a Promise
+        // (when the loader does async work via the Promise-stash
+        // protocol); await it.
+        try {
+            return entry.loader ? await entry.loader(L) : 1;
+        } catch (e) {
+            console.warn(`[lua] jsmodule loader for "${fname}":`, e.message);
+            return 0;
+        }
+    }
+    if (entry.kind === 'templatic') {
+        // Pre-parsed `des.X(...)` call sequence (per
+        // tools/c2js/lua-templatic.mjs).  Each call drives fengari's
+        // lua_pcall which invokes the registered JS lspo_* (which
+        // may now be async — it stashes its Promise in
+        // globalThis.__nhPendingLuaAsync and returns 0 sync to
+        // fengari; we await the stash after lua_pcall returns).
+        for (const { ns, method, args } of entry.calls) {
+            const T = lua.lua_gettop(L);
+            lua.lua_getglobal(L, to_lstr(ns));
+            lua.lua_getfield(L, -1, to_lstr(method));
+            lua.lua_remove(L, -2);
+            for (const a of args) push_js_value(L, a);
+            globalThis.__nhPendingLuaAsync = null;
+            const status = lua.lua_pcall(L, args.length, 0, 0);
+            // Await any async work the lspo_* stashed.
+            if (globalThis.__nhPendingLuaAsync) {
+                const p = globalThis.__nhPendingLuaAsync;
+                globalThis.__nhPendingLuaAsync = null;
+                try { await p; }
+                catch (e) {
+                    lua.lua_settop(L, T);
+                    throw new Error(`templatic ${fname}: ${ns}.${method} async: ${e.message || e}`);
+                }
+            }
+            if (status !== lua.LUA_OK) {
+                const err = from_lstr(lua.lua_tostring(L, -1));
+                lua.lua_settop(L, T);
+                throw new Error(`templatic ${fname}: ${ns}.${method}: ${err}`);
+            }
+            lua.lua_settop(L, T);
+        }
+        return 1;
+    }
+    // entry.kind === 'source'
+    const status = lauxlib.luaL_dostring(L, to_lstr(entry.src));
+    if (status !== lua.LUA_OK) {
+        const err = from_lstr(lua.lua_tostring(L, -1));
+        throw new Error(`nhl_loadlua "${fname}": ${err}`);
+    }
+    return 1;
+}
+
+// Materialize a JS value (number / string / boolean / null / array /
+// plain-object) onto the top of the Lua stack as the closest Lua
+// equivalent.  Used by nhl_loadlua to inject pre-parsed declarative
+// data as Lua globals.
+function push_js_value(L, v) {
+    if (v === null || v === undefined) {
+        lua.lua_pushnil(L);
+    } else if (typeof v === 'boolean') {
+        lua.lua_pushboolean(L, v ? 1 : 0);
+    } else if (typeof v === 'number') {
+        if (Number.isInteger(v)) lua.lua_pushinteger(L, v);
+        else lua.lua_pushnumber(L, v);
+    } else if (typeof v === 'string') {
+        lua.lua_pushstring(L, to_lstr(v));
+    } else if (Array.isArray(v)) {
+        lua.lua_newtable(L);
+        for (let i = 0; i < v.length; i++) {
+            push_js_value(L, v[i]);
+            lua.lua_rawseti(L, -2, i + 1); // 1-indexed
+        }
+    } else if (typeof v === 'object') {
+        lua.lua_newtable(L);
+        for (const [k, val] of Object.entries(v)) {
+            push_js_value(L, val);
+            lua.lua_setfield(L, -2, to_lstr(k));
+        }
+    } else {
+        lua.lua_pushnil(L);
+    }
+}
+
+// `nhl_pcall_handle(L, nargs, nresults, errmsg, errflag)` — call the
+// function on the top of the stack with `nargs` args, expect
+// `nresults` returns, and on error log the message via the error
+// callback indicated by `errflag` (panic vs impossible vs ignore).
+// Returns LUA_OK (0) on success.
+//
+// **Async support for JS-backed Lua callbacks:** a JS callback
+// registered via `lua_pushjsfunction` may need to do async work
+// (e.g. transpiled themerms.lua's `themerooms_generate` awaits
+// des.X calls).  Fengari calls such callbacks SYNC and discards
+// any non-integer return.  The protocol for crossing the
+// boundary:
+//   1. JS callback starts the async work and stashes the Promise
+//      in `globalThis.__nhPendingLuaAsync`.  It returns 0 sync
+//      so fengari sees a normal completion.
+//   2. nhl_pcall_handle (now async) awaits that Promise after
+//      lua_pcall returns.
+//   3. Any error thrown by the awaited Promise is reported via
+//      the configured error handler (panic / impossible).
+//
+// This lets fengari's interpreter stay sync (no Promises into
+// the Lua stack) while the JS work runs to completion before
+// nhl_pcall_handle's caller continues.
+// Per-tag failure counter for the loop-safety net below.  Resets
+// when the harness installs a fresh game state.
+const __pcallFailures = new Map();
+export async function nhl_pcall_handle(L, nargs, nresults, errmsg, errflag) {
+    // Clear any stale pending-async marker from a previous caller.
+    globalThis.__nhPendingLuaAsync = null;
+    const status = lua.lua_pcall(L, nargs || 0, nresults || 0, 0);
+    // If the JS callback stashed an async-work Promise, await it
+    // before returning.  Errors thrown by the Promise are reported
+    // through the same error path as Lua errors below.
+    let asyncErr = null;
+    if (globalThis.__nhPendingLuaAsync) {
+        const p = globalThis.__nhPendingLuaAsync;
+        globalThis.__nhPendingLuaAsync = null;
+        try { await p; }
+        catch (e) { asyncErr = e; }
+    }
+    if (asyncErr) {
+        const tag = (typeof errmsg === 'string') ? errmsg : (from_lstr(errmsg) || 'pcall');
+        const handler = (errflag === 'panic' || errflag === 1)
+            ? (typeof globalThis.panic === 'function' ? globalThis.panic : null)
+            : (typeof globalThis.impossible === 'function' ? globalThis.impossible : null);
+        const msg = asyncErr?.message || String(asyncErr);
+        if (handler) handler('lua-async %s: %s', tag, msg);
+        else console.warn('[lua-async] ' + tag + ': ' + msg);
+        return -1;
+    }
+    if (status !== lua.LUA_OK) {
+        const m = from_lstr(lua.lua_tostring(L, -1));
+        const tag = (typeof errmsg === 'string') ? errmsg : (from_lstr(errmsg) || 'pcall');
+        const handler = (errflag === 'panic' || errflag === 1)
+            ? (typeof globalThis.panic === 'function' ? globalThis.panic : null)
+            : (typeof globalThis.impossible === 'function' ? globalThis.impossible : null);
+        if (handler) handler('lua %s: %s', tag, m);
+        else console.warn('[lua] ' + tag + ': ' + m);
+        lua.lua_pop(L, 1);
+        // Loop-safety net for the mklev.js makerooms-2 retry loop:
+        // after 100+ retries the C-side recovery has clearly failed,
+        // so flag themeroom_failed=1 to break the loop.  The 100
+        // threshold is well above any normal C-side retry budget,
+        // so this never interferes with healthy recovery — it only
+        // catches the pathological NH_EMIT_ASYNC=1 infinite-spin.
+        if (tag === 'makerooms-2') {
+            const n = (__pcallFailures.get(tag) || 0) + 1;
+            __pcallFailures.set(tag, n);
+            if (n > 100) {
+                try {
+                    const game = globalThis.__nh_gameRef || globalThis.game;
+                    if (game) game.themeroom_failed = 1;
+                } catch (_e) {}
+            }
+        }
+        // When the harness flag is set, throw the JS error too so
+        // we can see exactly where C-translated code is failing
+        // (rather than letting the makerooms loop infinitely retry
+        // a silently-broken contents() function).
+        if (globalThis.__nh_pcall_propagate) {
+            throw new Error('[lua pcall ' + tag + '] ' + m);
+        }
+    }
+    return status;
+}
+export function lua_gc(_L, _what, ..._rest) { return 0; }
+
+// ── Stack & type primitives — direct fengari delegation ────────────
+
+export function lua_gettop(L) { return lua.lua_gettop(L); }
+export function lua_settop(L, idx) { lua.lua_settop(L, idx); }
+export function lua_pop(L, n) { lua.lua_pop(L, n); }
+export function lua_pushvalue(L, idx) { lua.lua_pushvalue(L, idx); }
+export function lua_pushnil(L) { lua.lua_pushnil(L); }
+export function lua_pushinteger(L, n) { lua.lua_pushinteger(L, Number(n) | 0); }
+export function lua_pushnumber(L, n) { lua.lua_pushnumber(L, Number(n)); }
+export function lua_pushstring(L, s) {
+    if (s == null) { lua.lua_pushnil(L); return; }
+    let str;
+    if (typeof s === 'string') str = s;
+    else if (Array.isArray(s)) {
+        // char-array: walk to NUL terminator, same as the str* helpers.
+        str = '';
+        for (let i = 0; i < s.length && s[i]; i++) str += String.fromCharCode(s[i]);
+    } else {
+        str = String(s);
+    }
+    lua.lua_pushstring(L, to_lstr(str));
+}
+export function lua_pushboolean(L, b) { lua.lua_pushboolean(L, b ? 1 : 0); }
+export function lua_insert(L, idx) { lua.lua_insert(L, idx); }
+export function lua_remove(L, idx) { lua.lua_remove(L, idx); }
+export function lua_type(L, idx) { return lua.lua_type(L, idx); }
+
+export function lua_isnil(L, idx) { return lua.lua_isnil(L, idx) ? 1 : 0; }
+export function lua_isnoneornil(L, idx) { return lua.lua_isnoneornil(L, idx) ? 1 : 0; }
+export function lua_isnumber(L, idx) { return lua.lua_isnumber(L, idx); }
+export function lua_isstring(L, idx) { return lua.lua_isstring(L, idx); }
+export function lua_istable(L, idx) { return lua.lua_istable(L, idx) ? 1 : 0; }
+export function lua_isboolean(L, idx) { return lua.lua_isboolean(L, idx) ? 1 : 0; }
+export function lua_isnone(L, idx) { return lua.lua_isnone(L, idx) ? 1 : 0; }
+
+export function lua_tointeger(L, idx) { return lua.lua_tointeger(L, idx); }
+export function lua_tointegerx(L, idx, isnumP) {
+    let isnum = [0];
+    const v = lua.lua_tointegerx(L, idx, isnum);
+    if (isnumP) isnumP.value = isnum[0];
+    return v;
+}
+export function lua_tonumber(L, idx) { return lua.lua_tonumber(L, idx); }
+export function lua_tostring(L, idx) { return from_lstr(lua.lua_tostring(L, idx)); }
+export function lua_tolstring(L, idx, lenP) {
+    const s = from_lstr(lua.lua_tostring(L, idx));
+    if (lenP) lenP.value = (s == null) ? 0 : s.length;
+    return s;
+}
+export function lua_toboolean(L, idx) { return lua.lua_toboolean(L, idx); }
+
+export function lua_getfield(L, idx, key) {
+    const k = (typeof key === 'string') ? key : from_lstr(key);
+    return lua.lua_getfield(L, idx, to_lstr(k));
+}
+export function lua_setfield(L, idx, key) {
+    const k = (typeof key === 'string') ? key : from_lstr(key);
+    lua.lua_setfield(L, idx, to_lstr(k));
+}
+export function lua_geti(L, idx, n) { return lua.lua_geti(L, idx, n); }
+export function lua_seti(L, idx, n) { lua.lua_seti(L, idx, n); }
+export function lua_rawgeti(L, idx, n) { return lua.lua_rawgeti(L, idx, n); }
+export function lua_rawseti(L, idx, n) { lua.lua_rawseti(L, idx, n); }
+export function lua_gettable(L, idx) { return lua.lua_gettable(L, idx); }
+export function lua_settable(L, idx) { lua.lua_settable(L, idx); }
+export function lua_len(L, idx) { lua.lua_len(L, idx); }
+export function lua_next(L, idx) { return lua.lua_next(L, idx); }
+export function lua_getglobal(L, key) {
+    const k = (typeof key === 'string') ? key : from_lstr(key);
+    return lua.lua_getglobal(L, to_lstr(k));
+}
+export function lua_setglobal(L, key) {
+    const k = (typeof key === 'string') ? key : from_lstr(key);
+    lua.lua_setglobal(L, to_lstr(k));
+}
+export function lua_pcall(L, nargs, nresults, errfunc) {
+    return lua.lua_pcall(L, nargs, nresults, errfunc);
+}
+export function lua_setmetatable(L, idx) { return lua.lua_setmetatable(L, idx); }
+export function lua_getmetatable(L, idx) { return lua.lua_getmetatable(L, idx); }
+
+// ── NetHack helpers (same shapes as src/nhlua.c versions) ──────────
+
+export function get_table_int(L, name) {
+    lua_getfield(L, -1, name);
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        throw new Error(`get_table_int: missing field "${name}"`);
+    }
+    const v = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+    return v;
+}
+export function get_table_int_opt(L, name, defval) {
+    lua_getfield(L, -1, name);
+    let v = defval;
+    if (!lua_isnil(L, -1)) v = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+    return v;
+}
+export function get_table_str(L, name) {
+    lua_getfield(L, -1, name);
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        throw new Error(`get_table_str: missing field "${name}"`);
+    }
+    const s = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    return s;
+}
+export function get_table_str_opt(L, name, defval) {
+    lua_getfield(L, -1, name);
+    let s = defval;
+    if (!lua_isnil(L, -1)) s = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    return s;
+}
+export function get_table_boolean(L, name) {
+    lua_getfield(L, -1, name);
+    if (lua_isnil(L, -1)) { lua_pop(L, 1); return -1; }
+    const b = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    return b;
+}
+export function get_table_boolean_opt(L, name, defval) {
+    lua_getfield(L, -1, name);
+    let b = defval;
+    if (!lua_isnil(L, -1)) b = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    return b;
+}
+export function get_table_option(L, name, defval, opts) {
+    lua_getfield(L, -1, name);
+    const raw = lua_isnil(L, -1) ? defval : lua_tostring(L, -1);
+    lua_pop(L, 1);
+    const want = (raw == null) ? defval : raw;
+    if (!Array.isArray(opts)) return -1;
+    for (let i = 0; i < opts.length; i++) {
+        if (opts[i] == null) break;
+        if (opts[i] === want) return i;
+    }
+    return -1;
+}
+// `lcheck_param_table(L)` — NetHack convenience: ensure the function
+// was called with exactly one table arg (or none — in which case
+// push an empty table).  Mirrors src/nhlua.c:225.
+export function lcheck_param_table(L) {
+    const argc = lua.lua_gettop(L);
+    if (argc < 1) lua.lua_createtable(L, 0, 0);
+    lua.lua_settop(L, 1);
+    luaL_checktype(L, 1, LUA_TTABLE);
+}
+
+// `luaL_checktype(L, idx, t)` — assert the value at `idx` has type `t`.
+// On mismatch, raise a Lua error.  fengari exposes this directly.
+export function luaL_checktype(L, idx, t) {
+    return lauxlib.luaL_checktype(L, idx, t);
+}
+
+// `nhl_error(L, msg)` — push a formatted error message and raise it.
+// Real C version interrogates the Lua call stack for line info; we
+// supply just the message.  Critical: this uses lua_error which
+// long-jumps inside fengari to the enclosing pcall.
+export function nhl_error(L, msg) {
+    const text = (typeof msg === 'string') ? msg : (from_lstr(msg) || '');
+    lua.lua_pushstring(L, to_lstr(text));
+    return lua.lua_error(L);
+}
+
+// `lua_createtable(L, narr, nrec)` — passthrough.
+export function lua_createtable(L, narr, nrec) {
+    lua.lua_createtable(L, narr, nrec);
+}
+
+// `lua_error(L)` — passthrough.
+export function lua_error(L) { return lua.lua_error(L); }
+
+// `luaL_argcheck(L, cond, idx, msg)` — if cond is false, raise
+// argument error.
+export function luaL_argcheck(L, cond, idx, msg) {
+    if (!cond) {
+        const m = (typeof msg === 'string') ? msg : (from_lstr(msg) || '');
+        return lauxlib.luaL_argerror(L, idx, to_lstr(m));
+    }
+}
+
+// `luaL_argerror(L, idx, msg)` — raise an arg error.
+export function luaL_argerror(L, idx, msg) {
+    const m = (typeof msg === 'string') ? msg : (from_lstr(msg) || '');
+    return lauxlib.luaL_argerror(L, idx, to_lstr(m));
+}
+
+// `luaL_setfuncs(L, funcs, nupvalues)` — register each {name, func}
+// entry from `funcs` (terminated by an entry with name=null) as a
+// field of the table at the top of the stack.  `nupvalues` is the
+// number of upvalues to share across the closures (0 in NetHack).
+// We call each func via fengari's lua_pushjsfunction so it's a
+// real callable Lua C function.
+// Registry of lspo_* function tables, keyed by namespace name as
+// inferred by lookup at first registration.  Transpiled-jsmodule
+// loaders (lua-bootstrap.js) read this to wire `des.X(...)` JS calls
+// to the sp_lev.js lspo_X functions WITHOUT going through fengari's
+// interpreter.  Populated on every call to luaL_setfuncs — sp_lev's
+// nhl_init runs once at game start and registers the `des`
+// namespace's nhl_functions array here.
+export const LSPO_FUNCTION_REGISTRY = new Map();
+export function registerLspoTable(name, funcs) {
+    LSPO_FUNCTION_REGISTRY.set(name, funcs);
+}
+// luaL_setfuncs is called only from sp_lev.js's nhl_init for the
+// `des` namespace; record the funcs array so transpiled-jsmodule
+// loaders can build a JS-native `des` proxy without re-importing the
+// translated sp_lev.js module (which would re-trigger init).
+let _firstSetfuncsCaptured = false;
+
+export function luaL_setfuncs(L, funcs, nupvalues) {
+    if (!Array.isArray(funcs)) return;
+    if (!_firstSetfuncsCaptured && funcs.length > 0 && funcs[0]?.name) {
+        // Capture the first setfuncs call (which is sp_lev's `des`).
+        // The funcs array is the same reference each time, so saving
+        // it here is sufficient for the loader to use.
+        LSPO_FUNCTION_REGISTRY.set('des', funcs);
+        _firstSetfuncsCaptured = true;
+    }
+    for (const entry of funcs) {
+        if (!entry || !entry.name) break; // C-style null terminator
+        // Wrap each registered function in a sync→async-stash adapter.
+        // Fengari calls JS callbacks SYNC and expects an integer return.
+        // The lspo_* functions are async (they internally await
+        // nhl_pcall_handle for nested Lua calls), so they return a
+        // Promise that fengari can't use.  Adapter: if the call
+        // returns a Promise, stash it in globalThis.__nhPendingLuaAsync
+        // and return 0 to fengari.  The outer caller (nhl_pcall_handle
+        // or templatic-replay in nhl_loadlua) awaits the stash after
+        // lua_pcall returns.
+        lua.lua_pushjsfunction(L, wrapAsyncForLua(entry.func));
+        lua.lua_setfield(L, -2, to_lstr(entry.name));
+    }
+    void nupvalues; // not used
+}
+
+// Wrap a JS function so a Promise return is stashed and `0` is
+// returned sync to fengari.  Sync returns pass through unchanged.
+function wrapAsyncForLua(fn) {
+    return function syncWrapper(L) {
+        let result;
+        try {
+            result = fn(L);
+        } catch (e) {
+            // Synchronous JS error inside the registered function.
+            // Matches pre-async behavior: silently absorb so
+            // fengari's pcall sees a successful (empty) call.
+            // The Lua-side caller observes that no values were
+            // returned, often triggering the natural fallback path
+            // (e.g. themeroom_failed=1 in the makerooms retry loop).
+            if (process.env.NH_DEBUG_LUA) {
+                console.warn('[lua-cb sync err]', e.message || e);
+            }
+            return 0;
+        }
+        if (result && typeof result.then === 'function') {
+            // Async path: stash Promise, return 0 sync.  Convert
+            // rejections to silent resolves — matches pre-async
+            // behavior where a thrown JS error inside fengari's
+            // pcall was absorbed silently (and the surrounding
+            // safety net handled the symptom, e.g. setting
+            // themeroom_failed=1 after enough retries).
+            const wrapped = result.catch((e) => {
+                if (process.env.NH_DEBUG_LUA) {
+                    console.warn('[lua-cb async err]', e.message || e);
+                }
+                // Swallow — don't reject the outer await chain.
+                return undefined;
+            });
+            const prev = globalThis.__nhPendingLuaAsync;
+            globalThis.__nhPendingLuaAsync = prev
+                ? prev.then(() => wrapped)
+                : wrapped;
+            return 0;
+        }
+        return result;
+    };
+}
+// luaL_newlib(L, funcs) — convenience: create a new table, register
+// `funcs` on it, leave the table on top of stack.
+export function luaL_newlib(L, funcs) {
+    lua.lua_newtable(L);
+    luaL_setfuncs(L, funcs, 0);
+}
+
+// lua_pushcfunction / lua_pushjsfunction passthroughs
+export function lua_pushcfunction(L, fn) { lua.lua_pushjsfunction(L, fn); }
+export function lua_pushjsfunction(L, fn) { lua.lua_pushjsfunction(L, fn); }
+// lua_newtable
+export function lua_newtable(L) { lua.lua_newtable(L); }
+
+export function luaL_checkoption(L, idx, defval, opts) {
+    const v = lua_tostring(L, idx);
+    const want = (v == null) ? defval : v;
+    if (Array.isArray(opts)) {
+        for (let i = 0; i < opts.length; i++) {
+            if (opts[i] == null) break;
+            if (opts[i] === want) return i;
+        }
+    }
+    throw new Error(`luaL_checkoption: invalid option "${want}"`);
+}
+
+export const emptystr = '';
