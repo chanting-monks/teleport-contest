@@ -12,13 +12,7 @@ const YLIM = 3;
 
 // C ref: rect.c:28 init_rect()
 export function init_rect() {
-    // gstate.js's auto-Proxy makes `!game.nhrect` always false (every
-    // top-level slot is auto-created as `{}`), so the original
-    // `if (!game.nhrect)` guard never fired and the array stayed
-    // un-shaped.  Detect the un-initialized state via Array.isArray
-    // instead — the C analogue is `if (rect == NULL)`, and on the
-    // Proxy ghost path `game.nhrect` is an object, not an array.
-    if (!Array.isArray(game.nhrect)) {
+    if (!game.nhrect) {
         game.n_rects = Math.trunc((COLNO * ROWNO) / 30);
         game.nhrect = new Array(game.n_rects);
         for (let i = 0; i < game.n_rects; i++) {

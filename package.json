@@ -9,8 +9,5 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  },
-  "dependencies": {
-    "fengari": "^0.1.5"
   }
 }
