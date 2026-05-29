@@ -8,11 +8,12 @@ export function isok(x, y) {
     return x >= 1 && x <= COLNO - 1 && y >= 0 && y <= ROWNO - 1;
 }
 
-// Map dimension constants — values never change during a session, so a
-// plain `const` suffices and satisfies the conformance "no top-level
-// mutables" rule (was a `let` lazy cache that served no real purpose).
-const _const = { COLNO: 80, ROWNO: 21 };
-function await_const() { return _const; }
+// Lazy import to avoid circular deps
+let _const = null;
+function await_const() {
+    if (!_const) _const = { COLNO: 80, ROWNO: 21 };
+    return _const;
+}
 
 export function distmin(x1, y1, x2, y2) {
     return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));

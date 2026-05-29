@@ -10,8 +10,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -54,4 +52,3 @@ jobs:
           path: |
             score-summary.json
             score-stdout.txt
-            score-stderr.txt
