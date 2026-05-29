@@ -54,3 +54,4 @@ jobs:
           path: |
             score-summary.json
             score-stdout.txt
+            score-stderr.txt
