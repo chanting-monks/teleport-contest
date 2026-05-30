@@ -1,0 +1,78 @@
+// soko1-2.js — AUTO-GENERATED from
+// nethack-c/upstream/dat/soko1-2.lua.  Do NOT edit by hand.
+// Regenerate via tools/c2js/build-dat-bundle.mjs.
+// Category: jsmodule.
+export default async function({ des, percent, selection }) {
+  await des.level_init({ style: "solidfill", fg: " " });
+  await des.level_flags("mazelevel", "noteleport", "premapped", "sokoban", "solidify");
+  await des.map("  ------------------------\n  |......................|\n  |..-------------------.|\n----.|    -----        |.|\n|..|.--  --...|        |.|\n|.....|--|....|        |.|\n|.....|..|....|        |.|\n--....|......--        |.|\n |.......|...|   ------|.|\n |....|..|...| --|.....|.|\n |....|--|...| |.+.....|.|\n |.......|..-- |-|.....|.|\n ----....|.--  |.+.....+.|\n    ---.--.|   |-|.....|--\n     |.....|   |.+.....|  \n     |..|..|   --|.....|  \n     -------     -------  \n");
+  let place = selection.new();
+  place.set(16, 10);
+  place.set(16, 12);
+  place.set(16, 14);
+  await des.stair("down", 6, 15);
+  await des.region(selection.area(0, 0, 25, 16), "lit");
+  await des.non_diggable(selection.area(0, 0, 25, 16));
+  await des.non_passwall(selection.area(0, 0, 25, 16));
+  await des.object("boulder", 4, 4);
+  await des.object("boulder", 2, 6);
+  await des.object("boulder", 3, 6);
+  await des.object("boulder", 4, 7);
+  await des.object("boulder", 5, 7);
+  await des.object("boulder", 2, 8);
+  await des.object("boulder", 5, 8);
+  await des.object("boulder", 3, 9);
+  await des.object("boulder", 4, 9);
+  await des.object("boulder", 3, 10);
+  await des.object("boulder", 5, 10);
+  await des.object("boulder", 6, 12);
+  await des.object("boulder", 7, 14);
+  await des.object("boulder", 11, 5);
+  await des.object("boulder", 12, 6);
+  await des.object("boulder", 10, 7);
+  await des.object("boulder", 11, 7);
+  await des.object("boulder", 10, 8);
+  await des.object("boulder", 12, 9);
+  await des.object("boulder", 11, 10);
+  await des.exclusion({ type: "monster-generation", region: [5, 1, 23, 1] });
+  await des.trap("rolling boulder", 5, 1);
+  await des.trap("hole", 6, 1);
+  await des.trap("hole", 7, 1);
+  await des.trap("hole", 8, 1);
+  await des.trap("hole", 9, 1);
+  await des.trap("hole", 10, 1);
+  await des.trap("hole", 11, 1);
+  await des.trap("hole", 12, 1);
+  await des.trap("hole", 13, 1);
+  await des.trap("hole", 14, 1);
+  await des.trap("hole", 15, 1);
+  await des.trap("hole", 16, 1);
+  await des.trap("hole", 17, 1);
+  await des.trap("hole", 18, 1);
+  await des.trap("hole", 19, 1);
+  await des.trap("hole", 20, 1);
+  await des.trap("hole", 21, 1);
+  await des.trap("hole", 22, 1);
+  await des.trap("hole", 23, 1);
+  await des.monster({ id: "giant mimic", appear_as: "obj:boulder" });
+  await des.monster({ id: "giant mimic", appear_as: "obj:boulder" });
+  await des.object({ class: "%" });
+  await des.object({ class: "%" });
+  await des.object({ class: "%" });
+  await des.object({ class: "%" });
+  await des.object({ class: "=" });
+  await des.object({ class: "/" });
+  await des.door("locked", 23, 12);
+  await des.door("closed", 17, 10);
+  await des.door("closed", 17, 12);
+  await des.door("closed", 17, 14);
+  await des.region({ region: [18, 9, 22, 15], lit: 1, type: "zoo", filled: 1, irregular: 1 });
+  let pt = selection.rndcoord(place);
+  if (percent(25)) {
+      await des.object({ id: "bag of holding", coord: pt, buc: "not-cursed", achievement: 1 });
+    } else {
+      await des.object({ id: "amulet of reflection", coord: pt, buc: "not-cursed", achievement: 1 });
+    }
+  await des.engraving({ coord: pt, type: "burn", text: "Elbereth" });
+  await des.object({ id: "scroll of scare monster", coord: pt, buc: "cursed" });
+}

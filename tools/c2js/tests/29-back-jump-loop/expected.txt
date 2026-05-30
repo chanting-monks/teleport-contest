@@ -1,0 +1,7 @@
+bump_until(0, 5) = 5
+bump_until(3, 5) = 5
+bump_until(10, 5) = 11
+accumulate_until(1, 10) = 10
+accumulate_until(5, 5) = 5
+walk_with_decl(4) = 10
+walk_with_decl(1) = 1

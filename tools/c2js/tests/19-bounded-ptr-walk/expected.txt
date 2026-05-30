@@ -1,0 +1,3 @@
+first 0: 0
+first 3: 60
+first 5: 150

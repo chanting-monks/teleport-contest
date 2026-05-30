@@ -1,0 +1,77 @@
+// Sam-goal.js — AUTO-GENERATED from
+// nethack-c/upstream/dat/Sam-goal.lua.  Do NOT edit by hand.
+// Regenerate via tools/c2js/build-dat-bundle.mjs.
+// Category: jsmodule.
+export default async function({ des, math, selection }) {
+  await des.level_init({ style: "solidfill", fg: " " });
+  await des.level_flags("mazelevel", "noteleport");
+  await des.map("                                             \n           .......................           \n       ......-------------------......       \n    ......----.................----......    \n   ....----.....-------------.....----....   \n  ....--.....----...........----.....--....  \n  ...||....---....---------....---....||...  \n  ...|....--....---.......---....--....|...  \n ....|...||...---...--+--...---...||...|.... \n ....|...|....|....|-...-|....|....|...|.... \n ....|...|....|....+.....+....|....|...|.... \n ....|...|....|....|-...-|....|....|...|.... \n ....|...||...---...--+--...---...||...|.... \n  ...|....--....---.......---....--....|...  \n  ...||....---....---------....---....||...  \n  ....--.....----...........----.....--....  \n   ....----.....-------------.....----....   \n    ......----.................----......    \n       ......-------------------......       \n           .......................           \n");
+  let place = [[2, 11], [42, 9]];
+  let placeidx = math.random(1, place.length);
+  await des.region(selection.area(0, 0, 44, 19), "unlit");
+  await des.door("closed", 19, 10);
+  await des.door("closed", 22, 8);
+  await des.door("closed", 22, 12);
+  await des.door("closed", 25, 10);
+  await des.stair({ dir: "up", coord: place[(placeidx) - 1] });
+  place = [[22, 14], [30, 10], [22, 6], [14, 10]];
+  placeidx = math.random(1, place.length);
+  await des.terrain(place[(placeidx) - 1], ".");
+  place = [[22, 4], [35, 10], [22, 16], [9, 10]];
+  placeidx = math.random(1, place.length);
+  await des.terrain(place[(placeidx) - 1], ".");
+  place = [[22, 2], [22, 18]];
+  placeidx = math.random(1, place.length);
+  await des.terrain(place[(placeidx) - 1], ".");
+  await des.non_diggable(selection.area(0, 0, 44, 19));
+  await des.object({ id: "tsurugi", x: 22, y: 10, buc: "blessed", spe: 0, name: "The Tsurugi of Muramasa" });
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.object();
+  await des.trap("board", 22, 9);
+  await des.trap("board", 24, 10);
+  await des.trap("board", 22, 11);
+  await des.trap();
+  await des.trap();
+  await des.trap();
+  await des.trap();
+  await des.trap();
+  await des.trap();
+  await des.monster("Ashikaga Takauji", 22, 10);
+  await des.monster({ id: "samurai", peaceful: 0 });
+  await des.monster({ id: "samurai", peaceful: 0 });
+  await des.monster({ id: "samurai", peaceful: 0 });
+  await des.monster({ id: "samurai", peaceful: 0 });
+  await des.monster({ id: "samurai", peaceful: 0 });
+  await des.monster({ id: "ninja", peaceful: 0 });
+  await des.monster({ id: "ninja", peaceful: 0 });
+  await des.monster({ id: "ninja", peaceful: 0 });
+  await des.monster({ id: "ninja", peaceful: 0 });
+  await des.monster({ id: "ninja", peaceful: 0 });
+  await des.monster("wolf");
+  await des.monster("wolf");
+  await des.monster("wolf");
+  await des.monster("wolf");
+  await des.monster("d");
+  await des.monster("d");
+  await des.monster("stalker");
+  await des.monster("stalker");
+  await des.monster("stalker");
+  await des.monster("stalker");
+  await des.monster("stalker");
+  await des.monster("stalker");
+  await des.monster("stalker");
+  await des.monster("stalker");
+  await des.monster("stalker");
+}

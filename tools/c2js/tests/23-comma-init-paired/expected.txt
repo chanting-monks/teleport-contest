@@ -1,0 +1,3 @@
+key 2: 200
+key 9: 0
+weighted sum: 3000

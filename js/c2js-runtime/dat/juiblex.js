@@ -1,0 +1,78 @@
+// juiblex.js — AUTO-GENERATED from
+// nethack-c/upstream/dat/juiblex.lua.  Do NOT edit by hand.
+// Regenerate via tools/c2js/build-dat-bundle.mjs.
+// Category: jsmodule.
+export default async function({ des, selection, shuffle }) {
+  await des.level_flags("mazelevel", "shortsighted", "noflip", "temperate");
+  await des.level_init({ style: "swamp", lit: 0 });
+  await des.map({ halign: "left", valign: "bottom", map: "xxxxxxxx\nxx...xxx\nxxx...xx\nxxxx.xxx\nxxxxxxxx\n" });
+  await des.object("boulder");
+  await des.map({ halign: "right", valign: "top", map: "xxxxxxxx\nxxxx.xxx\nxxx...xx\nxx...xxx\nxxxxxxxx\n" });
+  await des.object("boulder");
+  await des.map("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.xxxx\nxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxx\nxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.xxxx\nxxxxxxxxxxxxxxxxxxxxxxxx}}}xxxxxxxxxxxxxxx}}}}}xxxx\nxxxxxxxxxxxxxxxxxxxxxxx}}}}}xxxxxxxxxxxxx}.....}xxx\nxxxxxxxxxxxxxxxxxxxxxx}}...}}xxxxxxxxxxx}..P.P..}xx\nxxxxxxxxxxxxxxxxxxxxx}}..P..}}xxxxxxxxxxx}.....}xxx\nxxxxxxxxxxxxxxxxxxxxx}}.P.P.}}xxxxxxxxxxxx}...}xxxx\nxxxxxxxxxxxxxxxxxxxxx}}..P..}}xxxxxxxxxxxx}...}xxxx\nxxxxxxxxxxxxxxxxxxxxxx}}...}}xxxxxxxxxxxxxx}}}xxxxx\nxxxxxxxxxxxxxxxxxxxxxxx}}}}}xxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxx}}}xxxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.xxxx\nxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxx\nxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.xxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
+  let monster = ["j", "b", "P", "F"];
+  shuffle(monster);
+  let place = selection.new();
+  place.set(4, 2);
+  place.set(46, 2);
+  place.set(4, 15);
+  place.set(46, 15);
+  await des.region({ region: [0, 0, 50, 17], lit: 0, type: "swamp", filled: 2 });
+  await des.levregion({ region: [1, 0, 11, 20], region_islev: 1, exclude: [0, 0, 50, 17], type: "stair-down" });
+  await des.levregion({ region: [69, 0, 79, 20], region_islev: 1, exclude: [0, 0, 50, 17], type: "stair-up" });
+  await des.levregion({ region: [1, 0, 11, 20], region_islev: 1, exclude: [0, 0, 50, 17], type: "branch" });
+  await des.teleport_region({ region: [1, 0, 11, 20], region_islev: 1, exclude: [0, 0, 50, 17], dir: "up" });
+  await des.teleport_region({ region: [69, 0, 79, 20], region_islev: 1, exclude: [0, 0, 50, 17], dir: "down" });
+  await des.feature("fountain", place.rndcoord(1));
+  await des.monster({ id: "giant mimic", coord: place.rndcoord(1), appear_as: "ter:fountain" });
+  await des.monster({ id: "giant mimic", coord: place.rndcoord(1), appear_as: "ter:fountain" });
+  await des.monster({ id: "giant mimic", coord: place.rndcoord(1), appear_as: "ter:fountain" });
+  await des.monster("Juiblex", 25, 8);
+  await des.monster("lemure", 43, 8);
+  await des.monster("lemure", 44, 8);
+  await des.monster("lemure", 45, 8);
+  await des.object("*", 43, 6);
+  await des.object("*", 45, 6);
+  await des.object("!", 43, 9);
+  await des.object("!", 44, 9);
+  await des.object("!", 45, 9);
+  await des.monster(monster[3], 25, 6);
+  await des.monster(monster[0], 24, 7);
+  await des.monster(monster[1], 26, 7);
+  await des.monster(monster[2], 23, 8);
+  await des.monster(monster[2], 27, 8);
+  await des.monster(monster[1], 24, 9);
+  await des.monster(monster[0], 26, 9);
+  await des.monster(monster[3], 25, 10);
+  await des.monster("j");
+  await des.monster("j");
+  await des.monster("j");
+  await des.monster("j");
+  await des.monster("P");
+  await des.monster("P");
+  await des.monster("P");
+  await des.monster("P");
+  await des.monster("b");
+  await des.monster("b");
+  await des.monster("b");
+  await des.monster("F");
+  await des.monster("F");
+  await des.monster("F");
+  await des.monster("m");
+  await des.monster("m");
+  await des.monster("jellyfish");
+  await des.monster("jellyfish");
+  await des.object("!");
+  await des.object("!");
+  await des.object("!");
+  await des.object("%");
+  await des.object("%");
+  await des.object("%");
+  await des.object("boulder");
+  await des.trap("sleep gas");
+  await des.trap("sleep gas");
+  await des.trap("anti magic");
+  await des.trap("anti magic");
+  await des.trap("magic");
+  await des.trap("magic");
+}

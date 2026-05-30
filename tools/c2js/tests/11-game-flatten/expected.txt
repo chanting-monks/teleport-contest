@@ -1,0 +1,2 @@
+sokoban=1 activemonst=42
+run=7 move=1 forcefight=1

@@ -1,0 +1,3 @@
+idx of Excalibur: 1
+idx of Magicbane: 2
+idx of Stormbringer: 3

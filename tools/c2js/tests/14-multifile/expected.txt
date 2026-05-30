@@ -1,0 +1,6 @@
+hello from helpers
+add(3, 4) = 7
+square(7) = 49
+LIMITS = 10, 100, 1000
+call_count = 2
+call_count after main increment = 3

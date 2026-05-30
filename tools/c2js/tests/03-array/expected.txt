@@ -1,0 +1,5 @@
+sum[0] = 3
+sum[1] = 7
+sum[2] = 11
+sum[3] = 15
+after edit: points[2] = (50, 6)

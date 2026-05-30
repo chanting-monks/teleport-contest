@@ -1,0 +1,4 @@
+call via var: add(3,4) = 7
+call via var: sub(3,4) = -1
+dispatch[0]: kind=1 call(5,6)=11
+dispatch[1]: kind=2 call(5,6)=-1

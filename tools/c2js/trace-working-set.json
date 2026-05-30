@@ -1,0 +1,203 @@
+{
+    "_comment": "Working set of translated functions that get FN_ENTER trace markers injected by build-engine.mjs.  See docs/INSTRUMENTATION.md for the design.  Each entry's value is the source filename (matches C-side __FILE__ for parity).  Adding a function here pairs with the corresponding FN_ENTER() in nethack-c/patches/010-call-trace-instrumentation.patch.",
+
+    "mklev.js": {
+        "_c_file": "mklev.c",
+        "functions": [
+            "mklev",
+            "makelevel",
+            "makecorridors",
+            "topologize",
+            "add_room",
+            "add_subroom"
+        ]
+    },
+    "mkroom.js": {
+        "_c_file": "mkroom.c",
+        "functions": [
+            "mkroom",
+            "do_room_or_subroom",
+            "search_special",
+            "somexy",
+            "somexyspace",
+            "somex",
+            "somey"
+        ]
+    },
+    "mkmap.js": {
+        "_c_file": "mkmap.c",
+        "functions": [
+            "mkmap",
+            "join_map",
+            "finish_map"
+        ]
+    },
+    "mkmaze.js": {
+        "_c_file": "mkmaze.c",
+        "functions": [
+            "makemaz",
+            "walkfrom"
+        ]
+    },
+    "makemon.js": {
+        "_c_file": "makemon.c",
+        "functions": [
+            "makemon",
+            "makemon_rnd_goodpos",
+            "m_initweap",
+            "m_initthrow",
+            "m_initgrp",
+            "clone_mon"
+        ]
+    },
+    "mon.js": {
+        "_c_file": "mon.c",
+        "functions": [
+            "movemon",
+            "movemon_singlemon",
+            "mcalcmove",
+            "mcalcdistress",
+            "dmonsfree"
+        ]
+    },
+    "monmove.js": {
+        "_c_file": "monmove.c",
+        "functions": [
+            "dochug",
+            "dochugw",
+            "distfleeck",
+            "m_move",
+            "mfndpos",
+            "m_arrival",
+            "m_everyturn_effect",
+            "m_postmove_effect",
+            "onscary",
+            "monflee",
+            "mon_track_add",
+            "mon_track_clear",
+            "monhaskey",
+            "watch_on_duty",
+            "mon_regen",
+            "disturb",
+            "release_hero",
+            "bee_eat_jelly",
+            "mind_blast",
+            "itsstuck",
+            "should_displace",
+            "m_digweapon_check",
+            "leppie_avoidance",
+            "leppie_stash",
+            "m_balks_at_approaching",
+            "m_search_items"
+        ]
+    },
+    "mkobj.js": {
+        "_c_file": "mkobj.c",
+        "functions": [
+            "mkobj",
+            "mksobj",
+            "mksobj_init",
+            "bless",
+            "curse",
+            "blessorcurse"
+        ]
+    },
+    "dog.js": {
+        "_c_file": "dog.c",
+        "functions": [
+            "makedog",
+            "pet_type"
+        ]
+    },
+    "dogmove.js": {
+        "_c_file": "dogmove.c",
+        "functions": [
+            "dog_move",
+            "dog_goal",
+            "score_targ",
+            "can_reach_location",
+            "dog_eat",
+            "dog_invent",
+            "could_reach_item",
+            "tamedog",
+            "dogfood",
+            "dog_nutrition"
+        ]
+    },
+    "hack.js": {
+        "_c_file": "hack.c",
+        "functions": [
+            "domove",
+            "domove_core",
+            "postmov",
+            "moverock",
+            "moverock_core",
+            "still_chewing",
+            "monster_nearby",
+            "in_rooms",
+            "spoteffects",
+            "lookaround",
+            "find_xy",
+            "test_move",
+            "scary_glyph",
+            "switch_terrain"
+        ]
+    },
+    "allmain.js": {
+        "_c_file": "allmain.c",
+        "functions": [
+            "moveloop_preamble",
+            "moveloop_core",
+            "maybe_generate_rnd_mon",
+            "u_calc_moveamt",
+            "newgame"
+        ]
+    },
+    "role.js": {
+        "_c_file": "role.c",
+        "functions": [
+            "role_init",
+            "pick_role",
+            "pick_race",
+            "pick_gend",
+            "pick_align"
+        ]
+    },
+    "u_init.js": {
+        "_c_file": "u_init.c",
+        "functions": [
+            "u_init_misc",
+            "u_init_inventory_attrs",
+            "u_init_role",
+            "u_init_race",
+            "ini_inv",
+            "ini_inv_use_obj",
+            "skill_init"
+        ]
+    },
+    "o_init.js": {
+        "_c_file": "o_init.c",
+        "functions": [
+            "init_objects",
+            "randomize_gem_colors",
+            "shuffle"
+        ]
+    },
+    "dungeon.js": {
+        "_c_file": "dungeon.c",
+        "functions": [
+            "init_dungeons",
+            "init_level",
+            "place_level",
+            "parent_dlevel"
+        ]
+    },
+    "teleport.js": {
+        "_c_file": "teleport.c",
+        "functions": [
+            "goodpos",
+            "enexto",
+            "enexto_core"
+        ]
+    }
+}

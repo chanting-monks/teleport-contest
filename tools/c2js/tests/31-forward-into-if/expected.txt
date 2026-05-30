@@ -1,0 +1,10 @@
+single_goto(5) = 10
+single_goto(-3) = -1
+single_goto(150) = -1
+with_intervening(5) = 55
+with_intervening(-1) = -999
+with_intervening(0) = -999
+multiple_goto_sites(3, 4) = 7
+multiple_goto_sites(-1, 4) = -1
+multiple_goto_sites(3, -1) = -1
+multiple_goto_sites(600, 600) = -1

@@ -1,0 +1,4 @@
+rect[0]: (0,0)-(79,20)
+rect[7]: (null)
+(10,5) inside
+(100,5) outside

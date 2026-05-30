@@ -1,0 +1,5 @@
+initial_helper=10
+doubled=10
+still_initial=10
+bumped=11
+second_doubled=100

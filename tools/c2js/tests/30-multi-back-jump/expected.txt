@@ -1,0 +1,4 @@
+two_label_nested(0) = 204
+three_label_nested(0) = 20202
+mixed_with_inner_if(3) = 36
+mixed_with_inner_if(1) = 2

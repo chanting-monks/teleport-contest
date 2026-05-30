@@ -1,0 +1,10 @@
+{
+    "_description": "Per-site allowlist for translator recognizers that need narrow exceptions to global safety checks. Each top-level key is a category. Sites are matched by (cFile basename, C function name). Empty arrays = mechanism present, no sites enabled — behavior identical to having no allowlist. See docs/LEARNINGS.md §23.128 for the rationale and §23.126c for the prior global-relaxation dead end this mechanism replaces.",
+    "strchr_truncate_p_incr": {
+        "_description": "Functions where the strchr-truncate recognizer accepts post-truncate uses of `p` in JS-string-semantics-safe forms: UnaryOp(++/--), BinaryOp(+, p, IntLit) (emits p.substring(N)), CallExpr-with-p-arg. Safe when (a) the strchr/strrchr needle is a single char (kind='chr'/'rchr'), (b) post-truncate code does NOT read `buf[i]` for i >= the truncation point (JS rebinds buf to a slice, losing trailing bytes). Enabling adds `p = p.substring(1)` (for ++), `p = p.substring(0, p.length-1)` (for --), and `p.substring(N)` (for p+N) emits, plus rewrites *p = '\\0' as nh_strchr_truncate(buf, ...).",
+        "sites": [
+            {"file": "coloratt.c", "function": "color_attr_parse_str"},
+            {"file": "coloratt.c", "function": "add_menu_coloring"}
+        ]
+    }
+}

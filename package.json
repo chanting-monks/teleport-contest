@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "score": "bash frozen/score.sh",
-    "play": "echo 'Open index.html in a browser to play'"
+    "play": "echo 'Open index.html in a browser to play'",
+    "build-bundles": "node tools/c2js/build-dat-bundle.mjs && node tools/c2js/build-rumors-bundle.mjs",
+    "check-bundles": "node tools/c2js/build.mjs --check-bundles",
+    "conformance": "node tools/c2js/build.mjs --conformance",
+    "self-test": "node tools/c2js/build.mjs --self-test"
   },
   "engines": {
     "node": ">=22.0.0"

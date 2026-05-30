@@ -1,0 +1,6 @@
+counter = 12
+product = 12
+big
+i = 0
+i = 1
+i = 2

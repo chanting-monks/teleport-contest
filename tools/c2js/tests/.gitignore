@@ -1,0 +1,4 @@
+# Generated translator output and compiled C binaries.
+# Reproduced by `node tools/c2js/build.mjs --self-test`.
+*/generated/
+.a.out
