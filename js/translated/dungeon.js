@@ -2059,10 +2059,14 @@ export function save_exclusions(nhfp) {
         sfo_int(nhfp, { get value() { return nez; }, set value(_v) { nez = _v; } }, "exclusion_count");
         for (ez = game.exclusion_zones; ez; ez = ez.next) {
             sfo_xint16(nhfp, { get value() { return ez.zonetype; }, set value(_v) { ez.zonetype = _v; } }, "exclusion-zonetype");
-            sfo_int16(nhfp, ez.lx, "exclusion-lx");
-            sfo_int16(nhfp, ez.ly, "exclusion-ly");
-            sfo_int16(nhfp, ez.hx, "exclusion-hx");
-            sfo_int16(nhfp, ez.hy, "exclusion-hy");
+            /* Translator gap: same Axis A consistency tightening as
+               load_exclusions below (commit da46f8b).  sfo_* by-value
+               is functional (read-only) but inconsistent with the
+               translator's current boxed emit for &arr[i] outparams. */
+            sfo_int16(nhfp, { get value() { return ez.lx; }, set value(_v) { ez.lx = _v; } }, "exclusion-lx");
+            sfo_int16(nhfp, { get value() { return ez.ly; }, set value(_v) { ez.ly = _v; } }, "exclusion-ly");
+            sfo_int16(nhfp, { get value() { return ez.hx; }, set value(_v) { ez.hx = _v; } }, "exclusion-hx");
+            sfo_int16(nhfp, { get value() { return ez.hy; }, set value(_v) { ez.hy = _v; } }, "exclusion-hy");
         }
     }
 }
@@ -2075,10 +2079,16 @@ export function load_exclusions(nhfp) {
         ez = alloc(1 /* sizeof(struct exclusion_zone) */);
         sfi_xint16(nhfp, { get value() { return ez.zonetype; }, set value(_v) { ez.zonetype = _v; } }, "exclusion-zonetype");
         ;
-        sfi_int16(nhfp, ez.lx, "exclusion-lx");
-        sfi_int16(nhfp, ez.ly, "exclusion-ly");
-        sfi_int16(nhfp, ez.hx, "exclusion-hx");
-        sfi_int16(nhfp, ez.hy, "exclusion-hy");
+        /* Translator gap: production emits passed by value at these 4
+           sites; sfi_int16 writes back through the pointer, so the by-
+           value form silently loses the loaded value.  Translator now
+           boxes (commit a1b7b22 isAddrOfLocal ArraySubscriptExpr) but
+           this file was built earlier; hand-sync until retire-patches
+           tooling lands. */
+        sfi_int16(nhfp, { get value() { return ez.lx; }, set value(_v) { ez.lx = _v; } }, "exclusion-lx");
+        sfi_int16(nhfp, { get value() { return ez.ly; }, set value(_v) { ez.ly = _v; } }, "exclusion-ly");
+        sfi_int16(nhfp, { get value() { return ez.hx; }, set value(_v) { ez.hx = _v; } }, "exclusion-hx");
+        sfi_int16(nhfp, { get value() { return ez.hy; }, set value(_v) { ez.hy = _v; } }, "exclusion-hy");
         ez.next = game.exclusion_zones;
         game.exclusion_zones = ez;
     }

@@ -217,7 +217,7 @@ export function dosounds() {
                                 }
                             }
                         }
-                        if (vault_occupied(game.u.urooms) != (game.rooms.indexOf(sroom) + 3)) {
+                        if (vault_occupied(game.u.urooms) != ((game.rooms.indexOf((sroom))) + 3)) {
                             if (gold_in_vault) {
                                 You_hear(!hallu ? "someone counting gold coins." : "the quarterback calling the play.");
                             } else {
@@ -273,7 +273,7 @@ export function dosounds() {
             game.level.flags.has_shop = 0;
             return;
         }
-        if (tended_shop(sroom) && !strchr(game.u.ushops, (game.rooms.indexOf(sroom) + 3))) {
+        if (tended_shop(sroom) && !strchr(game.u.ushops, ((game.rooms.indexOf((sroom))) + 3))) {
             You_hear("%s", __dosounds_shop_msg[rn2(2) + hallu]);
             noisy_shop(sroom);
         }
@@ -903,7 +903,7 @@ export function domonnoise(mtmp) {
             ;
         case MS_HUMANOID:
             if (!mtmp.mpeaceful) {
-                if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && ((ptr).pmidx >= PM_ARCHEOLOGIST && (ptr).pmidx <= PM_WIZARD)) {
+                if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && (((ptr).pmidx >= PM_ARCHEOLOGIST) && ((ptr).pmidx <= PM_WIZARD))) {
                     mplayer_talk(mtmp);
                 } else {
                     pline_msg = "threatens you.";
@@ -1397,28 +1397,22 @@ export function assign_soundlib(idx) {
 /* copy up to maxlen-1 characters; 'dest' must be able to hold maxlen;
    treat comma as alternate end of 'src' */
 export function get_soundlib_name(dest, maxlen) {
-    /* Hand-port: C walks src char-by-char, copying to dest until comma
-       (',' = 44), null terminator, or maxlen-1 chars copied.  Translator
-       emitted `src == 44` (string vs int, always false), `src++` (string
-       concat), and `*p = src++` (void 0 TODO).  Loop bailed without
-       copying.  Also wrote `dest.value = 0` which is wrong because dest
-       is an Array (caller's soundlibbuf in options.js:2762). */
-    let idx = game.active_soundlib;
-    if (!((idx) >= 0 && (idx) < 1 /* sizeof(struct sound_choices [1])/sizeof */)) {
+    let __nh_dest_idx = 0;
+    let count = 0;
+    let idx = 0;
+    let src = null;
+    idx = game.active_soundlib;
+    if (!((idx) >= 0 && (idx) < (Math.trunc(1 /* sizeof(struct sound_choices [1]) */ / 1 /* sizeof(struct sound_choices) */)))) {
         panic("get_soundlib_name: invalid active_soundlib (%d)", idx);
     }
-    const src = game.soundlib_choices[idx].sndprocs.soundname;
-    const s = (typeof src === 'string') ? src
-        : (Array.isArray(src) ? ((() => { let r=''; for (let i=0; i<src.length && src[i]; i++) r += String.fromCharCode(src[i]); return r; })()) : (src == null ? '' : String(src)));
-    /* Stop at ',' or end-of-string */
-    const commaIdx = s.indexOf(',');
-    const end = (commaIdx >= 0) ? commaIdx : s.length;
-    const truncEnd = Math.min(end, maxlen - 1);
-    if (Array.isArray(dest)) {
-        let i;
-        for (i = 0; i < dest.length && i < truncEnd; i++) dest[i] = s.charCodeAt(i);
-        if (i < dest.length) dest[i] = 0;
+    src = game.soundlib_choices[idx].sndprocs.soundname;
+    for (count = 1; count < maxlen; count++) {
+        if (src == 44 || src == 0) {
+            break;
+        }
+        dest[__nh_dest_idx++] = src++;
     }
+    dest.value = 0;
 }
 export function soundlib_id_from_opt(op) {
     let idx = 0;

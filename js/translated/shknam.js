@@ -292,7 +292,8 @@ export function good_shopdoor(sroom, sx, sy) {
         sx.value = game.doors[di].x;
         sy.value = game.doors[di].y;
         if (sroom.irregular) {
-            let rmno = (game.rooms.indexOf(sroom) + 3);
+            /* check that the shopkeeper placement is sane */
+            let rmno = ((game.rooms.indexOf(sroom)) + 3);
             if (isok(sx.value - 1, sy.value) && !game.level.locations[sx.value - 1][sy.value].edge && game.level.locations[sx.value - 1][sy.value].roomno == rmno) {
                 (sx.value)--;
             } else if (isok(sx.value + 1, sy.value) && !game.level.locations[sx.value + 1][sy.value].edge && game.level.locations[sx.value + 1][sy.value].roomno == rmno) {
@@ -364,7 +365,7 @@ export function shkinit(shp, sroom) {
     shk.msleeping = 0;
     /* we know all the traps already */
     mon_learns_traps(shk, ALL_TRAPS);
-    eshkp.shoproom = (game.rooms.indexOf(sroom) + 3);
+    eshkp.shoproom = ((game.rooms.indexOf(sroom)) + 3);
     sroom.resident = shk;
     eshkp.shoptype = sroom.rtype;
     assign_level(eshkp.shoplevel, game.u.uz);
@@ -408,7 +409,7 @@ export function stock_room(shp_indx, sroom) {
     let stockcount = 0;
     let specialspot = 0;
     let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let rmno = (game.rooms.indexOf(sroom) + 3);
+    let rmno = ((game.rooms.indexOf(sroom)) + 3);
     let shp = shtypes[shp_indx];
     /* first, try to place a shopkeeper in the room */
     if ((sh = shkinit(shp, sroom)) < 0) {
@@ -587,4 +588,3 @@ export function is_izchak(shkp, override_hallucination) {
     return !strcmp(shknm, "Izchak");
 }
 /*shknam.c*/
-/* check that the shopkeeper placement is sane */

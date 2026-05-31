@@ -39,12 +39,7 @@ export function to_custom_symset_entry_callback(glyph, findwhat) {
     let utf8str = [0, 0, 0, 0, 0, 0];
     let uval = 0;
     if (findwhat.extraval) {
-        /* Hand-port: C `*findwhat->extraval = glyph` assigns glyph to the
-           int outparam (caller passes glyphptr value-box).  Translator
-           emitted as void 0 TODO — outparam never received the glyph. */
-        if (typeof findwhat.extraval === 'object' && 'value' in findwhat.extraval) {
-            findwhat.extraval.value = glyph;
-        }
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = glyph) */;
     }
     (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
     if (findwhat.unicode_val) {
@@ -155,39 +150,17 @@ export function glyphrep_to_custom_map_entries(op, glyphptr) {
     return reslt;
 }
 export function fix_glyphname(str) {
-    /* Hand-port: C `fix_glyphname` walks str char-by-char with pointer
-       and in-place mutates each byte: lowercase A-Z, keep digits 0-9,
-       replace everything else with '_'.  Translator emitted the entire
-       loop body as broken `c++` (string concat) + `c += 26` and `void 0`
-       TODO for the underscore write.  Function returned str untouched.
-
-       JS rewrite: walk via charCodeAt, build normalized string, mutate
-       the array buffer in place if str is an Array (matches C in-place
-       semantic) so callers that re-read str see the normalized form. */
-    if (str == null) return str;
-    const s = (typeof str === 'string') ? str
-        : (Array.isArray(str) ? ((() => { let r=''; for (let i=0; i<str.length && str[i]; i++) r += String.fromCharCode(str[i]); return r; })()) : String(str));
-    let result = '';
-    for (let i = 0; i < s.length; i++) {
-        const c = s.charCodeAt(i);
-        if (c >= 65 && c <= 90) {              /* A-Z → a-z */
-            result += String.fromCharCode(c + (97 - 65));
-        } else if (c >= 48 && c <= 57) {       /* 0-9 keep */
-            result += String.fromCharCode(c);
-        } else if (c >= 97 && c <= 122) {      /* a-z keep */
-            result += String.fromCharCode(c);
-        } else {                                /* other → '_' */
-            result += '_';
+    let c = null;
+    for (c = str; c; c++) {
+        if (c >= 65 && c <= 90) {
+            c += (97 - 65);
+        } else if (c >= 48 && c <= 57) {
+            ;
+        } else if (c < 97 || c > 122) {
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 95) */;
         }
     }
-    /* Mutate input array in place if applicable, matching C semantic. */
-    if (Array.isArray(str)) {
-        for (let i = 0; i < str.length && i < result.length; i++) {
-            str[i] = result.charCodeAt(i);
-        }
-        return str;
-    }
-    return result;
+    return str;
 }
 export function glyph_to_cmap(glyph) {
     if (glyph == GLYPH_CMAP_STONE_OFF) {

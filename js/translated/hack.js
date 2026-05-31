@@ -1805,7 +1805,7 @@ export function domove_swap_with_pet(mtmp, x, y) {
     if (mtmp.mtrapped && ((trap.ttyp) == PIT || (trap.ttyp) == SPIKED_PIT) && sobj_at(BOULDER, trap.tx, trap.ty)) {
         /* can't swap places with pet pinned in a pit by a boulder */
         didnt_move = (1);
-    } else if (game.u.ux0 != x && game.u.uy0 != y && (((mtmp.data).pmidx) == PM_GRID_BUG)) {
+    } else if (game.u.ux0 != x && game.u.uy0 != y && ((mtmp.data.pmidx) == PM_GRID_BUG)) {
         /* can't swap places when pet can't move to your spot */
         You("stop.  %s can't move diagonally.", YMonnam(mtmp));
         didnt_move = (1);
@@ -3825,7 +3825,7 @@ export function dump_weights() {
             game.weightlist[cnt].unique = ((game.mons[i].geno & 4096) != 0);
             nh_snprintf("dump_weights", 4439, nmbuf, 256 /* sizeof(char [256]) */, "%07u", game.weightlist[cnt].wt);
             cm = CapitalMon(game.mons[i].pmnames[NEUTRAL]);
-            nh_snprintf("dump_weights", 4444, nmbuf[7], 256 /* sizeof(char [256]) */ - 7, "%s%s", "the body of ", (cm) ? the(game.mons[i].pmnames[NEUTRAL]) : game.weightlist[cnt].unique ? game.mons[i].pmnames[NEUTRAL] : an(game.mons[i].pmnames[NEUTRAL]));
+            nh_snprintf("dump_weights", 4444, { get value() { return nmbuf[7]; }, set value(_v) { nmbuf[7] = _v; } }, 256 /* sizeof(char [256]) */ - 7, "%s%s", "the body of ", (cm) ? the(game.mons[i].pmnames[NEUTRAL]) : game.weightlist[cnt].unique ? game.mons[i].pmnames[NEUTRAL] : an(game.mons[i].pmnames[NEUTRAL]));
             game.weightlist[cnt].nm = dupstr(nmbuf);
             cnt++;
         }

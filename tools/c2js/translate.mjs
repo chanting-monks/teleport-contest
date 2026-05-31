@@ -1023,7 +1023,7 @@ function functionDecl(node, ctx) {
     // Local struct-ptr variables share the same emission rule (the
     // local IS the caller's reference, write-through copies fields).
     // Walk the body to collect them in the same set.
-    collectStructPtrLocals(body, structRefSet);
+    collectStructPtrLocals(body, structRefSet, ctx.opts?.crossTuTypedefAliases);
     ctx.structPtrParamNames = structRefSet;
     // Export rules: `static` C functions are file-local → no export.
     // `main` is a program entry, not an importable symbol → no export
@@ -1157,6 +1157,20 @@ function functionDecl(node, ctx) {
     // function-local statics) resolves correctly when rendering.
     const prevCBR = ctx.charBufferRewrites;
     ctx.charBufferRewrites = analyzeCharBufferCandidates(body, ctx);
+    // Char-buffer parameter walker recognizer: handle `void f(char
+    // *bufp)` where bufp's body uses match the walker safe-set.
+    // Pre-existing recognizer only looks at local VarDecls; this
+    // companion extends to function parameters so getlin / putstr-
+    // style callers don't fall into the generic pointer-mutation
+    // TODO.  Same matchCharBufferWrite consumer path.
+    addParmCharBufferCandidates(paramNodes, body, ctx.charBufferRewrites, ctx);
+    // Assignment-init char-buffer recognizer: handle `char *p;  ...
+    // p = bufRef;` (split decl + later assignment), analogous to the
+    // decl-init form but for the common NetHack pattern where multiple
+    // char-pointer locals get bulk-initialized in a for-init's comma
+    // expression.  Runs AFTER the decl-init and parm passes so it
+    // can't double-claim names those already own.
+    addAssignmentInitCharBufferCandidates(body, ctx.charBufferRewrites, ctx);
     // strchr-truncate pre-pass: find `if ((p = strchr_family(buf, X))
     // != NULL) *p = '\0';` sites and verify p has no position-
     // dependent uses elsewhere in the body.  Safe sites are tracked
@@ -1188,7 +1202,23 @@ function functionDecl(node, ctx) {
     const prevLLI = ctx.linkedListIterators;
     analyzeLinkedListIterators(body, ctx);
     // Body opens at the function head's indent (0 at top level).
-    const bodyJs = compoundStmt(body, ctx);
+    let bodyJs = compoundStmt(body, ctx);
+    // Inject `let __nh_<name>_idx = 0;` for each char-buffer
+    // PARAMETER walker (the local-decl walker case had its
+    // injection happen via declStmt rewriting the VarDecl in-place;
+    // for params there's no VarDecl to rewrite — the params land
+    // in the function head's arg list).  Splice the decls at the
+    // top of the body's opening brace.
+    const paramWalkerIdxDecls = [];
+    for (const p of paramNodes) {
+        const r = ctx.charBufferRewrites.get(p.name);
+        if (r?.isParam) {
+            paramWalkerIdxDecls.push(`    let ${r.idxName} = 0;`);
+        }
+    }
+    if (paramWalkerIdxDecls.length > 0 && bodyJs.startsWith('{\n')) {
+        bodyJs = '{\n' + paramWalkerIdxDecls.join('\n') + '\n' + bodyJs.slice(2);
+    }
     ctx.charBufferRewrites = prevCBR;
     ctx.strchrTruncates = prevStrTrunc;
     ctx.scalarPtrParamNames = prevScalarPtrParams;
@@ -2596,9 +2626,94 @@ function analyzeCharBufferCandidates(body, ctx) {
     return candidates;
 }
 
+// Companion to analyzeCharBufferCandidates that scans function
+// parameters declared `char *NAME` (or `const char *NAME`) and
+// registers them as walker candidates when the body's uses match
+// the strict walker safe-set (the same predicate
+// verifyCharBufferSliceOne uses for the local-decl case).
+//
+// Why: getlin(prompt, char *bufp) and similar callers write into a
+// caller-allocated buffer via `*bufp++ = c;` then `*bufp = '\0';`.
+// Without a recognizer the translator falls into the generic
+// pointer-mutation TODO and emits `bufp.value = c; bufp = bufp + 1;`
+// which is broken (`.value` is a property nobody reads; the bufp++
+// NaN trick orphans the array).  Treating the parameter itself as
+// the buf (bufRef = the param) and emitting `bufp[__nh_bufp_idx++]
+// = c` mutates the caller's array — observationally equivalent to
+// C's pointer-walk.
+//
+// The resulting candidates flow through the SAME matchCharBufferWrite
+// path that the local-decl candidates use, so reads (`*bufp` →
+// `bufp[idx]`), writes (`*bufp = X`), and combined-form
+// (`*bufp++ = X` → `bufp[idx++] = X`) all work without changing
+// the existing emit hooks.  Statement-form bare `bufp++` (no `*`
+// deref) is NOT supported in v1 — the verifier rejects functions
+// that have one, deferring such cases until we handle the alias
+// pattern (`char *obufp = bufp;` save-original).
+function addParmCharBufferCandidates(paramNodes, body, candidates, ctx) {
+    if (!paramNodes || !body) return;
+    for (const p of paramNodes) {
+        if (p.kind !== 'ParmVarDecl' || !p.name) continue;
+        const typeStr = p.type?.qualType || '';
+        // Same extended type pattern as tryAddCandidate — accept char*
+        // typedefs (uint8/int8/unsigned char/signed char) so functions
+        // like unicodeval_to_utf8str(uint8 *buffer, ...) qualify.
+        if (!/^(const\s+)?(char|uint8|int8|unsigned\s+char|signed\s+char)\s*\*/.test(typeStr)) continue;
+        // Skip if already a local-decl candidate (shouldn't happen
+        // since locals shadow params in a function scope, but be safe).
+        if (candidates.has(p.name)) continue;
+        // Require at least one walker-mutation in the body before
+        // registering — otherwise the parm is a pure pass-through
+        // (e.g., `const char *orig` only passed to strlen/strncmp).
+        // Without the gate, every read-only string parm would gain a
+        // dead `__nh_p_idx = 0` decl + redundant `.slice(0)` arg
+        // wrapping.  Functional but noise.  Added 2026-05-30 with
+        // the function-arg bare-pointer emit.
+        if (!hasCharBufferWalkerActivity(body, p.name)) continue;
+        // Require at least one CONCRETE write `*p = X` or `*p++ = X`
+        // before claiming a parameter walker.  Read-only walkers
+        // (decode_glyph's `for (; *str && ...; ++str)` reading hex
+        // chars) would be observationally correct when rewritten to
+        // index form, but enabling the rewrite changes the emit shape
+        // (`str.value` undefined → `str[idx]` defined) which has
+        // surfaced as a runtime behavior shift in caller-side conventions
+        // — the broken `str.value` no-op was masking upstream callers
+        // passing inputs the decode path wasn't ready for.  Land the
+        // standalone-increment recognition for WRITE walkers like
+        // windows.c::getlin's `*bufp = X; bufp++;` while leaving
+        // read-only walkers on the prior emit path.  Added 2026-05-31.
+        if (!hasCharBufferTrueWrite(body, p.name)) continue;
+        // Same write-only / walker-only check the local-decl path
+        // uses — rejects any read of *p in a comparison, indexed
+        // access bufp[k], pointer arithmetic, escape via function
+        // call, etc.
+        // For parameters, the parameter IS the buffer (no separate
+        // bufRef); pass p.name as both pName and bufName so the
+        // verifier accepts `p == &p[N]` comparisons.
+        if (!verifyCharBufferSliceOne(body, p.name, p.name)) continue;
+        // bufRef synthesised to look like a DeclRefExpr to the
+        // parameter so expr() emits the parameter's name in the
+        // rewritten body.  The param is its own buffer in JS —
+        // mutating param[idx] writes through to the caller's array.
+        const bufRef = {
+            kind: 'DeclRefExpr',
+            referencedDecl: { name: p.name, kind: 'ParmVarDecl' },
+        };
+        candidates.set(p.name, {
+            bufRef,
+            idxName: `__nh_${renameIfReserved(p.name)}_idx`,
+            isParam: true, // flag for the function-body idx-decl injection
+        });
+    }
+}
+
 function tryAddCandidate(d, body, candidates, ctx) {
     const typeStr = d.type?.qualType || '';
-    if (!/^(const\s+)?char\s*\*/.test(typeStr)) return;
+    // Match char-pointer types including NetHack typedefs.  uint8 is
+    // an unsigned-char typedef, int8 is a signed-char typedef.  Also
+    // accept explicit unsigned/signed char.  Per user direction
+    // 2026-05-30 to extend the *p++ = X recognizer beyond plain char *.
+    if (!/^(const\s+)?(char|uint8|int8|unsigned\s+char|signed\s+char)\s*\*/.test(typeStr)) return;
     const init = (d.inner || []).find(isExpr);
     if (!init) return;
     let bufRef = init;
@@ -2615,7 +2730,11 @@ function tryAddCandidate(d, body, candidates, ctx) {
     // escape path (no `return p`, no `p` as function arg, no `p+N`
     // arithmetic) — so the index-based rewrite is observationally
     // equivalent to C's pointer-walk.
-    if (!verifyCharBufferSliceOne(body, d.name)) return;
+    // Pass bufRef's name so the verifier can accept comparisons of p
+    // against &bufRef[N] (the "have we filled the buffer" sentinel
+    // check common in NetHack getobj/altlets patterns).
+    const bufName = bufRef.referencedDecl?.name || null;
+    if (!verifyCharBufferSliceOne(body, d.name, bufName)) return;
     // Coexistence with value-box outparams (`ctx.scalarPtrParamNames`):
     // a local `char *p = buf` where buf is a known scalar-ptr outparam
     // gets registered as a casted-alias.  The translator's
@@ -2646,6 +2765,71 @@ function tryAddCandidate(d, body, candidates, ctx) {
     });
 }
 
+// True iff `body` has at least one walker-mutation use of `pName`:
+//   - p++, ++p, p--, --p           (pointer increment)
+//   - *p = X                       (write through pointer)
+//   - *p++ = X (= UnaryOp(*) over UnaryOp(++p)) (walker write)
+//   - p += N, p -= N               (pointer advance)
+// Used to gate parm-registration: a parm that's only read (passed
+// to strlen/strncmp etc.) shouldn't get an idx decl + slice emit
+// because the idx never advances and the slice is from position 0
+// (equivalent to passing the parm directly).
+// Added 2026-05-30 with the function-arg bare-pointer emit, which
+// surfaced previously-rejected pure-pass-through parms as candidates.
+function hasCharBufferWalkerActivity(body, pName) {
+    let found = false;
+    const visit = (node, parents) => {
+        if (found || !node || typeof node !== 'object') return;
+        if (node.kind === 'DeclRefExpr'
+            && node.referencedDecl?.name === pName) {
+            // Walk up parents past casts to identify the role.
+            let i = parents.length - 1;
+            while (i >= 0 && (parents[i].kind === 'ImplicitCastExpr'
+                || parents[i].kind === 'CStyleCastExpr'
+                || parents[i].kind === 'ParenExpr')) {
+                i--;
+            }
+            const direct = i >= 0 ? parents[i] : null;
+            // p++ / ++p / p-- / --p
+            if (direct?.kind === 'UnaryOperator'
+                && (direct.opcode === '++' || direct.opcode === '--')) {
+                found = true;
+                return;
+            }
+            // p += N / p -= N
+            if (direct?.kind === 'BinaryOperator'
+                && (direct.opcode === '+=' || direct.opcode === '-=')) {
+                const lhs = stripCasts(direct.inner?.[0]);
+                if (lhs?.kind === 'DeclRefExpr'
+                    && lhs.referencedDecl?.name === pName) {
+                    found = true;
+                    return;
+                }
+            }
+            // *p (write check needs grandparent inspection)
+            if (direct?.kind === 'UnaryOperator' && direct.opcode === '*') {
+                let j = i - 1;
+                while (j >= 0 && (parents[j].kind === 'ImplicitCastExpr'
+                    || parents[j].kind === 'CStyleCastExpr'
+                    || parents[j].kind === 'ParenExpr')) {
+                    j--;
+                }
+                const grand = j >= 0 ? parents[j] : null;
+                if (grand?.kind === 'BinaryOperator' && grand.opcode === '='
+                    && grand.inner?.[0] === direct) {
+                    found = true;
+                    return;
+                }
+            }
+        }
+        for (const child of node.inner || []) {
+            visit(child, [...parents, node]);
+        }
+    };
+    visit(body, []);
+    return found;
+}
+
 // True iff `body` contains a `p++` / `++p` / `p--` / `--p`
 // operation on the variable named `pName` (anywhere, at any nesting
 // depth).  Used to distinguish walked pointers (where slice A's
@@ -2664,10 +2848,240 @@ function hasPointerIncrement(body, pName) {
                 return;
             }
         }
+        // Also accept compound advances `p += N` / `p -= N`
+        // (CompoundAssignOperator) — semantically equivalent to
+        // multi-step ++ for the purpose of identifying walker-style
+        // behavior.  Added 2026-05-31 to unlock the
+        // `char *p = src_param; p += 1; ...` pattern in test 39's
+        // followup work — without it the value-box outparam path
+        // rejects such aliases for not having ++ even though `+= N`
+        // is the same intent.
+        if ((node.kind === 'CompoundAssignOperator'
+             || node.kind === 'BinaryOperator')
+            && (node.opcode === '+=' || node.opcode === '-=')) {
+            const lhs = stripCasts(node.inner?.[0]);
+            if (lhs?.kind === 'DeclRefExpr'
+                && lhs.referencedDecl?.name === pName) {
+                found = true;
+                return;
+            }
+        }
         for (const child of node.inner || []) visit(child);
     };
     visit(body);
     return found;
+}
+
+// True iff the body contains at least one TRUE WRITE through pName:
+// `*p = X` or `*p++ = X` where pName is on the LHS of an assignment.
+// Used to gate walker recognition for parameters: read-only walkers
+// like `for (; *str && ...; ++str)` would be observationally CORRECT
+// when rewritten to index form, but enabling the rewrite changes the
+// runtime emit shape (`str.value` → `str[idx]`) which may interact
+// with caller-side conventions (e.g., decode_glyph's callers expect
+// the function to be a no-op for non-encoded strings; the broken
+// `str.value` emit produces that no-op by accident).  Requiring a
+// concrete write ensures only walkers that ACTIVELY mutate the buffer
+// get the rewrite — read-only walkers fall through to the existing
+// scalar/ptr emit path.  Added 2026-05-31 alongside the standalone-
+// increment safe-set extension.
+function hasCharBufferTrueWrite(body, pName) {
+    let found = false;
+    const visit = (node, parents) => {
+        if (found || !node || typeof node !== 'object') return;
+        if (node.kind === 'DeclRefExpr' && node.referencedDecl?.name === pName) {
+            let i = parents.length - 1;
+            while (i >= 0 && (parents[i].kind === 'ImplicitCastExpr'
+                || parents[i].kind === 'CStyleCastExpr'
+                || parents[i].kind === 'ParenExpr')) {
+                i--;
+            }
+            const direct = i >= 0 ? parents[i] : null;
+            if (direct?.kind === 'UnaryOperator' && direct.opcode === '*') {
+                // *p: check if grandparent is `=` assignment with this
+                // UnaryOp as the LHS.
+                let j = i - 1;
+                while (j >= 0 && (parents[j].kind === 'ImplicitCastExpr'
+                    || parents[j].kind === 'CStyleCastExpr'
+                    || parents[j].kind === 'ParenExpr')) {
+                    j--;
+                }
+                const grand = j >= 0 ? parents[j] : null;
+                if (grand?.kind === 'BinaryOperator' && grand.opcode === '='
+                    && grand.inner?.[0] === direct) {
+                    found = true;
+                    return;
+                }
+            } else if (direct?.kind === 'UnaryOperator'
+                && (direct.opcode === '++' || direct.opcode === '--')) {
+                // p++ inside *p++: walk up past the UnaryOp(++) to find
+                // a UnaryOp(*) above, then up again to find `=` with
+                // the * as LHS.
+                let j = i - 1;
+                while (j >= 0 && (parents[j].kind === 'ImplicitCastExpr'
+                    || parents[j].kind === 'CStyleCastExpr'
+                    || parents[j].kind === 'ParenExpr')) {
+                    j--;
+                }
+                const above = j >= 0 ? parents[j] : null;
+                if (above?.kind === 'UnaryOperator' && above.opcode === '*') {
+                    let k = j - 1;
+                    while (k >= 0 && (parents[k].kind === 'ImplicitCastExpr'
+                        || parents[k].kind === 'CStyleCastExpr'
+                        || parents[k].kind === 'ParenExpr')) {
+                        k--;
+                    }
+                    const top = k >= 0 ? parents[k] : null;
+                    if (top?.kind === 'BinaryOperator' && top.opcode === '='
+                        && top.inner?.[0] === above) {
+                        found = true;
+                        return;
+                    }
+                }
+            }
+        }
+        for (const child of node.inner || []) visit(child, [...parents, node]);
+    };
+    visit(body, []);
+    return found;
+}
+
+// True iff parent chain wraps the DeclRefExpr in a STANDALONE
+// `p++` / `++p` / `p--` / `--p` (NOT inside `*` deref).  A walker
+// advance that mirrors C's pointer-walk via index-tracker mutation.
+// Pairs with isCharBufferWriteUsage's `*p++ = X` (combined form);
+// some C code writes the two statements separately:
+//   *bufp = key;
+//   bufp++;
+// (windows.c::getlin and similar input readers).  Added 2026-05-31.
+function isCharBufferStandaloneIncrement(parents) {
+    let i = parents.length - 1;
+    while (i >= 0 && (parents[i].kind === 'ImplicitCastExpr'
+        || parents[i].kind === 'CStyleCastExpr'
+        || parents[i].kind === 'ParenExpr')) {
+        i--;
+    }
+    if (i < 0) return false;
+    const p1 = parents[i];
+    if (p1.kind !== 'UnaryOperator') return false;
+    if (p1.opcode !== '++' && p1.opcode !== '--') return false;
+    // Standalone: parent of the UnaryOp must NOT be another UnaryOp(*).
+    let j = i - 1;
+    while (j >= 0 && (parents[j].kind === 'ImplicitCastExpr'
+        || parents[j].kind === 'CStyleCastExpr'
+        || parents[j].kind === 'ParenExpr')) {
+        j--;
+    }
+    if (j >= 0) {
+        const p2 = parents[j];
+        if (p2.kind === 'UnaryOperator' && p2.opcode === '*') return false;
+    }
+    return true;
+}
+
+// addAssignmentInitCharBufferCandidates: extend charBufferRewrites to
+// cover `char *NAME;  ...; NAME = BUFREF;  *NAME++ = X; ...` —
+// patterns where the char-pointer local is DECLARED without init and
+// gets its first concrete value from a body-level assignment whose
+// RHS is a char-array local or char-pointer parameter.  Added 2026-
+// 05-30 to handle hacklib.c::strNsubst's `char *bp, *op, workbuf[BUFSZ];`
+// where `op = workbuf` happens in the for-init.  Analogous to the
+// existing decl-init form covered by tryAddCandidate but split
+// across statements.
+//
+// Verification reuses verifyCharBufferSliceOne with the
+// assignmentInitNode parameter so the LHS DeclRefExpr of the init
+// assignment is treated as a binding-site ref (not a body use).
+function addAssignmentInitCharBufferCandidates(body, candidates, ctx) {
+    if (!body) return;
+    // 1. Collect VarDecls of char-pointer locals that lack a
+    //    meaningful init AND aren't already candidates.  NULL/0
+    //    inits count as "no init" because the assignment-init resets
+    //    name to a real bufRef anyway.
+    const decls = [];
+    const visitDecl = (node) => {
+        if (!node || typeof node !== 'object') return;
+        if (node.kind === 'VarDecl' && node.storageClass !== 'static'
+            && !candidates.has(node.name)) {
+            const typeStr = node.type?.qualType || '';
+            if (/^(const\s+)?(char|uint8|int8|unsigned\s+char|signed\s+char)\s*\*/.test(typeStr)) {
+                const init = (node.inner || []).find(isExpr);
+                if (!init || isLikelyNull(init)) {
+                    decls.push(node);
+                }
+            }
+        }
+        for (const child of node.inner || []) visitDecl(child);
+    };
+    visitDecl(body);
+    for (const declNode of decls) {
+        const name = declNode.name;
+        const found = findCharBufferAssignmentInit(body, name);
+        if (!found) continue;
+        const bufExpr = found.bufExpr;
+        const bufName = bufExpr.referencedDecl?.name;
+        if (!bufName) continue;
+        // Avoid double-claim if bufName is already a candidate
+        // (a different recognizer owns the buf).
+        if (candidates.has(bufName)) continue;
+        if (!verifyCharBufferSliceOne(body, name, bufName, found.nodes)) continue;
+        candidates.set(name, {
+            bufRef: bufExpr,
+            idxName: `__nh_${renameIfReserved(name)}_idx`,
+            isAssignmentInit: true,
+            assignmentInitNodes: found.nodes,
+        });
+    }
+}
+
+// findCharBufferAssignmentInit: scan body for `name = bufRef` BinaryOp(=)
+// assignments where bufRef is a DeclRefExpr to a char-array local OR
+// a char-pointer parameter.  Returns { bufExpr, nodes: [...] } where
+// nodes contains every matching assignment.  Multiple assignments are
+// accepted IF they all reference the SAME bufRef (e.g., strNsubst's
+// two `rp = replacement` resets inside two separate for-init blocks);
+// such patterns are semantically `__nh_p_idx = 0` resets, all valid.
+// Returns null if no match OR if different bufRefs are seen.
+function findCharBufferAssignmentInit(body, name) {
+    let bufExpr = null;
+    let bufName = null;
+    let multi = false;
+    const nodes = [];
+    const visit = (node) => {
+        if (multi || !node || typeof node !== 'object') return;
+        if (node.kind === 'BinaryOperator' && node.opcode === '=') {
+            const lhs = stripCasts(node.inner?.[0]);
+            if (lhs?.kind === 'DeclRefExpr'
+                && lhs.referencedDecl?.name === name) {
+                const rhs = stripCasts(node.inner?.[1]);
+                if (rhs?.kind === 'DeclRefExpr') {
+                    const decl = rhs.referencedDecl;
+                    const qt = (decl?.qualType || decl?.type?.qualType || '');
+                    // `char foo[N]` array-of-char OR `char *foo` pointer.
+                    if (/^(const\s+)?(char|uint8|int8|unsigned\s+char|signed\s+char)\s*[\[\*]/.test(qt)) {
+                        const rhsName = decl?.name;
+                        if (bufExpr === null) {
+                            bufExpr = rhs;
+                            bufName = rhsName;
+                            nodes.push(node);
+                        } else if (rhsName === bufName) {
+                            // Same bufRef — accept as another reset of
+                            // the position tracker (`__nh_p_idx = 0`).
+                            nodes.push(node);
+                        } else {
+                            // Different bufRef — ambiguous; reject.
+                            multi = true;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        for (const child of node.inner || []) visit(child);
+    };
+    visit(body);
+    if (multi || bufExpr === null) return null;
+    return { bufExpr, nodes };
 }
 
 // Walks `body` looking for DeclRefExpr referencing `pName`.  Each
@@ -2675,14 +3089,166 @@ function hasPointerIncrement(body, pName) {
 // assignment.  Returns false if any reference fails this check.
 // Excludes the `p = buf` VarDecl init itself (which references
 // `buf`, not `p`).
-function verifyCharBufferSliceOne(body, pName) {
+//
+// One exception: a `char *ALIAS = pName;` save-original alias decl
+// is permitted IFF it's the only such decl AND ALIAS's body uses
+// are read-only (no `*ALIAS = X`, no `ALIAS++`, no `ALIAS = other`
+// rebind).  Covers the getlin pattern where the parameter is
+// walked through but the caller-passed buffer reference is also
+// passed to pline / printf as `%s`.
+function verifyCharBufferSliceOne(body, pName, bufName = null, assignmentInitNodes = null) {
+    // Find at most ONE alias-init: a `char *ALIAS = pName;` VarDecl
+    // whose RHS DeclRefExpr resolves to pName.  Stripping
+    // ImplicitCast/ParenExpr nodes between VarDecl and the
+    // DeclRefExpr captures the const-cast variant the C parser
+    // emits.
+    const aliasInfo = findCharPointerAlias(body, pName);
+    // For assignment-init form (`char *p; ...; p = bufRef;`), each LHS
+    // DeclRefExpr is a binding-site reference — skip them like the
+    // decl-init's bufRef ref is skipped (the assignment IS the init,
+    // not a body use).  Multiple resets to the same bufRef are
+    // permitted (e.g., two for-init `rp = replacement` blocks in
+    // strNsubst); bindingSiteRefs collects each LHS DeclRefExpr node.
+    // Accept legacy single-node form for backwards compat.
+    const bindingSiteRefs = new Set();
+    const initNodes = Array.isArray(assignmentInitNodes)
+        ? assignmentInitNodes
+        : (assignmentInitNodes ? [assignmentInitNodes] : []);
+    for (const initNode of initNodes) {
+        let lhs = initNode.inner?.[0];
+        while (lhs && (lhs.kind === 'ImplicitCastExpr'
+            || lhs.kind === 'CStyleCastExpr' || lhs.kind === 'ParenExpr')) {
+            lhs = lhs.inner?.[0];
+        }
+        if (lhs?.kind === 'DeclRefExpr') bindingSiteRefs.add(lhs);
+    }
     let safe = true;
+    let rejectReason = null;
     const visit = (node, parents) => {
         if (!safe || !node || typeof node !== 'object') return;
         if (node.kind === 'DeclRefExpr' && node.referencedDecl?.name === pName) {
-            if (!isCharBufferWriteUsage(parents)) {
+            // Skip the alias-init reference — the same DeclRefExpr
+            // is consumed by aliasInfo's safety check below.
+            if (aliasInfo && aliasInfo.refNode === node) {
+                // Continue without failure; the walker safety check
+                // doesn't apply to the alias init.
+            } else if (bindingSiteRefs.has(node)) {
+                // assignment-init binding-site — analogous to alias-
+                // init; the assignment is treated as the candidate
+                // init, not a body use.
+            } else if (!isCharBufferWriteUsage(parents)
+                       && !(bufName && matchCharBufferAddrCompare(parents, bufName))
+                       && !isCharBufferReadOnlyArgUsage(parents)
+                       && !isCharBufferAdvanceUsage(parents, pName)
+                       && !isCharBufferStandaloneIncrement(parents)) {
                 safe = false;
                 return;
+            }
+        }
+        for (const child of node.inner || []) {
+            visit(child, [...parents, node]);
+        }
+    };
+    visit(body, []);
+    if (!safe) return false;
+    // If an alias was tentatively accepted, verify its uses are
+    // walker-incompatible (i.e., no writes or advances) so the
+    // emit (which leaves the alias as a plain `let ALIAS = pName;`
+    // referencing the same JS array) stays semantically aligned
+    // with C's "saved-original-position" semantics.
+    if (aliasInfo && !verifyAliasReadOnly(body, aliasInfo.aliasName)) {
+        return false;
+    }
+    return true;
+}
+
+// Scan body for the first `char *ALIAS = pName;` VarDecl shape.
+// Returns { aliasName, refNode } where refNode is the exact
+// DeclRefExpr node inside the alias's init expression, or null.
+// If multiple alias candidates exist, returns the first AND sets
+// `multi: true` so the caller can reject (avoiding ambiguity).
+function findCharPointerAlias(body, pName) {
+    let found = null;
+    const visit = (node) => {
+        if (found || !node || typeof node !== 'object') return;
+        if (node.kind === 'VarDecl') {
+            const typeStr = node.type?.qualType || '';
+            // Extended to char-pointer typedefs (uint8/int8/unsigned char/
+            // signed char) for the same reason as tryAddCandidate.  An
+            // alias of a uint8 parameter is still semantically a stable
+            // reference to the same JS array, so it's safe to detect.
+            if (/^(const\s+)?(char|uint8|int8|unsigned\s+char|signed\s+char)\s*\*/.test(typeStr)) {
+                let init = (node.inner || []).find(isExpr);
+                while (init && (init.kind === 'ImplicitCastExpr'
+                    || init.kind === 'CStyleCastExpr'
+                    || init.kind === 'ParenExpr')) {
+                    init = (init.inner || [])[0];
+                }
+                if (init && init.kind === 'DeclRefExpr'
+                    && init.referencedDecl?.name === pName) {
+                    found = { aliasName: node.name, refNode: init };
+                    return;
+                }
+            }
+        }
+        for (const child of node.inner || []) visit(child);
+    };
+    visit(body);
+    return found;
+}
+
+// True iff every reference to aliasName in body is a non-walker
+// safe-read: no `*alias = X`, no `alias++ / alias--`, no
+// `alias = X` rebind.  Reads (`*alias`, `alias[k]`, function-arg
+// uses like `printf("%s", alias)`) are accepted; the alias is a
+// stable JS reference to the same array as the parameter.
+function verifyAliasReadOnly(body, aliasName) {
+    let safe = true;
+    const visit = (node, parents) => {
+        if (!safe || !node || typeof node !== 'object') return;
+        if (node.kind === 'DeclRefExpr'
+            && node.referencedDecl?.name === aliasName) {
+            // Walk parents to identify the immediate role.  Reject
+            // any role that mutates alias or the buffer-through-alias.
+            let i = parents.length - 1;
+            while (i >= 0 && (parents[i].kind === 'ImplicitCastExpr'
+                || parents[i].kind === 'CStyleCastExpr'
+                || parents[i].kind === 'ParenExpr')) {
+                i--;
+            }
+            const direct = i >= 0 ? parents[i] : null;
+            // alias++ / alias-- — rejected
+            if (direct?.kind === 'UnaryOperator'
+                && (direct.opcode === '++' || direct.opcode === '--')) {
+                safe = false;
+                return;
+            }
+            // alias = X (rebind) — rejected.  C semantics would
+            // make alias point at a different buffer; JS emit
+            // would reassign the alias to the new value but the
+            // walker-param's idx is unaffected, producing a
+            // subtle bug.
+            if (direct?.kind === 'BinaryOperator' && direct.opcode === '='
+                && direct.inner?.[0] === node) {
+                safe = false;
+                return;
+            }
+            // *alias = X — must inspect grandparent to detect the
+            // write form.  *alias on the RHS of an assignment or
+            // standalone (read) is fine.
+            if (direct?.kind === 'UnaryOperator' && direct.opcode === '*') {
+                let j = i - 1;
+                while (j >= 0 && (parents[j].kind === 'ImplicitCastExpr'
+                    || parents[j].kind === 'CStyleCastExpr'
+                    || parents[j].kind === 'ParenExpr')) {
+                    j--;
+                }
+                const grand = j >= 0 ? parents[j] : null;
+                if (grand?.kind === 'BinaryOperator' && grand.opcode === '='
+                    && grand.inner?.[0] === direct) {
+                    safe = false;
+                    return;
+                }
             }
         }
         for (const child of node.inner || []) {
@@ -2722,6 +3288,213 @@ function isCharBufferWriteUsage(parents) {
         return p2.kind === 'UnaryOperator' && p2.opcode === '*';
     }
     return false;
+}
+
+// True iff the parent chain wraps the DeclRefExpr `pName` into a
+// compound pointer advance: `p += N` or `p -= N` where the DeclRefExpr
+// is the LHS.  These map cleanly to `__nh_p_idx += N` /
+// `__nh_p_idx -= N` in the charBufferRewrites emit, so the walker
+// stays observationally equivalent to C's pointer-walk.  RHS-position
+// uses (e.g., `q += p`) are rejected since the idx tracker would be
+// corrupted.  Added 2026-05-30 to handle hacklib.c strNsubst's
+// `bp += len;` advance — landed alongside the function-arg bare-
+// pointer emit because the two unlock bp together.
+function isCharBufferAdvanceUsage(parents, pName) {
+    let i = parents.length - 1;
+    while (i >= 0 && (parents[i].kind === 'ImplicitCastExpr'
+        || parents[i].kind === 'CStyleCastExpr'
+        || parents[i].kind === 'ParenExpr')) {
+        i--;
+    }
+    if (i < 0) return false;
+    const direct = parents[i];
+    // Clang emits compound assignments (+= / -=) as a distinct node
+    // kind CompoundAssignOperator, NOT as BinaryOperator with the
+    // compound opcode.  Accept both for forward-compat.
+    if (direct.kind !== 'BinaryOperator'
+        && direct.kind !== 'CompoundAssignOperator') return false;
+    if (direct.opcode !== '+=' && direct.opcode !== '-=') return false;
+    // The DeclRefExpr must be the LHS.
+    const lhs = stripCasts(direct.inner?.[0]);
+    return lhs?.kind === 'DeclRefExpr'
+        && lhs.referencedDecl?.name === pName;
+}
+
+// Allowlist of C functions whose ALL arguments are read-only — passing
+// a slice/substring of the source buffer is semantically equivalent to
+// passing a C pointer-into-buffer.  Added 2026-05-30 per user
+// authorization to handle the bp pattern in hacklib.c strNsubst
+// (`strncmp(bp, orig, len)`).
+//
+// The risk in mis-classifying: if a callee writes through its arg,
+// passing a slice silently drops the writes (the original buffer
+// doesn't see them).  Conservative: only well-known read-only C
+// string functions.  Each addition should be verified by manual
+// inspection of the callee's contract.
+//
+// Format-string callees (printf family) are NOT included here even
+// though %s args are read-only — variadic args complicate per-arg
+// classification.  Add later if needed.
+//
+// Map shape: callee-name → safe-arg-indexes, where:
+//   - `null` (sentinel) means ALL args are read-only (the original
+//     fully-safe set)
+//   - `Set<number>` means ONLY those positions are read-only — used
+//     for strcpy-family where the destination (arg 0) is a write
+//     target but later args are source (read-only).
+//
+// Extending the allowlist requires:
+//   1. Verification of the callee's contract: which arg positions
+//      does it READ FROM (safe), which does it WRITE THROUGH (unsafe)?
+//   2. For walker p passed as a write-through arg, the slice emit
+//      would silently drop the writes — that's the bug we avoid by
+//      keeping unsafe positions out of the per-callee Set.
+const READ_ONLY_STRING_CALLEES = new Map([
+    // Fully-safe (all args read-only): scan / search / measure /
+    // compare functions.  No writes through any arg.
+    ['strlen', null],
+    ['strchr', null], ['strrchr', null], ['strstr', null], ['strstri', null],
+    ['index', null], ['rindex', null],
+    ['strcmp', null], ['strncmp', null], ['strcmpi', null], ['strncmpi', null],
+    ['strcasecmp', null], ['strncasecmp', null],
+    ['fuzzymatch', null],
+    // NetHack-internal pure string transforms: read input, return a
+    // NEW string (typically via nextobuf() or a static buffer).
+    // Input is read-only.  Each verified by reading the C source:
+    //   - s_suffix(str): hacklib.c:345 — Strcpy(buf, s), append "'s"
+    //   - ing_suffix(str): hacklib.c:363 — Strcpy(buf, s), append "ing"
+    //   - an(str): objnam.c:2145 — nextobuf, just_an, strncat
+    //   - An(str): objnam.c:2158 — wraps an() then uppercases first char
+    //   - the(str): objnam.c:2171 — nextobuf, conditionally prepends
+    //   - The(str): objnam.c:2234 — wraps the() then uppercases first char
+    // (Earlier `plur_suffix` entry was a phantom — no such function
+    // exists in NetHack; removed.)
+    ['s_suffix', null],
+    ['ing_suffix', null],
+    ['an', null],
+    ['An', null],
+    ['the', null],
+    ['The', null],
+    // Per-arg classification: strcpy(dst, src), strcat(dst, src),
+    // strncpy(dst, src, n), strncat(dst, src, n).  Arg 0 (dst) is
+    // a WRITE-through target — passing a walker slice there would
+    // silently drop writes to the original buffer.  Arg 1 (src) is
+    // a READ-only source — safe to slice.  The capitalized forms
+    // (Strcpy, Strcat) are NetHack's BUFSZ-bounded wrappers around
+    // strncpy/strncat with the same arg shape.
+    ['strcpy', new Set([1])],
+    ['Strcpy', new Set([1])],
+    ['strncpy', new Set([1])],
+    ['strcat', new Set([1])],
+    ['Strcat', new Set([1])],
+    ['strncat', new Set([1])],
+]);
+
+// True iff the parent chain wraps the DeclRefExpr `p` into a
+// CallExpr's argument position AND the callee+argIdx is in the
+// READ_ONLY_STRING_CALLEES allowlist.  When this fires, the emit
+// translates `f(..., p, ...)` to `f(..., bufRef.slice(__nh_p_idx), ...)`
+// (substring works equivalently for JS strings).
+//
+// `parents[i+1]` walks the path from CallExpr down — that's the
+// direct child of CallExpr in our traversal, which gives us the
+// arg index via `callNode.inner.indexOf`.  Reject if idx === 0
+// (the callee position) or if not in inner.
+function isCharBufferReadOnlyArgUsage(parents) {
+    let i = parents.length - 1;
+    while (i >= 0 && (parents[i].kind === 'ImplicitCastExpr'
+        || parents[i].kind === 'CStyleCastExpr'
+        || parents[i].kind === 'ParenExpr')) {
+        i--;
+    }
+    if (i < 0) return false;
+    const callNode = parents[i];
+    if (callNode.kind !== 'CallExpr') return false;
+    // Confirm the DeclRefExpr is an argument, not the callee.
+    if (i + 1 >= parents.length) return false;
+    const childOfCall = parents[i + 1];
+    const argIdx = (callNode.inner || []).indexOf(childOfCall);
+    if (argIdx <= 0) return false;
+    // Identify the callee — must be a recognized read-only C string
+    // function from the allowlist.
+    const callee = stripCasts(callNode.inner?.[0]);
+    if (!callee || callee.kind !== 'DeclRefExpr') return false;
+    const calleeName = callee.referencedDecl?.name;
+    if (!calleeName) return false;
+    if (!READ_ONLY_STRING_CALLEES.has(calleeName)) return false;
+    const safeArgs = READ_ONLY_STRING_CALLEES.get(calleeName);
+    // null sentinel means all args are read-only; Set means
+    // exactly those argIdx values are safe.  CallExpr's inner is
+    // [calleeRef, arg0, arg1, ...], so argIdx is +1 relative to
+    // user-perceived arg position.  Adjust by subtracting 1 when
+    // testing against the Set.
+    if (safeArgs === null) return true;
+    return safeArgs.has(argIdx - 1);
+}
+
+// Detect a usage of pName inside `pName OP &arr[N]` (or arr[N] which
+// decays the same way) where OP is a comparison (==, !=, <, <=, >,
+// >=) and arr matches `bufName` (the same buffer p walks).  Returns
+// the index AST node (for the EMIT to translate to an index-based
+// comparison) or null if not a match.
+//
+// Common NetHack idiom: `if (p == &buf[sizeof buf - 1]) ...` to
+// detect "have we filled the buffer".  In JS, this needs to emit as
+// `p_idx == (sizeof buf - 1)` because the JS p_idx is the position.
+// Added 2026-05-30 per user direction to handle address-comparison
+// rejections in invent.c getobj's altlets walker.
+function matchCharBufferAddrCompare(parents, bufName) {
+    let i = parents.length - 1;
+    while (i >= 0 && (parents[i].kind === 'ImplicitCastExpr'
+        || parents[i].kind === 'CStyleCastExpr'
+        || parents[i].kind === 'ParenExpr')) {
+        i--;
+    }
+    if (i < 0) return null;
+    const direct = parents[i];
+    if (direct.kind !== 'BinaryOperator') return null;
+    const COMPARE_OPS = new Set(['==', '!=', '<', '<=', '>', '>=']);
+    if (!COMPARE_OPS.has(direct.opcode)) return null;
+    // The other side of the comparison must be the address (or
+    // decayed array element) into bufName.
+    const [a, b] = direct.inner || [];
+    // Identify which side is the variable and which is the
+    // comparison target.
+    const aStrip = stripCasts(a);
+    const bStrip = stripCasts(b);
+    const aIsP = aStrip?.kind === 'DeclRefExpr';
+    const otherSide = aIsP ? b : a;
+    const otherStrip = stripCasts(otherSide);
+    if (!otherStrip) return null;
+    // Match `&arr[N]` or implicit-cast-decayed `arr[N]` or
+    // `arr + N` forms.
+    let arrNode = null;
+    let idxNode = null;
+    if (otherStrip.kind === 'UnaryOperator' && otherStrip.opcode === '&') {
+        const sub = stripCasts(otherStrip.inner?.[0]);
+        if (sub?.kind === 'ArraySubscriptExpr' && sub.inner?.length === 2) {
+            arrNode = stripCasts(sub.inner[0]);
+            idxNode = sub.inner[1];
+        }
+    }
+    if (!arrNode && otherStrip.kind === 'BinaryOperator'
+        && otherStrip.opcode === '+') {
+        // arr + N — pointer arithmetic into arr.
+        const [lhs, rhs] = otherStrip.inner || [];
+        const lStrip = stripCasts(lhs);
+        const rStrip = stripCasts(rhs);
+        if (lStrip?.kind === 'DeclRefExpr') {
+            arrNode = lStrip;
+            idxNode = rStrip;
+        } else if (rStrip?.kind === 'DeclRefExpr') {
+            arrNode = rStrip;
+            idxNode = lStrip;
+        }
+    }
+    if (!arrNode || arrNode.kind !== 'DeclRefExpr') return null;
+    const arrName = arrNode.referencedDecl?.name;
+    if (!arrName || arrName !== bufName) return null;
+    return { idxNode, side: aIsP ? 'left' : 'right' };
 }
 
 // Used by binaryOp: when emitting `BinaryOp(=, UnaryOp(*, X), Y)`,
@@ -3133,7 +3906,12 @@ function detectStrchrTruncateIf(node) {
     if (!node || node.kind !== 'IfStmt') return null;
     const inner = node.inner || [];
     if (inner.length < 2) return null;
-    if (inner.length >= 3 && inner[2]) return null; // no else
+    // 2026-05-30: removed the "no else" restriction.  The recognizer
+    // only substitutes the *p = 0 write with the truncate call; the
+    // if-stmt itself emits normally.  An else branch's body uses are
+    // verified through the regular verifyStrchrTruncateSafe walk
+    // (which respects the bufIsArray rebind relaxation).  Per user
+    // direction to handle rebind cases.
     const cond = inner[0];
     const thenS = inner[1];
     // Find the `(p = strchr_family(buf, X)) != NULL` subterm.  See
@@ -3179,7 +3957,31 @@ function detectStrchrTruncateIf(node) {
     // other stmts emitted normally.
     const writeNode = findFirstTruncateWrite(thenS, pPath);
     if (!writeNode) return null;
-    return { bufNode, charNode, kind, pPath, writeNode };
+    // 2026-05-30: detect "buf is a char-array local" — enables
+    // additional post-truncate relaxations in verifyStrchrTruncateSafe
+    // (pointer-arith on bp, rebind to the same buf, function-arg
+    // pass-through).  bufPath is the same buf's path for cross-
+    // referencing in the rebind safety check (`bp = buf` rebind).
+    const bufIsArray = isCharArrayLocalDecl(bufNode);
+    const bufPath = bufIsArray ? buildExprPath(stripCasts(bufNode)) : null;
+    return { bufNode, charNode, kind, pPath, writeNode, bufIsArray, bufPath };
+}
+
+// True iff bufNode references a `char buf[N]` (or uint8/int8 typedef
+// variant) char-array local declaration.  For these cases the
+// strchr-family return at runtime is still a string (the c2js-
+// runtime coerces array bufs through coerceCStr), but the array
+// itself remains addressable — so rebinds `bp = buf` are safe
+// because subsequent ops on bp use coerceCStr at runtime.
+function isCharArrayLocalDecl(bufNode) {
+    const n = stripCasts(bufNode);
+    if (!n) return false;
+    if (n.kind !== 'DeclRefExpr') return false;
+    const decl = n.referencedDecl;
+    if (!decl) return false;
+    const qt = (decl.qualType || decl.type?.qualType || '')
+        .replace(/^(const|volatile|restrict)\s+/, '').trim();
+    return /^(char|uint8|int8|unsigned\s+char|signed\s+char)\s*\[/.test(qt);
 }
 
 // True iff `bufNode` (the first arg of a strchr-family call inside
@@ -3298,7 +4100,8 @@ function findFirstTruncateWrite(node, pPath) {
 //   - p[N] (indexed access)
 //   - func(p, ...) (pass p as arg)
 //   - p as RHS of a non-comparison BinaryOp
-function verifyStrchrTruncateSafe(body, pPath, excluded, allowIncr = false) {
+function verifyStrchrTruncateSafe(body, pPath, excluded, allowIncr = false,
+                                  bufPath = null) {
     let safe = true;
     const visit = (node, parents) => {
         if (!safe || !node || typeof node !== 'object') return;
@@ -3316,7 +4119,7 @@ function verifyStrchrTruncateSafe(body, pPath, excluded, allowIncr = false) {
         if (isLeaf) {
             const path = buildExprPath(node);
             if (path === pPath) {
-                if (!isSafePUsage(parents, pPath, allowIncr)) {
+                if (!isSafePUsage(parents, pPath, allowIncr, bufPath)) {
                     safe = false;
                     return;
                 }
@@ -3332,6 +4135,53 @@ function verifyStrchrTruncateSafe(body, pPath, excluded, allowIncr = false) {
     return safe;
 }
 
+// True iff `node` is a safe RHS for a `bp = X` rebind when buf is
+// a char-array.  Accepts:
+//   - bufPath rebind (`bp = buf` — bp becomes the same array)
+//   - BinaryOp(+, p_or_buf, IntLit) — pointer arith into the array
+//   - ConditionalOperator with safe branches (recursive)
+//   - null/0 literal
+//   - strchr-family CallExpr return
+// Rejects everything else.  Caller is verifyStrchrTruncateSafe's
+// BinaryOp(=) case — already checked LHS is pPath.
+function isSafeArrayBufRebindRhs(rhs, pPath, bufPath) {
+    if (!rhs) return false;
+    const n = stripCasts(rhs);
+    if (!n) return false;
+    if (isLikelyNull(n)) return true;
+    // bp = bufPath (the strchr's buf) — bp becomes the array.
+    if (n.kind === 'DeclRefExpr' || n.kind === 'MemberExpr') {
+        const path = buildExprPath(n);
+        if (path === bufPath || path === pPath) return true;
+    }
+    // bp = strchr_family(...) — re-bind to fresh truncate site.
+    if (n.kind === 'CallExpr') {
+        const callee = stripCasts(n.inner?.[0]);
+        const calleeName = callee?.referencedDecl?.name;
+        return (calleeName === 'strchr' || calleeName === 'strrchr'
+            || calleeName === 'strstr' || calleeName === 'strstri'
+            || calleeName === 'index' || calleeName === 'rindex');
+    }
+    // bp = p + N or buf + N — pointer arith into the array.
+    if (n.kind === 'BinaryOperator' && n.opcode === '+') {
+        const a = stripCasts(n.inner?.[0]);
+        const b = stripCasts(n.inner?.[1]);
+        const intLitSide = (a?.kind === 'IntegerLiteral') ? a
+                         : (b?.kind === 'IntegerLiteral') ? b : null;
+        const refSide = intLitSide === a ? b : a;
+        if (!intLitSide || !refSide) return false;
+        const refPath = buildExprPath(refSide);
+        return refPath === bufPath || refPath === pPath;
+    }
+    // bp = (cond ? safe : safe) — recursive on branches.
+    if (n.kind === 'ConditionalOperator') {
+        const [_cond, lhs, rhs2] = (n.inner || []);
+        return isSafeArrayBufRebindRhs(lhs, pPath, bufPath)
+            && isSafeArrayBufRebindRhs(rhs2, pPath, bufPath);
+    }
+    return false;
+}
+
 // True iff the node at the inner end of `parents` is a SAFE usage
 // of the path `pPath`.  The node itself may be a DeclRefExpr (plain
 // variable) or a MemberExpr leaf (struct member).  See
@@ -3342,7 +4192,7 @@ function verifyStrchrTruncateSafe(body, pPath, excluded, allowIncr = false) {
 // strchr kind is single-char).  Under that flag, UnaryOp(++/--)
 // on `p` post-truncate is accepted as safe; the corresponding
 // unaryOperator emit rewrites `p++` to `p = p.substring(1)`.
-function isSafePUsage(parents, pPath, allowIncr = false) {
+function isSafePUsage(parents, pPath, allowIncr = false, bufPath = null) {
     // Strip ParenExpr/ImplicitCastExpr/CStyleCastExpr from the
     // innermost-out chain since they're semantically transparent.
     let i = parents.length - 1;
@@ -3376,7 +4226,13 @@ function isSafePUsage(parents, pPath, allowIncr = false) {
     //   - NULL / 0 literal (reset)
     if (direct.kind === 'BinaryOperator' && direct.opcode === '=') {
         const lhs = stripCasts(direct.inner?.[0]);
-        const rhs = stripCasts(direct.inner?.[1]);
+        // Peel chained assignment: `bp = pfx = sfx = X` produces a
+        // BinaryOp(=) RHS chain.  The ultimate value bp receives is
+        // the rightmost RHS.  Walk down the chain.
+        let rhs = stripCasts(direct.inner?.[1]);
+        while (rhs?.kind === 'BinaryOperator' && rhs.opcode === '=') {
+            rhs = stripCasts(rhs.inner?.[1]);
+        }
         if (buildExprPath(lhs) !== pPath) return false;
         if (!rhs) return false;
         // Reset via null/0 literal — safe.
@@ -3385,9 +4241,18 @@ function isSafePUsage(parents, pPath, allowIncr = false) {
         if (rhs.kind === 'CallExpr') {
             const callee = stripCasts(rhs.inner?.[0]);
             const calleeName = callee?.referencedDecl?.name;
-            return (calleeName === 'strchr' || calleeName === 'strrchr'
+            if (calleeName === 'strchr' || calleeName === 'strrchr'
                 || calleeName === 'strstr' || calleeName === 'strstri'
-                || calleeName === 'index' || calleeName === 'rindex');
+                || calleeName === 'index' || calleeName === 'rindex') {
+                return true;
+            }
+        }
+        // Array-buf relaxation: `bp = bufRef` or `bp = bufRef + N`
+        // or `bp = (cond ? safe : safe)` — all safe when buf is a
+        // char-array local because the runtime helpers coerce
+        // arrays through coerceCStr on demand.
+        if (bufPath && isSafeArrayBufRebindRhs(rhs, pPath, bufPath)) {
+            return true;
         }
         return false;
     }
@@ -3525,8 +4390,17 @@ function analyzeStrchrTruncates(body, ctx) {
     );
     for (const { info } of candidates) {
         // The allowlist only covers single-char needle families.
-        const incrForThis = allowIncr && (info.kind === 'chr' || info.kind === 'rchr');
-        if (verifyStrchrTruncateSafe(body, info.pPath, excluded, incrForThis)) {
+        // bufIsArray: pass through to verifier so it also accepts
+        // rebinds to the same buf (`bp = buf`) and conditional-
+        // expression RHS where each branch is safe.  Justified
+        // because for char-array bufs the runtime helpers coerce
+        // arrays to strings on demand (coerceCStr), so a rebind to
+        // the same buf is observationally equivalent to capturing
+        // the strchr's buf parameter.
+        const incrForThis = (allowIncr && (info.kind === 'chr' || info.kind === 'rchr'))
+            || info.bufIsArray;
+        if (verifyStrchrTruncateSafe(body, info.pPath, excluded,
+                                     incrForThis, info.bufPath)) {
             // Key by the *p = 0 write node so binaryOp() can look it
             // up.  Multiple candidates can share a pPath but their
             // writeNodes are distinct.
@@ -3591,7 +4465,11 @@ function analyzeLocalAliases(body, ctx) {
         if (node.kind === 'VarDecl' && node.name) {
             const qt = (node.type?.qualType ?? '')
                 .replace(/^(const|volatile|restrict)\s+/, '').trim();
-            if (/^char\s*\*\s*$/.test(qt)) {
+            // Extended to char-pointer typedefs (uint8/int8/unsigned char/
+            // signed char) consistent with tryAddCandidate /
+            // addParmCharBufferCandidates / findCharPointerAlias (commits
+            // 6e79ab7 + 7abd411).
+            if (/^(char|uint8|int8|unsigned\s+char|signed\s+char)\s*\*\s*$/.test(qt)) {
                 const init = (node.inner || [])[0] ?? null;
                 decls.set(node.name, { declNode: node, init });
             }
@@ -3739,9 +4617,25 @@ function analyzeEosWalkers(body, ctx) {
     ctx.eosWalkers = new Map();
     if (!ctx.localAliases || ctx.localAliases.size === 0) return;
     for (const [name, info] of ctx.localAliases) {
-        if (info.classification !== 'walker') continue;
-        const init = info.init;
-        if (!init || init.kind !== 'CallExpr') continue;
+        // Accept 'walker' (decl-init eos) and 'rebound' (assignment-init
+        // eos).  For 'rebound' classification, find the single eos()
+        // assignment in the body and treat it as the effective init
+        // (per user direction 2026-05-30 to handle the
+        // `extra_types = eos(types)` pattern in invent.js getobj).
+        if (info.classification !== 'walker'
+            && info.classification !== 'rebound') continue;
+        let init = info.init;
+        // Decl-init eos case: init is the VarDecl's eos(BUF) call.
+        // Assignment-init case: init is null OR not an eos() call;
+        // look for `name = eos(BUF)` assignment in the body.
+        let isAssignmentInit = false;
+        if (!init || init.kind !== 'CallExpr'
+            || stripCasts(init.inner?.[0])?.referencedDecl?.name !== 'eos') {
+            const found = findEosAssignment(body, name);
+            if (!found) continue;
+            init = found;
+            isAssignmentInit = true;
+        }
         const callee = stripCasts(init.inner?.[0]);
         const calleeName = callee?.referencedDecl?.name;
         if (calleeName !== 'eos') continue;
@@ -3784,6 +4678,42 @@ function analyzeEosWalkers(body, ctx) {
 // `*bp` as a read, `bp == NULL`, etc. — fails the check and the
 // eos-walker rewrite is rejected (the local stays as a normal
 // `let bp = eos(buf);` decl with TODO markers for the writes).
+// findEosAssignment: scan body for a single `name = eos(BUF)`
+// BinaryOperator(=) assignment.  Returns the CallExpr eos node if
+// EXACTLY ONE such assignment exists, otherwise null.  Multiple
+// rebinds (each potentially with a different buf) make the walker
+// ambiguous — rejected.  Used by analyzeEosWalkers for the
+// assignment-init pattern (`char *p; ...; p = eos(buf);
+// *p++ = X;`) common in NetHack invent.c getobj-style prompt
+// building.
+function findEosAssignment(body, name) {
+    let found = null;
+    let multi = false;
+    const visit = (node) => {
+        if (multi || !node || typeof node !== 'object') return;
+        if (node.kind === 'BinaryOperator' && node.opcode === '=') {
+            const lhs = stripCasts(node.inner?.[0]);
+            if (lhs?.kind === 'DeclRefExpr'
+                && lhs.referencedDecl?.name === name) {
+                const rhs = stripCasts(node.inner?.[1]);
+                if (rhs?.kind === 'CallExpr') {
+                    const callee = stripCasts(rhs.inner?.[0]);
+                    if (callee?.referencedDecl?.name === 'eos') {
+                        if (found) {
+                            multi = true;
+                            return;
+                        }
+                        found = rhs;
+                    }
+                }
+            }
+        }
+        for (const child of node.inner || []) visit(child);
+    };
+    visit(body);
+    return multi ? null : found;
+}
+
 function verifyEosWalkerPattern(body, name) {
     let ok = true;
     const visit = (node, parents) => {
@@ -3862,6 +4792,23 @@ function verifyEosWalkerPattern(body, name) {
                 }
                 ok = false;
                 return;
+            }
+            // Case C (added 2026-05-30): the assignment-init pattern
+            // `name = eos(BUF);` — accept ONCE as the effective init.
+            // analyzeEosWalkers's findEosAssignment helper already
+            // enforced uniqueness (multi=null returned), so any
+            // matching BinaryOp(=, name, eos-call) here is the one
+            // accepted by the recognizer.
+            if (direct?.kind === 'BinaryOperator' && direct.opcode === '='
+                && direct.inner?.[0]
+                && stripCasts(direct.inner[0])?.referencedDecl?.name === name) {
+                const rhs = stripCasts(direct.inner[1]);
+                if (rhs?.kind === 'CallExpr') {
+                    const callee = stripCasts(rhs.inner?.[0]);
+                    if (callee?.referencedDecl?.name === 'eos') {
+                        return; // accepted
+                    }
+                }
             }
             // Anything else — comparison, indexed access, function
             // call arg (already classified as 'escape' but defensive),
@@ -5518,6 +6465,31 @@ function cStyleCast(node, ctx) {
 function binaryOp(node, ctx) {
     const op = node.opcode;
     const [l, r] = node.inner;
+    // Assignment-init charBufferRewrites: `p = bufRef` where p is
+    // tagged isAssignmentInit AND this BinaryOp IS one of the recorded
+    // assignmentInitNodes.  Emit `__nh_p_idx = 0` (reset position).
+    // Must run BEFORE any generic LHS-DeclRefExpr emit because `p`
+    // itself no longer exists as a JS binding (it's replaced by
+    // `__nh_p_idx`).  Multiple resets are permitted (e.g., the two
+    // for-init `rp = replacement` blocks in hacklib.c strNsubst).
+    // See addAssignmentInitCharBufferCandidates.
+    if (op === '=' && ctx.charBufferRewrites && l?.kind === 'DeclRefExpr') {
+        const lName = l.referencedDecl?.name;
+        if (lName && ctx.charBufferRewrites.has(lName)) {
+            const rewrite = ctx.charBufferRewrites.get(lName);
+            if (rewrite.isAssignmentInit
+                && Array.isArray(rewrite.assignmentInitNodes)
+                && rewrite.assignmentInitNodes.includes(node)) {
+                return `${rewrite.idxName} = 0`;
+            }
+        }
+    }
+    // Pointer-advance for charBufferRewrites: `p += N` / `p -= N`
+    // where p is a recognized walker.  Emit `__nh_p_idx += N`
+    // (matches C's pointer-arith semantics in the index-based model).
+    // The verifier accepts these via isCharBufferAdvanceUsage; the
+    // emit dispatches here.  Added 2026-05-30 for hacklib.c
+    // strNsubst's `bp += len;` advance.
     // Linked-list iterator hooks — must come BEFORE any generic
     // `*p = X` recognizer to override the deref-write emit.
     //
@@ -5776,27 +6748,120 @@ function binaryOp(node, ctx) {
     // relationship and the rewrite regressed S=49→38.  Tightened to
     // an explicit allowlist; expand as each table is verified safe.
     const PTRDIFF_TABLES = {
-        mons: (lJs, _rJs) => `(${lJs}).pmidx`,
+        // lJs is already parenthesized when it's a MemberExpr / ParenExpr
+        // (the typical case for `mtmp->data` and similar).  Wrapping
+        // again produces `((mtmp.data)).pmidx` which costs a bytewise-
+        // clean diff vs production's `(mtmp.data).pmidx`.  Bare-ident
+        // and call-expr forms don't need the wrap (`mtmp.pmidx`,
+        // `Dragon_scales_to_pm(o).pmidx` both parse correctly).
+        mons: (lJs, _rJs) => `${lJs}.pmidx`,
         // For artilist, use `expr()` to render the array reference
         // — it may be a bucket-flattened `game.artilist` or a
         // top-level const `artilist` depending on the surrounding
         // TU's scope rules.  Both are valid; using `expr()` keeps
         // the emit in sync with how the array is actually declared.
         artilist: (lJs, rJs) => `${rJs}.indexOf(${lJs})`,
+        // `rooms` is accessed as `svr.rooms` in C (MemberExpr on the
+        // `svr` global bucket), hoisted to `game.rooms` in JS.  The
+        // ptr-into-array uses (`croom - svr.rooms` in selvar.c and
+        // mklev.c, see grep "- svr.rooms" in nethack-c/upstream/src)
+        // all pass mkroom* references that originate from
+        // `game.rooms[i]` reads — no struct-copy variants in the
+        // search.  indexOf is reference-equality reliable here.
+        //
+        // The "blanket .indexOf for ANY pointer-into-array" attempt
+        // referenced in earlier comments above was a CROSS-TABLE
+        // generalisation that fired on buf/punctclasses/etc.  This
+        // entry is per-array and explicit; same shape as artilist.
+        rooms: (lJs, rJs) => `${rJs}.indexOf(${lJs})`,
     };
+    // Returns the canonical name of the array-side operand if it
+    // matches a PTRDIFF_TABLES entry.  Accepts:
+    //   - DeclRefExpr to a global array (legacy `mons`/`artilist`)
+    //   - MemberExpr where the base is a global bucket (`svr.rooms`,
+    //     `gc.foo`, etc.) and the member name is in the table
+    function matchPtrdiffArrayRef(node) {
+        const s = stripCasts(node);
+        if (!s) return null;
+        if (s.kind === 'DeclRefExpr') {
+            const n = s.referencedDecl?.name || s.name;
+            if (n && n in PTRDIFF_TABLES) return n;
+            return null;
+        }
+        if (s.kind === 'MemberExpr') {
+            const m = s.name;
+            if (!m || !(m in PTRDIFF_TABLES)) return null;
+            const base = stripCasts(s.inner?.[0]);
+            if (base?.kind === 'DeclRefExpr') {
+                const baseName = base.referencedDecl?.name || base.name;
+                if (baseName && GLOBAL_BUCKETS_SET.has(baseName)) {
+                    return m;
+                }
+            }
+        }
+        return null;
+    }
     if (op === '-') {
-        const rStrip = stripCasts(r);
-        const rDeclType = rStrip?.referencedDecl?.type?.qualType
-            || rStrip?.type?.qualType || '';
-        const rName = rStrip?.referencedDecl?.name || rStrip?.name;
         const lType = l?.type?.qualType || '';
-        if (rStrip?.kind === 'DeclRefExpr'
-            && rName in PTRDIFF_TABLES
-            && /\*\s*$/.test(lType)
-            && /\]\s*$/.test(rDeclType)) {
+        const rArrName = matchPtrdiffArrayRef(r);
+        if (rArrName && /\*\s*$/.test(lType)) {
             const lJs = expr(l, ctx);
-            const rJs = expr(rStrip, ctx);
-            return PTRDIFF_TABLES[rName](lJs, rJs);
+            const rJs = expr(stripCasts(r), ctx);
+            return PTRDIFF_TABLES[rArrName](lJs, rJs);
+        }
+    }
+    // Pointer-arithmetic no-op: `ptr - 0` / `ptr + 0` where LHS is
+    // pointer-typed.  C macros like Concat (objnam.c:75) expand to
+    // `Strncat(buf_eos - delta, text, bufspaceleft + delta)` and the
+    // common call site `Concat(buf, 0, text)` instantiates delta=0
+    // so the subtraction is a no-op offset.  In C the result is the
+    // same pointer; in JS the array → NaN coercion (Array - 0) makes
+    // `buf_eos - 0` evaluate to NaN, breaking downstream strncat /
+    // Strcpy / etc.  Peephole: when RHS is integer-literal 0 (and
+    // LHS is pointer-typed), drop the op entirely.  Added 2026-05-31
+    // for seed1800's eat-fortune-cookie xname path (singular emit).
+    if ((op === '-' || op === '+')
+        && /\*\s*$/.test(l?.type?.qualType || '')) {
+        const rStripped = stripCasts(r);
+        if (rStripped?.kind === 'IntegerLiteral' && rStripped.value === '0') {
+            return expr(l, ctx);
+        }
+    }
+    // C `ptr OP &mons[X]` (range comparison) where OP is one of
+    // `<`, `<=`, `>`, `>=` — used by macros like
+    // `is_mplayer(ptr) = (ptr >= &mons[PM_ARCHEOLOGIST])
+    //                 && (ptr <= &mons[PM_WIZARD])`
+    // and `is_in_role_class(ptr) = ptr < &mons[PM_X]`.  In JS the
+    // raw pointer comparison becomes object-reference comparison
+    // which JS handles by ToPrimitive → NaN → always false.
+    // Production js/translated/mthrowu.js works around this with
+    // `(ptr).pmidx OP X`; bake that into the translator using the
+    // same PTRDIFF_TABLES['mons'] entry that powers the
+    // `ptr - mons` recognizer above.  Safe ONLY for the `mons`
+    // table because pmidx is the array-self-index field.
+    // Equality (`==`/`!=`) is NOT included here — production
+    // emits the raw `ptr == game.mons[X]` form, which works
+    // because JS object-reference equality matches the C
+    // pointer-equality semantic.  Only ordered comparisons need
+    // the rewrite.
+    if (op === '<' || op === '<=' || op === '>' || op === '>=') {
+        const rStrip = stripCasts(r);
+        const lType = l?.type?.qualType || '';
+        if (/\*\s*$/.test(lType)
+            && rStrip?.kind === 'UnaryOperator' && rStrip.opcode === '&') {
+            const sub = stripCasts(rStrip.inner?.[0]);
+            if (sub?.kind === 'ArraySubscriptExpr' && sub.inner?.length === 2) {
+                const arr = stripCasts(sub.inner[0]);
+                const arrName = arr?.referencedDecl?.name || arr?.name;
+                if (arr?.kind === 'DeclRefExpr' && arrName === 'mons') {
+                    const lJs = expr(l, ctx);
+                    const idxJs = expr(sub.inner[1], ctx);
+                    // Same parens-economy rationale as PTRDIFF_TABLES.mons:
+                    // expr() already parenthesises MemberExpr/ParenExpr
+                    // operands, so re-wrapping costs a clean-diff.
+                    return `${lJs}.pmidx ${op} ${idxJs}`;
+                }
+            }
         }
     }
     // `strchr(X, c) - X` — the C idiom for "find the index of c in X".
@@ -5880,8 +6945,25 @@ function binaryOp(node, ctx) {
     // C integer division truncates toward zero; JS `/` is float
     // division.  When both operands have integer types, wrap with
     // Math.trunc so `40 / 6` yields 6 (C) instead of 6.666... (JS).
+    //
+    // Precedence safety: if the RHS is a ConditionalOperator, wrap it
+    // in extra parens.  Without them, `cnt / cond ? a : b` parses as
+    // `(cnt / cond) ? a : b` (since `/` binds tighter than `?:`) — the
+    // ternary is captured around the division instead of being the
+    // divisor.  See makemon.js::m_initgrp pre-regen hand-port comment
+    // documenting this exact bug.  Added 2026-05-31.
     if (op === '/' && isIntegerTyped(l) && isIntegerTyped(r)) {
-        return `Math.trunc(${lJs} / ${rJs})`;
+        // Precedence safety: if RHS is a ConditionalOperator (possibly
+        // wrapped in ParenExpr/ImplicitCastExpr by clang), wrap in
+        // extra parens.  Without them, `cnt / cond ? a : b` parses as
+        // `(cnt / cond) ? a : b` (`/` binds tighter than `?:`) — the
+        // ternary captures the division instead of being the divisor.
+        // See makemon.js::m_initgrp pre-regen hand-port for the bug
+        // documentation.  Added 2026-05-31.
+        const rStripped2 = stripCasts(r);
+        const rWrap = (rStripped2?.kind === 'ConditionalOperator')
+            ? `(${rJs})` : rJs;
+        return `Math.trunc(${lJs} / ${rWrap})`;
     }
     // Frozen isaac64_next_uint64() returns a BigInt (matching the
     // 64-bit C uint64_t).  When translated C code mods that result by
@@ -5895,7 +6977,75 @@ function binaryOp(node, ctx) {
     if (BIGINT_ARITH.has(op) && returnsBigInt(l)) {
         return `Number((${lJs}) ${op} BigInt(${rJs}))`;
     }
+    // charBufferRewrites comparison: `p OP &buf[N]` (or `p OP buf+N`)
+    // where p is in charBufferRewrites and buf matches p's bufRef.
+    // Emit as `p_idx OP N` so the comparison stays semantically
+    // equivalent in JS (where p is an index into buf, not a pointer).
+    // Common NetHack idiom: `if (p == &buf[sizeof buf - 1])` —
+    // checking if the walker has reached the end.  Added 2026-05-30
+    // per user direction to handle invent.c getobj's altlets walker.
+    const CMP_OPS = new Set(['==', '!=', '<', '<=', '>', '>=']);
+    if (CMP_OPS.has(op) && ctx.charBufferRewrites
+        && ctx.charBufferRewrites.size > 0) {
+        const cbrSide = _matchCbrCompareSide(l, r, ctx);
+        if (cbrSide) {
+            // cbrSide.idxJs is already the index expression's JS form;
+            // cbrSide.pIdx is the rewrite's idxName.
+            if (cbrSide.side === 'left') {
+                return `${cbrSide.pIdx} ${op} ${cbrSide.idxJs}`;
+            }
+            return `${cbrSide.idxJs} ${op} ${cbrSide.pIdx}`;
+        }
+    }
     return `${lJs} ${op} ${rJs}`;
+}
+
+// Helper for binaryOp's charBufferRewrites comparison emit.  Detects
+// whether a comparison `l OP r` is between a charBufferRewrites
+// walker p and an address-into-its-buf expression (`&buf[N]` /
+// `buf + N`).  Returns { pIdx, idxJs, side } where side indicates
+// which operand was p.
+function _matchCbrCompareSide(l, r, ctx) {
+    const try1 = _matchCbrCompareOneWay(l, r, ctx, 'left');
+    if (try1) return try1;
+    return _matchCbrCompareOneWay(r, l, ctx, 'right');
+}
+
+function _matchCbrCompareOneWay(pSide, addrSide, ctx, sideTag) {
+    const pStripped = stripCasts(pSide);
+    if (pStripped?.kind !== 'DeclRefExpr') return null;
+    const pName = pStripped.referencedDecl?.name;
+    if (!pName) return null;
+    const rewrite = ctx.charBufferRewrites.get(pName);
+    if (!rewrite) return null;
+    // Resolve buf's name for the comparison-target check.
+    const bufRefStripped = stripCasts(rewrite.bufRef);
+    const bufName = bufRefStripped?.referencedDecl?.name
+        || bufRefStripped?.name || null;
+    if (!bufName) return null;
+    // addrSide is `&arr[N]` or `arr[N]` (array-decayed) or `arr + N`.
+    let arrNode = null;
+    let idxNode = null;
+    const aStrip = stripCasts(addrSide);
+    if (aStrip?.kind === 'UnaryOperator' && aStrip.opcode === '&') {
+        const sub = stripCasts(aStrip.inner?.[0]);
+        if (sub?.kind === 'ArraySubscriptExpr' && sub.inner?.length === 2) {
+            arrNode = stripCasts(sub.inner[0]);
+            idxNode = sub.inner[1];
+        }
+    }
+    if (!arrNode && aStrip?.kind === 'BinaryOperator' && aStrip.opcode === '+') {
+        const [lhs, rhs] = aStrip.inner || [];
+        const lS = stripCasts(lhs);
+        const rS = stripCasts(rhs);
+        if (lS?.kind === 'DeclRefExpr') { arrNode = lS; idxNode = rS; }
+        else if (rS?.kind === 'DeclRefExpr') { arrNode = rS; idxNode = lS; }
+    }
+    if (!arrNode || arrNode.kind !== 'DeclRefExpr') return null;
+    const arrName = arrNode.referencedDecl?.name;
+    if (!arrName || arrName !== bufName) return null;
+    const idxJs = expr(idxNode, ctx);
+    return { pIdx: rewrite.idxName, idxJs, side: sideTag };
 }
 
 // Names of frozen runtime functions whose JS implementation returns a
@@ -6132,9 +7282,20 @@ function isStructPtrParamRef(node, ctx) {
 }
 
 // True for C type strings of the form `struct T *` (single pointer
-// to a struct).  Used to identify local struct-ptr variables whose
-// `*p = X` writes need `Object.assign(p, X)` translation.
-function isStructPtrTypeStr(t) {
+// to a struct), OR `Alias *` where Alias is a typedef'd struct in
+// the provided struct-typedef-alias map.  Used to identify local
+// struct-ptr variables whose `*p = X` writes need
+// `Object.assign(p, X)` translation.
+//
+// The aliasMap is `crossTuTypedefAliases` from buildTree, which
+// stores `aliasName → underlyingStructName` for each
+// `typedef struct X Alias` form.  Without the map, the function
+// only accepts bare `struct X *`, missing typedef'd cases like
+// `light_source *new_ls` where `light_source` is
+// `typedef struct ls_t light_source`.  With the map,
+// `light_source` resolves to `ls_t` (a struct), so `light_source *`
+// is accepted.
+function isStructPtrTypeStr(t, structTypedefAliases = null) {
     if (!t) return false;
     let s = t.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
     if (!/\*\s*$/.test(s)) return false;       // must end in *
@@ -6142,7 +7303,25 @@ function isStructPtrTypeStr(t) {
     if (s.includes('(')) return false;         // exclude function pointers
     s = s.replace(/\*\s*$/, '').trim();
     s = s.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
-    return /^struct\s+\w+$/.test(s);
+    if (/^struct\s+\w+$/.test(s)) return true;
+    // Typedef-following: if the bare name resolves to a struct via
+    // the alias map, treat it as a struct pointer.  Walk the alias
+    // chain up to depth 10 with cycle detection (mirror of the
+    // integer-typedef chase in isScalarPtrType, build-tree.mjs).
+    if (structTypedefAliases && /^\w+$/.test(s)) {
+        const seen = new Set();
+        let cur = s;
+        for (let depth = 0; depth < 10 && !seen.has(cur); depth++) {
+            seen.add(cur);
+            const next = structTypedefAliases.get(cur);
+            if (!next) return false;
+            // crossTuTypedefAliases stores only the underlying struct
+            // tag (the regex match captured `struct Xxx`), so any
+            // hit is a struct typedef by construction.
+            return true;
+        }
+    }
+    return false;
 }
 
 // True if `node` is the C NUL character literal — `'\0'` (a
@@ -6230,14 +7409,16 @@ function collectCastedAliasLocals(node, out) {
 // Walk a function body and add the names of all struct-ptr local
 // VarDecls to `out`.  Same role as struct-ptr parameters: `*p = X`
 // writes through them become `Object.assign(p, X)`.
-function collectStructPtrLocals(node, out) {
+function collectStructPtrLocals(node, out, structTypedefAliases = null) {
     if (!node || typeof node !== 'object') return;
     if (node.kind === 'FunctionDecl') return;  // don't cross fn boundary
     if (node.kind === 'VarDecl' && node.name
-        && isStructPtrTypeStr(node.type?.qualType || '')) {
+        && isStructPtrTypeStr(node.type?.qualType || '', structTypedefAliases)) {
         out.add(renameIfReserved(node.name));
     }
-    for (const child of node.inner || []) collectStructPtrLocals(child, out);
+    for (const child of node.inner || []) {
+        collectStructPtrLocals(child, out, structTypedefAliases);
+    }
 }
 
 function paramRefName(node) {
@@ -6349,6 +7530,28 @@ function unaryOp(node, ctx) {
     // suppress warnings" prefix.  Clang represents it as a UnaryOp
     // wrapping the real expression.  Emit the inner directly.
     if (op === '__extension__') return arg;
+    // charBufferRewrites standalone walker increment: `p++` / `p--`
+    // / `++p` / `--p` (NOT wrapped in `*`) where p is a recognized
+    // walker.  Emit `__nh_p_idx++` (etc) so the increment advances
+    // the idx tracker rather than the (now-undefined) `p` identifier.
+    // Pairs with the standalone-increment safe-set check + the
+    // hasCharBufferTrueWrite recognizer gate.  Without this, the
+    // increment falls through to `${arg}${op}` and emits the bare
+    // walker name, breaking the rewrite.  Added 2026-05-31 for
+    // windows.c::getlin's `*bufp = key; bufp++;` two-statement
+    // walker pattern.
+    if ((op === '++' || op === '--') && ctx.charBufferRewrites
+        && ctx.charBufferRewrites.size > 0) {
+        const inner = stripCasts(innerNode);
+        if (inner?.kind === 'DeclRefExpr') {
+            const name = inner.referencedDecl?.name;
+            if (name && ctx.charBufferRewrites.has(name)) {
+                const rewrite = ctx.charBufferRewrites.get(name);
+                if (node.isPostfix) return `${rewrite.idxName}${op}`;
+                return `${op}${rewrite.idxName}`;
+            }
+        }
+    }
     // strchr-bound walker increment: `p++` / `p--` post-truncate
     // where p was bound via `p = strchr(buf, X)` and the enclosing
     // function is in the strchr_truncate_p_incr allowlist.  In JS-
@@ -6401,6 +7604,23 @@ function unaryOp(node, ctx) {
 function compoundAssign(node, ctx) {
     const op = node.opcode;
     const [l, r] = node.inner;
+    // Pointer-advance for charBufferRewrites: `p += N` / `p -= N`
+    // where p is a recognized walker.  Emit `__nh_p_idx += N`
+    // (matches C's pointer-arith semantics in the index-based model).
+    // Verifier accepts via isCharBufferAdvanceUsage; emit dispatches
+    // here.  Clang routes compound assigns through CompoundAssignOperator
+    // (not BinaryOperator), so this hook is parallel to the same
+    // check in binaryOp.  Added 2026-05-30 for hacklib.c strNsubst's
+    // `bp += len;` advance.
+    if ((op === '+=' || op === '-=') && ctx.charBufferRewrites
+        && l?.kind === 'DeclRefExpr') {
+        const lName = l.referencedDecl?.name;
+        if (lName && ctx.charBufferRewrites.has(lName)) {
+            const rewrite = ctx.charBufferRewrites.get(lName);
+            const rJs = expr(r, ctx);
+            return `${rewrite.idxName} ${op} ${rJs}`;
+        }
+    }
     const lJs = expr(l, ctx);
     const rJs = expr(r, ctx);
     // Integer types in C: `x /= y` truncates toward zero.  JS `/=` is
@@ -6409,7 +7629,13 @@ function compoundAssign(node, ctx) {
     // Heuristic: the LHS clang-typed qualType is one of the integer
     // primitives (int, short, long, char) — if so, wrap the division.
     if (op === '/=' && isIntegerType(l?.type?.qualType)) {
-        return `${lJs} = Math.trunc(${lJs} / ${rJs})`;
+        // Precedence safety: same fix as binaryOp's `/` site.  If RHS
+        // is a ConditionalOperator, wrap it in parens so the ternary
+        // doesn't get captured around the division.  Added 2026-05-31.
+        const rStripped = stripCasts(r);
+        const rWrap = (rStripped?.kind === 'ConditionalOperator')
+            ? `(${rJs})` : rJs;
+        return `${lJs} = Math.trunc(${lJs} / ${rWrap})`;
     }
     return `${lJs} ${op} ${rJs}`;
 }
@@ -6487,9 +7713,45 @@ function callExpr(node, ctx) {
         if (ptrIdxSet.has(i) && isAddrOfLocal(a, ctx)) {
             return refWrapForAddrOf(a, ctx);
         }
+        // charBufferRewrites bare-pointer arg: a candidate walker
+        // passed bare (no `*p` or `*p++` wrapper) to a known read-
+        // only string function (READ_ONLY_STRING_CALLEES allowlist).
+        // In C the callee receives a pointer-into-buffer; the JS
+        // equivalent is a slice/substring from the walker's current
+        // idx onward.  See isCharBufferReadOnlyArgUsage for the
+        // verifier side — only candidates whose uses match the
+        // allowlist get registered, so this emit only fires for
+        // safe sites.
+        const cbrSliceJs = tryCharBufferBareArgEmit(a, baseName, i, ctx);
+        if (cbrSliceJs !== null) return cbrSliceJs;
         return expr(a, ctx);
     }).join(', ');
     return `${calleeJs}(${argJs})`;
+}
+
+// True iff the AST node, after stripping ImplicitCastExpr / ParenExpr,
+// is a DeclRefExpr to a charBufferRewrites candidate name AND the
+// callee+argIdx is in the READ_ONLY_STRING_CALLEES allowlist.
+// Returns the JS emit `${bufRef}.slice(${idxName})` or null.
+//
+// argIdx is user-perceived (0-based among args, NOT inner) — matches
+// the iteration index in callExpr's args.map.
+function tryCharBufferBareArgEmit(argNode, calleeBaseName, argIdx, ctx) {
+    if (!ctx.charBufferRewrites || ctx.charBufferRewrites.size === 0) return null;
+    if (!READ_ONLY_STRING_CALLEES.has(calleeBaseName)) return null;
+    const safeArgs = READ_ONLY_STRING_CALLEES.get(calleeBaseName);
+    if (safeArgs !== null && !safeArgs.has(argIdx)) return null;
+    let n = argNode;
+    while (n && (n.kind === 'ImplicitCastExpr'
+        || n.kind === 'CStyleCastExpr' || n.kind === 'ParenExpr')) {
+        n = n.inner?.[0];
+    }
+    if (!n || n.kind !== 'DeclRefExpr') return null;
+    const name = n.referencedDecl?.name;
+    if (!name || !ctx.charBufferRewrites.has(name)) return null;
+    const rewrite = ctx.charBufferRewrites.get(name);
+    const bufJs = expr(rewrite.bufRef, ctx);
+    return `${bufJs}.slice(${rewrite.idxName})`;
 }
 
 // True when the AST node is `&LVALUE` where LVALUE is something we
@@ -6511,7 +7773,16 @@ function isAddrOfLocal(node, ctx) {
     while (target && (target.kind === 'ParenExpr' || target.kind === 'ImplicitCastExpr')) {
         target = target.inner?.[0];
     }
-    return target?.kind === 'DeclRefExpr' || target?.kind === 'MemberExpr';
+    // ArraySubscriptExpr added so `&arr[i]` outparams (e.g.
+    // `Sfo_long(nhfp, &wgrowtime[i], "...")`) get boxed.  In C the
+    // address is computed point-in-time; in JS the closure-captured
+    // getter/setter re-reads `arr[i]` on each access.  Equivalent
+    // when `i` doesn't mutate during the callee's read/write, which
+    // is the case for all save-file outparam sites in NetHack
+    // (loop counter, stable through one sf-call).
+    return target?.kind === 'DeclRefExpr'
+        || target?.kind === 'MemberExpr'
+        || target?.kind === 'ArraySubscriptExpr';
 }
 
 // Build a `{get value(){return X;}, set value(v){X=v;}}` wrapper for

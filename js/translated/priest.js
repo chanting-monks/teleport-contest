@@ -242,7 +242,7 @@ export function priestini(lvl, sroom, sx, sy, sanctum) {
     }
     priest = makemon(prim, px, py, 256);
     if (priest) {
-        ((priest).mextra.epri).shroom = (game.rooms.indexOf(sroom) + 3);
+        ((priest).mextra.epri).shroom = ((game.rooms.indexOf(sroom)) + 3);
         ((priest).mextra.epri).shralign = (((((game.level.locations[sx][sy].flags) & 7) == 0) ? (-128) : (((game.level.locations[sx][sy].flags) & 7) == 4) ? 1 : (((game.level.locations[sx][sy].flags) & 7)) - 2));
         ((priest).mextra.epri).shrpos.x = sx;
         ((priest).mextra.epri).shrpos.y = sy;

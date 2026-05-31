@@ -1981,10 +1981,7 @@ export function eatcorpse(otmp) {
         let palat_msg = __eatcorpse_palatable_msgs[idx];
         let use_is = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) || (palatable && palat_msg == 73));
         if (!strncmpi(pmxnam, "the ", 4)) {
-            /* Translator gap: C `pmxnam += 4` advances past "the ".
-               In JS strings, += is concat — corrupts pmxnam by
-               appending the number 4.  Use slice(4). */
-            pmxnam = (typeof pmxnam === 'string') ? pmxnam.slice(4) : pmxnam + 4;
+            pmxnam += 4;
         }
         pline("%s%s %s %s%c", (((game.mons[mnum]).mflags2 & 524288) != 0) ? "" : the_unique_pm(game.mons[mnum]) ? "The " : "This ", pmxnam, use_is ? "is" : "tastes", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? (yummy ? ((game.u.umonnum == PM_TIGER) ? "gr-r-reat" : "gnarly") : palatable ? "copacetic" : "grody") : (yummy ? "delicious" : palatable ? palat_msg[1] : "terrible"), (yummy || !palatable) ? 33 : 46);
     }

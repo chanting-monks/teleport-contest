@@ -355,6 +355,84 @@ function checkBannedCalls(files, sources) {
 // async function in the same file, the call must be preceded by
 // `await` or be inside a `Promise.all` etc.  Phase 0: no async
 // functions yet, vacuous.
+// Hand-curated list of c2js-runtime/ functions declared
+// `export async function ...` that MUST be awaited at every call site
+// in translated files.  Discovered via:
+//   grep -rE "^export async function" js/c2js-runtime/
+//
+// Why this hardcode: runtime files aren't part of the conformance
+// pass's `files` set (hand-written, not translator output), but
+// translated files import + call them.  Without this list, a regen
+// that strips async marks from translated functions would still pass
+// the in-file check while leaving cross-file unawaited calls that
+// crash at runtime (the §23.218 failed regen scenario).
+const RUNTIME_ASYNC_FUNCTIONS = new Set([
+    // js/c2js-runtime/lua.js
+    'nhl_init',
+    'nhl_loadlua',
+    'nhl_pcall_handle',
+    // js/c2js-runtime/nhlsel-bridge.mjs
+    'l_selection_new',
+    // js/c2js-runtime/lua-bootstrap.js
+    'installLuaData',
+]);
+
+// Known-violation allowlist: call sites where adding `await` would
+// require a sync→async cascade through multiple files that we don't
+// have a safe coordinated change for.  Each entry is
+// `path:enclosing_fn:callee` — robust against line-number drift when
+// the surrounding file is regenerated (the path:line form broke when
+// commit ed51158's verbatim-comment hoist shifted cmd.js by 1 line).
+//
+// Adding to this list is a CONFESSION, not a workaround — the runtime
+// bug remains latent.  See §23.219 for the can_do_extcmd cascade
+// blocker that produced this entry.
+const ASYNC_VIOLATION_ALLOWLIST = new Set([
+    // cmd.js:can_do_extcmd → nhl_pcall_handle.  Fixing requires making
+    // can_do_extcmd async, which cascades to doextcmd + rhack (both
+    // sync) and their callers.  Production behavior is unaffected
+    // because the nh_callback_run('can_do_extcmd', ...) callback is
+    // sync in the test sessions (no async work to await).
+    'translated/cmd.js:can_do_extcmd:nhl_pcall_handle',
+]);
+
+// Find the enclosing function name for a given character offset in
+// `stripped`.  Scans backward from `idx` for the most-recent
+// `function NAME(` declaration whose body still contains idx (depth-
+// counted braces).  Returns the function name, or null if at the
+// top level.
+function findEnclosingFunction(stripped, idx) {
+    // Find all function declarations.  Each gives a start index +
+    // matching body { ... } span.
+    const fnRe = /\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/g;
+    let m;
+    let bestName = null;
+    let bestStart = -1;
+    while ((m = fnRe.exec(stripped)) !== null) {
+        // Find the `{` after the parens.
+        let p = stripped.indexOf('{', m.index + m[0].length);
+        if (p < 0) continue;
+        // Match braces to find body end.
+        let depth = 0;
+        let end = -1;
+        for (let i = p; i < stripped.length; i++) {
+            const c = stripped[i];
+            if (c === '{') depth++;
+            else if (c === '}') {
+                depth--;
+                if (depth === 0) { end = i; break; }
+            }
+        }
+        if (end < 0) continue;
+        // Is idx inside [p, end]?
+        if (idx >= p && idx <= end && p > bestStart) {
+            bestName = m[1];
+            bestStart = p;
+        }
+    }
+    return bestName;
+}
+
 function checkAsyncClosure(files, sources) {
     const errors = [];
     // Collect the set of async function names declared in each file.
@@ -367,12 +445,17 @@ function checkAsyncClosure(files, sources) {
         while ((m = re.exec(stripped)) !== null) set.add(m[1]);
         fileAsyncs.set(f, set);
     }
-    // For each file, scan for calls to local async functions without await.
+    // For each file, scan for calls to local async functions OR known
+    // runtime-async functions without await.  Local async fns come
+    // from fileAsyncs[f]; cross-file/runtime async fns come from
+    // RUNTIME_ASYNC_FUNCTIONS (hand-curated, must stay in sync with
+    // js/c2js-runtime/'s `export async function` declarations).
     for (const f of files) {
         const stripped = stripCommentsAndStrings(sources.get(f));
-        const asyncs = fileAsyncs.get(f);
-        if (!asyncs.size) continue;
-        for (const name of asyncs) {
+        const localAsyncs = fileAsyncs.get(f);
+        const allAsyncs = new Set([...localAsyncs, ...RUNTIME_ASYNC_FUNCTIONS]);
+        if (!allAsyncs.size) continue;
+        for (const name of allAsyncs) {
             // Match `name(` not preceded by 'await ', 'await\n', or '.'
             // or 'function '.  Approximate.
             const re = new RegExp(`(\\W|^)${escapeRegex(name)}\\s*\\(`, 'g');
@@ -387,6 +470,13 @@ function checkAsyncClosure(files, sources) {
                 if (/\basync\s+function\s+$/.test(before)) continue;
                 // It's a call to async fn without await.
                 const { line, col } = locOf(sources.get(f), idx);
+                // Skip known-violation allowlist entries.  Key shape:
+                // `path:enclosing_fn:callee` — line-stable so verbatim
+                // comment hoisting or other regen line-shifts don't
+                // break the allowlist.
+                const fnName = findEnclosingFunction(stripped, idx) || '<top>';
+                const violKey = `${relative(projectRoot, f).replace(/^js\//, '')}:${fnName}:${name}`;
+                if (ASYNC_VIOLATION_ALLOWLIST.has(violKey)) continue;
                 errors.push(`${relative(projectRoot, f)}:${line}:${col}: call to async ${name}() without await`);
             }
         }

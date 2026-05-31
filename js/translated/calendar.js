@@ -15,7 +15,7 @@
  */
 /* TIME_type: type of the argument to time(); we actually use &(time_t);
    you might need to define either or both of these to 'long *' in *conf.h */
-import { time, localtime } from '../c2js-runtime/calendar.js';
+import { localtime, time } from '../c2js-runtime/calendar.js';
 import { nh_snprintf } from '../c2js-runtime/stdio.js';
 import { strlen } from '../c2js-runtime/string.js';
 
@@ -84,7 +84,7 @@ export function time_from_yyyymmddhhmmss(buf) {
     let timeresult = 0;
     let t = { tm_sec: 0, tm_min: 0, tm_hour: 0, tm_mday: 0, tm_mon: 0, tm_year: 0, tm_wday: 0, tm_yday: 0, tm_isdst: 0, tm_gmtoff: 0, tm_zone: null };
     let lt = null;
-    let d = null;
+    let __nh_d_idx = 0;
     let p = null;
     let y = [0, 0, 0, 0, 0];
     let mo = [0, 0, 0];
@@ -93,7 +93,7 @@ export function time_from_yyyymmddhhmmss(buf) {
     let mi = [0, 0, 0];
     let s = [0, 0, 0];
     if (buf && strlen(buf) == 14) {
-        d = buf;
+        __nh_d_idx = 0;
         y = d.slice(0, 4);
         d = d.slice(4);
         mo = d.slice(0, 2);

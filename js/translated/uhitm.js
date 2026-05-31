@@ -5158,7 +5158,7 @@ export function hmonas(mon) {
             } else {
                 passive(mon, weapon, (sum[i] != 0), 1, mattk.aatyp, (0));
             }
-            if (mhitm_knockback(game.youmonst, mon, mattk, sum[i], weapon_used)) {
+            if (mhitm_knockback(game.youmonst, mon, mattk, { get value() { return sum[i]; }, set value(_v) { sum[i] = _v; } }, weapon_used)) {
                 break;
             }
         }
@@ -5554,7 +5554,7 @@ export function that_is_a_mimic(mtmp, mimic_flags) {
     }
     if (what) {
         let i = (omit_wait && !strncmp(fmtbuf, "Wait!  ", 7)) ? 7 : 0;
-        pline(fmtbuf[i], what);
+        pline({ get value() { return fmtbuf[i]; }, set value(_v) { fmtbuf[i] = _v; } }, what);
     }
     if (reveal_it) {
         seemimic(mtmp);

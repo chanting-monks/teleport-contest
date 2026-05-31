@@ -2284,18 +2284,7 @@ export function align_gname(alignment) {
             gnam = "someone";
             break;
     }
-    /* JS-faithful first-char check: C tests `*gnam == '_'` and
-       advances the pointer past the underscore.  Translator emitted
-       `gnam == 95` which compares a string to a number (always false
-       for JS strings).  Without this, deity names like
-       "_Amaterasu Omikami" render with the leading underscore
-       intact (the underscore is a gendered-deity marker, not part
-       of the displayed name). */
-    if (typeof gnam === 'string' && gnam.length > 0 && gnam.charCodeAt(0) === 95) {
-        gnam = gnam.slice(1);
-    } else if (Array.isArray(gnam) && gnam[0] === 95) {
-        gnam = gnam.slice(1);
-    } else if (gnam && typeof gnam === 'object' && gnam.value === 95) {
+    if (gnam == 95) {
         ++gnam;
     }
     return gnam;
@@ -2358,12 +2347,7 @@ export function halu_gname(alignment) {
         impossible("No random god name?");
         gnam = "your Friend the Computer";
     }
-    /* JS-faithful underscore strip — see align_gname above. */
-    if (typeof gnam === 'string' && gnam.length > 0 && gnam.charCodeAt(0) === 95) {
-        gnam = gnam.slice(1);
-    } else if (Array.isArray(gnam) && gnam[0] === 95) {
-        gnam = gnam.slice(1);
-    } else if (gnam && typeof gnam === 'object' && gnam.value === 95) {
+    if (gnam == 95) {
         ++gnam;
     }
     return gnam;
@@ -2386,15 +2370,7 @@ export function align_gtitle(alignment) {
             gnam = null;
             break;
     }
-    /* JS-faithful first-char check: C tests `*gnam == '_'` to
-       decide whether the deity is gendered (female).  Translator
-       emitted `gnam == 95` which is always false for JS strings. */
-    const __isGendered = !!gnam && (
-        (typeof gnam === 'string' && gnam.length > 0 && gnam.charCodeAt(0) === 95)
-        || (Array.isArray(gnam) && gnam[0] === 95)
-        || (typeof gnam === 'object' && gnam.value === 95)
-    );
-    if (__isGendered) {
+    if (gnam && gnam == 95) {
         result = "goddess";
     }
     return result;

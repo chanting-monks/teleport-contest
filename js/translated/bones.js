@@ -3,6 +3,7 @@
 /*-Copyright (c) Robert Patrick Rankin, 2012. */
 /* NetHack may be freely redistributed.  See license for details. */
 import { game } from '../gstate.js';
+import { close_nhfile } from '../c2js-runtime/levelfile.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { You, pline } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
@@ -602,7 +603,7 @@ export function savebones(how, when, corpse) {
     c = (strlen(bonesid) + 1);
     nhfp.mode = 2;
     store_version(nhfp);
-    sfo_char(nhfp, game.nhuuid[0], "ancestor-nhuuid", 37 /* sizeof(char [37]) */);
+    sfo_char(nhfp, { get value() { return game.nhuuid[0]; }, set value(_v) { game.nhuuid[0] = _v; } }, "ancestor-nhuuid", 37 /* sizeof(char [37]) */);
     sfo_char(nhfp, { get value() { return c; }, set value(_v) { c = _v; } }, "bones_count", 1);
     sfo_char(nhfp, bonesid, "bonesid", c);
     /* if a bones pool digit is in use, it precedes the bonesid
@@ -676,7 +677,7 @@ export function getbones() {
                 return 0;
             }
         }
-        sfi_char(nhfp, ancestor_nhuuid[0], "ancestor-nhuuid", 37 /* sizeof(char [37]) */);
+        sfi_char(nhfp, { get value() { return ancestor_nhuuid[0]; }, set value(_v) { ancestor_nhuuid[0] = _v; } }, "ancestor-nhuuid", 37 /* sizeof(char [37]) */);
         sfi_char(nhfp, { get value() { return c; }, set value(_v) { c = _v; } }, "bones_count", 1);
         if (c <= 40 /* sizeof(char [40]) */) {
             sfi_char(nhfp, oldbonesid, "bonesid", c);

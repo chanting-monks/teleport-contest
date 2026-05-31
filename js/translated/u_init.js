@@ -483,7 +483,7 @@ export function u_init_misc() {
     }
     game.u.ublesscnt = 300;
     game.u.ualignbase[0] = game.u.ualignbase[1] = game.u.ualign.type = aligns[game.flags.initalign].value;
-    time(game.ubirthday);
+    time({ get value() { return game.ubirthday; }, set value(_v) { game.ubirthday = _v; } });
     /*
      *  For now, everyone starts out with a night vision range of 1 and
      *  their xray_range disabled.

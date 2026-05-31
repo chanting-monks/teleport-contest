@@ -84,6 +84,7 @@
 /**/
 /* DUMB */
 import { game } from '../gstate.js';
+import { close_nhfile } from '../c2js-runtime/levelfile.js';
 import { lua_getglobal, lua_pushstring, lua_settop, lua_toboolean, nhl_pcall_handle } from '../c2js-runtime/lua.js';
 import { abs, sgn } from '../c2js-runtime/math.js';
 import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
@@ -1929,8 +1930,6 @@ export function bind_key(key, command, user) {
     if ((p = strchr(buf, 40)) != null && (lastp = strrchr(buf, 41)) != null && (lastp > p)) {
         /* does buf have a parameter in parenthesis? */
         /* break off first autocomplete from the rest; parse the rest */
-        /* this should be done in port code so that we have erase_char
-       and kill_char available; we can at least fake erase_char */
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
         p++;
@@ -3877,7 +3876,9 @@ export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
     let historicmsg = (gc_flags & 1) != 0;
     let conditionalmsg = (gc_flags & 2) != 0;
     let echoalways = (gc_flags & 4) != 0;
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+    /* this should be done in port code so that we have erase_char
+       and kill_char available; we can at least fake erase_char */
+    count.value = 0;
     for (; ; ) {
         if (inkey) {
             /* should "Count: 123" go into message history? */
@@ -3913,8 +3914,8 @@ export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
         } else if (key == game.Cmd.spkeys[NHKF_ESC]) {
             break;
         } else if (!allowchars || strchr(allowchars, key)) {
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = cnt) */;
-            if (count != cnt) {
+            count.value = cnt;
+            if (count.value != cnt) {
                 impossible("get_count: cmdcount_nht");
             }
             break;
@@ -3931,8 +3932,8 @@ export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
             (game.windowprocs.win_mark_synch)();
         }
     }
-    if (historicmsg || (conditionalmsg && count != first)) {
-        qbuf = sprintf(qbuf, "Count: %ld ", count);
+    if (historicmsg || (conditionalmsg && count.value != first)) {
+        qbuf = sprintf(qbuf, "Count: %ld ", count.value);
         key2txt(key, eos(qbuf));
         (game.windowprocs.win_putmsghistory)(qbuf, (0));
     }
@@ -3958,7 +3959,7 @@ export function parse() {
            <character> not read from keyboard yet) rather than intended count
            and meta keystroke "n<count>M-<character>" */
         game.program_state.input_state = commandInp;
-        foo = get_count(null, 0, 32767, game.command_count, 0);
+        foo = get_count(null, 0, 32767, { get value() { return game.command_count; }, set value(_v) { game.command_count = _v; } }, 0);
     }
     game.last_command_count = game.command_count;
     if (foo == game.Cmd.spkeys[NHKF_ESC]) {
@@ -4181,6 +4182,7 @@ export function yn_func_menu_opt(win, key, text, def) {
    returns TRUE if the menu was shown to the user.
    puts the response char into res. */
 export function yn_function_menu(query, resp, def, res) {
+    let __nh_res_idx = 0;
     if (yn_menuable_resp(resp)) {
         let win = (game.windowprocs.win_create_nhwindow)(4);
         let sel = null;
@@ -4209,14 +4211,14 @@ export function yn_function_menu(query, resp, def, res) {
         if (n > 0) {
             res.value = sel[0].item.a_char;
             /* two were selected? use the one that wasn't the default */
-            if (n > 1 && res.value == def) {
+            if (n > 1 && res[__nh_res_idx] == def) {
                 res.value = sel[1].item.a_char;
             }
             free(sel);
         } else {
             res.value = def;
         }
-        pline("%s %s", query, key2txt(res.value, keybuf));
+        pline("%s %s", query, key2txt(res[__nh_res_idx], keybuf));
         (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
         return (1);
     }
@@ -4243,7 +4245,7 @@ export function yn_function(query, resp, def, addcmdq) {
         /* caller shouldn't have passed anything this long */
         paniclog("Query truncated: ", query);
         qbuf = strncpy(qbuf, query, 128 - 1 - 3);
-        strcpy(qbuf[128 - 1 - 3], "...");
+        strcpy({ get value() { return qbuf[128 - 1 - 3]; }, set value(_v) { qbuf[128 - 1 - 3] = _v; } }, "...");
         query = qbuf;
     }
     if (addcmdq && (cmdq = cmdq_pop()) != null) {

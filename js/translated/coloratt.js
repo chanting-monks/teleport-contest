@@ -683,39 +683,53 @@ export function onlyhexdigits(buf) {
     return (1);
 }
 export function rgbstr_to_int32(rgbstr) {
-    /* Hand-port: C walks buf char-by-char, marking c_r/c_g/c_b at
-       segment starts and null-terminating buf at each '-' so atoi
-       sees clean substrings.  Translator emitted the `cp++` walk as
-       string concat, the `cp == 45` comparison as string-vs-int, and
-       the `*p = '\0'` truncation as a void 0 TODO.  Function returned
-       -1 unconditionally for any well-formed rgbstr.
-
-       JS rewrite: native split('-') for segmentation + parseInt(seg, 10)
-       for the C atoi semantic (atoi parses decimal, ignores trailing
-       non-digits — onlyhexdigits accepts hex chars but atoi still
-       parses decimal-prefix-only).  Match C's per-segment length-1-3
-       sanity check. */
-    const bufStr = (rgbstr == null) ? '' : String(rgbstr).slice(0, 255);
-    if (!bufStr) return -1;
-    if (onlyhexdigits(bufStr)) {
-        const parts = bufStr.split('-');
-        if (parts.length === 3
-            && parts[0].length >= 1 && parts[0].length <= 3
-            && parts[1].length >= 1 && parts[1].length <= 3
-            && parts[2].length >= 1 && parts[2].length <= 3) {
-            /* C uses atoi (decimal-prefix), not strtol(x,0,16); reproduce
-               that semantic via parseInt(s, 10) which stops at first
-               non-digit (including hex letters a-f). */
-            const r = parseInt(parts[0], 10) | 0;
-            const g = parseInt(parts[1], 10) | 0;
-            const b = parseInt(parts[2], 10) | 0;
-            return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let milestone = 0;
+    let cp = null;
+    let c_r = null;
+    let c_g = null;
+    let c_b = null;
+    let rgb = 0;
+    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let dash = (0);
+    nh_snprintf("rgbstr_to_int32", 823, buf, 256 /* sizeof(char [256]) */, "%s", rgbstr ? rgbstr : "");
+    if (buf && onlyhexdigits(buf)) {
+        c_g = c_b = null;
+        c_r = cp = buf;
+        while (cp) {
+            if (digit(cp) || cp == 45) {
+                if (cp == 45) {
+                    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+                    milestone++;
+                    dash = (1);
+                }
+                cp++;
+                if (dash) {
+                    if (milestone < 2) {
+                        c_g = cp;
+                    } else {
+                        c_b = cp;
+                    }
+                    dash = (0);
+                }
+            } else {
+                return -1;
+            }
         }
-        return -1;
-    } else {
-        /* perhaps an enhanced color name was used instead of rgb value? */
-        const rgb = check_enhanced_colors(bufStr);
-        if (rgb !== -1) return rgb;
+        if (c_r && c_g && c_b && (strlen(c_r) > 0 && strlen(c_r) < 4) && (strlen(c_g) > 0 && strlen(c_g) < 4) && (strlen(c_b) > 0 && strlen(c_b) < 4)) {
+            r = atoi(c_r);
+            g = atoi(c_g);
+            b = atoi(c_b);
+            rgb = (r << 16) | (g << 8) | (b << 0);
+            /* perhaps an enhanced color name was used instead of rgb value? */
+            return rgb;
+        }
+    } else if (buf) {
+        if ((rgb = check_enhanced_colors(buf)) != -1) {
+            return rgb;
+        }
     }
     return -1;
 }
@@ -727,7 +741,7 @@ export function set_map_customcolor(gmap, nhcolor) {
         return 0;
     }
     gmap.customcolor = nhcolor;
-    if (closest_color(nhcolor, { get value() { return closecolor; }, set value(_v) { closecolor = _v; } }, clridx)) {
+    if (closest_color(nhcolor, { get value() { return closecolor; }, set value(_v) { closecolor = _v; } }, { get value() { return clridx; }, set value(_v) { clridx = _v; } })) {
         gmap.color256idx = clridx;
     } else {
         gmap.color256idx = 0;
@@ -774,9 +788,6 @@ export function closest_color(lcolor, closecolor, clridx) {
     }
     if (closecolor && clridx && color_index >= 0) {
         closecolor.value = game.color_256_definitions[color_index].value;
-        /* Hand-port: C `*clridx = color_256_definitions[color_index].index;`
-           — translator truncated the .index field name in the TODO.
-           clridx is a value-box outparam; assign via .value. */
         clridx.value = game.color_256_definitions[color_index].index;
         retbool = (1);
     }

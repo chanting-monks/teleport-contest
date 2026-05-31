@@ -375,6 +375,7 @@ export function panic(str) {
 /* !MICRO */
 /* generate core dump */
 export function should_query_disclose_option(category, defquery) {
+    let __nh_defquery_idx = 0;
     let idx = 0;
     let disclose = 0;
     let dop = null;
@@ -1329,12 +1330,12 @@ export function container_contents(list, identified, all_containers, reportempty
                                 obj.cknown = obj.lknown = 1;
                             }
                         }
-                        strcpy(buf[2], doname_with_price(obj));
+                        strcpy({ get value() { return buf[2]; }, set value(_v) { buf[2] = _v; } }, doname_with_price(obj));
                         (game.windowprocs.win_putstr)(tmpwin, 0, buf);
                     }
                     unsortloot({ get value() { return sortedcobj; }, set value(_v) { sortedcobj = _v; } });
                 } else if (cat) {
-                    strcpy(buf[2], "Schroedinger's cat!");
+                    strcpy({ get value() { return buf[2]; }, set value(_v) { buf[2] = _v; } }, "Schroedinger's cat!");
                     (game.windowprocs.win_putstr)(tmpwin, 0, buf);
                 }
                 if (dumping) {
@@ -1468,44 +1469,18 @@ export function wordcount(p) {
     return words;
 }
 export function bel_copy1(inp, out) {
-    /* Hand-port: C `bel_copy1(char **inp, char *out)` skips leading
-       whitespace in *inp, then copies the first whitespace-separated
-       word into out[] (starting at out's existing eos), and updates
-       *inp to past the word.  Translator emitted the body as pointer-
-       arith + `void 0` TODOs that bailed immediately, so build-
-       english-list returned empty strings for death messages.
-
-       JS rewrite: walk inp.value with charCodeAt, append char codes
-       into out[] at its trailing-NUL position. */
-    let s = inp.value;
-    if (s == null) s = '';
-    if (typeof s !== 'string') {
-        /* Array-buffer input: convert to string for char walking. */
-        if (Array.isArray(s)) {
-            let buf = '';
-            for (let i = 0; i < s.length && s[i]; i++) buf += String.fromCharCode(s[i]);
-            s = buf;
-        } else {
-            s = String(s);
-        }
+    let __nh_inp_idx = 0;
+    let __nh_out_idx = 0;
+    let in_ = inp[__nh_inp_idx];
+    __nh_out_idx += strlen(out.slice(__nh_out_idx));
+    while (in_ && ((__ctype_b_loc())[((in_))] & _ISspace)) {
+        in_++;
     }
-    /* Find existing eos in out[] */
-    let pos = 0;
-    if (Array.isArray(out)) {
-        while (pos < out.length && out[pos]) pos++;
+    while (in_ && !((__ctype_b_loc())[((in_))] & _ISspace)) {
+        out[__nh_out_idx++] = in_++;
     }
-    let i = 0;
-    /* Skip leading whitespace */
-    while (i < s.length && /\s/.test(s[i])) i++;
-    /* Copy word chars until next whitespace */
-    while (i < s.length && !/\s/.test(s[i])) {
-        if (Array.isArray(out) && pos < out.length - 1) {
-            out[pos++] = s.charCodeAt(i);
-        }
-        i++;
-    }
-    if (Array.isArray(out) && pos < out.length) out[pos] = 0;
-    inp.value = s.slice(i);
+    out.value = 0;
+    inp.value = in_;
 }
 export function build_english_list(in_) {
     let out = null;

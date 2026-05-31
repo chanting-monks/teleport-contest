@@ -5802,7 +5802,7 @@ export function resist(mtmp, oclass, damage, tell) {
     let dlev = 0;
     /* fake players always pass resistance test against Conflict
        (this doesn't guarantee that they're never affected by it) */
-    if (oclass == RING_CLASS && !damage && !tell && ((mtmp.data).pmidx >= PM_ARCHEOLOGIST && (mtmp.data).pmidx <= PM_WIZARD)) {
+    if (oclass == RING_CLASS && !damage && !tell && (((mtmp.data).pmidx >= PM_ARCHEOLOGIST) && ((mtmp.data).pmidx <= PM_WIZARD))) {
         return 1;
     }
     switch (oclass) {
@@ -5832,7 +5832,7 @@ export function resist(mtmp, oclass, damage, tell) {
     if (dlev > 50) {
         dlev = 50;
     } else if (dlev < 1) {
-        dlev = ((mtmp.data).pmidx >= PM_ARCHEOLOGIST && (mtmp.data).pmidx <= PM_WIZARD) ? game.u.ulevel : 1;
+        dlev = (((mtmp.data).pmidx >= PM_ARCHEOLOGIST) && ((mtmp.data).pmidx <= PM_WIZARD)) ? game.u.ulevel : 1;
     }
     resisted = rn2(100 + alev - dlev) < mtmp.data.mr;
     if (resisted) {
@@ -5970,14 +5970,7 @@ export function makewish() {
     if (game.flags.verbose) {
         You("may wish for an object.");
     }
-    /* Defensive: bound the wish-retry loop to prevent runaway
-       iteration if downstream translator gaps in readobjnam never
-       terminate.  C's makewish has the tries < 5 guard but only
-       after readobjnam returns; this outer bound ensures we always
-       exit even if `continue retry` fires from unexpected paths. */
-    let __wish_outer_iter = 0;
     retry: while (true) {
-        if (++__wish_outer_iter > 12) break;
         promptbuf = strcpy(promptbuf, "For what do you wish");
         if (game.iflags.cmdassist && tries > 0) {
             promptbuf = strcat(promptbuf, " (enter 'help' for assistance)");

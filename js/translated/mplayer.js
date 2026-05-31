@@ -47,7 +47,7 @@ export function dev_name() {
         match = (0);
         i = rn2(n);
         for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
-            if (!((mtmp.data).pmidx >= PM_ARCHEOLOGIST && (mtmp.data).pmidx <= PM_WIZARD)) {
+            if (!(((mtmp.data).pmidx >= PM_ARCHEOLOGIST) && ((mtmp.data).pmidx <= PM_WIZARD))) {
                 continue;
             }
             if (!strncmp(developers[i], (((mtmp).mextra && ((mtmp).mextra.mgivenname))) ? ((mtmp).mextra.mgivenname) : "", strlen(developers[i]))) {
@@ -107,7 +107,7 @@ export function mk_mplayer_armor(mon, typ) {
 export function mk_mplayer(ptr, x, y, special) {
     let mtmp = null;
     let nam = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    if (!((ptr).pmidx >= PM_ARCHEOLOGIST && (ptr).pmidx <= PM_WIZARD)) {
+    if (!(((ptr).pmidx >= PM_ARCHEOLOGIST) && ((ptr).pmidx <= PM_WIZARD))) {
         return (null);
     }
     if ((game.level.monsters[x][y] != null)) {

@@ -653,7 +653,7 @@ export function save_regions(nhfp) {
             sfo_unsigned(nhfp, { get value() { return r.player_flags; }, set value(_v) { r.player_flags = _v; } }, "region-player_flags");
             sfo_short(nhfp, { get value() { return r.n_monst; }, set value(_v) { r.n_monst = _v; } }, "region-monster_count");
             for (j = 0; j < r.n_monst; j++) {
-                sfo_unsigned(nhfp, r.monsters[j], "region-monster");
+                sfo_unsigned(nhfp, { get value() { return r.monsters[j]; }, set value(_v) { r.monsters[j] = _v; } }, "region-monster");
             }
             sfo_boolean(nhfp, { get value() { return r.visible; }, set value(_v) { r.visible = _v; } }, "region-visible");
             sfo_int(nhfp, { get value() { return r.glyph; }, set value(_v) { r.glyph = _v; } }, "region-glyph");
@@ -750,7 +750,7 @@ export function rest_regions(nhfp) {
         }
         r.max_monst = r.n_monst;
         for (j = 0; j < r.n_monst; j++) {
-            sfi_unsigned(nhfp, r.monsters[j], "region-monster");
+            sfi_unsigned(nhfp, { get value() { return r.monsters[j]; }, set value(_v) { r.monsters[j] = _v; } }, "region-monster");
             ;
         }
         sfi_boolean(nhfp, { get value() { return r.visible; }, set value(_v) { r.visible = _v; } }, "region-visible");
@@ -794,7 +794,7 @@ export function reset_region_mids(reg) {
     let n = reg.n_monst;
     let mid_list = reg.monsters;
     while (i < n) {
-        if (!lookup_id_mapping(mid_list[i], mid_list[i])) {
+        if (!lookup_id_mapping(mid_list[i], { get value() { return mid_list[i]; }, set value(_v) { mid_list[i] = _v; } })) {
             /* shrink list to remove missing monster; order doesn't matter */
             mid_list[i] = mid_list[--n];
         } else {

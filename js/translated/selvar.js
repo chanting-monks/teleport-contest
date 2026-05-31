@@ -766,7 +766,7 @@ export function selection_from_mkroom(croom) {
     if (!croom) {
         return sel;
     }
-    rmno = (game.rooms.indexOf(croom) + 3);
+    rmno = ((game.rooms.indexOf(croom)) + 3);
     for (y = croom.ly; y <= croom.hy; y++) {
         for (x = croom.lx; x <= croom.hx; x++) {
             if (isok(x, y) && !game.level.locations[x][y].edge && game.level.locations[x][y].roomno == rmno) {

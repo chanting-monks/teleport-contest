@@ -15,7 +15,7 @@ import { runConformance, formatReport } from './conformance.mjs';
 import { runSelfTests } from './tests/run.mjs';
 import { parseCFile, extractComments } from './parser.mjs';
 import { translateUnit } from './translate.mjs';
-import { buildTree } from './build-tree.mjs';
+import { buildTree, collectIntegerTypedefs, collectScalarPtrParams } from './build-tree.mjs';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as config from './c2js.config.mjs';
@@ -216,9 +216,26 @@ async function main() {
 // Reads cPath, produces JS, writes to outPath.  Not a full
 // configure/preprocess pipeline yet; that lands in Phase 5+ when we
 // point the translator at real NetHack source.
+//
+// Per-TU scalar-ptr-param collection (with typedef-following) runs
+// against this single TU so single-file tests behave the same as
+// multi-file tests for scalar-ptr outparam recognition.  Struct-ptr
+// / double-ptr / casted-alias collection is deliberately omitted —
+// the existing single-file test corpus doesn't exercise those, and
+// adding them widens the change without a corresponding test.
 function translateCFile(cPath, outPath) {
     const parsed = parseCFile(cPath, { extraFlags: extraFlagsFor(cPath) });
-    const js = translateUnit({ ...parsed, opts: { outputPath: outPath } });
+    const integerTypedefAliases = new Map();
+    collectIntegerTypedefs(parsed.tu, integerTypedefAliases);
+    const functionScalarPtrParams = new Map();
+    collectScalarPtrParams(parsed.tu, functionScalarPtrParams, integerTypedefAliases);
+    const js = translateUnit({
+        ...parsed,
+        opts: {
+            outputPath: outPath,
+            crossTuScalarPtrParams: functionScalarPtrParams,
+        },
+    });
     writeFileSync(outPath, js);
     return outPath;
 }

@@ -700,6 +700,17 @@ function _buildScreenOutput() {
         const co = game._cursor_override;
         if (co && typeof co.x === 'number' && typeof co.y === 'number') {
             display.setCursor(co.x | 0, co.y | 0);
+        } else if (msg.endsWith('--More--')) {
+            // C tty more() leaves the cursor at the END of the
+            // "--More--" suffix on row 0 — wintty.c topl.c more()
+            // positions via tty_curs after putsyms(defmorestr).  The
+            // hero-position fallback below mis-places the cursor in
+            // the dungeon for multi-message --More-- captures.
+            // Mirror C by placing cursor at column = msg.length on
+            // row 0.  Verified against seed1800 steps 5/6/25.
+            // Added 2026-05-31 alongside the objnam.js xname strncat
+            // fix that unblocked the multi-pline visibility.
+            display.setCursor(msg.length, 0);
         } else if (game.u?.ux > 0) {
             display.setCursor(game.u.ux - 1, game.u.uy + 1);
         }

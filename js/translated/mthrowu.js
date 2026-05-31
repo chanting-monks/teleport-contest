@@ -200,7 +200,7 @@ export function monmulti(mtmp, otmp, mwep) {
             multishot += 2;
         } else if ((((mtmp.data).mflags2 & 1024) != 0)) {
             multishot++;
-        } else if (((mtmp.data).pmidx >= PM_ARCHEOLOGIST && (mtmp.data).pmidx <= PM_WIZARD)) {
+        } else if ((((mtmp.data).pmidx >= PM_ARCHEOLOGIST) && ((mtmp.data).pmidx <= PM_WIZARD))) {
             multishot++;
         }
         /* this portion is different from hero multishot; from slash'em?

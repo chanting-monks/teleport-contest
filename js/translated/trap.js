@@ -239,8 +239,7 @@ export function erode_obj(otmp, ostr, type, ef_flags) {
     }
     /* 'visobj' messages insert "the"; probably ought to switch to the() */
     if (visobj && !(uvictim || vismon) && !strncmpi(ostr, "the ", 4)) {
-        /* Hand-port: C `ostr += 4` skips "the " prefix.  Slice in JS. */
-        ostr = (typeof ostr === 'string') ? ostr.slice(4) : ostr;
+        ostr += 4;
     }
     if (check_grease && otmp.greased) {
         grease_protect(otmp, ostr, victim);

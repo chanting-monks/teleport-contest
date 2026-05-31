@@ -32,12 +32,12 @@ const rip_txt = ["                       ----------", "                      /  
 /* *char[] line # for death description */
 /* *char[] line # for year */
 export function center(line, text) {
-    let ip = null;
+    let __nh_ip_idx = 0;
     let op = null;
-    ip = text;
+    __nh_ip_idx = 0;
     op = game.rip[line][28 - ((strlen(text) + 1) >> 1)];
-    while (ip) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = ip++) */;
+    while (text[__nh_ip_idx]) {
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = text[__nh_ip_idx++]) */;
     }
 }
 export function genl_outrip(tmpwin, how, when) {

@@ -1801,7 +1801,7 @@ export function is_treefruit(otmp) {
 export function mkgold(amount, x, y) {
     let gold = g_at(x, y);
     if (amount <= 0) {
-        let mul = rnd(Math.trunc(30 / ((12 - depth(game.u.uz)) > (2) ? (12 - depth(game.u.uz)) : (2))));
+        let mul = rnd(Math.trunc(30 / (((12 - depth(game.u.uz)) > (2) ? (12 - depth(game.u.uz)) : (2)))));
         amount = (1 + rnd(level_difficulty() + 2) * mul);
     }
     if (gold) {

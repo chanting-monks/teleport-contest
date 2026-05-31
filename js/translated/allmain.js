@@ -530,7 +530,7 @@ export async function moveloop_core() {
     if (game.luacore && game.nhcb_counts[NHCB_END_TURN]) {
         lua_getglobal(game.luacore, "nh_callback_run");
         lua_pushstring(game.luacore, nhcb_name[NHCB_END_TURN]);
-        nhl_pcall_handle(game.luacore, 1, 0, "moveloop_core", NHLpa_panic);
+        await nhl_pcall_handle(game.luacore, 1, 0, "moveloop_core", NHLpa_panic);
         lua_settop(game.luacore, 0);
     }
 }

@@ -134,17 +134,6 @@ export function strip_newline(str) {
 }
 /* return the end of a string (pointing at '\0') */
 export function eos(s) {
-    /* Translator gap: the C version `while (*s) s++;` walks a char*
-       pointer to the null terminator and returns that pointer.  In
-       JS string-land, callers use `eos(s) - N` as a suffix-pointer
-       (pointer to the last N chars) — so we return the string's
-       length as the numeric "end offset", letting `eos(s) - N`
-       evaluate to (length - N) for caller-side slice(N) suffix
-       extraction.  Char-array callers fall back to the
-       pointer-walk loop. */
-    if (typeof s === 'string') {
-        return s.length;
-    }
     while (s.value) {
         s++;
     }
@@ -152,9 +141,6 @@ export function eos(s) {
 }
 /* version of eos() which takes a const* arg and returns that result */
 export function c_eos(s) {
-    if (typeof s === 'string') {
-        return s.length;
-    }
     while (s.value) {
         s++;
     }
@@ -286,43 +272,20 @@ export function ing_suffix(s) {
 }
 /* trivial text encryption routine (see makedefs) */
 export function xcrypt(str, buf) {
-    /* Hand-port: C `xcrypt` walks str char-by-char, XOR-encrypting with
-       a rolling bitmask (1, 2, 4, 8, 16) when the high-bits-32 or -64
-       are set on the byte.  The result is written into buf (array) and
-       buf is returned.  Translator emitted `p++` / `*q = ...` /
-       `*p = '\0'` as void 0 TODOs — function returned buf untouched.
-
-       This is the "trivial encryption" used for rumor/epitaph storage.
-       JS rewrite: native string walk + array mutate to match C's
-       returns-dest-pointer convention, but we also return the string
-       form because JS callers pass the return inline to sprintf. */
-    const s = (typeof str === 'string') ? str
-        : (Array.isArray(str) ? ((() => { let r=''; for (let i=0; i<str.length && str[i]; i++) r += String.fromCharCode(str[i]); return r; })()) : String(str ?? ''));
-    let bitmask = 1;
-    let result = '';
-    for (let i = 0; i < s.length; i++) {
-        let c = s.charCodeAt(i);
-        if (c & (32 | 64)) c ^= bitmask;
-        result += String.fromCharCode(c);
-        bitmask <<= 1;
-        if (bitmask >= 32) bitmask = 1;
+    let __nh_p_idx = 0;
+    let q = null;
+    let bitmask = 0;
+    for (bitmask = 1 , __nh_p_idx = 0 , q = buf; str[__nh_p_idx]; q++) {
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = str[__nh_p_idx++]) */;
+        if (q & (32 | 64)) {
+            q ^= bitmask;
+        }
+        if ((bitmask <<= 1) >= 32) {
+            bitmask = 1;
+        }
     }
-    /*
-     *   Binary   Hex        Comments
-     *   0xxxxxxx 0x00..0x7F Only byte of a 1-byte character encoding
-     *   10xxxxxx 0x80..0xBF Continuation byte : one of 1-3 bytes following
-     * first 110xxxxx 0xC0..0xDF First byte of a 2-byte character encoding
-     *   1110xxxx 0xE0..0xEF First byte of a 3-byte character encoding
-     *   11110xxx 0xF0..0xF7 First byte of a 4-byte character encoding
-     */
-    /* Mutate buf in place (matches C semantic) for callers that read
-       buf rather than capture the return. */
-    if (Array.isArray(buf)) {
-        let i;
-        for (i = 0; i < buf.length - 1 && i < result.length; i++) buf[i] = result.charCodeAt(i);
-        if (i < buf.length) buf[i] = 0;
-    }
-    return result;
+    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+    return buf;
 }
 /* is a string entirely whitespace? */
 export function onlyspace(s) {
@@ -372,7 +335,6 @@ export function stripdigits(s) {
 /* substitute a word or phrase in a string (in place);
    caller is responsible for ensuring that bp points to big enough buffer */
 export function strsubst(bp, orig, replacement) {
-    /* [this could be replaced by strNsubst(bp, orig, replacement, 1)] */
     if (bp == null || orig == null || replacement == null) return bp;
     return __nh_toJsStr(bp).replace(orig, replacement);
 }
@@ -384,67 +346,43 @@ export function strsubst(bp, orig, replacement) {
 /* new substring; if "", delete old substring */
 /* which occurrence to replace; 0 => all */
 export function strNsubst(inoutbuf, orig, replacement, n) {
-    /* Hand-port: C `strNsubst(inoutbuf, orig, replacement, n)` walks
-       inoutbuf char-by-char, substituting the n-th occurrence of orig
-       with replacement (or all if n==0).  Translator emitted the char
-       copy loops as `void 0` TODOs so the function bailed without
-       performing any substitution — used by status hilites color name
-       canonicalization ("dark gray" → "dark-gray") and gamelog tab
-       sanitization.
-
-       JS rewrite: native string ops, then mutate the array buffer in
-       place if inoutbuf is an Array (matches C in-place semantic).
-       Returns the modified string for callers that want to capture. */
-    const orig_s = (typeof orig === 'string') ? orig
-        : (Array.isArray(orig) ? ((() => { let r=''; for (let i=0; i<orig.length && orig[i]; i++) r += String.fromCharCode(orig[i]); return r; })()) : String(orig ?? ''));
-    const repl_s = (typeof replacement === 'string') ? replacement
-        : (Array.isArray(replacement) ? ((() => { let r=''; for (let i=0; i<replacement.length && replacement[i]; i++) r += String.fromCharCode(replacement[i]); return r; })()) : String(replacement ?? ''));
-    const in_s = (typeof inoutbuf === 'string') ? inoutbuf
-        : (Array.isArray(inoutbuf) ? ((() => { let r=''; for (let i=0; i<inoutbuf.length && inoutbuf[i]; i++) r += String.fromCharCode(inoutbuf[i]); return r; })()) : String(inoutbuf ?? ''));
-    let result;
+    let __nh_bp_idx = 0;
+    let __nh_op_idx = 0;
+    let workbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let __nh_rp_idx = 0;
+    let len = strlen(orig);
     /* number of times 'orig' has been matched */
-    /* number of substitutions made */
+    let ocount = 0;
     let rcount = 0;
-    if (orig_s.length === 0) {
-        /* special case: orig=="" (!len) and n==strlen(inoutbuf)+1,
+    for (__nh_bp_idx = 0 , __nh_op_idx = 0; inoutbuf[__nh_bp_idx] && __nh_op_idx < 256 - 1; ) {
+        if ((!len || !strncmp(inoutbuf.slice(__nh_bp_idx), orig, len)) && (++ocount == n || n == 0)) {
+            /* [this could be replaced by strNsubst(bp, orig, replacement, 1)] */
+            /* number of substitutions made */
+            /* special case: orig=="" (!len) and n==strlen(inoutbuf)+1,
            insert in front of terminator (in other words, append);
            [when orig=="", ocount will have been incremented once for
            each input char] */
+            for (__nh_rp_idx = 0; replacement[__nh_rp_idx] && __nh_op_idx < 256 - 1; ) {
+                workbuf[__nh_op_idx++] = replacement[__nh_rp_idx++];
+            }
+            ++rcount;
+            if (len) {
+                __nh_bp_idx += len;
+                continue;
+            }
+        }
         /* no match (or len==0) so retain current character */
-        if (n > 0 && n <= in_s.length) {
-            result = in_s.slice(0, n - 1) + repl_s + in_s.slice(n - 1);
-            rcount = 1;
-        } else if (n === in_s.length + 1) {
-            result = in_s + repl_s;
-            rcount = 1;
-        } else {
-            result = in_s;
-        }
-    } else if (n === 0) {
-        /* Replace all occurrences. */
-        result = in_s.split(orig_s).join(repl_s);
-        rcount = (in_s.length === result.length && orig_s === repl_s) ? 0
-            : (in_s.split(orig_s).length - 1);
-    } else {
-        /* Replace only the n-th occurrence. */
-        let idx = -1;
-        for (let i = 0; i < n; i++) {
-            idx = in_s.indexOf(orig_s, idx + 1);
-            if (idx < 0) break;
-        }
-        if (idx >= 0) {
-            result = in_s.slice(0, idx) + repl_s + in_s.slice(idx + orig_s.length);
-            rcount = 1;
-        } else {
-            result = in_s;
-        }
+        workbuf[__nh_op_idx++] = inoutbuf[__nh_bp_idx++];
     }
-    /* In-place mutation for Array buffer inputs (matches C semantic). */
-    if (Array.isArray(inoutbuf) && rcount > 0) {
-        const cap = inoutbuf.length;
-        let i;
-        for (i = 0; i < cap - 1 && i < result.length; i++) inoutbuf[i] = result.charCodeAt(i);
-        if (i < cap) inoutbuf[i] = 0;
+    if (!len && n == ocount + 1) {
+        for (__nh_rp_idx = 0; replacement[__nh_rp_idx] && __nh_op_idx < 256 - 1; ) {
+            workbuf[__nh_op_idx++] = replacement[__nh_rp_idx++];
+        }
+        ++rcount;
+    }
+    if (rcount) {
+        workbuf[__nh_op_idx] = 0;
+        inoutbuf = strcpy(inoutbuf, workbuf);
     }
     return rcount;
 }
@@ -540,16 +478,18 @@ export function online2(x0, y0, x1, y1) {
 /*{ aka strncasecmp }*/
 /*(should probably be size_t, which is unsigned)*/
 export function strncmpi(s1, s2, n) {
+    let __nh_s1_idx = 0;
+    let __nh_s2_idx = 0;
     let t1 = 0;
     let t2 = 0;
     while (n--) {
-        if (!s2.value) {
-            return (s1.value != 0);
-        } else if (!s1.value) {
+        if (!s2[__nh_s2_idx]) {
+            return (s1[__nh_s1_idx] != 0);
+        } else if (!s1[__nh_s1_idx]) {
             return -1;
         }
-        t1 = lowc(s1++);
-        t2 = lowc(s2++);
+        t1 = lowc(s1[__nh_s1_idx++]);
+        t2 = lowc(s2[__nh_s2_idx++]);
         if (t1 != t2) {
             return (t1 > t2) ? 1 : -1;
         }
@@ -560,7 +500,7 @@ export function strncmpi(s1, s2, n) {
 /* case-insensitive substring search */
 export function strstri(str, sub) {
     let s1 = null;
-    let s2 = null;
+    let __nh_s2_idx = 0;
     let i = 0;
     let k = 0;
     /* 0x40 would be case-sensitive */
@@ -578,8 +518,8 @@ export function strstri(str, sub) {
     for (k = 0 , s1 = str; s1; k++) {
         tstr[s1++ & (32 - 1)]++;
     }
-    for (s2 = sub; s2; --k) {
-        tsub[s2++ & (32 - 1)]++;
+    for (__nh_s2_idx = 0; sub[__nh_s2_idx]; --k) {
+        tsub[sub[__nh_s2_idx++] & (32 - 1)]++;
     }
     /* evaluate the info we've collected */
     if (k < 0) {
@@ -595,9 +535,9 @@ export function strstri(str, sub) {
     for (i = 0; i <= k; i++) {
         /* now actually compare the substring repeatedly to parts of the string */
         s1 = str[i];
-        s2 = sub;
-        while (lowc(s1++) == lowc(s2++)) {
-            if (!s2) {
+        __nh_s2_idx = 0;
+        while (lowc(s1++) == lowc(sub[__nh_s2_idx++])) {
+            if (!sub[__nh_s2_idx]) {
                 return str[i];
             }
         }
@@ -608,29 +548,28 @@ export function strstri(str, sub) {
 /* compare two strings for equality, ignoring the presence of specified
    characters (typically whitespace) and possibly ignoring case */
 export function fuzzymatch(s1, s2, ignore_chars, caseblind) {
-    /* Translator gap: C `c1 = *s1++` was emitted as broken
-       `c1 = s1++` (NaN coerce).  Strip ignore_chars via regex
-       and compare — semantically equivalent to C's char-walk
-       but uses native JS string ops for speed (~50x faster
-       than charCodeAt loop). */
-    /* stop when end of either string is reached */
+    let __nh_s1_idx = 0;
+    let __nh_s2_idx = 0;
+    let c1 = 0;
+    let c2 = 0;
+    do {
+        while ((c1 = s1[__nh_s1_idx++]) != 0 && strchr(ignore_chars, c1) != null) {
+            continue;
+        }
+        while ((c2 = s2[__nh_s2_idx++]) != 0 && strchr(ignore_chars, c2) != null) {
+            continue;
+        }
+        if (!c1 || !c2) {
+            break;
+        }
+        if (caseblind) {
+            /* stop when end of either string is reached */
+            c1 = lowc(c1);
+            c2 = lowc(c2);
+        }
+    } while (c1 == c2);
     /* match occurs only when the end of both strings has been reached */
-    if (s1 == null && s2 == null) return true;
-    if (s1 == null || s2 == null) return false;
-    const a1 = (typeof s1 === 'string') ? s1 : __nh_toJsStr(s1);
-    const a2 = (typeof s2 === 'string') ? s2 : __nh_toJsStr(s2);
-    const ig = (typeof ignore_chars === 'string') ? ignore_chars
-        : (ignore_chars == null) ? '' : __nh_toJsStr(ignore_chars);
-    const escapedIgnore = ig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const stripRe = escapedIgnore.length > 0
-        ? new RegExp('[' + escapedIgnore + ']', 'g') : null;
-    let t1 = stripRe ? a1.replace(stripRe, '') : a1;
-    let t2 = stripRe ? a2.replace(stripRe, '') : a2;
-    if (caseblind) {
-        t1 = t1.toLowerCase();
-        t2 = t2.toLowerCase();
-    }
-    return t1 === t2;
+    return (!c1 && !c2);
 }
 /*
  * Time routines
@@ -674,36 +613,39 @@ export function nh_snprintf(func, line, str, size, fmt) {
 }
 /* Unicode routines */
 export function unicodeval_to_utf8str(uval, buffer, bufsz) {
-    /* unicodeval_to_utf8str fix - C `*b++ = byte` writes UTF-8 bytes
-       into the buffer.  Translator dropped all the writes so the
-       function returned TRUE but the buffer stayed at its caller-
-       provided initial state (typically zeros).  Replace with direct
-       index-based writes. */
+    let __nh_b_idx = 0;
     if (bufsz < 5) {
         return 0;
     }
-    let __i = 0;
-    buffer[__i] = 0;
+    /*
+     *   Binary   Hex        Comments
+     *   0xxxxxxx 0x00..0x7F Only byte of a 1-byte character encoding
+     *   10xxxxxx 0x80..0xBF Continuation byte : one of 1-3 bytes following
+     * first 110xxxxx 0xC0..0xDF First byte of a 2-byte character encoding
+     *   1110xxxx 0xE0..0xEF First byte of a 3-byte character encoding
+     *   11110xxx 0xF0..0xF7 First byte of a 4-byte character encoding
+     */
+    buffer[__nh_b_idx] = 0;
     if (uval < 128) {
-        buffer[__i++] = uval;
+        buffer[__nh_b_idx++] = uval;
     } else if (uval < 2048) {
-        buffer[__i++] = 192 + Math.trunc(uval / 64);
-        buffer[__i++] = 128 + uval % 64;
+        buffer[__nh_b_idx++] = 192 + Math.trunc(uval / 64);
+        buffer[__nh_b_idx++] = 128 + uval % 64;
     } else if (uval - 55296 < 2048) {
         return 0;
     } else if (uval < 65536) {
-        buffer[__i++] = 224 + Math.trunc(uval / 4096);
-        buffer[__i++] = 128 + Math.trunc(uval / 64) % 64;
-        buffer[__i++] = 128 + uval % 64;
+        buffer[__nh_b_idx++] = 224 + Math.trunc(uval / 4096);
+        buffer[__nh_b_idx++] = 128 + Math.trunc(uval / 64) % 64;
+        buffer[__nh_b_idx++] = 128 + uval % 64;
     } else if (uval < 1114112) {
-        buffer[__i++] = 240 + Math.trunc(uval / 262144);
-        buffer[__i++] = 128 + Math.trunc(uval / 4096) % 64;
-        buffer[__i++] = 128 + Math.trunc(uval / 64) % 64;
-        buffer[__i++] = 128 + uval % 64;
+        buffer[__nh_b_idx++] = 240 + Math.trunc(uval / 262144);
+        buffer[__nh_b_idx++] = 128 + Math.trunc(uval / 4096) % 64;
+        buffer[__nh_b_idx++] = 128 + Math.trunc(uval / 64) % 64;
+        buffer[__nh_b_idx++] = 128 + uval % 64;
     } else {
         return 0;
     }
-    buffer[__i] = 0;
+    buffer[__nh_b_idx] = 0;
     return 1;
 }
 export function case_insensitive_comp(s1, s2) {

@@ -2140,6 +2140,7 @@ export function has_ltgt_percentnumber(str) {
    returns number of strings, or -1 if more than maxsf or MAX_SUBFIELDS */
 let __splitsubfields_subfields = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
 export function splitsubfields(str, sfarr, maxsf) {
+    let __nh_sfarr_idx = 0;
     let st = null;
     let sf = 0;
     if (!str) {
@@ -3473,18 +3474,13 @@ export function status_hilite_menu_add(origfld) {
                             status_hilite_add_threshold(fld, hilite);
                             pline("Added hilite %s", status_hilite2str(hilite));
                             /* transfer female-rank to start of hilite.textmatch buffer */
-                            /* Hand-port: C source `while ((*q++ = *p++) != '\\0')
-                               continue;` copies p (now pointing at "female-rank"
-                               after the +4 advance over " or ") into
-                               hilite.textmatch.  Translator emitted the *q++=*p++
-                               as `void 0` causing an always-true while-loop
-                               hazard.  In JS p is the strstri-returned slice (a
-                               string); skip the four " or " chars and assign the
-                               remainder directly. */
-                            p = (typeof p === 'string') ? p.slice(4) : p;
-                            hilite.textmatch = p;
+                            p += 5 /* sizeof(char [5]) */ - 1 /* sizeof(char [1]) */;
+                            q = hilite.textmatch;
+                            /* proceed with normal addition of new rule */
+                            while ((void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = p++) */) != 0) {
+                                continue;
+                            }
                         }
-                        /* proceed with normal addition of new rule */
                         status_hilite_add_threshold(fld, hilite);
                         pline("Added hilite %s", status_hilite2str(hilite));
                     }

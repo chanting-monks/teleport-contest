@@ -211,7 +211,7 @@ export function worm_move(worm) {
             let incr = (rn2(10) + (2));
             /* 2..12; after adjusting for long worn
                                     * speed of 3, effective value is 8..48 */
-            incr = Math.trunc((incr * 12) / ((mmove) > (1) ? (mmove) : (1)));
+            incr = Math.trunc((incr * 12) / (((mmove) > (1) ? (mmove) : (1))));
             game.wgrowtime[wnum] = game.moves + incr;
         }
         /* increase HP based on number of segments; if it has shrunk, it
@@ -500,13 +500,13 @@ export function save_worm(nhfp) {
             if (count) {
                 /* Save segment locations of the monster. */
                 for (curr = game.wtails[i]; curr; curr = curr.nseg) {
-                    sfo_int16(nhfp, (curr.wx), "worm-wx");
-                    sfo_int16(nhfp, (curr.wy), "worm-wy");
+                    sfo_int16(nhfp, { get value() { return (curr.wx); }, set value(_v) { (curr.wx) = _v; } }, "worm-wx");
+                    sfo_int16(nhfp, { get value() { return (curr.wy); }, set value(_v) { (curr.wy) = _v; } }, "worm-wy");
                 }
             }
         }
         for (i = 0; i < 32; ++i) {
-            sfo_long(nhfp, game.wgrowtime[i], "worm-wgrowtime");
+            sfo_long(nhfp, { get value() { return game.wgrowtime[i]; }, set value(_v) { game.wgrowtime[i] = _v; } }, "worm-wgrowtime");
         }
         ;
     }
@@ -545,8 +545,8 @@ export function rest_worm(nhfp) {
         for (curr = null , j = 0; j < count; j++) {
             temp = alloc(1 /* sizeof(struct wseg) */);
             temp.nseg = null;
-            sfi_int16(nhfp, (temp.wx), "worm-wx");
-            sfi_int16(nhfp, (temp.wy), "worm-wy");
+            sfi_int16(nhfp, { get value() { return (temp.wx); }, set value(_v) { (temp.wx) = _v; } }, "worm-wx");
+            sfi_int16(nhfp, { get value() { return (temp.wy); }, set value(_v) { (temp.wy) = _v; } }, "worm-wy");
             if (curr) {
                 curr.nseg = temp;
             } else {
@@ -557,7 +557,7 @@ export function rest_worm(nhfp) {
         game.wheads[i] = curr;
     }
     for (i = 0; i < 32; ++i) {
-        sfi_long(nhfp, game.wgrowtime[i], "worm-wgrowtime");
+        sfi_long(nhfp, { get value() { return game.wgrowtime[i]; }, set value(_v) { game.wgrowtime[i] = _v; } }, "worm-wgrowtime");
         ;
     }
 }

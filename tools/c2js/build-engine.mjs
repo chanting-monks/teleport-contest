@@ -39,8 +39,21 @@ const SCRIPT_DIR = dirname(__filename);
 const root = dirname(dirname(dirname(__filename)));
 const upstreamDir = join(root, 'nethack-c/upstream');
 const stubsDir = join(root, 'tools/c2js/stubs');
-const outputDir = join(root, 'js/translated');
+// outputDir is normally js/translated/ (the production location).
+// BUILD_ENGINE_OUT=<dir> overrides for sandbox runs (e.g., noop-
+// detection sweeps via BUILD_ENGINE_TRACE_NOOP=1 without
+// clobbering production).  Added 2026-05-30 to unblock systematic
+// Axis B (patch-retirement) discovery per docs/TRANSPORT.md
+// four-axis plan.
+const outputDir = process.env.BUILD_ENGINE_OUT
+    ? (process.env.BUILD_ENGINE_OUT.startsWith('/')
+        ? process.env.BUILD_ENGINE_OUT
+        : join(process.cwd(), process.env.BUILD_ENGINE_OUT))
+    : join(root, 'js/translated');
 mkdirSync(outputDir, { recursive: true });
+if (outputDir !== join(root, 'js/translated')) {
+    console.log(`build-engine: BUILD_ENGINE_OUT override → ${outputDir}`);
+}
 
 // SOURCES — kept in sync with tools/c2js/prng-diff-extended.mjs's
 // SOURCES list.  See that file for per-TU rationale comments.
@@ -532,72 +545,28 @@ patchFile('mkobj.js', (s) => {
     );
 });
 
-// mkobj.js + invent.js: fix `extract_nobj` / `extract_nexthere`
-// call sites where the translator emitted the VALUE of the head
-// pointer instead of a head_ptr wrapper.
-//
-// C ref:
-//   extract_nobj(obj, struct obj **head_ptr) {
-//       curr = *head_ptr;
-//       ...
-//       if (prev) prev->nobj = curr->nobj;
-//       else *head_ptr = curr->nobj;  // <-- needs setter
-//   }
-//
-// The translator EXPECTS callers to pass a `{value}` wrapper so
-// the inner `*head_ptr = X` becomes `head_ptr.value = X`.  For
-// most struct-pointer args it emits this wrapper.  But for
-// expressions like `game.level.objects[x][y]` or `game.invent` it
-// missed — it passes the value, so the head update is lost (writes
-// to `obj.value`, not the slot).
-//
-// Concrete impact: when remove_object is called for an obj that
-// IS the head of its floor pile, the head field is never cleared.
-// The "extracted" obj still has `v_nexthere` cleared to null (line
-// after the loop), but `game.level.objects[x][y]` still points to
-// it.  Next place_object adds a NEW obj at the same position:
-//   place_object: otmp2 = game.level.objects[x][y];  // == stale obj
-//                 otmp.v.v_nexthere = otmp2;
-//                 game.level.objects[x][y] = otmp;
-// Now otmp.v_nexthere = stale obj.  Then next remove_object on
-// THAT new head leaves it as orphan head again, but ANOTHER
-// remove_object on a non-head obj walks the chain correctly...
-// At some point the chain becomes self-referential.  Specifically:
-// when an obj is added at a position that ALREADY has a stale
-// orphan as head, the new obj's v_nexthere points to the stale,
-// AND a later remove_object on the chain may set the stale's
-// v_nexthere to itself.
-//
-// Concrete symptom (LEARNINGS §19): seed0004 iter 40 hangs in
-// sobj_at(BOULDER, 49, 9) because that position has a circular
-// v_nexthere chain (gold oid=70 -> itself).
-//
-// Fix: wrap each value-argument call site as a {get/set value}
+// RETIRED 2026-05-30 — translator now emits the boxed form for all
+// `&game.X` / `&arr[i]` outparam call sites via isAddrOfLocal
+// (commit a1b7b22 ArraySubscriptExpr support, building on cd0bdc2
+// typedef-following).  Verified by inspecting --translate-tree
+// output for mkobj.js + invent.js: every extract_nobj /
+// extract_nexthere call site already has the `{get value()...}`
 // wrapper.
-[
-    ['mkobj.js', /extract_nexthere\(([^,]+), game\.level\.objects\[([^\]]+)\]\[([^\]]+)\]\)/g,
-        'extract_nexthere($1, { get value() { return game.level.objects[$2][$3]; }, set value(_v) { game.level.objects[$2][$3] = _v; } })'],
-    ['mkobj.js', /extract_nobj\(([^,]+), game\.level\.objlist\)/g,
-        'extract_nobj($1, { get value() { return game.level.objlist; }, set value(_v) { game.level.objlist = _v; } })'],
-    ['mkobj.js', /extract_nobj\(([^,]+), game\.invent\)/g,
-        'extract_nobj($1, { get value() { return game.invent; }, set value(_v) { game.invent = _v; } })'],
-    ['mkobj.js', /extract_nobj\(([^,]+), game\.migrating_objs\)/g,
-        'extract_nobj($1, { get value() { return game.migrating_objs; }, set value(_v) { game.migrating_objs = _v; } })'],
-    ['mkobj.js', /extract_nobj\(([^,]+), game\.level\.buriedobjlist\)/g,
-        'extract_nobj($1, { get value() { return game.level.buriedobjlist; }, set value(_v) { game.level.buriedobjlist = _v; } })'],
-    ['mkobj.js', /extract_nobj\(([^,]+), game\.billobjs\)/g,
-        'extract_nobj($1, { get value() { return game.billobjs; }, set value(_v) { game.billobjs = _v; } })'],
-    // obj.v.v_ocontainer.cobj — container nesting.
-    ['mkobj.js', /extract_nobj\(([^,]+), ([^,]+)\.v\.v_ocontainer\.cobj\)/g,
-        'extract_nobj($1, { get value() { return $2.v.v_ocontainer.cobj; }, set value(_v) { $2.v.v_ocontainer.cobj = _v; } })'],
-    // obj.v.v_ocarry.minvent — monster inventory.
-    ['mkobj.js', /extract_nobj\(([^,]+), ([^,]+)\.v\.v_ocarry\.minvent\)/g,
-        'extract_nobj($1, { get value() { return $2.v.v_ocarry.minvent; }, set value(_v) { $2.v.v_ocarry.minvent = _v; } })'],
-    ['invent.js', /extract_nobj\(([^,]+), game\.invent\)/g,
-        'extract_nobj($1, { get value() { return game.invent; }, set value(_v) { game.invent = _v; } })'],
-].forEach(([file, re, sub]) => {
-    patchFile(file, (s) => s.replace(re, sub));
-});
+//
+// Historical context preserved here for archeology:
+//   mkobj.js + invent.js: extract_nobj(obj, struct obj **head_ptr)
+//   requires the head_ptr to be a `{get value()/set value()}` box
+//   so the inner `*head_ptr = X` writes back to the caller's slot.
+//   For expressions like `game.level.objects[x][y]` or `game.invent`
+//   the old translator passed the value directly, so the head
+//   update was lost (writes to `obj.value`, not the slot).
+//   Concrete symptom (LEARNINGS §19): seed0004 iter 40 hangs in
+//   sobj_at(BOULDER, 49, 9) because that position has a circular
+//   v_nexthere chain (gold oid=70 -> itself).
+//
+// The original patch wrapped 9 call sites (mkobj.js × 8 +
+// invent.js × 1).  All 9 are now noop because translator output
+// already contains the box.  Deletion has no production impact.
 
 // worn.js write-only fix (F3 work-in-progress, uncommitted).
 patchFile('worn.js', (s) => {
@@ -1049,7 +1018,12 @@ const objVUnionFix = (s) => {
     );
     return s;
 };
-for (const fname of ['decl.js', 'mkobj.js', 'mon.js', 'mkroom.js']) {
+// 2026-05-30: narrowed from 4 files to 2 — mon.js and mkroom.js are
+// noop (translator emits proper struct-zero-init for those modules'
+// `nobj: X, ...` patterns or simply doesn't have the matching
+// shapes).  Verified via BUILD_ENGINE_TRACE_NOOP=1 sweep.  decl.js
+// and mkobj.js still need the v-union injection.
+for (const fname of ['decl.js', 'mkobj.js']) {
     patchFile(fname, objVUnionFix);
 }
 
@@ -2438,27 +2412,14 @@ patchFile('mon.js', (s) => {
     return s;
 });
 
-patchFile('mon.js', (s) => {
-    return s.replace(
-        /    for \(mtmp = game\.level\.monlist; mtmp; \) \{\n        freetmp = mtmp;\n        if \(\(\(freetmp\)\.mhp < 1\) && !freetmp\.isgd\) \{\n            void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = freetmp\.nmon\) \*\/;\n            freetmp\.nmon = null;\n            dealloc_monst\(freetmp\);\n            count\+\+;\n        \} else \{\n            mtmp = \(freetmp\.nmon\);\n        \}\n    \}/,
-        `    let prev = null;
-    mtmp = game.level.monlist;
-    while (mtmp) {
-        freetmp = mtmp;
-        if (((freetmp).mhp < 1) && !freetmp.isgd) {
-            if (prev) prev.nmon = freetmp.nmon;
-            else game.level.monlist = freetmp.nmon;
-            mtmp = freetmp.nmon;
-            freetmp.nmon = null;
-            dealloc_monst(freetmp);
-            count++;
-        } else {
-            prev = mtmp;
-            mtmp = (freetmp.nmon);
-        }
-    }`
-    );
-});
+// RETIRED 2026-05-30 — mon.js dmonsfree() dealloc loop.
+// Translator now emits the parent/field decomposition pattern
+// (`for ((mtmp__parent = game.level, mtmp__field = "monlist");
+// mtmp__parent[mtmp__field]; )`) instead of the old `void 0 /* TODO
+// Phase 5+ */` form.  Verified via BUILD_ENGINE_TRACE_NOOP=1 sweep
+// + production check: js/translated/mon.js already has the parent/
+// field form.  Patch's regex target no longer appears in translator
+// output → noop.
 
 // mkobj.js: cg.zeroobj.v is a single shared `{v_nexthere, v_ocontainer,
 // v_ocarry}` substruct across ALL allocated objects.  When mksobj does
@@ -3021,28 +2982,18 @@ patchFile('sp_lev.js', (s) => {
 //     finddpos_shift fails repeatedly and finddpos either burns
 //     extra rn2() calls in retry or falls into the deterministic
 //     scan path with stale x/y values.
-// Rewrite every `(IDENT - game.rooms)` site to a JS index-of call.
-// indexOf is O(n) but rooms arrays cap at MAXNROFROOMS=40, so the
-// cost is negligible compared to the correctness gain.  The pattern
-// covers all 7 files that use this idiom (room/croom/aroom/sroom/
-// droom/...).
-// Three passes (order matters — wrapped form first, then parenthesized
-// without inner parens, then naked `ID - game.rooms`):
-//   1. `((ID) - game.rooms)` — sounds.js shape with inner-parens around
-//      the identifier (`((sroom) - game.rooms)`).
-//   2. `(ID - game.rooms)` — the standard shape across most call sites.
-//   3. `ID - game.rooms` (word-bounded, no surrounding parens) —
-//      mkroom.js:137 `if (sroom - game.rooms >= game.nroom)`.
-// Each turns the pointer-difference into `game.rooms.indexOf(ID)`.
-const ROOM_PTRDIFF_WRAPPED_RE = /\(\(([a-zA-Z_][a-zA-Z0-9_]*)\) - game\.rooms\)/g;
-const ROOM_PTRDIFF_RE = /\(([a-zA-Z_][a-zA-Z0-9_]*) - game\.rooms\)/g;
-const ROOM_PTRDIFF_NAKED_RE = /\b([a-zA-Z_][a-zA-Z0-9_]*) - game\.rooms\b/g;
-for (const f of ['mklev.js', 'mkroom.js', 'sp_lev.js', 'selvar.js', 'shknam.js', 'priest.js', 'sounds.js']) {
-    patchFile(f, (s) => s
-        .replace(ROOM_PTRDIFF_WRAPPED_RE, 'game.rooms.indexOf($1)')
-        .replace(ROOM_PTRDIFF_RE, 'game.rooms.indexOf($1)')
-        .replace(ROOM_PTRDIFF_NAKED_RE, 'game.rooms.indexOf($1)'));
-}
+// RETIRED 2026-05-30 — translator commit 006253c extended
+// PTRDIFF_TABLES to MemberExpr-on-bucket (rooms) so `IDENT -
+// game.rooms` is emitted as `game.rooms.indexOf(IDENT)` directly.
+// Verified by BUILD_ENGINE_TRACE_NOOP=1 sweep: all 7 files in the
+// original forEach (mklev/mkroom/sp_lev/selvar/shknam/priest/
+// sounds) are noop.
+//
+// Historical: rewrite `(IDENT - game.rooms)` to `game.rooms.indexOf
+// (IDENT)`.  Pointer-difference vs array-search has the same logical
+// result but JS strings/objects don't support pointer-subtract.
+// O(n) cost negligible at MAXNROFROOMS=40.  Three-pass regex
+// (wrapped/parenthesized/naked) handled the various source shapes.
 
 patchFile('hack.js', (s) => {
     return s
@@ -4136,74 +4087,25 @@ patchFile('shk.js', (s) => {
     );
 });
 
-// dig.js: use_pick_axe's dirsyms accumulation — C writes
-// each valid direction char via `*dsp++ = dirch` into a 12-
-// byte buffer, then null-terminates with `*dsp = 0`.  The
-// dirsyms buffer is then displayed in a "[%s]" sprintf
-// prompt.
-//
-// Translator emitted both pointer-mutations as TODO no-ops:
-// dirsyms stayed at its initial [0,0,...,0] state, so the
-// prompt showed an empty bracket "[]" with no valid
-// directions listed.  Player would have no hints on which
-// directions are diggable.
-//
-// JS-equivalent: use an index variable __dsp_idx (since dsp
-// is just a write-pointer into dirsyms).  Increment per
-// write; final null-terminator at __dsp_idx.  The runtime
-// sprintf coerceArgForS handles char-array → string already.
-//
-// Defensive UI fix (use_pick_axe is the apply on pickaxe; if
-// player has no pickaxe, doesn't fire).
-//
-// C ref: src/dig.c use_pick_axe dirsyms-build loop.
-patchFile('dig.js', (s) => {
-    return s.replace(
-        /    downok = !!can_reach_floor\(\(0\)\);\n    dsp = dirsyms;\n    for \(dir = 0; dir < N_DIRS_Z; dir\+\+\) \{\n        let dirch = cmd_from_dir\(dir, MV_WALK\);\n        if \(game\.u\.uswallow\) \{\n            ;\n        \} else if \(movecmd\(dirch, MV_WALK\)\) \{\n            if \(!dxdy_moveok\(\)\) \{\n                continue;\n            \}\n            rx = game\.u\.ux \+ game\.u\.dx;\n            ry = game\.u\.uy \+ game\.u\.dy;\n            if \(!isok\(rx, ry\) \|\| dig_typ\(obj, rx, ry\) == DIGTYP_UNDIGGABLE\) \{\n                continue;\n            \}\n        \} else \{\n            if \(\(game\.u\.dz > 0\) \^ downok\) \{\n                continue;\n            \}\n        \}\n        void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = dirch\) \*\/;\n    \}\n    void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = 0\) \*\/;/,
-        `    downok = !!can_reach_floor((0));
-    dsp = dirsyms;
-    let __dsp_idx = 0;
-    for (dir = 0; dir < N_DIRS_Z; dir++) {
-        let dirch = cmd_from_dir(dir, MV_WALK);
-        if (game.u.uswallow) {
-            ;
-        } else if (movecmd(dirch, MV_WALK)) {
-            if (!dxdy_moveok()) {
-                continue;
-            }
-            rx = game.u.ux + game.u.dx;
-            ry = game.u.uy + game.u.dy;
-            if (!isok(rx, ry) || dig_typ(obj, rx, ry) == DIGTYP_UNDIGGABLE) {
-                continue;
-            }
-        } else {
-            if ((game.u.dz > 0) ^ downok) {
-                continue;
-            }
-        }
-        dirsyms[__dsp_idx++] = dirch;
-    }
-    dirsyms[__dsp_idx] = 0;`
-    );
-});
+// RETIRED 2026-05-30 — dig.js use_pick_axe's `*dsp++ = dirch` walker
+// pattern is now handled by the translator's charBufferRewrites
+// recognizer (decl-init `dsp = dirsyms` + walker writes).  Verified
+// noop via BUILD_ENGINE_TRACE_NOOP=1 sweep — the patch's oldBody
+// regex no longer matches because the translator emits
+// `dirsyms[__nh_dsp_idx++] = dirch` and `dirsyms[__nh_dsp_idx] = 0`
+// directly.  Production dig.js currently shows the patched __dsp_idx
+// form (from a pre-translator-improvement regen); the next regen of
+// dig.js will switch to __nh_dsp_idx with identical runtime semantics.
 
-// display.js: get_bkglyph_and_framecolor's *framecolor = X
-// out-param writes.  Translator emitted TODO no-op; framecolor
-// stayed at caller's previous value, causing wrong frame
-// coloring around the map when bgcolors enabled.  JS-equivalent:
-// `framecolor.value = X` (out-param is a value-box object).
-patchFile('display.js', (s) => {
-    return s.replace(
-        /    bkglyph\.value = tmp_bkglyph;\n    if \(game\.iflags\.bgcolors && game\.wsettings\.map_frame_color != 8 && mapxy_valid\(x, y\)\) \{\n        void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = game\.wsettings\.map_frame_color\) \*\/;\n    \} else \{\n        void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = 8\) \*\/;\n    \}\n\}/,
-        `    bkglyph.value = tmp_bkglyph;
-    if (game.iflags.bgcolors && game.wsettings.map_frame_color != 8 && mapxy_valid(x, y)) {
-        framecolor.value = game.wsettings.map_frame_color;
-    } else {
-        framecolor.value = 8;
-    }
-}`
-    );
-});
+// RETIRED 2026-05-30 — translator now recognises `framecolor` as a
+// scalar-ptr outparam and emits `framecolor.value = X` directly for
+// in-function writes (verified by BUILD_ENGINE_TRACE_NOOP=1 sweep:
+// patch produces no match against current translator output).
+//
+// Historical: get_bkglyph_and_framecolor's *framecolor = X writes
+// previously emitted as `void 0 /* TODO Phase 5+ */` placeholders;
+// framecolor stayed at caller's previous value, causing wrong frame
+// coloring around the map when bgcolors enabled.
 
 // teleport.js: level_tele heaven path's `*u.ushops0 =
 // *u.ushops = '\\0'` shop-occupancy clear.  Translator
@@ -4222,46 +4124,18 @@ patchFile('teleport.js', (s) => {
     );
 });
 
-// uhitm.js: theft()'s pointer-walk over mdef->minvent — C uses
-// `struct obj **minvent_ptr = &mdef->minvent` to unlink the
-// worn-armor item from the linked list, then re-attach at end.
-// Translator emitted `minvent_ptr = mdef.minvent` (value, not
-// pointer-to-pointer) and TODO no-ops at the unlink + re-attach
-// sites.  Effect: nymph seduction never actually took the worn
-// armor from defender — the unlink fails AND the re-attach is
-// silent.
+// RETIRED 2026-05-30 — translator now handles `struct obj
+// **minvent_ptr = &mdef->minvent` via a parent+field decomposition
+// pattern (`minvent_ptr__parent = mdef, minvent_ptr__field =
+// "minvent"`), so the TODO Phase 5+ placeholders this patch
+// targeted no longer appear.  Verified by BUILD_ENGINE_TRACE_NOOP=1
+// sweep: patch produces no match against current translator output.
 //
-// Restructure with `__mp_box` accessor object for the head, and
-// `minvent_ptr = otmp` for subsequent positions (otmp acts as
-// the pointer-target since accessing minvent_ptr.nobj reads/
-// writes otmp.nobj).  Final `minvent_ptr.nobj = ustealo;`
-// appends the armor at end.
-//
-// C ref: src/uhitm.c lines 2187-2198.  Defensive (nymph
-// seduction rare in autoplay).
-patchFile('uhitm.js', (s) => {
-    return s.replace(
-        /    ustealo = null;\n    if \(could_seduce\(game\.youmonst, mdef, mattk\) && mdef\.mcanmove\) \{\n        minvent_ptr = mdef\.minvent;\n        while \(\(otmp = minvent_ptr\) != null\) \{\n            if \(otmp\.owornmask & 1\) \{\n                if \(ustealo\) \{\n                    panic\("steal_it: multiple worn suits"\);\n                \}\n                void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = otmp\.nobj\) \*\/;\n                ustealo = otmp;\n                ustealo\.nobj = null;\n            \} else \{\n                minvent_ptr = otmp\.nobj;\n            \}\n        \}\n        void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = ustealo\) \*\/;\n    \}/,
-        `    ustealo = null;
-    if (could_seduce(game.youmonst, mdef, mattk) && mdef.mcanmove) {
-        const __mp_box = { get nobj() { return mdef.minvent; }, set nobj(v) { mdef.minvent = v; } };
-        minvent_ptr = __mp_box;
-        while ((otmp = minvent_ptr.nobj) != null) {
-            if (otmp.owornmask & 1) {
-                if (ustealo) {
-                    panic("steal_it: multiple worn suits");
-                }
-                minvent_ptr.nobj = otmp.nobj;
-                ustealo = otmp;
-                ustealo.nobj = null;
-            } else {
-                minvent_ptr = otmp;
-            }
-        }
-        minvent_ptr.nobj = ustealo;
-    }`
-    );
-});
+// Historical: theft() (nymph seduction) needed to unlink worn
+// armor from mdef's inventory linked list via pointer-to-pointer
+// walk, then re-attach at end.  Translator's old TODO no-ops
+// silently dropped both operations.  Patch's `__mp_box` accessor
+// achieved the same effect as the new __parent/__field approach.
 
 // zap.js: revive (shopkeeper case) translator-dropped
 // `*ESHK(mtmp) = *ESHK(mtmp2)` struct-copy.  Translator
@@ -4983,19 +4857,16 @@ patchFile('uhitm.js', (s) => {
     return s;
 });
 
-// display.js get_bkglyph_and_framecolor: translator emitted the 4th
-// outparam `bkglyphinfo.framecolor` (a struct field number) raw
-// instead of as a `{get/set value}` accessor.  C signature is
-// `int *framecolor`; without the accessor wrapper, `framecolor.value
-// = 8` throws "Cannot create property 'value' on number '8'".
+// RETIRED 2026-05-30 — translator now boxes `&bkglyphinfo.framecolor`
+// at all 3 get_bkglyph_and_framecolor call sites via isAddrOfLocal
+// + crossTuScalarPtrParams classification.  Verified by inspecting
+// --translate-tree output for display.js: lines 1363, 1602, 1654
+// already have the `{get value()...}` wrapper on the framecolor arg.
 //
-// 3 callsites in display.js (lines 1620, 1881, 1936) — patch all.
-patchFile('display.js', (s) => {
-    return s.replace(
-        /get_bkglyph_and_framecolor\(x, y, (\{ get value\(\) \{ return [a-zA-Z_.]+; \}, set value\(_v\) \{ [a-zA-Z_.]+ = _v; \} \}), bkglyphinfo\.framecolor\)/g,
-        `get_bkglyph_and_framecolor(x, y, $1, { get value() { return bkglyphinfo.framecolor; }, set value(_v) { bkglyphinfo.framecolor = _v; } })`
-    );
-});
+// Historical: C signature is `void get_bkglyph_and_framecolor(int x,
+// int y, int *bkglyph, int *framecolor)`.  Translator a1b7b22 +
+// cd0bdc2 close the boxing gap; this 3-callsite patch was already
+// noop in the current build.
 
 // botl.js do_statusline2 line 137: translator emitted `dloc = ...`
 // without the function-scoped rename prefix `__do_statusline2_`,
@@ -6920,134 +6791,27 @@ patchFile('hacklib.js', (s) => {
     return out;
 });
 
-// dog.js + vault.js + wizard.js + wizcmds.js: `struct monst **mprev`
-// linked-list iteration with mid-loop removal.  C uses:
-//   for (mprev = &game.LIST; (mtmp = *mprev) != 0; ) {
-//       if (cond_to_remove) {
-//           *mprev = mtmp->nmon;  // unlink mtmp, mprev stays
-//           do_something_with(mtmp);
-//       } else {
-//           mprev = &mtmp->nmon;  // advance
-//       }
-//   }
-// The translator can't model pointer-to-pointer, so it emits:
-//   for (mprev = game.LIST; (mtmp = mprev) != null; ) {
-//       if (cond) { void 0 /* TODO *p = mtmp.nmon */; do_something_with(mtmp); }
-//       else { mprev = mtmp.nmon; }
-//   }
-// which silently drops the unlink (mtmp stays on the list) AND
-// uses the wrong `(mtmp = mprev)` semantics (mprev is a node, not
-// a slot pointer).
+// RETIRED 2026-05-30 — translator now handles `struct monst **mprev`
+// pointer-to-pointer iteration via `__parent`/`__field` decomposition
+// (e.g., `mmtmp__parent = game, mmtmp__field = "migrating_mons"`,
+// then `mmtmp__parent[mmtmp__field]` for reads/writes).  Verified
+// by BUILD_ENGINE_TRACE_NOOP=1 sweep: all 4 fixMprevLoop callers
+// (dog.js, vault.js, wizard.js, wizcmds.js) plus the wizard.js
+// mmtmp/while secondary rewrite all noop — no `for (mprev = ...)`
+// or `mmtmp = X; while ((mtmp = mmtmp) != null)` patterns appear in
+// current translator output.
 //
-// Fix: rewrite to a sentinel-prev pattern where `__prev.nmon` is
-// either the head field (via getter/setter on a sentinel box) or
-// a real node's `.nmon`, so the unlink `__prev.nmon = mtmp.nmon`
-// works uniformly without losing the head reference.  Hot on
-// keepdogs (level transitions), losedogs (level depart),
-// vault_dest, wiz_loc-monster code paths.
+// Historical: keepdogs/losedogs/vault_dest needed pointer-to-pointer
+// linked-list iteration with mid-loop removal.  Translator
+// previously dropped the unlink (mtmp stays on the list) AND used
+// the wrong `(mtmp = mprev)` semantics.  The fixMprevLoop function
+// rewrote to a sentinel-prev pattern.  The same correctness gap is
+// now closed by the translator's parent+field decomposition idiom,
+// making all 4 patches and the fixMprevLoop helper obsolete.
 
-function fixMprevLoop(s, listFieldExpr, sourceFile, opts = {}) {
-    // Match the for-loop heading + brace-balanced body.  Regex
-    // can't balance braces, so we find each candidate heading,
-    // then walk forward counting `{` / `}` until back to depth 0
-    // (the loop's close).
-    const prevVar = opts.prevVar || 'mprev';     // C: `mprev`
-    const itemVar = opts.itemVar || 'mtmp';      // C: `mtmp`
-    const linkField = opts.linkField || 'nmon';  // C: `mtmp->nmon`
-    const escapedExpr = listFieldExpr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const escapedLink = linkField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Two acceptable shapes for the for-loop heading:
-    //   (a) empty inc: `for (prevVar = X; (itemVar = prevVar) != null; ) {`
-    //   (b) advance in inc: `for (prevVar = X; (itemVar = prevVar) != null; prevVar = itemVar.LINK) {`
-    const headRe = new RegExp(
-        `( *)for \\(${prevVar} = ${escapedExpr}; \\(${itemVar} = ${prevVar}\\) != null;(?:\\s*${prevVar} = [a-zA-Z_]+\\.${escapedLink})?\\s*\\) \\{`,
-        'g'
-    );
-    const out = [];
-    let lastEnd = 0;
-    let m;
-    while ((m = headRe.exec(s)) !== null) {
-        const indent = m[1];
-        const headStart = m.index;
-        const bodyStart = m.index + m[0].length;
-        // Walk forward, counting braces.  m[0] already consumed the
-        // opening `{` of the for-body, so depth starts at 1.
-        let depth = 1;
-        let i = bodyStart;
-        while (i < s.length && depth > 0) {
-            const c = s[i];
-            if (c === '{') depth++;
-            else if (c === '}') depth--;
-            i++;
-        }
-        if (depth !== 0) {
-            // Brace-balance failed; leave this occurrence as-is.
-            continue;
-        }
-        const bodyEnd = i - 1; // index of the closing `}`
-        const body = s.slice(bodyStart, bodyEnd);
-        const todoRe = new RegExp(`void 0 \\/\\* TODO Phase 5\\+: pointer-mutation lvalue \\(C: \\*p = [a-zA-Z_]+\\.${escapedLink}\\)`);
-        const advRe = new RegExp(`${prevVar} = [a-zA-Z_]+\\.${escapedLink}`);
-        if (!todoRe.test(body) && !advRe.test(body)) {
-            // Not the shape we expect; skip silently.
-            continue;
-        }
-        // Rewrite inside body.
-        let b = body;
-        b = b.replace(
-            new RegExp(`void 0 \\/\\* TODO Phase 5\\+: pointer-mutation lvalue \\(C: \\*p = ([a-zA-Z_]+)\\.${escapedLink}\\) \\*\\/;`, 'g'),
-            `__${prevVar}.${linkField} = $1.${linkField};`
-        );
-        b = b.replace(
-            new RegExp(`${prevVar} = ([a-zA-Z_]+)\\.${escapedLink};`, 'g'),
-            `__${prevVar} = $1;`
-        );
-        // If the for-loop's increment was `prevVar = mtmp->nmon` (shape b),
-        // the advance lives in the LOOP HEADER, not the body — so the body
-        // doesn't contain any `prevVar = X.nmon` for the second replace
-        // above to catch.  The new while-loop has no advance, infinite-
-        // loops when the if-branch doesn't return.  Append the advance
-        // at the end of the body to mirror the C for-loop's increment.
-        // Detect this by checking if the body now contains __prevVar = ...
-        // — if not, append.  C ref: vault.c findgd:217-218, etc.
-        if (!new RegExp(`__${prevVar} = `).test(b)) {
-            // Body ends with whitespace + closing brace; insert advance
-            // before that closing brace.  Use indent + 4 spaces for body
-            // indent (matches the for-loop's body indent style).
-            b = b.replace(/(\n[\s]*)$/, `\n${indent}    __${prevVar} = ${itemVar};$1`);
-        }
-        const replacement = [
-            `${indent}{ /* ${prevVar} pointer-to-pointer rewrite — sourced from ${sourceFile} */`,
-            `${indent}    const __${prevVar}_box = { get ${linkField}(){ return ${listFieldExpr}; }, set ${linkField}(v){ ${listFieldExpr} = v; } };`,
-            `${indent}    let __${prevVar} = __${prevVar}_box;`,
-            `${indent}    while ((${itemVar} = __${prevVar}.${linkField}) != null) {${b}}`,
-            `${indent}}`,
-        ].join('\n');
-        out.push(s.slice(lastEnd, headStart), replacement);
-        lastEnd = bodyEnd + 1;
-        // Move the headRe lastIndex past the consumed body so
-        // we don't re-scan inside the (now-replaced) region.
-        headRe.lastIndex = lastEnd;
-    }
-    out.push(s.slice(lastEnd));
-    return out.join('');
-}
-
-patchFile('dog.js', (s) => {
-    s = fixMprevLoop(s, 'game.migrating_mons', 'dog.c keepdogs/losedogs');
-    // Same idiom for migrating_objs in losedogs (object list):
-    // `for (oprev = &gm.migrating_objs; (otmp = *oprev) != 0; )`
-    // with `*oprev = otmp->nobj` in the unlink branch.
-    s = fixMprevLoop(s, 'game.migrating_objs', 'dog.c losedogs (objects)', {
-        prevVar: 'oprev', itemVar: 'otmp', linkField: 'nobj'
-    });
-    return s;
-});
-
-patchFile('vault.js', (s) => {
-    s = fixMprevLoop(s, 'game.migrating_mons', 'vault.c');
-    return s;
-});
+// fixMprevLoop helper + dog.js + vault.js patches deleted —
+// translator parent+field decomposition supersedes.  See retirement
+// notice above.
 
 // vault.js: gd_move()'s 3 goto sites for vault guard movement.
 //
@@ -7257,49 +7021,8 @@ patchFile('mhitu.js', (s) => {
     );
 });
 
-patchFile('wizard.js', (s) => {
-    s = fixMprevLoop(s, 'game.migrating_mons', 'wizard.c');
-    // wizard.c summon_minion has a different shape — `mmtmp` instead
-    // of `mprev`, `while` instead of `for`, with init outside the
-    // loop and advance at body's end.  Rewrite specifically the
-    // shape we know about.  C ref wizard.c:732-758.
-    const headStart = s.indexOf('mmtmp = game.migrating_mons;\n        while ((mtmp = mmtmp) != null) {');
-    if (headStart < 0) return s;
-    // Walk forward from the `{` of the while-body, counting braces.
-    let i = headStart + 'mmtmp = game.migrating_mons;\n        while ((mtmp = mmtmp) != null) {'.length;
-    let depth = 1;
-    while (i < s.length && depth > 0) {
-        const c = s[i];
-        if (c === '{') depth++;
-        else if (c === '}') depth--;
-        i++;
-    }
-    if (depth !== 0) return s;
-    const bodyClose = i; // index past the closing `}`
-    const bodyStart = headStart + 'mmtmp = game.migrating_mons;\n        while ((mtmp = mmtmp) != null) {'.length;
-    const body = s.slice(bodyStart, bodyClose - 1); // exclude the closing `}`
-    // Rewrite the body.
-    let b = body;
-    b = b.replace(
-        /void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = ([a-zA-Z_]+)\.nmon\) \*\/;/g,
-        '__mprev.nmon = $1.nmon;'
-    );
-    b = b.replace(
-        /mmtmp = mtmp\.nmon;/g,
-        '__mprev = mtmp;'
-    );
-    const replacement =
-        `{ /* mmtmp pointer-to-pointer rewrite — sourced from wizard.c summon_minion */
-        const __mprev_box = { get nmon(){ return game.migrating_mons; }, set nmon(v){ game.migrating_mons = v; } };
-        let __mprev = __mprev_box;
-        while ((mtmp = __mprev.nmon) != null) {${b}}\n        }`;
-    return s.slice(0, headStart) + replacement + s.slice(bodyClose);
-});
-
-patchFile('wizcmds.js', (s) => {
-    s = fixMprevLoop(s, 'game.migrating_mons', 'wizcmds.c');
-    return s;
-});
+// wizard.js + wizcmds.js patches deleted — same fixMprevLoop
+// retirement (translator parent+field decomposition supersedes).
 
 // symbols.js: match_sym `while (sp.range) { ...; sp++; }` walks ×2 —
 // now handled by translate.mjs `detectWhilePtrWalk`.
@@ -7504,92 +7227,20 @@ patchFile('mkobj.js', (s) => {
     return s;
 });
 
-// hacklib.js unicodeval_to_utf8str: C `*b++ = byte` writes
-// UTF-8 bytes into the caller-provided buffer.  Translator
-// dropped all eight pointer-mutation writes so the function
-// returned TRUE but the buffer stayed at its initial state
-// (typically zeros).  Result: custom symset entries (e.g.
-// DECgraphics) stored all-zero utf8str instead of the real
-// UTF-8 bytes.  Downstream rendering of those entries would
-// display invalid/blank glyphs.
+// RETIRED 2026-05-30 — hacklib.js unicodeval_to_utf8str's `*b++ = byte`
+// walker pattern is now handled by the translator's charBufferRewrites
+// recognizer (parm walker on `buffer` — the addParmCharBufferCandidates
+// path).  Verified noop via BUILD_ENGINE_TRACE_NOOP=1 sweep — the
+// patch's oldBody regex no longer matches because the translator now
+// emits `buffer[__nh_b_idx++] = byte` directly.  Production hacklib.js
+// currently shows the patched `__i` form (from a pre-translator-
+// improvement regen); the next regen will switch to __nh_b_idx with
+// identical runtime semantics.
 //
-// Fix: replace the pointer-arithmetic pattern with an
-// index-based write — track `__i` as the write position,
-// `buffer[__i++] = byte` for each output byte, leading and
-// trailing `buffer[__i] = 0` for the C-string null
-// terminators.
-//
-// No RNG impact (data-table loading path).  Score-stable on
-// the 44-session run, but the fix closes a real rendering
-// bug for sessions with custom symsets in their nethackrc
-// (e.g. seed0102 uses DECgraphics).
-//
-// C ref: src/hacklib.c unicodeval_to_utf8str.
-patchFile('hacklib.js', (s) => {
-    if (s.includes('/* unicodeval_to_utf8str fix')) return s;
-    const oldBody = `export function unicodeval_to_utf8str(uval, buffer, bufsz) {
-    let b = buffer;
-    if (bufsz < 5) {
-        return 0;
-    }
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-    if (uval < 128) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = uval) */;
-    } else if (uval < 2048) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 192 + Math.trunc(uval / 64)) */;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 128 + uval % 64) */;
-    } else if (uval - 55296 < 2048) {
-        return 0;
-    } else if (uval < 65536) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 224 + Math.trunc(uval / 4096)) */;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 128 + Math.trunc(uval / 64) % 64) */;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 128 + uval % 64) */;
-    } else if (uval < 1114112) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 240 + Math.trunc(uval / 262144)) */;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 128 + Math.trunc(uval / 4096) % 64) */;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 128 + Math.trunc(uval / 64) % 64) */;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 128 + uval % 64) */;
-    } else {
-        return 0;
-    }
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-    return 1;
-}`;
-    const newBody = `export function unicodeval_to_utf8str(uval, buffer, bufsz) {
-    /* unicodeval_to_utf8str fix - C \`*b++ = byte\` writes UTF-8 bytes
-       into the buffer.  Translator dropped all the writes so the
-       function returned TRUE but the buffer stayed at its caller-
-       provided initial state (typically zeros).  Replace with direct
-       index-based writes. */
-    if (bufsz < 5) {
-        return 0;
-    }
-    let __i = 0;
-    buffer[__i] = 0;
-    if (uval < 128) {
-        buffer[__i++] = uval;
-    } else if (uval < 2048) {
-        buffer[__i++] = 192 + Math.trunc(uval / 64);
-        buffer[__i++] = 128 + uval % 64;
-    } else if (uval - 55296 < 2048) {
-        return 0;
-    } else if (uval < 65536) {
-        buffer[__i++] = 224 + Math.trunc(uval / 4096);
-        buffer[__i++] = 128 + Math.trunc(uval / 64) % 64;
-        buffer[__i++] = 128 + uval % 64;
-    } else if (uval < 1114112) {
-        buffer[__i++] = 240 + Math.trunc(uval / 262144);
-        buffer[__i++] = 128 + Math.trunc(uval / 4096) % 64;
-        buffer[__i++] = 128 + Math.trunc(uval / 64) % 64;
-        buffer[__i++] = 128 + uval % 64;
-    } else {
-        return 0;
-    }
-    buffer[__i] = 0;
-    return 1;
-}`;
-    return s.replace(oldBody, newBody);
-});
+// Historical: C `*b++ = byte` writes UTF-8 bytes into the caller-
+// provided buffer for custom symset entries (e.g. seed0102 DECgraphics).
+// Translator's old output dropped the writes; the patch added the index
+// tracker.  Today's translator does this natively.
 
 // light.js obj_split_light_source: C struct-copy
 // `*new_ls = *ls` value-copies the light_source after alloc().
@@ -7609,11 +7260,19 @@ patchFile('hacklib.js', (s) => {
 // after alloc).
 patchFile('light.js', (s) => {
     if (s.includes('/* light-source-split fix')) return s;
+    // 2026-05-30: translator now emits `Object.assign(new_ls, ls);`
+    // directly for the C `*new_ls = *ls` struct-copy.  But the
+    // patch is still needed to add the substruct deep-clone
+    // (`new_ls.id = Object.assign({}, ls.id);`) — without it,
+    // new_ls.id aliases ls.id and the subsequent
+    // `new_ls.id.a_obj = dest` corrupts ls.id.  Updated oldBody
+    // to match current partial-fix translator output (same
+    // pattern as the hacklib stale-patch fix).
     s = s.replace(
         `    for (ls = game.light_base; ls; ls = ls.next) {
         if (ls.type == LS_OBJECT && ls.id.a_obj == src) {
             new_ls = alloc(1 /* sizeof(light_source) */);
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = ls) */;
+            Object.assign(new_ls, ls);
             if ((src.otyp == TALLOW_CANDLE || src.otyp == WAX_CANDLE)) {`,
         `    for (ls = game.light_base; ls; ls = ls.next) {
         if (ls.type == LS_OBJECT && ls.id.a_obj == src) {
@@ -7629,20 +7288,21 @@ patchFile('light.js', (s) => {
     return s;
 });
 
-// calendar.js: route localtime() through c2js-runtime so the session-
-// datetime hook (globalThis.__nh_localtime) drives it.  Translated
-// calendar.c uses localtime as a free identifier (no C-side import);
-// autostub fills it with `() => 0` which makes phase_of_the_moon
-// return NaN-bitwise-and-7 = 0 (NEW_MOON) for every session.  Adding
-// the import lets jsmain.js's per-session date take effect for
-// phase_of_the_moon / friday_13th / night / midnight callers.
-patchFile('calendar.js', (s) => {
-    if (s.includes("import { time, localtime }")) return s;
-    return s.replace(
-        "import { time } from '../c2js-runtime/calendar.js';",
-        "import { time, localtime } from '../c2js-runtime/calendar.js';"
-    );
-});
+// RETIRED 2026-05-30 — translator now resolves `localtime` natively
+// via the EXTERNAL_SYMBOLS map (commit 9d3c1e6 added the entry).
+// Fresh translator output already has `import { localtime, time }
+// from '../c2js-runtime/calendar.js';` (alphabetical order).  The
+// patch's idempotency check looked for the old `time, localtime`
+// order so it was noop in current builds; production has the
+// `time, localtime` form from a prior build, and a fresh rebuild
+// would shift to `localtime, time` (cosmetic only, functionally
+// identical).
+//
+// Historical: jsmain.js's per-session date hook
+// (globalThis.__nh_localtime) wouldn't take effect without the
+// import; phase_of_the_moon would return NEW_MOON for every
+// session.  The fix was to ensure calendar.js imports localtime;
+// the translator now handles this via EXTERNAL_SYMBOLS.
 
 // end.js set_killer_from_monst multireasonbuf truncate: superseded
 // by strchr-truncate recognizer maturity (§23.114).  Translator

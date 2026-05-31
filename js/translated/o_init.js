@@ -328,10 +328,10 @@ export function savenames(nhfp) {
     let len = 0;
     if (((nhfp).mode & (1 | 2))) {
         for (i = 0; i < (MAXOCLASSES + 2); ++i) {
-            sfo_int(nhfp, game.bases[i], "names-bases");
+            sfo_int(nhfp, { get value() { return game.bases[i]; }, set value(_v) { game.bases[i] = _v; } }, "names-bases");
         }
         for (i = 0; i < NUM_OBJECTS; ++i) {
-            sfo_short(nhfp, game.disco[i], "names-disco");
+            sfo_short(nhfp, { get value() { return game.disco[i]; }, set value(_v) { game.disco[i] = _v; } }, "names-disco");
         }
         for (i = 0; i < NUM_OBJECTS; ++i) {
             sfo_objclass(nhfp, game.objects[i], "names-objclass");
@@ -359,11 +359,11 @@ export function restnames(nhfp) {
     let i = 0;
     let len = 0;
     for (i = 0; i < (MAXOCLASSES + 2); ++i) {
-        sfi_int(nhfp, game.bases[i], "names-bases");
+        sfi_int(nhfp, { get value() { return game.bases[i]; }, set value(_v) { game.bases[i] = _v; } }, "names-bases");
         ;
     }
     for (i = 0; i < NUM_OBJECTS; ++i) {
-        sfi_short(nhfp, game.disco[i], "names-disco");
+        sfi_short(nhfp, { get value() { return game.disco[i]; }, set value(_v) { game.disco[i] = _v; } }, "names-disco");
     }
     for (i = 0; i < NUM_OBJECTS; ++i) {
         sfi_objclass(nhfp, game.objects[i], "names-objclass");
@@ -719,7 +719,7 @@ export function dodiscovered() {
                 }
                 buf = strcpy(buf, game.objects[dis].oc_encountered ? "  " : "* ");
                 if (lootsort) {
-                    sortloot_descr(dis, buf[2]);
+                    sortloot_descr(dis, { get value() { return buf[2]; }, set value(_v) { buf[2] = _v; } });
                 }
                 buf = disco_append_typename(buf, dis);
                 if (!alphabetized && !lootsort) {
@@ -955,7 +955,7 @@ export function doclassdisco() {
                     ++ct;
                     buf = strcpy(buf, game.objects[dis].oc_encountered ? "  " : "* ");
                     if (lootsort) {
-                        sortloot_descr(dis, buf[2]);
+                        sortloot_descr(dis, { get value() { return buf[2]; }, set value(_v) { buf[2] = _v; } });
                     }
                     buf = disco_append_typename(buf, dis);
                     if (!alphabetized && !lootsort) {

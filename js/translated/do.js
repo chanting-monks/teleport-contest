@@ -1517,7 +1517,7 @@ export async function goto_level(newlevel, at_stairs, falling, portal) {
     if (game.luacore && game.nhcb_counts[NHCB_LVL_LEAVE]) {
         lua_getglobal(game.luacore, "nh_callback_run");
         lua_pushstring(game.luacore, nhcb_name[NHCB_LVL_LEAVE]);
-        nhl_pcall_handle(game.luacore, 1, 0, "goto_level", NHLpa_panic);
+        await nhl_pcall_handle(game.luacore, 1, 0, "goto_level", NHLpa_panic);
         lua_settop(game.luacore, 0);
     }
     /* tethered movement makes level change while trapped feasible */

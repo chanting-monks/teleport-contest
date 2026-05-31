@@ -317,10 +317,7 @@ export function e_nam(etmp) {
 let __E_phrase_wholebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function E_phrase(etmp, verb) {
     __E_phrase_wholebuf = strcpy(__E_phrase_wholebuf, (etmp.emon == game.youmonst) ? "You" : Monnam(etmp.emon));
-    /* Translator-bug fix: C tests `!*verb` (empty C-string). */
-    if (!verb || (typeof verb === 'string' ? verb.length === 0
-                : Array.isArray(verb) ? !verb[0]
-                : !verb.value)) {
+    if (!verb || !verb.value) {
         return __E_phrase_wholebuf;
     }
     __E_phrase_wholebuf = strcat(__E_phrase_wholebuf, " ");

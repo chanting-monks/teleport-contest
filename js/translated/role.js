@@ -1028,34 +1028,14 @@ export function plnamesuffix() {
             game.plnamelen = 0;
         }
         /* Look for tokens delimited by '-' */
-        /* Hand-port: C uses `*eptr = '\0'` to truncate the substring at
-           each '-' so str2role/race/etc see only the token between
-           dashes.  JS strings are immutable — track the original
-           position via __sptrIdx and update sptr by slicing the
-           current chunk. */
-        let __sptrIdx = game.plnamelen;
-        sptr = (typeof game.plname === 'string') ? game.plname.slice(__sptrIdx) : game.plname + __sptrIdx;
+        sptr = game.plname + game.plnamelen;
         if ((eptr = strchr(sptr, 45)) != null) {
-            /* Truncate sptr at first '-' for next match attempt. */
-            if (typeof sptr === 'string') {
-                const __dashIdx = sptr.indexOf('-');
-                if (__dashIdx >= 0) {
-                    sptr = sptr.slice(0, __dashIdx);
-                    /* eptr keeps the rest after '-' for next iter. */
-                    eptr = (typeof eptr === 'string') ? eptr.slice(1) : eptr;
-                }
-            }
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
         }
         while (eptr) {
             sptr = eptr;
             if ((eptr = strchr(sptr, 45)) != null) {
-                if (typeof sptr === 'string') {
-                    const __dashIdx = sptr.indexOf('-');
-                    if (__dashIdx >= 0) {
-                        sptr = sptr.slice(0, __dashIdx);
-                        eptr = (typeof eptr === 'string') ? eptr.slice(1) : eptr;
-                    }
-                }
+                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             }
             /* Try to match it to something */
             if ((i = str2role(sptr)) != (-1)) {

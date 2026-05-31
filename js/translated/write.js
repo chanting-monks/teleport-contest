@@ -139,33 +139,18 @@ export function dowrite(pen) {
         if (namebuf[0] == 27 || !namebuf[0]) {
             return 1;
         }
-        nm = namebuf;
-        /* Translator gap: C `nm += N` advances past a class-name prefix
-           ("scroll ", "spellbook ", "of ").  In JS strings, += is
-           concat — corrupts nm.  Use slice(N) for the JS-string fast
-           path; keep the broken pointer-arith for char-array callers. */
-        if (!strncmpi(nm, "scroll ", 7)) {
-            nm = (typeof nm === 'string') ? nm.slice(7) : nm + 7;
-        } else if (!strncmpi(nm, "spellbook ", 10)) {
-            nm = (typeof nm === 'string') ? nm.slice(10) : nm + 10;
+        __nh_nm_idx = 0;
+        if (!strncmpi(namebuf.slice(__nh_nm_idx), "scroll ", 7)) {
+            __nh_nm_idx += 7;
+        } else if (!strncmpi(namebuf.slice(__nh_nm_idx), "spellbook ", 10)) {
+            __nh_nm_idx += 10;
         }
-        if (!strncmpi(nm, "of ", 3)) {
-            nm = (typeof nm === 'string') ? nm.slice(3) : nm + 3;
+        if (!strncmpi(namebuf.slice(__nh_nm_idx), "of ", 3)) {
+            __nh_nm_idx += 3;
         }
-        if ((bp = strstri(nm, " armour")) != null) {
-            /* C `memcpy(bp, " armor ", 7)` rewrites the trailing
-               "armour" → "armor " in place; `mungspaces(bp + 1)`
-               then collapses double spaces.  In JS strings bp is a
-               string ref (from strstri); rewrite via slice+concat. */
-            if (typeof nm === 'string') {
-                const idx = nm.toLowerCase().indexOf(' armour');
-                if (idx >= 0) {
-                    nm = nm.slice(0, idx) + ' armor ' + nm.slice(idx + 7);
-                }
-            } else {
-                memcpy(bp, " armor ", 7);
-                mungspaces(bp + 1);
-            }
+        if ((bp = strstri(namebuf.slice(__nh_nm_idx), " armour")) != null) {
+            memcpy(bp, " armor ", 7);
+            mungspaces(bp + 1);
         }
         deferred = real = 0;
         /* incremented for each oc_uname match */
@@ -178,7 +163,7 @@ export function dowrite(pen) {
             if (!(game.obj_descr[(game.objects[i]).oc_name_idx].oc_name)) {
                 continue;
             }
-            if (!strncmpi(((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name)), (nm), -1)) {
+            if (!strncmpi(((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name)), namebuf.slice(__nh_nm_idx), -1)) {
                 if (game.objects[i].oc_name_known || paper.oclass == SPBOOK_CLASS) {
                     /* spellbooks can only be written by_name, so no need to
                    hold out for a 'better' by_descr match */
@@ -189,7 +174,7 @@ export function dowrite(pen) {
                     break;
                 }
             }
-            if (!strncmpi(((game.obj_descr[(game.objects[i]).oc_descr_idx].oc_descr)), (nm), -1)) {
+            if (!strncmpi(((game.obj_descr[(game.objects[i]).oc_descr_idx].oc_descr)), namebuf.slice(__nh_nm_idx), -1)) {
                 /* writing by user-assigned name is same as by description:
                fails for books, works for scrolls (having an assigned
                type name guarantees presence on discoveries list) */
@@ -198,7 +183,7 @@ export function dowrite(pen) {
             }
         }
         for (i = first; i <= last; i++) {
-            if (game.objects[i].oc_uname && !strncmpi((game.objects[i].oc_uname), (nm), -1) && !(real && game.objects[i].oc_name_known) && !rn2(++deferralchance)) {
+            if (game.objects[i].oc_uname && !strncmpi((game.objects[i].oc_uname), namebuf.slice(__nh_nm_idx), -1) && !(real && game.objects[i].oc_name_known) && !rn2(++deferralchance)) {
                 /* second loop: look for match with user-assigned name */
                 /* we will get here if 'nm' isn't a real scroll name/descr, or is the name
      * of a real scroll that hasn't been formally IDed. */

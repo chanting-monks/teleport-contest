@@ -527,12 +527,7 @@ export function saveoptstr(optidx, optstr) {
         p = q;
     }
     if (p) {
-        /* Translator gap: C `optstr = p + 1` advances past the
-           separator char (':' or '='); strchr returns a string suffix
-           starting at the separator, so p+1 would be string concat
-           producing "<sep>1".  Use slice(1) to drop the leading
-           separator char. */
-        optstr = (typeof p === 'string') ? p.slice(1) : p + 1;
+        optstr = p + 1;
     }
     if (game.roleoptvals[roleoptindx][phase]) {
         free(game.roleoptvals[roleoptindx][phase]);
@@ -4607,8 +4602,8 @@ export function handler_autopickup_exception() {
             /* EDIT_GETLIN:  assume user doesn't user want previous
            exception used as default input string for this one... */
             apebuf[0] = apebuf[1] = 0;
-            getlin("What new autopickup exception pattern?", apebuf[1]);
-            mungspaces(apebuf[1]);
+            getlin("What new autopickup exception pattern?", { get value() { return apebuf[1]; }, set value(_v) { apebuf[1] = _v; } });
+            mungspaces({ get value() { return apebuf[1]; }, set value(_v) { apebuf[1] = _v; } });
             if (apebuf[1] == 27) {
                 return (1);
             }
@@ -4726,7 +4721,7 @@ export function handler_menu_colors() {
                 } else {
                     mcbuf = strcat(mcbuf, tmp.origstr);
                 }
-                mcbuf = strcat(mcbuf, buf[1]);
+                mcbuf = strcat(mcbuf, { get value() { return buf[1]; }, set value(_v) { buf[1] = _v; } });
                 /* combine main string and suffix */
                 /* skip buf[]'s initial quote */
                 add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, mcbuf, 0);
@@ -5054,12 +5049,14 @@ export function nh_getenv(ev) {
 /* copy up to maxlen-1 characters; 'dest' must be able to hold maxlen;
    treat comma as alternate end of 'src' */
 export function nmcpy(dest, src, maxlen) {
+    let __nh_dest_idx = 0;
+    let __nh_src_idx = 0;
     let count = 0;
     for (count = 1; count < maxlen; count++) {
-        if (src.value == 44 || src.value == 0) {
+        if (src[__nh_src_idx] == 44 || src[__nh_src_idx] == 0) {
             break;
         }
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = src++) */;
+        dest[__nh_dest_idx++] = src[__nh_src_idx++];
     }
     dest.value = 0;
 }
@@ -5090,6 +5087,7 @@ export function nmcpy(dest, src, maxlen) {
 const __escapes_oct = "01234567";
 const __escapes_dec = "0123456789";
 export function escapes(cp, tp) {
+    let __nh_tp_idx = 0;
     /* hexdd[] is defined in decl.c */
     let dp = null;
     let cval = 0;
@@ -5156,7 +5154,7 @@ export function escapes(cp, tp) {
         if (meta) {
             cval |= 128;
         }
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = cval) */;
+        tp[__nh_tp_idx++] = cval;
     }
     tp.value = 0;
 }
@@ -5603,7 +5601,7 @@ export function change_inv_order(op) {
     /* fill in any omitted classes, using previous ordering */
     for (sp = game.flags.inv_order; sp; sp++) {
         if (!strchr(buf, sp)) {
-            strkitten(buf[num++], sp);
+            strkitten({ get value() { return buf[num++]; }, set value(_v) { buf[num++] = _v; } }, sp);
         }
     }
     buf[MAXOCLASSES - 1] = 0;
@@ -5924,6 +5922,7 @@ export function test_regex_pattern(str, errmsg) {
 /* parse 'role' or 'race' or 'gender' or 'alignment' */
 let __parse_role_opt_neg_opt = "!";
 export function parse_role_opt(optidx, negated, fullname, opts, opp) {
+    let __nh_opp_idx = 0;
     /* not 'const' but never modified */
     let preval = null;
     let op = null;
@@ -6056,28 +6055,17 @@ export function illegal_menu_cmd_key(c) {
  * symbols.
  */
 export function oc_to_str(src, dest) {
-    // C ref options.c oc_to_str:
-    //   while ((i = *src++) != '\0')
-    //       *dest++ = def_oc_syms[i].sym;
-    //   *dest = '\0';
-    // Both src and dest are char* buffers; in JS they're typed-as-
-    // array shaped buffers (game.flags.pickup_types is a length-18
-    // int[]).  The previous translator output emitted `src++` (number
-    // post-increment of a parameter) which evaluates to NaN for a
-    // multi-element array — infinite loop with i=NaN.  Plus the
-    // `*dest++ = ...` lvalue was left as a `void 0` TODO and the
-    // terminator was misemitted as `dest.value = 0` on an array.
-    // Hand-port the pointer walk:
-    let s = 0, d = 0;
+    let __nh_src_idx = 0;
+    let __nh_dest_idx = 0;
     let i = 0;
-    while (s < src.length && (i = src[s++]) !== 0) {
+    while ((i = src[__nh_src_idx++]) != 0) {
         if (i < 0 || i >= MAXOCLASSES) {
             impossible("oc_to_str:  illegal object class %d", i);
-        } else if (d < dest.length) {
-            dest[d++] = def_oc_syms[i].sym;
+        } else {
+            dest[__nh_dest_idx++] = def_oc_syms[i].sym;
         }
     }
-    if (d < dest.length) dest[d] = 0;
+    dest.value = 0;
 }
 /*
  * Add the given mapping to the menu command map list.  Always keep the
@@ -6177,7 +6165,7 @@ export function fruitadd(str, replace_fruit) {
          */
             globpfx = (!strncmp(game.pl_fruit, "small ", 6) || !strncmp(game.pl_fruit, "large ", 6)) ? 6 : (!strncmp(game.pl_fruit, "medium ", 7)) ? 7 : (!strncmp(game.pl_fruit, "very large ", 11)) ? 11 : 0;
             for (i = game.bases[FOOD_CLASS]; game.objects[i].oc_class == FOOD_CLASS; i++) {
-                if (!strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), game.pl_fruit) || (globpfx > 0 && !strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), game.pl_fruit[globpfx]))) {
+                if (!strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), game.pl_fruit) || (globpfx > 0 && !strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), { get value() { return game.pl_fruit[globpfx]; }, set value(_v) { game.pl_fruit[globpfx] = _v; } }))) {
                     found = (1);
                     break;
                 }
@@ -6191,7 +6179,7 @@ export function fruitadd(str, replace_fruit) {
                     numeric = (1);
                 }
             }
-            if (found || numeric || !strncmp(game.pl_fruit, "cursed ", 7) || !strncmp(game.pl_fruit, "uncursed ", 9) || !strncmp(game.pl_fruit, "blessed ", 8) || !strncmp(game.pl_fruit, "partly eaten ", 13) || (!strncmp(game.pl_fruit, "tin of ", 7) && (!strcmp(game.pl_fruit + 7, "spinach") || ((name_to_mon(game.pl_fruit + 7, null)) >= LOW_PM && (name_to_mon(game.pl_fruit + 7, null)) < NUMMONS))) || !strcmp(game.pl_fruit, "empty tin") || (!strcmp(game.pl_fruit, "glob") || (globpfx > 0 && !strcmp("glob", game.pl_fruit[globpfx]))) || ((str_end_is(game.pl_fruit, " corpse") || str_end_is(game.pl_fruit, " egg")) && ((name_to_mon(game.pl_fruit, null)) >= LOW_PM && (name_to_mon(game.pl_fruit, null)) < NUMMONS))) {
+            if (found || numeric || !strncmp(game.pl_fruit, "cursed ", 7) || !strncmp(game.pl_fruit, "uncursed ", 9) || !strncmp(game.pl_fruit, "blessed ", 8) || !strncmp(game.pl_fruit, "partly eaten ", 13) || (!strncmp(game.pl_fruit, "tin of ", 7) && (!strcmp(game.pl_fruit + 7, "spinach") || ((name_to_mon(game.pl_fruit + 7, null)) >= LOW_PM && (name_to_mon(game.pl_fruit + 7, null)) < NUMMONS))) || !strcmp(game.pl_fruit, "empty tin") || (!strcmp(game.pl_fruit, "glob") || (globpfx > 0 && !strcmp("glob", { get value() { return game.pl_fruit[globpfx]; }, set value(_v) { game.pl_fruit[globpfx] = _v; } }))) || ((str_end_is(game.pl_fruit, " corpse") || str_end_is(game.pl_fruit, " egg")) && ((name_to_mon(game.pl_fruit, null)) >= LOW_PM && (name_to_mon(game.pl_fruit, null)) < NUMMONS))) {
                 buf = strcpy(buf, game.pl_fruit);
                 game.pl_fruit = strcpy(game.pl_fruit, "candied ");
                 /* these checks for applying food attributes to actual items
@@ -7637,14 +7625,10 @@ export function options_free_window_colors() {
     let j = 0;
     for (j = 0; j < WC_COUNT; ++j) {
         if (game.fgp[j]) {
-            /* Hand-port: C `free(p); *p_addr = NULL;` clears the
-               pointer after free.  In JS just assign null. */
-            free(game.fgp[j]);
-            game.fgp[j] = null;
+            free(game.fgp[j]) , void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = null) */;
         }
         if (game.bgp[j]) {
-            free(game.bgp[j]);
-            game.bgp[j] = null;
+            free(game.bgp[j]) , void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = null) */;
         }
     }
     game.options_set_window_colors_flag = 0;

@@ -197,7 +197,7 @@ export function query_classes(oclasses, one_at_a_time, everything, action, objs,
         let where = null;
         let sym = 0;
         let oc_of_sym = 0;
-        let p = null;
+        let __nh_p_idx = 0;
         ask_again: while (true) {
             oclasses[oclassct = 0] = 0;
             one_at_a_time.value = everything.value = (0);
@@ -207,7 +207,7 @@ export function query_classes(oclasses, one_at_a_time, everything, action, objs,
             if (inbuf == 27) {
                 return (0);
             }
-            for (p = inbuf; (sym = p++) != 0; ) {
+            for (__nh_p_idx = 0; (sym = inbuf[__nh_p_idx++]) != 0; ) {
                 if (sym == 32) {
                     continue;
                 } else if (sym == 65) {

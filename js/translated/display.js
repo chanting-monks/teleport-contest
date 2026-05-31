@@ -2233,6 +2233,7 @@ export function get_bkglyph_and_framecolor(x, y, bkglyph, framecolor) {
     bkglyph.value = tmp_bkglyph;
     if (game.iflags.bgcolors && game.wsettings.map_frame_color != 8 && mapxy_valid(x, y)) {
         framecolor.value = game.wsettings.map_frame_color;
+    /* this guard should be unnecessary */
     } else {
         framecolor.value = 8;
     }
@@ -3190,4 +3191,3 @@ export function fn_cmap_to_glyph(cmap) {
    end of the source code seen by the compiler (there are lots of other
    macros defined above...) */
 /*display.c*/
-/* this guard should be unnecessary */

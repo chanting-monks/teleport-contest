@@ -268,7 +268,7 @@ export function fill_zoo(sroom) {
     let type = sroom.rtype;
     let tx = 0;
     let ty = 0;
-    let rmno = (game.rooms.indexOf(sroom) + 3);
+    let rmno = ((game.rooms.indexOf(sroom)) + 3);
     let mm = { x: 0, y: 0 };
     /* Note: This doesn't check needfill; it assumes the caller has already
        done that. */
@@ -499,7 +499,7 @@ export function mkswamp() {
         if (sroom.hx < 0 || sroom.rtype != OROOM || has_upstairs(sroom) || has_dnstairs(sroom)) {
             continue;
         }
-        rmno = game.rooms.indexOf(sroom) + 3;
+        rmno = (game.rooms.indexOf(sroom)) + 3;
         sroom.rtype = SWAMP;
         for (sx = sroom.lx; sx <= sroom.hx; sx++) {
             for (sy = sroom.ly; sy <= sroom.hy; sy++) {
@@ -552,7 +552,11 @@ export function mktemple() {
     }
     /* set up Priest and shrine */
     sroom.rtype = TEMPLE;
-    shrine_spot = shrine_pos((game.rooms.indexOf(sroom) + 3));
+    /*
+     * In temples, shrines are blessed altars
+     * located in the center of the room
+     */
+    shrine_spot = shrine_pos(((game.rooms.indexOf(sroom)) + 3));
     lev = game.level.locations[shrine_spot.x][shrine_spot.y];
     lev.typ = ALTAR;
     lev.flags = induced_align(80);
@@ -609,7 +613,7 @@ export function somey(croom) {
 }
 export function inside_room(croom, x, y) {
     if (croom.irregular) {
-        let i = (game.rooms.indexOf(croom) + 3);
+        let i = ((game.rooms.indexOf(croom)) + 3);
         return (!game.level.locations[x][y].edge && game.level.locations[x][y].roomno == i);
     }
     return (x >= croom.lx - 1 && x <= croom.hx + 1 && y >= croom.ly - 1 && y <= croom.hy + 1);
@@ -623,7 +627,7 @@ export function somexy(croom, c) {
     let try_cnt = 0;
     let i = 0;
     if (croom.irregular) {
-        i = (game.rooms.indexOf(croom) + 3);
+        i = ((game.rooms.indexOf(croom)) + 3);
         while (try_cnt++ < 100) {
             /* Check that coords doesn't fall into a subroom or into a wall */
             c.x = somex(croom);
@@ -983,10 +987,6 @@ export function invalid_shop_shape(sroom) {
 /* !SFCTOOL */
 /*mkroom.c*/
 /* try again if chosen type has been genocided or used up */
-/*
-     * In temples, shrines are blessed altars
-     * located in the center of the room
-     */
 /* open door in vertical wall */
 /* open door in horizontal wall */
 /* closed door in vertical wall */

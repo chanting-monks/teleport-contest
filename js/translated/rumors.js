@@ -71,25 +71,15 @@ const CapMons = null;
 /* makedefs pads short rumors, epitaphs, engravings, and hallucinatory
    monster names with trailing underscores; strip those off */
 export function unpadline(line) {
+    let p = eos(line);
     /* remove newline if still present; caller should have stripped it */
-    /* Hand-port: C is `p = eos(line); if (p[-1]=='\n') --p; while (p[-1]=='_')
-       --p; *p = '\0';` — find end, walk back past newline + underscores,
-       null-terminate.  JS strings are immutable so we return the trimmed
-       string; array-buffer arg gets in-place mutation via null-terminator.
-       Both callers (rumors.js:394, :757) need to assign the return value
-       for the string case. */
-    if (Array.isArray(line)) {
-        let end = line.length;
-        while (end > 0 && line[end - 1] === 0) end--;
-        if (end > 0 && line[end - 1] === 10) end--;
-        while (end > 0 && line[end - 1] === 95) end--;
-        if (end < line.length) line[end] = 0;
-        return line;
+    if (p > line && p[-1] == 10) {
+        --p;
     }
-    if (typeof line === 'string') {
-        return line.replace(/\n?_*$/, '');
+    while (p > line && p[-1] == 95) {
+        --p;
     }
-    return line;
+    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
 }
 const __init_rumors_rumors_header = "%d,%ld,%lx;%d,%ld,%lx;0,0,%lx\n";
 export function init_rumors(fp) {
@@ -209,9 +199,9 @@ export function rumor_check() {
     }
     /* initial implementation of default epitaph/engraving/bogusmon
        contained an error; check those along with rumors */
-    others_check("Engravings:", "engrave", tmpwin);
-    others_check("Epitaphs:", "epitaph", tmpwin);
-    others_check("Bogus monsters:", "bogusmon", tmpwin);
+    others_check("Engravings:", "engrave", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
+    others_check("Epitaphs:", "epitaph", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
+    others_check("Bogus monsters:", "bogusmon", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
     if (tmpwin != (-1)) {
         (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
         (game.windowprocs.win_destroy_nhwindow)(tmpwin);
@@ -227,13 +217,13 @@ export function others_check(ftype, fname, winptr) {
     let line = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let xbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let endp = null;
-    let tmpwin = winptr;
+    let tmpwin = winptr.value;
     let entrycount = 0;
     fh = fopen(fname, "r");
     if (fh) {
         closeit: {
             if (tmpwin == (-1)) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = tmpwin = (game.windowprocs.win_create_nh) */;
+                winptr.value = tmpwin = (game.windowprocs.win_create_nhwindow)(5);
                 if (tmpwin == (-1)) {
                     /* should panic, but won't for wizard mode check operation */
                     impossible(__others_check_errfmt, fname, "can't create temporary window");
@@ -401,10 +391,7 @@ export function get_rnd_line(fh, buf, bufsiz, rng, startpos, endpos, padlength) 
     }
     /* strip padding that makedefs adds to short lines */
     if (padlength) {
-        /* Hand-port: capture unpadline's return for JS-string buf
-           (immutable); array-buffer path mutates in-place but still
-           returns same ref so assignment is safe. */
-        buf = unpadline(buf);
+        unpadline(buf);
     }
     return buf;
 }
@@ -487,7 +474,7 @@ export function save_oracles(nhfp) {
         sfo_unsigned(nhfp, { get value() { return game.oracle_cnt; }, set value(_v) { game.oracle_cnt = _v; } }, "oracle-oracle_cnt");
         if (game.oracle_cnt) {
             for (i = 0; i < game.oracle_cnt; ++i) {
-                sfo_ulong(nhfp, game.oracle_loc[i], "oracle-oracle_loc");
+                sfo_ulong(nhfp, { get value() { return game.oracle_loc[i]; }, set value(_v) { game.oracle_loc[i] = _v; } }, "oracle-oracle_loc");
                 ;
             }
         }
@@ -510,7 +497,7 @@ export function restore_oracles(nhfp) {
     if (game.oracle_cnt) {
         game.oracle_loc = alloc(game.oracle_cnt * 8 /* sizeof(unsigned long) */);
         for (i = 0; i < game.oracle_cnt; ++i) {
-            sfi_ulong(nhfp, game.oracle_loc[i], "oracle-oracle_loc");
+            sfi_ulong(nhfp, { get value() { return game.oracle_loc[i]; }, set value(_v) { game.oracle_loc[i] = _v; } }, "oracle-oracle_loc");
             ;
         }
         /* no need to call init_oracles() */
@@ -625,7 +612,7 @@ export function doconsult(oracl) {
     if (u_pay == minor_cost) {
         outrumor(1, 0);
         if (!game.u.uevent.minor_oracle) {
-            add_xpts = Math.trunc(u_pay / (game.u.uevent.major_oracle ? 25 : 10));
+            add_xpts = Math.trunc(u_pay / ((game.u.uevent.major_oracle ? 25 : 10)));
         }
         /* 5 pts if very 1st, or 2 pts if major already done */
         game.u.uevent.minor_oracle = (1);
@@ -633,7 +620,7 @@ export function doconsult(oracl) {
         let cheapskate = u_pay < major_cost;
         outoracle(cheapskate, (1));
         if (!cheapskate && !game.u.uevent.major_oracle) {
-            add_xpts = Math.trunc(u_pay / (game.u.uevent.minor_oracle ? 25 : 10));
+            add_xpts = Math.trunc(u_pay / ((game.u.uevent.minor_oracle ? 25 : 10)));
         }
         /* ~100 pts if very 1st, ~40 pts if minor already done */
         game.u.uevent.major_oracle = (1);
@@ -669,19 +656,8 @@ export function CapitalMon(word) {
     let i = 0;
     let wln = 0;
     let nln = 0;
-    /* Translator-bug fix: C tests `!*word` (empty C-string) and
-       `*word == lowc(*word)` (first char is lowercase, hence not
-       capitalized).  The translator emitted `word.value` for *word
-       which is undefined on JS strings.  Use proper first-char
-       check via charCodeAt(0) / array index. */
-    if (!word) return (0);
-    {
-        const c0 = (typeof word === 'string') ? word.charCodeAt(0)
-                  : Array.isArray(word) ? (word[0] || 0)
-                  : (word.value || 0);
-        if (!c0 || c0 === lowc(c0)) {
-            return (0);
-        }
+    if (!word || !word.value || word.value == lowc(word.value)) {
+        return (0);
     }
     /* 'word' is not a capitalized monster name */
     if (!CapMons) {

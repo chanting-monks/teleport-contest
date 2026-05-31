@@ -2210,28 +2210,18 @@ export function sf_log(nhfp, t1, sz, cnt, txtvalue) {
 }
 let __sfvalue_char_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_char(a, n) {
-    /* Hand-port: C copies a[0..n-1] into the static 120-byte buf and
-       null-terminates at min(n, 119).  Translator emitted
-       `cp = __sfvalue_char_buf[0]` (numeric first byte, not pointer)
-       and the `*cp = *a` copy + `++cp ++a` as void 0 TODOs.  Function
-       returned the unmodified buf.
-
-       JS rewrite: bound n to capacity-1, copy from a (array or string)
-       to the static buf, null-terminate. */
-    const cap = 120;
-    const end = (n < cap - 1) ? n : cap - 1;
-    if (Array.isArray(a)) {
-        for (let i = 0; i < end; i++) __sfvalue_char_buf[i] = a[i] | 0;
-    } else if (typeof a === 'string') {
-        for (let i = 0; i < end; i++) __sfvalue_char_buf[i] = a.charCodeAt(i) | 0;
-    } else if (a && typeof a.value !== 'undefined') {
-        /* Single-byte value-box: only first byte available, fill that
-           one slot.  Not the typical caller pattern. */
-        __sfvalue_char_buf[0] = (a.value | 0);
+    let i = 0;
+    let cp = null;
+    cp = __sfvalue_char_buf[0];
+    if (n < (120 /* sizeof(char [120]) */ - 1)) {
+        __sfvalue_char_buf[n] = 0;
+    } else {
+        __sfvalue_char_buf[(120 /* sizeof(char [120]) */ - 1)] = 0;
     }
-    /* Null-terminator at end (matches both buf[end] = '\0' and the
-       trailing *cp = '\0'). */
-    __sfvalue_char_buf[end] = 0;
+    for (i = 0; i < n; ++i , ++cp , ++a) {
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = a.value) */;
+    }
+    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     return __sfvalue_char_buf;
 }
 let __sfvalue_boolean_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -2261,17 +2251,17 @@ export function sfvalue_genericptr(a) {
 }
 let __sfvalue_int16_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_int16(a) {
-    nh_snprintf("sfvalue_int16", 473, __sfvalue_int16_buf, 20 /* sizeof(char [20]) */, "%d", a);
+    nh_snprintf("sfvalue_int16", 473, __sfvalue_int16_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_int16_buf;
 }
 let __sfvalue_int32_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_int32(a) {
-    nh_snprintf("sfvalue_int32", 481, __sfvalue_int32_buf, 20 /* sizeof(char [20]) */, "%d", a);
+    nh_snprintf("sfvalue_int32", 481, __sfvalue_int32_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_int32_buf;
 }
 let __sfvalue_int64_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_int64(a) {
-    nh_snprintf("sfvalue_int64", 488, __sfvalue_int64_buf, 20 /* sizeof(char [20]) */, "%ld", a);
+    nh_snprintf("sfvalue_int64", 488, __sfvalue_int64_buf, 20 /* sizeof(char [20]) */, "%ld", a.value);
     return __sfvalue_int64_buf;
 }
 let __sfvalue_uchar_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -2283,17 +2273,17 @@ export function sfvalue_uchar(a) {
 }
 let __sfvalue_uint16_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_uint16(a) {
-    nh_snprintf("sfvalue_uint16", 506, __sfvalue_uint16_buf, 20 /* sizeof(char [20]) */, "%u", a);
+    nh_snprintf("sfvalue_uint16", 506, __sfvalue_uint16_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_uint16_buf;
 }
 let __sfvalue_uint32_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_uint32(a) {
-    nh_snprintf("sfvalue_uint32", 514, __sfvalue_uint32_buf, 20 /* sizeof(char [20]) */, "%u", a);
+    nh_snprintf("sfvalue_uint32", 514, __sfvalue_uint32_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_uint32_buf;
 }
 let __sfvalue_uint64_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_uint64(a) {
-    nh_snprintf("sfvalue_uint64", 522, __sfvalue_uint64_buf, 20 /* sizeof(char [20]) */, "%lu", a);
+    nh_snprintf("sfvalue_uint64", 522, __sfvalue_uint64_buf, 20 /* sizeof(char [20]) */, "%lu", a.value);
     return __sfvalue_uint64_buf;
 }
 let __sfvalue_size_t_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -2313,7 +2303,7 @@ export function sfvalue_short(a) {
 }
 let __sfvalue_ushort_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_ushort(a) {
-    nh_snprintf("sfvalue_ushort", 554, __sfvalue_ushort_buf, 20 /* sizeof(char [20]) */, "%u", a);
+    nh_snprintf("sfvalue_ushort", 554, __sfvalue_ushort_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_ushort_buf;
 }
 let __sfvalue_int_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -2333,7 +2323,7 @@ export function sfvalue_long(a) {
 }
 let __sfvalue_ulong_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_ulong(a) {
-    nh_snprintf("sfvalue_ulong", 586, __sfvalue_ulong_buf, 20 /* sizeof(char [20]) */, "%lu", a);
+    nh_snprintf("sfvalue_ulong", 586, __sfvalue_ulong_buf, 20 /* sizeof(char [20]) */, "%lu", a.value);
     return __sfvalue_ulong_buf;
 }
 let __sfvalue_xint8_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -2348,12 +2338,12 @@ export function sfvalue_xint16(a) {
 }
 let __sfvalue_bitfield_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function sfvalue_bitfield(a) {
-    nh_snprintf("sfvalue_bitfield", 612, __sfvalue_bitfield_buf, 20 /* sizeof(char [20]) */, "%u", a);
+    nh_snprintf("sfvalue_bitfield", 612, __sfvalue_bitfield_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_bitfield_buf;
 }
 let __bitfield_dump_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function bitfield_dump(a) {
-    nh_snprintf("bitfield_dump", 621, __bitfield_dump_buf, 20 /* sizeof(char [20]) */, "%u", a);
+    nh_snprintf("bitfield_dump", 621, __bitfield_dump_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __bitfield_dump_buf;
 }
 let __complex_dump_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

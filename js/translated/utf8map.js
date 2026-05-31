@@ -157,7 +157,7 @@ export function add_custom_urep_entry(customization_name, glyphidx, utf32ch, utf
     /* create new details entry */
     newdetails = alloc(1 /* sizeof(struct customization_detail) */);
     newdetails.content.urep.glyphidx = glyphidx;
-    if (utf8str && utf8str) {
+    if (utf8str && utf8str.value) {
         newdetails.content.urep.u.utf8str = dupstr(utf8str);
     } else {
         newdetails.content.urep.u.utf8str = null;

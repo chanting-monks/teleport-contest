@@ -736,7 +736,12 @@ export function xname_flags(obj, cxn_flags) {
                 break;
             }
             do {
-                strncat(buf_eos - 0, actualn, bufspaceleft + 0);
+                /* Translator gap §23.222b: `buf_eos - 0` (C macro
+                   Concat delta=0 form) emits an array - 0 = NaN in
+                   JS, breaking strncat.  Use buf_eos (the array)
+                   directly; the runtime strncat handles the NaN
+                   bufspaceleft via the n=Infinity fallback. */
+                strncat(buf_eos, actualn, bufspaceleft + 0);
                 buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
             } while (0);
             if (typ == TIN && known) {

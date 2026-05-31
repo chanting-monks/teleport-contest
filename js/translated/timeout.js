@@ -2291,7 +2291,7 @@ export function save_timers(nhfp, range) {
     let count = 0;
     if (((nhfp).mode & (1 | 2))) {
         if (range == 1) {
-            sfo_ulong(nhfp, game.timer_id, "timer-timer_id");
+            sfo_ulong(nhfp, { get value() { return game.timer_id; }, set value(_v) { game.timer_id = _v; } }, "timer-timer_id");
             ;
         }
         count = maybe_write_timer(nhfp, range, (0));
@@ -2325,7 +2325,7 @@ export function restore_timers(nhfp, range, adjust) {
     let curr = null;
     let ghostly = (nhfp.ftype == 3);
     if (range == 1) {
-        sfi_ulong(nhfp, game.timer_id, "timer-timer_id");
+        sfi_ulong(nhfp, { get value() { return game.timer_id; }, set value(_v) { game.timer_id = _v; } }, "timer-timer_id");
         ;
     }
     sfi_int(nhfp, { get value() { return count; }, set value(_v) { count = _v; } }, "timer-timer_count");

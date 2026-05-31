@@ -31,6 +31,11 @@ import { age_spells } from './translated/spell.js';
 import { glibr } from './translated/do_wear.js';
 import { overexert_hp, near_capacity, unmul, runmode_delay_output } from './translated/hack.js';
 import { prayer_done } from './translated/pray.js';
+import {
+    Armor_off, Shield_off, Helmet_off, Gloves_off, Boots_off,
+    Cloak_off, Shirt_off, Shirt_on,
+} from './translated/do_wear.js';
+import { eatmdone } from './translated/eat.js';
 import { invault } from './translated/vault.js';
 import { amulet } from './translated/wizard.js';
 import { run_regions } from './translated/region.js';
@@ -1917,11 +1922,25 @@ async function per_iter_setup() {
         game.moves = (game.moves || 1) + 1;
     }
 
-    // Multi-turn freeze: C ref allmain.c:380-388.  When game.multi < 0
-    // the hero is immobile.  NARROW: only handle prayer freezes
-    // (game.afternmv === prayer_done); other afternmv targets fire
-    // PRNG that diverges from C (translator gaps in armoron/dig/etc).
-    if ((game.multi || 0) < 0 && game.afternmv === prayer_done) {
+    // Multi-turn freeze: C ref allmain.c:380-388.  Originally narrowed
+    // to prayer_done only; 2026-05-30 extended via allowlist to also
+    // include the take-off finalizers (Armor_off/Shield_off/etc).
+    // These are structurally simple cleanup functions (setworn(null)
+    // + property updates, no PRNG draws) so safer to fire than the
+    // broader category of afternmv targets.  Per
+    // project_singlechar_dispatch_gap memory's callee-blocker
+    // pattern: incremental allowlist beats all-or-nothing broadening.
+    const __mtf_allow = (game.afternmv === prayer_done
+        || game.afternmv === Armor_off
+        || game.afternmv === Shield_off
+        || game.afternmv === Helmet_off
+        || game.afternmv === Gloves_off
+        || game.afternmv === Boots_off
+        || game.afternmv === Cloak_off
+        || game.afternmv === Shirt_off
+        || game.afternmv === Shirt_on
+        || game.afternmv === eatmdone);
+    if ((game.multi || 0) < 0 && __mtf_allow) {
         game.multi++;
         if (game.multi === 0) {
             try { unmul(null); } catch (_e) {}

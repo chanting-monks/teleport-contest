@@ -139,29 +139,19 @@ export function doextversion() {
     getversionstring(buf, 256 /* sizeof(char [256]) */);
     /* if extra text (git info) is present, put it on separate line
        but don't wrap on (x86) */
-    /* Hand-port: C source wraps long banner at the last '(' if the
-       previous char is ' ' and the next char isn't 'x' (Linux x86_64
-       string format).  C truncates buf via `p[-1] = '\0'`, prints
-       buf, then `*--p = ' '` restores the space and prints from that
-       point.  JS strings are immutable — compute the wrap index in
-       buf, print the prefix, print the " (..." suffix. */
-    let __wrapIdx = -1;
-    if (typeof buf === 'string' && buf.length >= 80) {
-        const __parenIdx = buf.lastIndexOf('(');
-        if (__parenIdx > 0 && buf.charCodeAt(__parenIdx - 1) === 32
-            && (__parenIdx + 1 >= buf.length || buf.charCodeAt(__parenIdx + 1) !== 120)) {
-            __wrapIdx = __parenIdx;
-        }
+    if (strlen(buf) >= 80) {
+        p = strrchr(buf, 40);
     }
-    const __bufPrefix = (__wrapIdx > 0) ? buf.slice(0, __wrapIdx - 1) : buf;
-    (game.windowprocs.win_putstr)(win, 0, __bufPrefix);
-    if (__wrapIdx > 0) {
-        /* Print from the space char onwards (matches C's `*--p = ' '`
-           and then putstr(p) — p now points at the restored space). */
-        const __bufSuffix = buf.slice(__wrapIdx - 1);
-        (game.windowprocs.win_putstr)(win, 0, __bufSuffix);
+    if (p && p > buf && p[-1] == 32 && p[1] != 120) {
+        p[-1] = 0;
+    } else {
+        p = null;
     }
-    p = null;
+    (game.windowprocs.win_putstr)(win, 0, buf);
+    if (p) {
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
+        (game.windowprocs.win_putstr)(win, 0, p);
+    }
     if (use_dlb) {
         f = fopen("options", "r");
         if (!f) {
@@ -247,13 +237,8 @@ export function early_version_info(pastebuf) {
     /* split at start of version info */
     tmp = strstri(buf1, " (");
     if (tmp) {
-        /* Hand-port: C `*p = '\0'` truncates buf1 at the " (" position
-           so the snprintf below sees only the prefix.  JS strings are
-           immutable; compute the truncated prefix via slice and pass
-           it explicitly to snprintf instead. */
-        const __buf1Idx = (typeof buf1 === 'string') ? buf1.indexOf(' (') : -1;
-        const __buf1Prefix = (__buf1Idx >= 0) ? buf1.slice(0, __buf1Idx) : buf1;
-        nh_snprintf("early_version_info", 292, buf2, 256 /* sizeof(char [256]) */, "%s\n%s", __buf1Prefix, tmp);
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        nh_snprintf("early_version_info", 292, buf2, 256 /* sizeof(char [256]) */, "%s\n%s", buf1, tmp);
         buf = buf2;
     } else {
         buf = buf1;
@@ -514,7 +499,7 @@ export function compare_critical_bytes(nhfp, idx_1st_mismatch, utdflags) {
         return 2;
     }
     for (i = 0; i < file_csc_count; ++i) {
-        sfi_uchar(nhfp, game.cscbuf[i], "critical_sizes");
+        sfi_uchar(nhfp, { get value() { return game.cscbuf[i]; }, set value(_v) { game.cscbuf[i] = _v; } }, "critical_sizes");
     }
     for (i = 1; i < cnt; ++i) {
         if (game.cscbuf[i] != game.critical_sizes[i].ucsize) {

@@ -112,12 +112,6 @@ export function m_initgrp(mtmp, x, y, n, mmflags) {
      * it" code.
      */
     /* Tuning: cut down on swarming at low character levels [mrs] */
-    /* C ref: `cnt = cnt / ((u.ulevel < 3) ? 4 : (u.ulevel < 5) ? 2 : 1);`
-       The C ternary is parenthesized as the divisor.  Translator
-       output emitted `Math.trunc(cnt / (ulevel<3) ? 4 : (...))`
-       which parses as `Math.trunc(cnt / boolean) ? 4 : ...` due
-       to ternary's lower precedence than `/` — giving cnt=4 for
-       every call.  Hand-port to use C's bracketing. */
     cnt = Math.trunc(cnt / ((game.u.ulevel < 3) ? 4 : (game.u.ulevel < 5) ? 2 : 1));
     if (!cnt) {
         cnt++;
@@ -2067,7 +2061,7 @@ export function grow_up(mtmp, victim) {
     if (mtmp.mhpmax <= hp_threshold) {
         return ptr;
     }
-    if (((ptr).pmidx >= PM_ARCHEOLOGIST && (ptr).pmidx <= PM_WIZARD)) {
+    if ((((ptr).pmidx >= PM_ARCHEOLOGIST) && ((ptr).pmidx <= PM_WIZARD))) {
         lev_limit = 30;
     } else if (lev_limit < 5) {
         lev_limit = 5;
@@ -2147,7 +2141,7 @@ export function mongets(mtmp, otyp) {
             }
             otmp.oerodeproof = 1;
             otmp.oeroded = otmp.oeroded2 = 0;
-        } else if (((mtmp.data).pmidx >= PM_ARCHEOLOGIST && (mtmp.data).pmidx <= PM_WIZARD) && (otmp.oclass == WEAPON_CLASS && game.objects[otmp.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[otmp.otyp].oc_subtyp <= P_SABER)) {
+        } else if ((((mtmp.data).pmidx >= PM_ARCHEOLOGIST) && ((mtmp.data).pmidx <= PM_WIZARD)) && (otmp.oclass == WEAPON_CLASS && game.objects[otmp.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[otmp.otyp].oc_subtyp <= P_SABER)) {
             otmp.spe = (3 + rn2(4));
         }
         if (otmp.otyp == CANDELABRUM_OF_INVOCATION) {

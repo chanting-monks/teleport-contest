@@ -756,7 +756,7 @@ export function getpos(ccp, force, goal) {
                         break nxtc;
                     }
                     if (!garr[gloc]) {
-                        gather_locs(garr[gloc], gcount[gloc], gloc);
+                        gather_locs({ get value() { return garr[gloc]; }, set value(_v) { garr[gloc] = _v; } }, { get value() { return gcount[gloc]; }, set value(_v) { gcount[gloc] = _v; } }, gloc);
                         /* garr[][0] is hero's spot */
                         gidx[gloc] = 0;
                     }

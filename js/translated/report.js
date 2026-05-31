@@ -123,14 +123,15 @@ export function crashreport_bidshow() {
 //     calling this macro.
 /* On overflow, truncate to markp (but only if markp != NULL). */
 export function swr_add_uricoded(in_, out, remaining, markp) {
+    let __nh_out_idx = 0;
     while (in_.value) {
         if (((__ctype_b_loc())[((in_.value))] & _ISalnum) || strchr("_-.~", in_.value)) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = in_.value) */;
-            (out.value)++;
+            (out[__nh_out_idx])++;
             (remaining.value)--;
         } else if (in_.value == 32) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 43) */;
-            (out.value)++;
+            (out[__nh_out_idx])++;
             (remaining.value)--;
         } else {
             if (remaining.value <= 3) {
@@ -146,8 +147,8 @@ export function swr_add_uricoded(in_, out, remaining, markp) {
                 chr = sprintf(chr, "%%%02X", in_.value);
                 x = strlen(chr);
                 if (x <= remaining.value) {
-                    strcpy(out.value, chr);
-                    out.value += x;
+                    strcpy(out[__nh_out_idx], chr);
+                    out[__nh_out_idx] += x;
                     remaining.value -= x;
                 }
             }

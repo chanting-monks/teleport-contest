@@ -116,6 +116,17 @@ export const EXTERNAL_SYMBOLS = {
     memset:   'js/c2js-runtime/memory.js',
     memcpy:   'js/c2js-runtime/memory.js',
 
+    // Memory-backed level-file abstraction.  C ref: files.c
+    // create_levelfile/open_levelfile/close_nhfile/delete_levelfile.
+    // Backs the NHFILE pointer with an in-memory per-ledger buffer.
+    // Foundation for ^V wizlevelport and any other level-transition
+    // path; full save/restore also requires save.c/restore.c
+    // translation so savelev/getlev (currently auto-stubbed) work.
+    create_levelfile: 'js/c2js-runtime/levelfile.js',
+    open_levelfile:   'js/c2js-runtime/levelfile.js',
+    close_nhfile:     'js/c2js-runtime/levelfile.js',
+    delete_levelfile: 'js/c2js-runtime/levelfile.js',
+
     // libc <string.h> shims.
     strcmp:        'js/c2js-runtime/string.js',
     strncmp:       'js/c2js-runtime/string.js',
@@ -203,6 +214,7 @@ export const EXTERNAL_SYMBOLS = {
     // not a PRNG-firing call but the symbol must resolve.
     time:                    'js/c2js-runtime/calendar.js',
     difftime:                'js/c2js-runtime/calendar.js',
+    localtime:               'js/c2js-runtime/calendar.js',
 
     // clang/gcc varargs builtins.  livelog_printf and similar
     // printf-style helpers reference these; they're no-ops in JS

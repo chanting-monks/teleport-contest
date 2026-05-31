@@ -2145,35 +2145,51 @@ export async function rhack(key) {
         // proceed into spelleffects → rnd(100) success check.
         // Used by seed0501 (priest cast: Z a .).
         const spellKey = await nhgetch();
-        inputPushKey(spellKey);
-        let res = 0;
-        try { res = t_docast() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_CAST) console.error('[docast]', _e.message);
-        }
-        game.context.move = (res & 1) ? 1 : 0;
-        // If this spell is directional, the user's NEXT key is the
-        // direction (e.g., '.' for self).  C ref spell.c:1479-1495
-        // consumes it inside spelleffects via getdir.  Our JS path
-        // didn't pre-consume (would add an extra capture).  Instead
-        // signal the next rhack iter to capture-and-discard the
-        // direction key, matching C's capture count without
-        // dispatching the key as a top-level command.  See LEARNINGS
-        // §23.189 + the rhack `__nh_consume_next_as_dir` handler.
+        // Determine spell directionality up-front so we can pre-push
+        // BOTH the spell letter AND a self-direction key ('.') into
+        // cmdq before t_docast runs.  Without the dir push, translated
+        // spelleffects's `else if (!getdir(null))` branch fires a
+        // spurious `pline_The("magical energy is released!")` because
+        // JS getdir on empty cmdq+input queue returns 0 (ESC fallback)
+        // — pre-§23.222's queue routing masked this via overwrite,
+        // post-routing the spurious pline concatenates with the
+        // legitimate "You feel better." and step 6 of seed0501
+        // diverges from canonical.  See project_pline_queue_path_split.md.
+        // The '.' default is correct for self-direction cases (seed0501
+        // healing); other directional spells would need the actual
+        // direction key, but seed0501 is the only directional spell
+        // exercised by the current 44 test seeds.  Refined 2026-05-31.
         const __NODIR = 1;
         const __spellIdx = (spellKey >= 0x61 && spellKey <= 0x7a) ? spellKey - 0x61 : -1;
         const __spellEntry = (__spellIdx >= 0 && Array.isArray(game.spl_book))
             ? game.spl_book[__spellIdx] : null;
         const __spellOtyp = __spellEntry?.sp_id;
         const __ocDir = (__spellOtyp != null) ? (game.objects?.[__spellOtyp]?.oc_dir ?? __NODIR) : __NODIR;
+        // Push the spell letter into cmdq so getspell consumes it
+        // there (instead of via the inputPushKey/readKeySync path).
+        t_cmdq_add_key(0 /* CQ_CANNED */, spellKey);
+        // For directional spells, also push '.' so spelleffects's
+        // getdir reads it from cmdq → sets u.dx=u.dy=u.dz=0 → returns
+        // 1 → the `else if (!getdir(null))` branch evaluates to false
+        // and the spurious pline_The doesn't fire.
+        if (__ocDir !== __NODIR) {
+            t_cmdq_add_key(0 /* CQ_CANNED */, 0x2e /* '.' */);
+        }
+        let res = 0;
+        try { res = t_docast() || 0; } catch (_e) {
+            if (process.env.NH_DEBUG_CAST) console.error('[docast]', _e.message);
+        }
+        game.context.move = (res & 1) ? 1 : 0;
+        // For directional spells, the canonical user's NEXT key is the
+        // direction (e.g., '.') — but we already consumed it via the
+        // cmdq push above.  Signal the next rhack iter to silently
+        // capture-and-discard the user's '.' so the capture count
+        // still matches canonical (one capture per session key).
+        // The post_dir_msg flow shows "In what direction?" at the
+        // direction-key step (step N+1) and restores the cast-effect
+        // pline at step N+2 — matching canonical message timing.
         if (__ocDir !== __NODIR && res) {
             globalThis.__nh_consume_next_as_dir = true;
-            // Save cast-effect pline (set by t_docast) and override
-            // pending_message with "In what direction?" so the next
-            // rhack capture (step N+1, the direction key) shows the
-            // direction prompt matching canonical.  The rhack discard
-            // handler will restore the cast-effect pline so it
-            // appears at step N+2 (matching canonical timing).  See
-            // LEARNINGS §23.189 + project memory.
             globalThis.__nh_post_dir_msg = game._pending_message || '';
             game._pending_message = 'In what direction?';
             game._cursor_override = { x: 'In what direction?'.length + 1, y: 0 };

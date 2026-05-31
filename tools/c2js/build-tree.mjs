@@ -153,20 +153,47 @@ function evalConstExpr(node, scope) {
 // function is already known (first declaration wins).  These
 // parameters become out-params at translate time (ref objects) so
 // the C `*p = X` idiom works.
-function collectScalarPtrParams(node, out) {
+export function collectScalarPtrParams(node, out, integerTypedefAliases = null) {
     if (!node || typeof node !== 'object') return;
     if (node.kind === 'FunctionDecl' && node.name) {
         if (!out.has(node.name)) {
             const indices = [];
             const params = (node.inner || []).filter((n) => n.kind === 'ParmVarDecl');
             params.forEach((p, i) => {
-                if (isScalarPtrType(p.type?.qualType || '')) indices.push(i);
+                if (isScalarPtrType(p.type?.qualType || '', integerTypedefAliases)) indices.push(i);
             });
             if (indices.length) out.set(node.name, indices);
         }
         return; // don't recurse into the body — params are at the top
     }
-    for (const child of node.inner || []) collectScalarPtrParams(child, out);
+    for (const child of node.inner || []) collectScalarPtrParams(child, out, integerTypedefAliases);
+}
+
+// Sibling to collectAllStructs: collect non-struct typedef aliases
+// like `typedef long cmdcount_nht;` into a Map<aliasName, underlyingType>.
+// Consumers (isScalarPtrType) resolve the alias to determine if the
+// underlying type is in the scalar-ptr-accept list, without having
+// to maintain a curated entry per typedef name.
+//
+// Skips `typedef struct X X;` forms (those are captured by
+// collectAllStructs).  Skips function-typedef forms.  Captures simple
+// type-name aliases (including const/unsigned/signed prefixes).
+export function collectIntegerTypedefs(node, out) {
+    if (!node || typeof node !== 'object') return;
+    if (node.kind === 'TypedefDecl' && node.name) {
+        const raw = (node.type?.qualType || '').trim();
+        // Strip leading const/volatile/etc qualifiers.
+        const t = raw.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
+        // Skip struct/union typedefs (handled by collectAllStructs).
+        if (!/^(struct|union)\s/.test(t)
+            // Skip function-pointer typedefs.
+            && !/\(/.test(t)
+            // Skip empty / degenerate.
+            && t.length > 0) {
+            out.set(node.name, t);
+        }
+    }
+    for (const child of node.inner || []) collectIntegerTypedefs(child, out);
 }
 
 // Detect the C casted-alias-of-void-pointer pattern:
@@ -181,14 +208,14 @@ function collectScalarPtrParams(node, out) {
 // classification so callsites wrap `&caller_var` as a `{value}` box
 // and the body's `*p = X` (after lvalue-aliasing in translate.mjs)
 // becomes `p.value = X`.
-function functionHasCastedScalarAlias(fnNode) {
+function functionHasCastedScalarAlias(fnNode, integerTypedefAliases = null) {
     let aliasedParam = null;
     function walk(n) {
         if (!n || aliasedParam) return;
         if (n.kind === 'VarDecl' && n.name) {
             // Check that the var's type is a scalar pointer.
             const vt = (n.type?.qualType || '').replace(/^const\s+/, '').trim();
-            if (isScalarPtrType(vt)) {
+            if (isScalarPtrType(vt, integerTypedefAliases)) {
                 // Check that the initializer is a CStyleCastExpr to that
                 // type, with a parameter DeclRef inside.
                 const init = (n.inner || []).find((c) =>
@@ -298,12 +325,12 @@ function functionWritesViaParam(fnNode, paramName) {
 // produces a scalar-ptr lvalue.  Add the parameter's index to the
 // out-param registry.  Used to handle `void f(void *param)` callees
 // that locally cast and write through param.
-function collectCastedAliasParams(node, out) {
+function collectCastedAliasParams(node, out, integerTypedefAliases = null) {
     if (!node || typeof node !== 'object') return;
     if (node.kind === 'FunctionDecl' && node.name) {
         const hasBody = (node.inner || []).some((n) => n.kind === 'CompoundStmt');
         if (hasBody) {
-            const aliasedName = functionHasCastedScalarAlias(node);
+            const aliasedName = functionHasCastedScalarAlias(node, integerTypedefAliases);
             if (aliasedName) {
                 const params = (node.inner || []).filter((n) => n.kind === 'ParmVarDecl');
                 const idx = params.findIndex((p) => p.name === aliasedName);
@@ -318,7 +345,7 @@ function collectCastedAliasParams(node, out) {
         }
         return;
     }
-    for (const child of node.inner || []) collectCastedAliasParams(child, out);
+    for (const child of node.inner || []) collectCastedAliasParams(child, out, integerTypedefAliases);
 }
 
 function collectDoublePtrOutParams(node, out) {
@@ -362,13 +389,40 @@ function isStructPtrType(t) {
     return /^struct\s+\w+$/.test(s);
 }
 
-function isScalarPtrType(t) {
+function isScalarPtrType(t, integerTypedefAliases = null) {
     if (!t) return false;
     let s = t.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
     if (!/\*\s*$/.test(s)) return false;
     s = s.replace(/\*\s*$/, '').trim();
     s = s.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
     s = s.replace(/^(signed|unsigned)\s+/, '').trim();
+    // First: check the curated accept list.  Then fall back to
+    // resolving typedef aliases (e.g. `typedef long cmdcount_nht`
+    // gives s='cmdcount_nht' which the map resolves to 'long').
+    // Walking the alias chain handles compositions like
+    // `typedef int32 myint;` → `typedef int32_t int32;` → `int`.
+    if (isInExplicitAcceptList(s)) return true;
+    if (integerTypedefAliases) {
+        const seen = new Set();
+        let cur = s;
+        for (let depth = 0; depth < 10 && !seen.has(cur); depth++) {
+            seen.add(cur);
+            const next = integerTypedefAliases.get(cur);
+            if (!next) return false;
+            let n = next.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
+            // If the underlying type is itself a pointer (e.g.
+            // `typedef int *Pint;` → `Pint p` means `int *p`),
+            // we'd need a different shape — out of v1 scope.
+            if (/\*\s*$/.test(n)) return false;
+            n = n.replace(/^(signed|unsigned)\s+/, '').trim();
+            if (isInExplicitAcceptList(n)) return true;
+            cur = n;
+        }
+    }
+    return false;
+}
+
+function isInExplicitAcceptList(s) {
     return [
         'char', 'short', 'short int', 'int', 'long', 'long int',
         'long long', 'long long int',
@@ -378,6 +432,16 @@ function isScalarPtrType(t) {
         // NetHack typedefs (from include/coord.h, integer.h, &c.)
         'schar', 'uchar', 'xint8', 'xint16', 'xint32',
         'coordxy', 'xchar', 'aligntyp',
+        // cmdcount_nht: `typedef long cmdcount_nht;` (hack.h:199).
+        // Only one site in NetHack uses `cmdcount_nht *` —
+        // cmd.c::get_count's `count` outparam — but without this
+        // entry the translator emits `void 0 /* TODO Phase 5+:
+        // pointer-mutation lvalue (C: *p = cnt) */` for the
+        // function body's `*count = cnt;` write.  The "typedef
+        // following" generalization (resolve any integer
+        // typedef alias through crossTuTypedefAliases) is a
+        // bigger architectural change; for one site we curate.
+        'cmdcount_nht',
         // d_level is INTENTIONALLY excluded — it's a struct (dnum +
         // dlevel), not a scalar.  Callees of `d_level *lev` access
         // `lev.dnum` / `lev.dlevel` directly, so the caller must pass
@@ -508,6 +572,12 @@ export function buildTree({ sources, outputDir, parserOpts = {} }) {
     // whose definition lives in a header.
     const headerStructs = new Map();
     const headerTypedefAliases = new Map();
+    // Non-struct typedef aliases (`typedef long cmdcount_nht;` ->
+    // `cmdcount_nht -> long`).  Consumed by isScalarPtrType when
+    // a parameter's declared type isn't directly in the explicit
+    // accept list — the alias is chased through the map and the
+    // underlying type is re-checked.  Avoids per-typedef curation.
+    const integerTypedefAliases = new Map();
     // For each function (defined or forward-declared anywhere in the
     // tree), the indices of parameters whose declared type is a
     // pointer to a scalar — `int *`, `short *`, `unsigned long *`, &c.
@@ -529,11 +599,12 @@ export function buildTree({ sources, outputDir, parserOpts = {} }) {
         // Phase 1a: header enum constants and structs from the full TU.
         collectAllEnumConstants(p.tu, headerEnumConstants);
         collectAllStructs(p.tu, headerStructs, headerTypedefAliases);
+        collectIntegerTypedefs(p.tu, integerTypedefAliases);
         // Phase 1b: function signatures (parameter types) — we want
         // every FunctionDecl (defined or just-declared) to record
         // which parameter positions are scalar-pointer outparams,
         // and which are struct-pointer outparams.
-        collectScalarPtrParams(p.tu, functionScalarPtrParams);
+        collectScalarPtrParams(p.tu, functionScalarPtrParams, integerTypedefAliases);
         collectStructPtrParams(p.tu, functionStructPtrParams);
         // Double-pointer out-params (T **) — body-scan filtered to
         // exclude `T **` used for read-only array access.  Merged into
@@ -544,7 +615,7 @@ export function buildTree({ sources, outputDir, parserOpts = {} }) {
         // body locally casts a `void *` parameter to a scalar pointer
         // and writes through it, the parameter is functionally a scalar
         // out-param.  Widen its classification so callers box `&local`.
-        collectCastedAliasParams(p.tu, functionScalarPtrParams);
+        collectCastedAliasParams(p.tu, functionScalarPtrParams, integerTypedefAliases);
         for (const decl of p.decls) {
             for (const name of getDeclaredNames(decl)) {
                 // First definition wins.  In ill-formed C this would

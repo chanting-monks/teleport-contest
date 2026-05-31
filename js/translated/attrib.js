@@ -179,10 +179,7 @@ export function losestr(num, knam, k_format) {
         dmg += amt;
     }
     if (dmg) {
-        /* Translator-bug fix: C tests `!*knam` (empty C-string). */
-        if (!knam || (typeof knam === 'string' ? knam.length === 0
-                    : Array.isArray(knam) ? !knam[0]
-                    : !knam.value)) {
+        if (!knam || !knam.value) {
             /* in case damage is fatal and caller didn't supply killer reason */
             knam = "terminal frailty";
             k_format = 1;
@@ -850,7 +847,7 @@ export function from_what(propidx) {
             }
             /* remove some verbosity and/or redundancy */
             if ((p = strstri(__from_what_buf, " pair of ")) != null) {
-                copynchars(p + 1, p + 9, 256);
+                copynchars(p.substring(1), p.substring(9), 256);
             } else if (propidx == STRANGLED && (p = strstri(__from_what_buf, " of strangulation")) != null) {
                 __from_what_buf = nh_strchr_truncate(__from_what_buf, " of strangulation", 'stri');
             }

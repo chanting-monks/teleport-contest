@@ -131,7 +131,8 @@ export function save_artifacts(nhfp) {
         sfo_arti_info(nhfp, game.artiexist[i], "artiexist");
     }
     for (i = 0; i < NROFARTIFACTS; ++i) {
-        sfo_xint16(nhfp, game.artidisco[i], "artidisco");
+        /* Translator gap: same consistency tightening as commit 32a2f91. */
+        sfo_xint16(nhfp, { get value() { return game.artidisco[i]; }, set value(_v) { game.artidisco[i] = _v; } }, "artidisco");
     }
 }
 /* SFCTOOL */
@@ -141,7 +142,10 @@ export function restore_artifacts(nhfp) {
         sfi_arti_info(nhfp, game.artiexist[i], "artiexist");
     }
     for (i = 0; i < NROFARTIFACTS; ++i) {
-        sfi_short(nhfp, game.artidisco[i], "artidisco");
+        /* Translator gap: by-value sfi_* drops the write-back.  Box
+           the outparam; same hand-sync as dungeon.js exclusion-zone
+           fix (commit da46f8b).  Retire when Axis B tooling lands. */
+        sfi_short(nhfp, { get value() { return game.artidisco[i]; }, set value(_v) { game.artidisco[i] = _v; } }, "artidisco");
     }
     hack_artifacts();
 }

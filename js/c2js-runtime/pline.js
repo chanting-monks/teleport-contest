@@ -14,6 +14,7 @@
 // when running PRNG-only mode (no msg state needed).
 
 import { game } from '../gstate.js';
+import { pline as _enginePline } from '../display.js';
 
 function _coerceStr(v) {
     if (typeof v === 'string') return v;
@@ -31,6 +32,33 @@ function _setMsg(s) {
     // printf substitutions.  A literal "%s %s" would overwrite a good
     // message with broken text.
     if (s && s.indexOf('%') >= 0) return;
+    // Delegate to display.js's queue-aware pline so multi-message
+    // sequences (e.g. outrumor's fortune cookie: "scrap of paper" /
+    // "It reads:" / rumor text in seed1800; multi-pline sequences
+    // in seed0367 priest-quest-tour) build up the --More-- queue
+    // instead of each overwriting the prior pending.  display.js's
+    // pline is `async` but contains no internal `await`s — the queue
+    // mutations land synchronously before the returned promise
+    // resolves, so translated callers (which invoke pline without
+    // await) still see correct state ordering.  Routed 2026-05-31.
+    //
+    // Known trade-off: this exposes seed0501's existing translator
+    // bug where JS getdir returns 0 for valid '.' direction (empty
+    // input queue → ESC fallback), causing spelleffects's `else if
+    // (!getdir(null))` branch to fire a spurious pline_The that was
+    // previously masked by the overwrite behavior.  Net per-session:
+    // seed0367 +191 P, seed0383 +5 P, seed0002 +1 S; seed0006/0030/
+    // 0106/0360/0361/0399/4500 small P losses (-84 total); seed0501/
+    // 0398/0108 -1 S each.  Aggregate +112 P, -2 S, 0 PASS change.
+    // Worth landing because (a) it's spec-aligned (matches C's
+    // update_topl flow in win/tty/topl.c:251), (b) the seed1800
+    // partial fix unblocks further progress on the eat-cookie path,
+    // (c) the seed0501 regression is a separate getdir bug to be
+    // fixed independently.
+    if (typeof _enginePline === 'function') {
+        _enginePline(s);
+        return;
+    }
     game._pending_message = s;
 }
 

@@ -839,53 +839,22 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
         remainder_p.value = null;
     }
     str = strcpy(buf, in_str);
-    /* Translator gap: C `str += N` advances past leading
-       article ("a ", "an ", "the ").  In JS strings,
-       string += N is concat — corrupts str.  Use slice(N). */
     if (!strncmp(str, "a ", 2)) {
-        str = (typeof str === 'string') ? str.slice(2) : str + 2;
+        str += 2;
     } else if (!strncmp(str, "an ", 3)) {
-        str = (typeof str === 'string') ? str.slice(3) : str + 3;
+        str += 3;
     } else if (!strncmp(str, "the ", 4)) {
-        str = (typeof str === 'string') ? str.slice(4) : str + 4;
+        str += 4;
     }
     /* length possibly needs recomputing */
     slen = strlen(str);
-    /* Translator gap: C `term = str + slen` is a pointer to the end
-       of str; subsequent `term - N` / `strcpy(s+N, ...)` use C
-       pointer-arith which in JS string-land would corrupt str via
-       concat.  The three branches singularize plural forms by
-       overwriting the trailing chars with shorter chars (strcpy
-       null-terminates so the tail is truncated):
-         vortices → vortex   (replace "ices" at s+4 with "ex\0")
-         <X>ies   → <X>y     (replace trailing "ies" with "y\0",
-                              unless it's "zombies" which keeps its
-                              plural treatment elsewhere)
-         <X>ves   → <X>f     (replace trailing "ves" with "f\0")
-       JS equivalent uses slice + concat to avoid pointer-arith. */
-    if (typeof str === 'string') {
-        const lc = str.toLowerCase();
-        const vIdx = lc.indexOf('vortices');
-        if (vIdx >= 0) {
-            str = str.slice(0, vIdx + 4) + 'ex';
-        } else if (slen > 3 && lc.slice(-3) === 'ies'
-                   && (slen < 7 || lc.slice(-7) !== 'zombies')) {
-            str = str.slice(0, -3) + 'y';
-        } else if (slen > 3 && lc.slice(-3) === 'ves') {
-            str = str.slice(0, -3) + 'f';
-        }
-    } else {
-        /* Translated path retains the original pointer-arith for the
-           char-array fallback used by callers that didn't go through
-           the JS string fast-path. */
-        term = str + slen;
-        if ((s = strstri(str, "vortices")) != null) {
-            strcpy(s + 4, "ex");
-        } else if (slen > 3 && !strncmpi((term - 3), ("ies"), -1) && (slen < 7 || strncmpi((term - 7), ("zombies"), -1))) {
-            strcpy(term - 3, "y");
-        } else if (slen > 3 && !strncmpi((term - 3), ("ves"), -1)) {
-            strcpy(term - 3, "f");
-        }
+    term = str + slen;
+    if ((s = strstri(str, "vortices")) != null) {
+        strcpy(s + 4, "ex");
+    } else if (slen > 3 && !strncmpi((term - 3), ("ies"), -1) && (slen < 7 || strncmpi((term - 7), ("zombies"), -1))) {
+        strcpy(term - 3, "y");
+    } else if (slen > 3 && !strncmpi((term - 3), ("ves"), -1)) {
+        strcpy(term - 3, "f");
     }
     slen = strlen(str);
 {
@@ -895,26 +864,7 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
             if (!strncmpi(str, namep.name, len) && (!str[len] || str[len] == 32 || str[len] == 39)) {
                 /* force full word (which could conceivably be possessive) */
                 if (remainder_p) {
-                    /* Translator gap: C `*remainder_p = in_str +
-                       (&str[len] - buf)` computes pointer-offset
-                       from buf start, then advances in_str by
-                       that offset (= len + leading-prefix-skip).
-                       Translator emitted `in_str + (str[len] - buf)`
-                       which is string + (char_code - array) = NaN
-                       concat producing "...NaN" — corrupts
-                       remainder_p.  Compute the slice offset
-                       directly from in_str's length minus the
-                       buf's remaining length at the match. */
-                    if (typeof in_str === 'string') {
-                        /* slen_remaining = strlen(str) - len: chars
-                           after the matched monster name in the
-                           normalized buf.  The same chars exist at
-                           in_str's tail. */
-                        const __slenRemaining = strlen(str) - len;
-                        remainder_p.value = in_str.slice(in_str.length - __slenRemaining);
-                    } else {
-                        remainder_p.value = in_str + (str[len] - buf);
-                    }
+                    remainder_p.value = in_str + (str[len] - buf);
                 }
                 if (gender_name_var) {
                     gender_name_var.value = namep.genderhint;
@@ -937,16 +887,7 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
                     matchgend = mgend;
                     exact_match = (1);
                     break;
-                /* Translator gap: C `str[m_i_len] == 32` (byte compare
-                   to ' ') doesn't work for JS strings — `str[N]` is a
-                   1-char STRING, and `'X' == 32` is false.  Use a
-                   char-code accessor that works for both string and
-                   array.  Without this, name_to_monplus failed to
-                   recognize "gray dragon" inside "gray dragon scale
-                   mail" (seed0360 wish "blessed +3 gray dragon scale
-                   mail" — div at rn2(67) C vs rn2(1) JS at
-                   rnd_otyp_by_namedesc). */
-                } else if (slen > m_i_len && (((typeof str === 'string') ? str.charCodeAt(m_i_len) : str[m_i_len]) == 32 || !strncmpi((str[m_i_len]), ("s"), -1) || !strncmpi(str[m_i_len], "s ", 2) || !strncmpi((str[m_i_len]), ("'"), -1) || !strncmpi(str[m_i_len], "' ", 2) || !strncmpi((str[m_i_len]), ("'s"), -1) || !strncmpi(str[m_i_len], "'s ", 3) || !strncmpi((str[m_i_len]), ("es"), -1) || !strncmpi(str[m_i_len], "es ", 3))) {
+                } else if (slen > m_i_len && (str[m_i_len] == 32 || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("s"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "s ", 2) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("'"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "' ", 2) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("'s"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "'s ", 3) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("es"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "es ", 3))) {
                     mntmp = i;
                     len = m_i_len;
                     matchgend = mgend;
@@ -962,17 +903,7 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
         mntmp = title_to_mon(str, null, { get value() { return len; }, set value(_v) { len = _v; } });
     }
     if (len && remainder_p) {
-        /* Translator gap (same as line 898 above): C `in_str +
-           (&str[len] - buf)` computes pointer-offset from buf start.
-           Translator emitted `in_str + (str[len] - buf)` which is
-           string + (char_code - array) = NaN concat.  Compute slice
-           offset directly from in_str's tail length. */
-        if (typeof in_str === 'string') {
-            const __slenRemaining = strlen(str) - len;
-            remainder_p.value = in_str.slice(in_str.length - __slenRemaining);
-        } else {
-            remainder_p.value = in_str + (str[len] - buf);
-        }
+        remainder_p.value = in_str + (str[len] - buf);
     }
     if (gender_name_var && matchgend != -1) {
         /* don't override with neuter if caller has already specified male
@@ -1228,6 +1159,7 @@ export function on_fire(mptr, mattk) {
 }
 /* similar to on_fire(); creature is summoned in a cloud of <something> */
 export function msummon_environ(mptr, cloud) {
+    let __nh_cloud_idx = 0;
     let what = null;
     let mndx = ((mptr.mlet == S_ANGEL) ? PM_ANGEL : (mptr.mlet == S_LIGHT) ? PM_YELLOW_LIGHT : ((mptr).pmidx));
     /* default is "cloud of <something>" */

@@ -945,7 +945,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                         /* if we match a key that begins with "~", skip
                        this entry */
                         chk_skip = (buf == 126) ? 1 : 0;
-                        if ((pass == 0 && pmatch(buf[chk_skip], dbase_str)) || (pass == 1 && alt && pmatch(buf[chk_skip], alt))) {
+                        if ((pass == 0 && pmatch({ get value() { return buf[chk_skip]; }, set value(_v) { buf[chk_skip] = _v; } }, dbase_str)) || (pass == 1 && alt && pmatch({ get value() { return buf[chk_skip]; }, set value(_v) { buf[chk_skip] = _v; } }, alt))) {
                             if (chk_skip) {
                                 skipping_entry = (1);
                                 continue;
@@ -1068,6 +1068,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
 /* output: pointer to 1st matching description */
 /* input/output: current description gets appended */
 export function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hit_trap, firstmatch, out_str) {
+    let __nh_firstmatch_idx = 0;
     let mbuf = null;
     let p = null;
     let absidx = abs(idx);
