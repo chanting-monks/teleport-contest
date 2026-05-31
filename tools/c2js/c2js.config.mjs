@@ -128,6 +128,8 @@ export const EXTERNAL_SYMBOLS = {
     delete_levelfile: 'js/c2js-runtime/levelfile.js',
 
     // libc <string.h> shims.
+    atoi:          'js/c2js-runtime/string.js',
+    atol:          'js/c2js-runtime/string.js',
     strcmp:        'js/c2js-runtime/string.js',
     strncmp:       'js/c2js-runtime/string.js',
     strcasecmp:    'js/c2js-runtime/string.js',

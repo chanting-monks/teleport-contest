@@ -135,6 +135,18 @@ if (typeof globalThis.atoi === 'undefined') {
 // auto-stub mechanism — needed once the engine starts calling
 // translated functions that transitively reference libc / save /
 // achievement helpers from untranslated TUs.
+//
+// Pre-install REAL implementations of libc helpers that translated
+// code references but doesn't import explicitly.  Without these,
+// installAutoStubs would replace them with `() => 0` no-ops.
+// atoi/atol are used by translated date.js (parse_str_to_date_time),
+// botl.js (s_to_anything numeric option values), and others —
+// returning 0 silently breaks date display and option parsing.
+{
+    const __libcShims = await import('./c2js-runtime/string.js');
+    if (typeof globalThis.atoi === 'undefined') globalThis.atoi = __libcShims.atoi;
+    if (typeof globalThis.atol === 'undefined') globalThis.atol = __libcShims.atol;
+}
 {
     const __thisDir = dirname(fileURLToPath(import.meta.url));
     installAutoStubs(join(__thisDir, 'translated'));
@@ -433,7 +445,26 @@ export async function newgame() {
                     g._cursor_override = { x: formatted.length + 1, y: 0 };
                     g._cursor_override_oneshot = true;
                 }
-                return readKeySync();
+                const __ynKey = readKeySync();
+                // readKeySync is synchronous and does NOT fire the
+                // preNhgetchHook, so the oneshot clearance for
+                // _cursor_override (which happens inside that hook)
+                // never runs.  If a downstream pline-driven sequence
+                // (e.g. prayer firing its begin / finish / displeased
+                // messages) accumulates before the next async nhgetch,
+                // the stale yn cursor stays in force when that nhgetch
+                // captures, mismatching C (which positions cursor at
+                // the end of the current --More-- topl line, not the
+                // prior yn prompt's tail).  Clear here once we have
+                // the key so the next flush_screen falls through to
+                // the standard --More-- / hero-position cursor logic.
+                // Added 2026-05-31 for seed0017 prayer cursor at step
+                // 47 (was JS [40,0] vs C [72,0]).
+                if (g._cursor_override_oneshot) {
+                    g._cursor_override = null;
+                    g._cursor_override_oneshot = false;
+                }
+                return __ynKey;
             };
         }
         // Translated functions that take direction input (doride,
@@ -2123,6 +2154,79 @@ async function post_turn_block(wtcap, did_per_iter_setup) {
     }
 }
 
+// One full C-style per-turn iteration: u.umovement decrement, the
+// monscanmove inner-loop with watchdog, per_iter_setup gated on
+// `!monscanmove && umovement < NORMAL_SPEED`, the moved-monster
+// display refresh, and finally post_turn_block.  Encapsulated so
+// the multi-turn-freeze atomic completion path can call it the same
+// number of times C's moveloop calls it when `multi < 0`.  Each
+// invocation must be re-entrant within one rhack-bounded
+// moveloop_core call: it relies only on the live g.* state and its
+// own locals.  Added 2026-05-31 for the multi-turn freeze fix
+// (§23.222f).
+async function runPerTurnIteration() {
+    const g = game;
+    g.u.umovement -= 12;
+    // Snapshot monster positions BEFORE movemon so we can refresh
+    // the display for cells the monsters left.
+    const __preMonPos = [];
+    if (g.level?.monlist) {
+        for (let __m = g.level.monlist; __m; __m = __m.nmon) {
+            __preMonPos.push({ m: __m, x: __m.mx, y: __m.my });
+        }
+    }
+    let wtcap_last = 0;
+    let __outer_iters = 0;
+    const __OUTER_LIMIT = 5;
+    let __per_iter_ran = false;
+    do {
+        if (++__outer_iters > __OUTER_LIMIT) break;
+        let monscanmove = 0;
+        do {
+            const rngSnap = snapshot_rng_state();
+            const logLen = g._rngLog?.length || 0;
+            g._movemon_watchdog = {
+                count: 0,
+                limit: MOVEMON_WATCHDOG_LIMIT,
+                deadline_ms: wallClockDeadline(MOVEMON_WATCHDOG_DEADLINE_MS),
+            };
+            try {
+                monscanmove = await movemon();
+            } catch (_e) {
+                restore_rng_state(rngSnap);
+                if (Array.isArray(g._rngLog) && g._rngLog.length > logLen) {
+                    g._rngLog.length = logLen;
+                }
+                monscanmove = 0;
+            } finally {
+                g._movemon_watchdog = null;
+            }
+            if (g.u.umovement >= 12) break;
+        } while (monscanmove);
+        if (!monscanmove && g.u.umovement < 12) {
+            try { wtcap_last = await per_iter_setup(); } catch (_e) {}
+            __per_iter_ran = true;
+        }
+    } while (g.u.umovement < 12);
+    // Refresh display cells for monsters that ACTUALLY moved or died.
+    try {
+        for (const __snap of __preMonPos) {
+            const __cell_owner = g.level?.monsters?.[__snap.x]?.[__snap.y];
+            if (__cell_owner === __snap.m) continue; // stationary
+            newsym(__snap.x, __snap.y);
+            if (__snap.m.mhp > 0) {
+                const __nx = __snap.m.mx, __ny = __snap.m.my;
+                if (typeof __nx === 'number' && typeof __ny === 'number'
+                    && __nx > 0 && __ny >= 0
+                    && (__nx !== __snap.x || __ny !== __snap.y)) {
+                    newsym(__nx, __ny);
+                }
+            }
+        }
+    } catch (_e) {}
+    try { await post_turn_block(wtcap_last, __per_iter_ran); } catch (_e) {}
+}
+
 // C ref: allmain.c moveloop_core()
 export async function moveloop_core() {
     const g = game;
@@ -2158,102 +2262,7 @@ export async function moveloop_core() {
     // restore the PRNG state and surface monscanmove=0 so the loop
     // terminates cleanly.
     if (g.context?.move) {
-        g.u.umovement -= 12;
-        // Snapshot monster positions BEFORE movemon so we can refresh
-        // the display for cells the monsters left.  C ref: in C, the
-        // gbuf cells under moved-away monsters are refreshed by
-        // various downstream paths (vision_recalc partial newsym pass,
-        // see_monsters when triggered, or the next user-command's
-        // hero-driven newsym sweep).  Our JS hand-port renderer reads
-        // `loc.disp_ch` from a cache that translated dog_move / m_move
-        // never touch — so without an explicit post-movemon refresh,
-        // the OLD cell still shows the monster glyph (e.g., pet 'd'
-        // stuck on water `~` in seed0700 steps 7+).  Refresh both the
-        // old and new positions via the hand-port newsym (no RNG side
-        // effects — just updates disp_ch).
-        const __preMonPos = [];
-        if (g.level?.monlist) {
-            for (let __m = g.level.monlist; __m; __m = __m.nmon) {
-                __preMonPos.push({ m: __m, x: __m.mx, y: __m.my });
-            }
-        }
-        let wtcap_last = 0;
-        // Safety cap on outer iterations.  For normal hero (mmove=12)
-        // outer iterates ONCE per command (u_calc_moveamt brings
-        // umovement back to 12).  For very slow hero or weird states,
-        // bound to 5 outer iters so we can't hang.
-        let __outer_iters = 0;
-        const __OUTER_LIMIT = 5;
-        // C ref allmain.c:222-389 — the if-gate body (mcalcdistress through
-        // multi<0 check) runs ONLY inside `if (!monscanmove && u.umovement <
-        // NORMAL_SPEED)`.  JS splits this into per_iter_setup (mcalcdistress
-        // through moves++) and post_turn_block (Glib/nh_timeout/regen/...
-        // dosounds/...wipe_engr).  For Fast hero (mmove>NORMAL_SPEED), some
-        // moveloop_core calls enter with umovement=NORMAL_SPEED, decrement
-        // to 0... wait, with umovement=24 going in, decrement to 12,
-        // movemon returns monscanmove=0, gate `!0 && 12<12=false` fails,
-        // per_iter_setup skipped.  C's if-gate also skips its body.  But
-        // JS's post_turn_block runs UNCONDITIONALLY, firing dosounds/
-        // gethungry/wipe_engr — RNG that C doesn't fire.  Track whether
-        // per_iter_setup ran this moveloop_core call and gate the
-        // post_turn_block body on it.  Only the seer_turn re-roll (which
-        // C also fires post-outer-do-while at allmain.c:414) stays
-        // unconditional.  See LEARNINGS §23.187.
-        let __per_iter_ran = false;
-        do {
-            if (++__outer_iters > __OUTER_LIMIT) break;
-            let monscanmove = 0;
-            do {
-                const rngSnap = snapshot_rng_state();
-                const logLen = g._rngLog?.length || 0;
-                g._movemon_watchdog = {
-                    count: 0,
-                    limit: MOVEMON_WATCHDOG_LIMIT,
-                    deadline_ms: wallClockDeadline(MOVEMON_WATCHDOG_DEADLINE_MS),
-                };
-                try {
-                    monscanmove = await movemon();
-                } catch (_e) {
-                    restore_rng_state(rngSnap);
-                    if (Array.isArray(g._rngLog) && g._rngLog.length > logLen) {
-                        g._rngLog.length = logLen;
-                    }
-                    monscanmove = 0;
-                } finally {
-                    g._movemon_watchdog = null;
-                }
-                if (g.u.umovement >= 12) break;
-            } while (monscanmove);
-            if (!monscanmove && g.u.umovement < 12) {
-                try { wtcap_last = await per_iter_setup(); } catch (_e) {}
-                __per_iter_ran = true;
-            }
-        } while (g.u.umovement < 12);
-        // Refresh display cells for monsters that ACTUALLY moved or
-        // died.  Check via `level.monsters[snap.x][snap.y] === snap.m`
-        // — if the monster is no longer at its snapshot position, it
-        // either moved or died.  Skip the refresh entirely when the
-        // monster is still at its original position (idempotent newsym
-        // is conceptually safe, but exposed seed0501 regressions we
-        // haven't fully diagnosed; conservative gate avoids them).
-        try {
-            for (const __snap of __preMonPos) {
-                const __cell_owner = g.level?.monsters?.[__snap.x]?.[__snap.y];
-                if (__cell_owner === __snap.m) continue; // stationary
-                newsym(__snap.x, __snap.y);
-                // Refresh new position only if monster is still alive
-                // and has valid coordinates.
-                if (__snap.m.mhp > 0) {
-                    const __nx = __snap.m.mx, __ny = __snap.m.my;
-                    if (typeof __nx === 'number' && typeof __ny === 'number'
-                        && __nx > 0 && __ny >= 0
-                        && (__nx !== __snap.x || __ny !== __snap.y)) {
-                        newsym(__nx, __ny);
-                    }
-                }
-            }
-        } catch (_e) {}
-        try { await post_turn_block(wtcap_last, __per_iter_ran); } catch (_e) {}
+        await runPerTurnIteration();
     }
 
     // Vision + display
@@ -2270,6 +2279,71 @@ export async function moveloop_core() {
     // captured screen on the NEXT iter shows THIS iter's pline
     // output, mirroring NetHack's topl-message lifecycle.
     await rhack(0);
+
+    // Multi-turn freeze atomic completion — §23.222f.  In C, when
+    // rhack's dispatch leaves `gm.multi < 0` (e.g. dopray's
+    // `nomul(-3)`), the moveloop's next N iterations RUN THE FULL
+    // per-turn block (movemon, mcalcdistress, mcalcmove,
+    // u_calc_moveamt's Fast rn2(3), settrack, moves++, Glib,
+    // nh_timeout, regen_hp's rn2(100), regen_pw, Teleportation /
+    // Polymorph / Lycanthropy turn-rolls, dosounds, gethungry,
+    // wipe_engr_roll, ...) while SKIPPING rhack (the rhack section
+    // is gated on `multi >= 0` in C — allmain.c:515,532).  After
+    // N=|multi| iterations, multi reaches 0, unmul fires the
+    // nomovemsg + the afternmv callback (prayer_done, *_off, etc.).
+    //
+    // Previously JS had the multi countdown INSIDE per_iter_setup
+    // gated only by the afternmv allowlist, and per_iter_setup
+    // runs ONCE per moveloop_core call — so multi ticked once per
+    // USER INPUT.  For seed0017 prayer that meant the begin /
+    // finish / displeased messages drifted 3 user inputs apart in
+    // JS instead of all queuing up in the same nhgetch-dmore drain
+    // as C.
+    //
+    // Atomic completion here calls runPerTurnIteration() in a
+    // bounded loop while multi<0, faithfully firing every rn2 call
+    // C would fire during the frozen turns.  Because the iteration
+    // body is the SAME translator-emitted machinery (per_iter_setup
+    // + post_turn_block + movemon), the PRNG sequence matches C's
+    // spread-across-iterations semantics.
+    //
+    // Allowlist is the same as per_iter_setup's __mtf_allow: only
+    // afternmv targets we've audited as safe to drive atomically.
+    // safety cap of 8 covers the largest known nomul depth (prayer
+    // is -3, takeoff is generally -1 to -3) with margin.
+    const __mtf_allow_atomic = (game.afternmv === prayer_done
+        || game.afternmv === Armor_off
+        || game.afternmv === Shield_off
+        || game.afternmv === Helmet_off
+        || game.afternmv === Gloves_off
+        || game.afternmv === Boots_off
+        || game.afternmv === Cloak_off
+        || game.afternmv === Shirt_off
+        || game.afternmv === Shirt_on
+        || game.afternmv === eatmdone);
+    let __mtf_safety = 8;
+    const __mtf_started = (game.multi || 0) < 0 && __mtf_allow_atomic;
+    while ((game.multi || 0) < 0 && __mtf_allow_atomic && __mtf_safety-- > 0) {
+        // C ref allmain.c:203 — per-turn block runs ONLY when
+        // svc.context.move is set.  dopray (and other multi-turn
+        // setters) leave context.move=1 across iterations during
+        // the freeze, so re-assert it here in case a code path
+        // cleared it between rhack and now.
+        g.context.move = 1;
+        await runPerTurnIteration();
+    }
+    // After the atomic freeze completes, clear context.move so the
+    // NEXT moveloop_core call's initial per-turn block doesn't fire
+    // an extra time.  In C the equivalent state — multi reached 0
+    // INSIDE iteration N's per-turn block — is followed by iter N's
+    // own rhack(0) reading the next user input and that dispatch
+    // (e.g. ' ' → "Unknown command") clears context.move; subsequent
+    // iters with context.move=0 skip the block.  My loop subsumed
+    // iters 2..N of the per-turn block but left context.move=1
+    // dangling because the rhack at the end of THIS moveloop_core
+    // call already ran (consuming 'y', not ' ').  Clearing here
+    // mirrors what C's dispatch of the post-freeze input would do.
+    if (__mtf_started) g.context.move = 0;
 
     // C ref allmain.c:538 — after rhack, if `u.utotype` (level-
     // transition flags set by schedule_goto) is non-zero, fire

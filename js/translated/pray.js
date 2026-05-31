@@ -2284,8 +2284,20 @@ export function align_gname(alignment) {
             gnam = "someone";
             break;
     }
-    if (gnam == 95) {
-        ++gnam;
+    /* Translator gap: C `if (*gnam == '_') ++gnam;` strips the
+       leading underscore that NetHack uses to mark proper-noun
+       deity names (lgod="_Amaterasu Omikami" etc.) so they print
+       without an article.  Translator emitted `gnam == 95` (the
+       ASCII code for '_') comparing the whole string to a number
+       (always false), and `++gnam` is a no-op on a string.  Hand-
+       patched 2026-05-31 for seed0017 prayer rendering. */
+    if (typeof gnam === 'string' && gnam.charCodeAt(0) === 95) {
+        gnam = gnam.slice(1);
+    } else if (Array.isArray(gnam) && gnam[0] === 95) {
+        let __i = 1;
+        let __s = '';
+        for (; __i < gnam.length && gnam[__i]; __i++) __s += String.fromCharCode(gnam[__i]);
+        gnam = __s;
     }
     return gnam;
 }
@@ -2347,8 +2359,20 @@ export function halu_gname(alignment) {
         impossible("No random god name?");
         gnam = "your Friend the Computer";
     }
-    if (gnam == 95) {
-        ++gnam;
+    /* Translator gap: C `if (*gnam == '_') ++gnam;` strips the
+       leading underscore that NetHack uses to mark proper-noun
+       deity names (lgod="_Amaterasu Omikami" etc.) so they print
+       without an article.  Translator emitted `gnam == 95` (the
+       ASCII code for '_') comparing the whole string to a number
+       (always false), and `++gnam` is a no-op on a string.  Hand-
+       patched 2026-05-31 for seed0017 prayer rendering. */
+    if (typeof gnam === 'string' && gnam.charCodeAt(0) === 95) {
+        gnam = gnam.slice(1);
+    } else if (Array.isArray(gnam) && gnam[0] === 95) {
+        let __i = 1;
+        let __s = '';
+        for (; __i < gnam.length && gnam[__i]; __i++) __s += String.fromCharCode(gnam[__i]);
+        gnam = __s;
     }
     return gnam;
 }
