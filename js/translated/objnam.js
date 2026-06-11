@@ -2871,8 +2871,19 @@ export function makesingular(oldstr) {
         bp = strcpy(str, oldstr);
         if ((p = singplur_compound(bp)) != null) {
             /* check for "foo of bar" so that we can focus on "foo" */
-            excess = oldstr + (p - bp);
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+            /* C: excess = oldstr + (p - bp); *p = '\0' — split the
+               compound at p.  In JS, p is a suffix of bp, so the
+               offset is strlen(bp) - strlen(p); the emitted
+               string-minus-string was NaN, making excess
+               "<oldstr>NaN" and the tail's strcat rebuild bp as
+               bp+bp+NaN — every "X of Y" wish (amulet of life
+               saving, ring of conflict, ...) corrupted its own
+               lookup string and failed (Q9 iter 60, seed0360
+               wish #3). */
+            const __off = strlen(bp) - strlen(p);
+            excess = __nh_advance_str(oldstr, __off);
+            bp = (typeof bp === 'string') ? bp.slice(0, __off) : bp;
+            p = __nh_advance_str(bp, strlen(bp));
         } else {
             p = eos(bp);
         }
