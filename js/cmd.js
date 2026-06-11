@@ -2331,15 +2331,15 @@ export async function rhack(key) {
         //     create/open/delete_levelfile (iteration 43) complete
         //     the schedule_goto -> goto_level -> mklev -> getbones
         //     chain.
-        // GATED OFF pending savelev/getlev (Q9 iter 44 finding): with
-        // the bridge live, every level REVISIT regenerates the level
-        // from scratch (level save/restore is still autostubbed), so
-        // heavy-teleport sessions explode (seed0361: 24 ^Vs, seed4500:
-        // 27 — both ETIMEDOUT at 10x C's call count).  Set
-        // NH_WIZLEVELPORT=1 to develop against it.
-        const __wlp_on = (typeof process !== 'undefined' && process.env?.NH_WIZLEVELPORT);
+        // UNGATED (Q9 iter 57): the iter-44 blocker — every revisit
+        // regenerated the level, ETIMEDOUTing heavy-teleport sessions
+        // — was the savelev/getlev stash + open_levelfile fixes
+        // (iters 54-55).  Ungated preview vs gated: P 134991 →
+        // 195964 (+60,973, 17.03% → 24.72%), S 850 → 861, full
+        // 792838 denominator (no timeouts), no per-session
+        // regressions.
         let res = 0;
-        if (!game.flags?.debug || !__wlp_on) {
+        if (!game.flags?.debug) {
             try { res = (await t_wiz_level_tele()) || 0; } catch (_e) {
                 if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message);
             }

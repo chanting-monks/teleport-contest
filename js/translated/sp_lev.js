@@ -3223,7 +3223,13 @@ export function find_objtype(L, s, oclass) {
                 let p = __find_objtype_class_prefixes[i].prefix;
                 if (!strncmpi(s, p, strlen(p))) {
                     class_ = __find_objtype_class_prefixes[i].class;
-                    s = s + strlen(p);
+                    /* C: s += strlen(p) — advance past the prefix;
+                       string + number CONCATENATES in JS, so
+                       "scroll of scare monster" became garbage and
+                       every prefixed object name threw "Unknown
+                       object id" (Q9 iter 56, soko prize closet's
+                       scare scroll). */
+                    s = s.slice(strlen(p));
                     break;
                 }
             }
@@ -3297,7 +3303,9 @@ export async function lspo_object(L) {
     if (argc == 1 && lua_type(L, 1) == 4) {
         let paramstr = luaL_checkstring(L, 1);
         if (strlen(paramstr) == 1) {
-            tmpobj.class = paramstr;
+            /* C: tmpobj.class = (int) *paramstr — char code (same
+               class-string emit bug as get_table_objclass). */
+            tmpobj.class = __nh_char_at0(paramstr);
             tmpobj.id = STRANGE_OBJECT;
         } else {
             tmpobj.class = -1;
@@ -3307,7 +3315,9 @@ export async function lspo_object(L) {
         let paramstr = luaL_checkstring(L, 1);
         get_coord(L, 2, { get value() { return ox; }, set value(_v) { ox = _v; } }, { get value() { return oy; }, set value(_v) { oy = _v; } });
         if (strlen(paramstr) == 1) {
-            tmpobj.class = paramstr;
+            /* C: tmpobj.class = (int) *paramstr — char code (same
+               class-string emit bug as get_table_objclass). */
+            tmpobj.class = __nh_char_at0(paramstr);
             tmpobj.id = STRANGE_OBJECT;
         } else {
             tmpobj.class = -1;
@@ -3318,7 +3328,9 @@ export async function lspo_object(L) {
         ox = luaL_checkinteger(L, 2);
         oy = luaL_checkinteger(L, 3);
         if (strlen(paramstr) == 1) {
-            tmpobj.class = paramstr;
+            /* C: tmpobj.class = (int) *paramstr — char code (same
+               class-string emit bug as get_table_objclass). */
+            tmpobj.class = __nh_char_at0(paramstr);
             tmpobj.id = STRANGE_OBJECT;
         } else {
             tmpobj.class = -1;

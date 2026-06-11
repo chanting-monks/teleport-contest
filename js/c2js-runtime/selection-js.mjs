@@ -273,15 +273,24 @@ export class Selection {
     }
 
     static set(s, x, y) {
+        // C ref nhlsel.c l_selection_setpoint: coords ALWAYS run
+        // through get_location_coord(ANY_LOC, croom, PACK); a
+        // missing (x,y) packs SP_COORD_PACK_RANDOM(0) -- ONE random
+        // location (rn2-rolling), NOT "set all points" (the old
+        // wrapper filled all 1680 cells, and stored given coords
+        // RAW without the xstart/ystart conversion -- soko1-1's
+        // prize spot landed at the (78,20) clamp; Q9 iter 56).
         const sv = ((s && s.sv) || s);
-        if (x === undefined && y === undefined) {
-            // Lua's `selection.set(s)` with no x,y sets all points.
-            for (let xi = 0; xi < 80; xi++) for (let yi = 0; yi < 21; yi++) {
-                selection_setpoint(xi, yi, sv, 1);
-            }
-        } else {
-            selection_setpoint(x | 0, y | 0, sv, 1);
-        }
+        const g = globalThis.__nh_gameRef || globalThis.game;
+        const coder = g && g.coder;
+        const croom = (coder && typeof coder.n_subroom === 'number') ? coder.croom : null;
+        const xb = { value: (x === undefined ? -1 : (x | 0)) };
+        const yb = { value: (y === undefined ? -1 : (y | 0)) };
+        const crd = (xb.value === -1 && yb.value === -1)
+            ? 0x01000000 /* SP_COORD_PACK_RANDOM(0) */
+            : ((xb.value & 255) + ((yb.value & 255) << 16));
+        get_location_coord(xb, yb, 16 /* ANY_LOC */, croom || null, crd);
+        selection_setpoint(xb.value, yb.value, sv, 1);
         selection_recalc_bounds(sv);
         return new Selection(sv);
     }

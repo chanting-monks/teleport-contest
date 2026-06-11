@@ -431,6 +431,9 @@ export function losedogs() {
 }
 /* called from resurrect() in addition to losedogs() */
 export function mon_arrive(mtmp, when) {
+    if (typeof process !== 'undefined' && process.env?.NH_PETPROBE) {
+        console.warn('[mon_arrive]', 'uz=', JSON.stringify(game.u.uz), 'mon=', mtmp?.data?.pmidx, 'tame=', mtmp?.mtame, 'when=', when);
+    }
     let t = null;
     let xlocale = 0;
     let ylocale = 0;
