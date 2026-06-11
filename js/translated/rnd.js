@@ -22,6 +22,7 @@ import { game } from '../gstate.js';
 import { abs, sgn } from '../c2js-runtime/math.js';
 import { panic } from '../c2js-runtime/panic.js';
 import { isaac64_init } from '../c2js-runtime/rng.js';
+import { __nh_char_write } from '../c2js-runtime/string.js';
 import { isaac64_next_uint64 } from '../isaac64.js';
 
 // struct rnglist_t: { fn, init, rng_state }
@@ -39,15 +40,15 @@ export function whichrng(fn) {
     }
     return -1;
 }
-export function init_isaac64(seed, fn) {
-    let new_rng_state = [0, 0, 0, 0, 0, 0, 0, 0];
+export async function init_isaac64(seed, fn) {
+    let new_rng_state = '';
     let i = 0;
     let rngindx = whichrng(fn);
     if (rngindx < 0) {
-        panic("Bad rng function passed to init_isaac64().");
+        await panic("Bad rng function passed to init_isaac64().");
     }
     for (i = 0; i < 8 /* sizeof(unsigned long) */; i++) {
-        new_rng_state[i] = (seed & 255);
+        new_rng_state = __nh_char_write(new_rng_state, i, (seed & 255));
         seed >>= 8;
     }
     isaac64_init(game.rnglist[rngindx].rng_state, new_rng_state, 8 /* sizeof(unsigned long) */);
@@ -224,8 +225,8 @@ export function rnz(i) {
 }
 
 /* Sets the seed for the random number generator */
-export function set_random(seed, fn) {
-    init_isaac64(seed, fn);
+export async function set_random(seed, fn) {
+    await init_isaac64(seed, fn);
 }
 /* USE_ISAAC64 */
 /*ARGSUSED*/
@@ -245,15 +246,13 @@ export function set_random(seed, fn) {
  * Initializes the random number generator.
  * Only call once.
  */
-export function init_random(fn) {
-    set_random(sys_random_seed(), fn);
+export async function init_random(fn) {
+    await set_random(sys_random_seed(), fn);
 }
 /* Reshuffles the random number generator. */
-export function reseed_random(fn) {
-    /* only reseed if we are certain that the seed generation is unguessable
-    * by the players. */
+export async function reseed_random(fn) {
     if (game.has_strong_rngseed) {
-        init_random(fn);
+        await init_random(fn);
     }
 }
 /* randomize the given list of numbers  0 <= i < count */
@@ -271,3 +270,5 @@ export function shuffle_int_array(indices, count) {
     }
 }
 /*rnd.c*/
+/* only reseed if we are certain that the seed generation is unguessable
+    * by the players. */

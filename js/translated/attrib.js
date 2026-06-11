@@ -8,7 +8,7 @@ import { abs, sgn } from '../c2js-runtime/math.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, Your, pline, pline_The } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcmp, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, nh_strchr_truncate, strcmp, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { confers_luck, is_art, retouch_equipment, what_gives } from './artifact.js';
 import { c_common_strings } from './decl.js';
 import { see_monsters, shieldeff } from './display.js';
@@ -179,7 +179,7 @@ export function losestr(num, knam, k_format) {
         dmg += amt;
     }
     if (dmg) {
-        if (!knam || !knam.value) {
+        if (!knam || !__nh_char_at0(knam)) {
             /* in case damage is fatal and caller didn't supply killer reason */
             knam = "terminal frailty";
             k_format = 1;
@@ -253,9 +253,9 @@ export function poisoned(reason, typ, pkiller, fatal, thrown_weapon) {
         /* inform player about being poisoned unless that's already been done;
        "blast" has given a "blast of poison gas" message; "poison arrow",
        "poison dart", etc have implicitly given poison messages too... */
-        let plural = (reason[strlen(reason) - 1] == 115) ? 1 : 0;
+        let plural = (__nh_char_at0(__nh_advance_str(reason, strlen(reason) - 1)) == 115) ? 1 : 0;
         /* avoid "The" Orcus's sting was poisoned... */
-        pline("%s%s %s poisoned!", ((__ctype_b_loc())[((reason.value))] & _ISupper) ? "" : "The ", reason, plural ? "were" : "was");
+        pline("%s%s %s poisoned!", ((__ctype_b_loc())[((__nh_char_at0(reason)))] & _ISupper) ? "" : "The ", reason, plural ? "were" : "was");
     }
     if ((game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic)) {
         if (blast) {
@@ -798,10 +798,10 @@ export function is_innate(propidx) {
     return 0;
 }
 /* special cases can have negative values */
-let __from_what_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __from_what_buf = '';
 const __from_what_because_of = " because of %s";
 export function from_what(propidx) {
-    __from_what_buf[0] = 0;
+    __from_what_buf = '';
     if (game.flags.debug) {
         if (propidx >= 0) {
             /*

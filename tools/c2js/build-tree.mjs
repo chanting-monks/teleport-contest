@@ -28,6 +28,7 @@ import { join, basename } from 'node:path';
 import { parseCFile } from './parser.mjs';
 import { translateUnit } from './translate.mjs';
 import { computeAsyncClosure, tracePath } from './async-closure.mjs';
+import { FORCED_SCALAR_PTR_PARAMS } from './c2js.config.mjs';
 
 // Walk every node in the TU and collect RecordDecls (struct
 // definitions) into `out` Map<structName, fields[]>.  fields are
@@ -47,23 +48,67 @@ function collectAllStructs(node, out, typedefAliases = new Map(), state = { curr
     if (!node || typeof node !== 'object') return;
     if (node.loc?.file) state.currentFile = node.loc.file;
     if (node.kind === 'RecordDecl' && node.completeDefinition) {
+        // Fields with NESTED-anonymous synthesis (Q9 iteration 19):
+        // an anonymous member RecordDecl is immediately followed by
+        // its FieldDecl within this record's children; register the
+        // nested shape under a synthetic per-id key and point the
+        // field's type at it (hack.h lev_region's inarea/delarea).
         const fields = [];
+        let lastAnonKey = null;
         for (const c of node.inner || []) {
-            if (c.kind === 'FieldDecl' && c.name) {
-                fields.push({ name: c.name, type: c.type?.qualType || '' });
+            if (c.kind === 'RecordDecl' && c.completeDefinition && !c.name) {
+                lastAnonKey = `__anon_syn:${c.id}`;
+                // nested fields are collected by the recursive walk
+                // below registering the child under its own keys; the
+                // direct shape is also needed here:
+                const sub = [];
+                for (const cc of c.inner || []) {
+                    if (cc.kind === 'FieldDecl' && cc.name) {
+                        sub.push({ name: cc.name, type: cc.type?.qualType || '' });
+                    }
+                }
+                if (!out.has(lastAnonKey)) out.set(lastAnonKey, sub);
+            } else if (c.kind === 'FieldDecl' && c.name) {
+                let ftype = c.type?.qualType || '';
+                if (lastAnonKey && /\((?:anonymous|unnamed)/.test(ftype)
+                    && !/[*\[]/.test(ftype)) {
+                    ftype = lastAnonKey;
+                    lastAnonKey = null;
+                }
+                fields.push({ name: c.name, type: ftype });
             }
         }
         if (node.name && !out.has(node.name)) {
             out.set(node.name, fields);
-        } else if (!node.name && state.currentFile && node.loc?.line && node.loc?.col) {
-            const key = `__anon:${state.currentFile}:${node.loc.line}:${node.loc.col}`;
-            if (!out.has(key)) out.set(key, fields);
+        } else if (!node.name) {
+            const synKey = `__anon_syn:${node.id}`;
+            if (!out.has(synKey)) out.set(synKey, fields);
+            if (state.currentFile && node.loc?.line && node.loc?.col) {
+                const key = `__anon:${state.currentFile}:${node.loc.line}:${node.loc.col}`;
+                if (!out.has(key)) out.set(key, fields);
+            }
         }
     }
     if (node.kind === 'TypedefDecl' && node.name) {
         const t = (node.type?.qualType || '').replace(/^(const|volatile|restrict|_Atomic)\s+/, '');
-        const m = t.match(/^struct\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/);
+        const m = t.match(/^(?:struct|union)\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/);
         if (m) typedefAliases.set(node.name, m[1]);
+        // typedef of an ANONYMOUS struct — pair via the
+        // ElaboratedType's ownedTagDecl id (clang names the record
+        // after its typedef in qualType, so the tag alias above
+        // points at a never-registered name).  Alias BOTH the
+        // typedef name and the synthesized tag.
+        const owned = (node.inner || []).find(
+            (c) => c.ownedTagDecl?.id)?.ownedTagDecl?.id;
+        if (owned) {
+            const synKey = `__anon_syn:${owned}`;
+            if (m && !out.has(m[1])) {
+                typedefAliases.set(node.name, synKey);
+                typedefAliases.set(m[1], synKey);
+            } else if (!m) {
+                typedefAliases.set(node.name, synKey);
+            }
+        }
     }
     const savedFile = state.currentFile;
     for (const child of node.inner || []) collectAllStructs(child, out, typedefAliases, state);
@@ -156,14 +201,68 @@ function evalConstExpr(node, scope) {
 export function collectScalarPtrParams(node, out, integerTypedefAliases = null) {
     if (!node || typeof node !== 'object') return;
     if (node.kind === 'FunctionDecl' && node.name) {
-        if (!out.has(node.name)) {
-            const indices = [];
-            const params = (node.inner || []).filter((n) => n.kind === 'ParmVarDecl');
-            params.forEach((p, i) => {
-                if (isScalarPtrType(p.type?.qualType || '', integerTypedefAliases)) indices.push(i);
-            });
-            if (indices.length) out.set(node.name, indices);
+        // Always prefer the DEFINITION (CompoundStmt body) over a
+        // forward decl from a header.  Forward decls can only do the
+        // type-only check; the body lets us additionally demote walker
+        // params via functionWritesViaParam.  Track which entries came
+        // from a definition so forward decls don't overwrite the
+        // (more accurate) definition analysis.  Use a sentinel symbol
+        // attached to the map.
+        const hasBody = (node.inner || []).some((n) => n.kind === 'CompoundStmt');
+        if (!out.__defined) out.__defined = new Set();
+        if (!hasBody && out.__defined.has(node.name)) return; // definition wins
+        const indices = [];
+        const params = (node.inner || []).filter((n) => n.kind === 'ParmVarDecl');
+        // §23.228 — Forced-outparam allowlist (FORCED_SCALAR_PTR_PARAMS).
+        // For functions that write through a param via a function-
+        // pointer dispatch (sfo_*/sfi_* families), the body scanner
+        // can't see the write.  Skip the writesViaParam check for the
+        // listed arg indices so the param is correctly classified as
+        // a scalar-ptr outparam and callsites wrap `&local` with the
+        // {get value/set value} ref-cell.
+        const forced = FORCED_SCALAR_PTR_PARAMS.get(node.name);
+        params.forEach((p, i) => {
+            if (!isScalarPtrType(p.type?.qualType || '', integerTypedefAliases)) return;
+            // Demote `char *p` (non-const) params that the body never
+            // writes through via `*p = X`.  These are walker params
+            // (eos, findword-style) — read-only access where the
+            // scalar-ptr-param treatment produces `p.value` emit
+            // that's broken for JS-string / char-array callsites.
+            // Without writes through p, the param cannot be a true
+            // outparam regardless of type, and A1 can then fire with
+            // the correct `__nh_char_at0(p)` emit.  Added 2026-05-31
+            // (§23.222bb) following the §23.222ba const-pointee bypass
+            // fix — same class of bug: type-only classification
+            // misclassifying walker params.
+            const qt = (p.type?.qualType || '').trim();
+            const isCharPtr = /^(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(qt);
+            if (hasBody && p.name && isCharPtr
+                && !functionWritesViaParam(node, p.name)
+                && !(forced && forced.has(i))) {
+                return;
+            }
+            indices.push(i);
+        });
+        // Add any forced indices that weren't already captured (e.g.
+        // params that didn't pass isScalarPtrType because of
+        // unusual typedefs — listing them in FORCED_SCALAR_PTR_PARAMS
+        // is the explicit override.)
+        if (forced) {
+            for (const fIdx of forced) {
+                if (!indices.includes(fIdx) && fIdx < params.length) {
+                    indices.push(fIdx);
+                }
+            }
+            indices.sort((a, b) => a - b);
         }
+        if (indices.length) {
+            out.set(node.name, indices);
+        } else if (hasBody && out.has(node.name)) {
+            // Body says no scalar-ptr params; clear any stale forward-
+            // decl entry (so it doesn't outvote the definition).
+            out.delete(node.name);
+        }
+        if (hasBody) out.__defined.add(node.name);
         return; // don't recurse into the body — params are at the top
     }
     for (const child of node.inner || []) collectScalarPtrParams(child, out, integerTypedefAliases);
@@ -214,7 +313,22 @@ function functionHasCastedScalarAlias(fnNode, integerTypedefAliases = null) {
         if (!n || aliasedParam) return;
         if (n.kind === 'VarDecl' && n.name) {
             // Check that the var's type is a scalar pointer.
-            const vt = (n.type?.qualType || '').replace(/^const\s+/, '').trim();
+            // NOTE: do NOT strip leading `const` from the qualType
+            // before the check.  `const char *p` is "mutable pointer
+            // to const char", and its pointee-const means the value
+            // can never be written through — it can't be a scalar-
+            // ptr outparam alias.  The previous code stripped the
+            // leading const which turned `const char *` into
+            // `char *`, matching the scalar-ptr-accept list and
+            // incorrectly registering the LOCAL as a casted alias
+            // of the param.  This propagated to collectCastedAliasParams
+            // adding the param's index to crossTuScalarPtrParams,
+            // overriding the const-pointee exclusion landed in
+            // isScalarPtrType (§23.222h Phase A1).  Verified 2026-05-31:
+            // `findword`'s `const char *p = list;` was incorrectly
+            // making `list` a scalar-ptr-param.  Direct qualType
+            // check preserves the exclusion.
+            const vt = (n.type?.qualType || '').trim();
             if (isScalarPtrType(vt, integerTypedefAliases)) {
                 // Check that the initializer is a CStyleCastExpr to that
                 // type, with a parameter DeclRef inside.
@@ -391,7 +505,26 @@ function isStructPtrType(t) {
 
 function isScalarPtrType(t, integerTypedefAliases = null) {
     if (!t) return false;
-    let s = t.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
+    // Pointed-to type is const-qualified (e.g. `const char *p` — the
+    // leading `const` attaches to the POINTEE, not the pointer).  C
+    // semantics forbid writing through this pointer, so it can NEVER
+    // be an outparam — the `{value: X}` wrapping at callsites +
+    // `p.value` deref in the body would be wrong for callers that
+    // pass JS strings or char[] arrays.  Excluding here routes such
+    // reads to the translator's `*p`-on-char-ptr-local branch in
+    // translate.mjs which emits `__nh_char_at0(p)`, handling strings,
+    // arrays, and any genuine `{value}` wrappers uniformly.
+    //
+    // Detection is structural: a leading `const T *` form has `const`
+    // before the type-name (which contains no `*`), then a `*`.
+    // Pointer-qualifier const like `T *const` is NOT matched (it has
+    // `const` AFTER the `*`) — that form remains a writable outparam.
+    //
+    // Added 2026-05-31 alongside Phase A1's `__nh_char_at0` runtime
+    // helper.
+    const trimmed = t.trim();
+    if (/^const\s+[^*]+\*/.test(trimmed)) return false;
+    let s = trimmed.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();
     if (!/\*\s*$/.test(s)) return false;
     s = s.replace(/\*\s*$/, '').trim();
     s = s.replace(/^(const|volatile|restrict|_Atomic)\s+/, '').trim();

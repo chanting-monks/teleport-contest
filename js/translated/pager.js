@@ -11,8 +11,8 @@ import { abs } from '../c2js-runtime/math.js';
 import { free, memcpy } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { cmd_from_func, cmdname_from_func, cmdq_clear, cmdq_pop, do_reqmenu, doextlist, dokeylist, getdir, isok, key2extcmddesc, key2txt, yn_function } from './cmd.js';
 import { db_under_typ, is_drawbridge_wall, is_lava, is_pool } from './dbridge.js';
 import { c_common_strings, cg, ynchars } from './decl.js';
@@ -93,26 +93,26 @@ export function append_str(buf, new_str) {
 }
 /* shared by monster probing (via query_objlist!) as well as lookat() */
 export function self_lookat(outbuf) {
-    let race = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let trapbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let race = '';
+    let trapbuf = '';
     /* include race with role unless polymorphed */
-    race[0] = 0;
+    race = '';
     if (!(game.u.umonnum != game.u.umonster)) {
         race = sprintf(race, "%s ", game.urace.adj);
     }
     outbuf = sprintf(outbuf, "%s%s%s called %s", (((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && (((game.u.uprops[TELEPAT].extrinsic) || (game.u.uprops[DETECT_MONSTERS].intrinsic || game.u.uprops[DETECT_MONSTERS].extrinsic)) || !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked))) ? "invisible " : "", race, pmname(game.mons[game.u.umonnum], (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname);
     if (game.u.usteed) {
-        outbuf = (outbuf || '') + sprintf('', ", mounted on %s", y_monnam(game.u.usteed));
+        outbuf = __nh_buf_append(outbuf, sprintf('', ", mounted on %s", y_monnam(game.u.usteed)));
     }
     if (game.u.uundetected || ((game.u.umonnum != game.u.umonster) && (game.youmonst.m_ap_type & 7)) || visible_region_at(game.u.ux, game.u.uy)) {
         mhidden_description(game.youmonst, 1 | 2 | 8, eos(outbuf));
     }
     if ((game.uball != null)) {
-        outbuf = (outbuf || '') + sprintf('', ", chained to %s", game.uball ? ansimpleoname(game.uball) : "nothing?");
+        outbuf = __nh_buf_append(outbuf, sprintf('', ", chained to %s", game.uball ? ansimpleoname(game.uball) : "nothing?"));
     }
     /* bear trap, pit, web, in-floor, in-lava, tethered */
     if (game.u.utrap) {
-        outbuf = (outbuf || '') + sprintf('', ", %s", trap_predicament(trapbuf, 0, (0)));
+        outbuf = __nh_buf_append(outbuf, sprintf('', ", %s", trap_predicament(trapbuf, 0, (0))));
     }
     return outbuf;
 }
@@ -224,7 +224,7 @@ export function mhidden_description(mon, mhid_flags, outbuf) {
                 outbuf = strcat(outbuf, c_common_strings.c_something);
             }
         } else if ((((mon.data).mflags1 & 256) != 0)) {
-            outbuf = (outbuf || '') + sprintf('', " on the %s", ((((mon.data).mflags1 & 256) != 0) && (((((mon.data).mflags1 & 16) != 0) && (mon.data).mlet != S_MIMIC) || (((mon.data).mflags1 & 1) != 0))) ? "ceiling" : surface(x, y));
+            outbuf = __nh_buf_append(outbuf, sprintf('', " on the %s", ((((mon.data).mflags1 & 256) != 0) && (((((mon.data).mflags1 & 16) != 0) && (mon.data).mlet != S_MIMIC) || (((mon.data).mflags1 & 1) != 0))) ? "ceiling" : surface(x, y)));
         } else {
             if (mon.data.mlet == S_EEL && is_pool(x, y)) {
                 outbuf = strcat(outbuf, " in murky water");
@@ -373,8 +373,8 @@ export function look_at_object(buf, x, y, glyph) {
 /* buf: output, monbuf: optional output */
 export function look_at_monster(buf, monbuf, mtmp, x, y) {
     let name = null;
-    let monnambuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let healthbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let monnambuf = '';
+    let healthbuf = '';
     let accurate = !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic));
     name = (mtmp.data == game.mons[PM_COYOTE] && accurate) ? coyotename(mtmp, monnambuf) : distant_monnam(mtmp, 0, monnambuf);
     buf = sprintf(buf, "%s%s%s%s", (mtmp.mx != x || mtmp.my != y) ? ((mtmp.isshk && accurate) ? "tail of " : "tail of a ") : "", accurate ? monhealthdescr(mtmp, (1), healthbuf) : "", (mtmp.mtame && accurate) ? "tame " : (mtmp.mpeaceful && accurate) ? "peaceful " : "", name);
@@ -406,7 +406,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
         let t = t_at(mtmp.mx, mtmp.my);
         let tt = t ? t.ttyp : NO_TRAP;
         if (tt == BEAR_TRAP || ((tt) == PIT || (tt) == SPIKED_PIT) || tt == WEB) {
-            buf = (buf || '') + sprintf('', ", trapped in %s", an(trapname(tt, (0))));
+            buf = __nh_buf_append(buf, sprintf('', ", trapped in %s", an(trapname(tt, (0)))));
             /* newsym lets you know of the trap, so mention it here */
             t.tseen = 1;
         }
@@ -418,7 +418,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
     }
     if (monbuf) {
         let how_seen = howmonseen(mtmp);
-        monbuf[0] = 0;
+        monbuf = __nh_char_write(monbuf, 0, 0);
         if (how_seen != 0 && how_seen != 1) {
             if (how_seen & 1) {
                 monbuf = strcat(monbuf, "normal vision");
@@ -470,7 +470,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
                     let mW = (game.context.warntype.obj | game.context.warntype.polyd);
                     let m2 = mtmp.data.mflags2;
                     let whom = ((mW & 8 & m2) ? "human" : (mW & 16 & m2) ? "elf" : (mW & 128 & m2) ? "orc" : (mW & 256 & m2) ? "demon" : pmname(mtmp.data, Mgender(mtmp)));
-                    monbuf = (monbuf || '') + sprintf('', "warned of %s", makeplural(whom));
+                    monbuf = __nh_buf_append(monbuf, sprintf('', "warned of %s", makeplural(whom)));
                 }
                 how_seen &= ~64;
                 if (how_seen) {
@@ -480,7 +480,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
             if (how_seen) {
                 /* should have used up all the how_seen bits by now */
                 impossible("lookat: unknown method of seeing monster");
-                monbuf = (monbuf || '') + sprintf('', "(%u)", how_seen);
+                monbuf = __nh_buf_append(monbuf, sprintf('', "(%u)", how_seen));
             }
         }
     }
@@ -488,7 +488,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
 /* describe a pool location's contents; might return a static buffer so
    caller should use it or copy it before calling waterbody_name() again
    [5.0: moved here from mkmaze.c] */
-let __waterbody_name_pooltype = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __waterbody_name_pooltype = '';
 export function waterbody_name(x, y) {
     let ltyp = 0;
     let hallucinate = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !game.program_state.gameover;
@@ -497,20 +497,20 @@ export function waterbody_name(x, y) {
     }
     ltyp = ((game.level.locations[x][y].typ == DRAWBRIDGE_UP) ? db_under_typ(game.level.locations[x][y].flags) : game.level.locations[x][y].typ);
     if (ltyp == LAVAPOOL) {
-        nh_snprintf("waterbody_name", 572, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "molten %s", hliquid("lava"));
+        __waterbody_name_pooltype = nh_snprintf("waterbody_name", 572, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "molten %s", hliquid("lava"));
         return __waterbody_name_pooltype;
     } else if (ltyp == ICE) {
         if (!hallucinate) {
             return "ice";
         }
-        nh_snprintf("waterbody_name", 577, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "frozen %s", hliquid("water"));
+        __waterbody_name_pooltype = nh_snprintf("waterbody_name", 577, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "frozen %s", hliquid("water"));
         return __waterbody_name_pooltype;
     } else if (ltyp == POOL) {
-        nh_snprintf("waterbody_name", 580, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "pool of %s", hliquid("water"));
+        __waterbody_name_pooltype = nh_snprintf("waterbody_name", 580, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "pool of %s", hliquid("water"));
         return __waterbody_name_pooltype;
     } else if (ltyp == MOAT) {
         if (hallucinate) {
-            nh_snprintf("waterbody_name", 585, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "deep %s", hliquid("water"));
+            __waterbody_name_pooltype = nh_snprintf("waterbody_name", 585, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "deep %s", hliquid("water"));
             /* a bit of extra flavor over general moat */
             return __waterbody_name_pooltype;
         } else if ((((((game.dungeon_topology.d_medusa_level)).dlevel || ((game.dungeon_topology.d_medusa_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_medusa_level))))) {
@@ -530,10 +530,10 @@ export function waterbody_name(x, y) {
         if ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level))))) {
             return "limitless water";
         }
-        nh_snprintf("waterbody_name", 603, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "wall of %s", hliquid("water"));
+        __waterbody_name_pooltype = nh_snprintf("waterbody_name", 603, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "wall of %s", hliquid("water"));
         return __waterbody_name_pooltype;
     } else if (ltyp == LAVAWALL) {
-        nh_snprintf("waterbody_name", 606, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "wall of %s", hliquid("lava"));
+        __waterbody_name_pooltype = nh_snprintf("waterbody_name", 606, __waterbody_name_pooltype, 40 /* sizeof(char [40]) */, "wall of %s", hliquid("lava"));
         return __waterbody_name_pooltype;
     }
     /* default; should be unreachable */
@@ -570,7 +570,7 @@ export function lookat(x, y, buf, monbuf) {
     let mtmp = null;
     let pm = null;
     let glyph = 0;
-    buf[0] = monbuf[0] = 0;
+    (monbuf = __nh_char_write(monbuf, 0, 0), buf = __nh_char_write(buf, 0, 0));
     /* trapped doors and chests used to be shown as fake bear traps;
        they have their own trap types now but aren't part of the ftrap
        chain; usually they revert to normal door or chest when the hero
@@ -600,7 +600,7 @@ export function lookat(x, y, buf, monbuf) {
                 how |= 4;
             }
             if (how) {
-                buf = (buf || '') + sprintf('', " [seen: %s%s%s%s%s]", (how & 1) ? "infravision" : "", ((how & 3) > 2) ? ", " : "", (how & 2) ? "telepathy" : "", ((how & 7) > 4) ? ", " : "", (how & 4) ? "monster detection" : "");
+                buf = __nh_buf_append(buf, sprintf('', " [seen: %s%s%s%s%s]", (how & 1) ? "infravision" : "", ((how & 3) > 2) ? ", " : "", (how & 2) ? "telepathy" : "", ((how & 7) > 4) ? ", " : "", (how & 4) ? "monster detection" : ""));
             }
         }
     } else if (game.u.uswallow) {
@@ -701,7 +701,7 @@ export function lookat(x, y, buf, monbuf) {
 /* used to decide whether the context-sensitive inventory action menu for
    item 'otmp' should include the "/ - look up this item" choice */
 export function ia_checkfile(otmp) {
-    let itemnam = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let itemnam = '';
     itemnam = strcpy(itemnam, singular(otmp, xname));
     /* singular() of xname() of otmp is what "/i" looks up */
     return checkfile(itemnam, null, chkfilIaCheck | chkfilDontAsk, null);
@@ -722,9 +722,9 @@ export function ia_checkfile(otmp) {
 /* monster type to look up (overrides 'inp') */
 export function checkfile(inp, pm, chkflags, supplemental_name) {
     let fp = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let newstr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let givenname = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let newstr = '';
+    let givenname = '';
     let ep = null;
     let dbase_str = null;
     let user_typed_name = 0;
@@ -775,69 +775,69 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
      * stuff already done for wish handling or monster generation.
      */
         if (!strncmp(dbase_str, "interior of ", 12)) {
-            dbase_str += 12;
+            dbase_str = __nh_advance_str(dbase_str, 12);
         }
         if (!strncmp(dbase_str, "a ", 2)) {
-            dbase_str += 2;
+            dbase_str = __nh_advance_str(dbase_str, 2);
         } else if (!strncmp(dbase_str, "an ", 3)) {
-            dbase_str += 3;
+            dbase_str = __nh_advance_str(dbase_str, 3);
         } else if (!strncmp(dbase_str, "the ", 4)) {
-            dbase_str += 4;
+            dbase_str = __nh_advance_str(dbase_str, 4);
         } else if (!strncmp(dbase_str, "some ", 5)) {
-            dbase_str += 5;
-        } else if (digit(dbase_str)) {
+            dbase_str = __nh_advance_str(dbase_str, 5);
+        } else if (digit(__nh_char_at0(dbase_str))) {
             /* remove count prefix ("2 ya") which can come from looking at map */
-            while (digit(dbase_str)) {
+            while (digit(__nh_char_at0(dbase_str))) {
                 /* remove enchantment ("+0 aklys"); [for 3.6.0 and earlier, this wasn't
        needed because looking at items on the map used xname() rather than
        doname() hence known enchantment was implicitly suppressed] */
-                ++dbase_str;
+                (dbase_str = __nh_advance_str(dbase_str, 1));
             }
-            if (dbase_str == 32) {
-                ++dbase_str;
+            if (__nh_char_at0(dbase_str) == 32) {
+                (dbase_str = __nh_advance_str(dbase_str, 1));
             }
         }
         if (!strncmp(dbase_str, "pair of ", 8)) {
-            dbase_str += 8;
+            dbase_str = __nh_advance_str(dbase_str, 8);
         }
         if (!strncmp(dbase_str, "tame ", 5)) {
-            dbase_str += 5;
+            dbase_str = __nh_advance_str(dbase_str, 5);
         } else if (!strncmp(dbase_str, "peaceful ", 9)) {
-            dbase_str += 9;
+            dbase_str = __nh_advance_str(dbase_str, 9);
         }
         if (!strncmp(dbase_str, "invisible ", 10)) {
-            dbase_str += 10;
+            dbase_str = __nh_advance_str(dbase_str, 10);
         }
         if (!strncmp(dbase_str, "saddled ", 8)) {
-            dbase_str += 8;
+            dbase_str = __nh_advance_str(dbase_str, 8);
         }
         if (!strncmp(dbase_str, "blessed ", 8)) {
-            dbase_str += 8;
+            dbase_str = __nh_advance_str(dbase_str, 8);
         } else if (!strncmp(dbase_str, "uncursed ", 9)) {
-            dbase_str += 9;
+            dbase_str = __nh_advance_str(dbase_str, 9);
         } else if (!strncmp(dbase_str, "cursed ", 7)) {
-            dbase_str += 7;
+            dbase_str = __nh_advance_str(dbase_str, 7);
         }
         if (!strncmp(dbase_str, "empty ", 6)) {
-            dbase_str += 6;
+            dbase_str = __nh_advance_str(dbase_str, 6);
         }
         if (!strncmp(dbase_str, "partly used ", 12)) {
-            dbase_str += 12;
+            dbase_str = __nh_advance_str(dbase_str, 12);
         } else if (!strncmp(dbase_str, "partly eaten ", 13)) {
-            dbase_str += 13;
+            dbase_str = __nh_advance_str(dbase_str, 13);
         }
         if (!strncmp(dbase_str, "statue of ", 10)) {
-            dbase_str[6] = 0;
+            dbase_str = __nh_char_write(dbase_str, 6, 0);
         } else if (!strncmp(dbase_str, "figurine of ", 12)) {
-            dbase_str[8] = 0;
+            dbase_str = __nh_char_write(dbase_str, 8, 0);
         }
-        if (dbase_str && strchr("+-", dbase_str[0]) && digit(dbase_str[1])) {
-            ++dbase_str;
-            while (digit(dbase_str)) {
-                ++dbase_str;
+        if (__nh_char_at0(dbase_str) && strchr("+-", __nh_char_at0(dbase_str)) && digit(__nh_char_at0(__nh_advance_str(dbase_str, 1)))) {
+            (dbase_str = __nh_advance_str(dbase_str, 1));
+            while (digit(__nh_char_at0(dbase_str))) {
+                (dbase_str = __nh_advance_str(dbase_str, 1));
             }
-            if (dbase_str == 32) {
-                ++dbase_str;
+            if (__nh_char_at0(dbase_str) == 32) {
+                (dbase_str = __nh_advance_str(dbase_str, 1));
             }
         }
         /* "towel", "wet towel", and "moist towel" share one data.base entry;
@@ -846,9 +846,9 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
        (note: strncpy() only terminates output string if the specified
        count is bigger than the length of the substring being copied) */
         if (!strncmp(dbase_str, "moist towel", 11)) {
-            memcpy(dbase_str += 2, "wet", 3);
+            memcpy(dbase_str = __nh_advance_str(dbase_str, 2), "wet", 3);
         }
-        if (dbase_str) {
+        if (__nh_char_at0(dbase_str)) {
             /* Make sure the name is non-empty. */
             let pass1offset = -1;
             let chk_skip = 0;
@@ -862,16 +862,16 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
             let alt = null;
             if ((ep = strstri(dbase_str, " named ")) != null) {
                 /* adjust the input to remove "named " and "called " */
-                alt = ep + 7;
+                alt = __nh_advance_str(ep, 7);
                 if ((ap = strstri(dbase_str, " called ")) != null && ap < ep) {
                     ep = ap;
                 }
             } else if ((ep = strstri(dbase_str, " called ")) != null) {
                 /* "named" is alt but truncate at "called" */
-                givenname = copynchars(givenname, ep + 8, 256 - 1);
+                givenname = copynchars(givenname, __nh_advance_str(ep, 8), 256 - 1);
                 alt = givenname;
                 if (supplemental_name && (sp = strstri(inp, " called ")) != null) {
-                    supplemental_name = copynchars(supplemental_name, sp + 8, 256 - 1);
+                    supplemental_name = copynchars(supplemental_name, __nh_advance_str(sp, 8), 256 - 1);
                 }
             } else {
                 ep = strstri(dbase_str, ", ");
@@ -945,7 +945,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                         /* if we match a key that begins with "~", skip
                        this entry */
                         chk_skip = (buf == 126) ? 1 : 0;
-                        if ((pass == 0 && pmatch({ get value() { return buf[chk_skip]; }, set value(_v) { buf[chk_skip] = _v; } }, dbase_str)) || (pass == 1 && alt && pmatch({ get value() { return buf[chk_skip]; }, set value(_v) { buf[chk_skip] = _v; } }, alt))) {
+                        if ((pass == 0 && pmatch(buf[chk_skip], dbase_str)) || (pass == 1 && alt && pmatch(buf[chk_skip], alt))) {
                             if (chk_skip) {
                                 skipping_entry = (1);
                                 continue;
@@ -982,7 +982,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                     yes_to_moreinfo = (0);
                     if (!user_typed_name && !without_asking) {
                         let entrytext = pass ? alt : dbase_str;
-                        let question = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                        let question = '';
                         question = strcpy(question, "More info about \"");
                         copynchars(eos(question), entrytext, (128 /* sizeof(char [128]) */ - 1 - (strlen(question) + 2)));
                         question = strcat(question, "\"?");
@@ -1002,7 +1002,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                         datawin = (game.windowprocs.win_create_nhwindow)(4);
                         for (i = 0; i < entry_count; i++) {
                             /* room for 1-tab or 8-space prefix + BUFSZ-1 + \0 */
-                            let tabbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                            let tabbuf = '';
                             let tp = null;
                             if (!fgets(tabbuf, 256, fp)) {
                                 break bad_data_file;
@@ -1012,18 +1012,18 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                                 break bad_data_file;
                             }
                             tp = strip_newline(tp);
-                            if (tp == 9) {
-                                ++tp;
-                            } else if (tp == 32) {
+                            if (__nh_char_at0(tp) == 9) {
                                 /* text in this file is indented with one tab but
                            someone modifying it might use spaces instead */
+                                (tp = __nh_advance_str(tp, 1));
+                            } else if (__nh_char_at0(tp) == 32) {
                                 /* remove up to 8 spaces (we expect 8-column
                                tab stops but user might have them set at
                                something else so we don't require it) */
                                 do {
-                                    ++tp;
-                                } while (tp < tabbuf[8] && tp == 32);
-                            } else if (tp) {
+                                    (tp = __nh_advance_str(tp, 1));
+                                } while (tp < tabbuf[8] && __nh_char_at0(tp) == 32);
+                            } else if (__nh_char_at0(tp)) {
                                 break bad_data_file;
                             }
                             /* if a tab after the leading one is found,
@@ -1105,7 +1105,7 @@ export function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hi
         game.level.locations[cc.x][cc.y].typ = save_ltyp;
         /* shorten the feedback for farlook/quicklook: "pool or ..." */
         if (!strcmp(mbuf, "pool of water")) {
-            mbuf[4] = 0;
+            mbuf = __nh_char_write(mbuf, 4, 0);
         } else if (!strcmp(mbuf, "molten lava")) {
             mbuf = strcpy(mbuf, "lava");
         }
@@ -1138,9 +1138,9 @@ export function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hi
 }
 const __do_screen_description_mon_interior = "the interior of a monster";
 const __do_screen_description_unreconnoitered = "unreconnoitered";
-let __do_screen_description_look_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __do_screen_description_look_buf = '';
 export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_supplement) {
-    let prefix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let prefix = '';
     let i = 0;
     let j = 0;
     let alt_i = 0;
@@ -1357,7 +1357,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
             x_str = defsyms[alt_i].explanation;
             /* cmap includes beams, shield effects, swallow boundaries, and
            explosions; skip all of those */
-            if (!x_str) {
+            if (!__nh_char_at0(x_str)) {
                 continue;
             }
             if (sym == (looked ? game.showsyms[alt_i] : defsyms[alt_i].sym)) {
@@ -1454,8 +1454,8 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
            we could add one below but reinstating the prefix here is better */
         let pm = null;
         if (found > 1 || need_to_look) {
-            let monbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let temp_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let monbuf = '';
+            let temp_buf = '';
             pm = lookat(cc.x, cc.y, __do_screen_description_look_buf, monbuf);
             if (pm && for_supplement) {
                 for_supplement.value = pm;
@@ -1478,7 +1478,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                 found = 1;
             }
             if (monbuf[0]) {
-                nh_snprintf("do_screen_description", 1619, temp_buf, 256 /* sizeof(char [256]) */, " [seen: %s]", monbuf);
+                temp_buf = nh_snprintf("do_screen_description", 1619, temp_buf, 256 /* sizeof(char [256]) */, " [seen: %s]", monbuf);
                 out_str = strncat(out_str, temp_buf, 256 - strlen(out_str) - 1);
             }
         }
@@ -1488,7 +1488,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
 /* when farlook is reporting on an engraving, include its text */
 /* True: '/e' or '/E', False: '//' or ';' */
 export function add_quoted_engraving(x, y, buf, force) {
-    let temp_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let temp_buf = '';
     let ep = engr_at(x, y);
     let floorengr = !strcmp(buf, " (engraving");
     let headstone = !strcmp(buf, " (grave");
@@ -1509,9 +1509,9 @@ export function add_quoted_engraving(x, y, buf, force) {
         return (0);
     }
     if (ep.eread) {
-        nh_snprintf("add_quoted_engraving", 1660, temp_buf, 256 /* sizeof(char [256]) */, " with %s: \"%s\"", headstone ? "headstone reading" : "remembered text", ep.engr_txt[remembered_text]);
+        temp_buf = nh_snprintf("add_quoted_engraving", 1660, temp_buf, 256 /* sizeof(char [256]) */, " with %s: \"%s\"", headstone ? "headstone reading" : "remembered text", ep.engr_txt[remembered_text]);
     } else {
-        nh_snprintf("add_quoted_engraving", 1663, temp_buf, 256 /* sizeof(char [256]) */, " %s you haven't read", headstone ? "whose headstone" : "that");
+        temp_buf = nh_snprintf("add_quoted_engraving", 1663, temp_buf, 256 /* sizeof(char [256]) */, " %s you haven't read", headstone ? "whose headstone" : "that");
     }
     buf = strncat(buf, temp_buf, 256 - strlen(buf) - 1);
     return (1);
@@ -1712,7 +1712,7 @@ export function do_look(mode, click_cc) {
     game.flags.verbose = game.flags.verbose && !quick;
     do {
         pm = null;
-        out_str[0] = 0;
+        out_str = '';
         if (from_screen || clicklook) {
             if (from_screen) {
                 /*
@@ -1737,7 +1737,7 @@ export function do_look(mode, click_cc) {
 /* Finally, print out our explanation. */
 /* use putmixed() because there may be an encoded glyph present */
 {
-                let dmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let dmpbuf = '';
                 /* putmixed() bypasses pline() so doesn't write to DUMPLOG;
                    tty puts it into ^P recall, so it ought to be there;
                    DUMPLOG is plain text, so override graphics character;
@@ -1751,9 +1751,9 @@ export function do_look(mode, click_cc) {
             }
             if (found == 1 && ans != LOOK_QUICK && ans != LOOK_ONCE && (ans == LOOK_VERBOSE || (game.flags.help && !quick)) && !clicklook) {
                 /* check the data file for information about this thing */
-                let temp_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                let supplemental_name = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                supplemental_name[0] = 0;
+                let temp_buf = '';
+                let supplemental_name = '';
+                supplemental_name = '';
                 temp_buf = strcpy(temp_buf, firstmatch);
                 checkfile(temp_buf, pm, (ans == LOOK_VERBOSE) ? chkfilDontAsk : chkfilNone, supplemental_name);
                 if (supplemental_pm) {
@@ -1786,14 +1786,14 @@ export function look_all(nearby, do_mons) {
     let lo_y = 0;
     let hi_x = 0;
     let hi_y = 0;
-    let lookbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let outbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let lookbuf = '';
+    let outbuf = '';
     win = (game.windowprocs.win_create_nhwindow)(5);
     look_region_nearby({ get value() { return lo_x; }, set value(_v) { lo_x = _v; } }, { get value() { return lo_y; }, set value(_v) { lo_y = _v; } }, { get value() { return hi_x; }, set value(_v) { hi_x = _v; } }, { get value() { return hi_y; }, set value(_v) { hi_y = _v; } }, nearby);
     for (y = lo_y; y <= hi_y; y++) {
         for (x = lo_x; x <= hi_x; x++) {
             /*assert(lo_x >= 1 && lo_y >= 0 && hi_x < MAXCO && hi_y < MAXLI);*/
-            lookbuf[0] = 0;
+            lookbuf = '';
             glyph = glyph_at(x, y);
             if (do_mons) {
                 if (((((glyph) >= GLYPH_MON_MALE_OFF && (glyph) < (GLYPH_MON_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_MON_FEM_OFF && (glyph) < (GLYPH_MON_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_PET_MALE_OFF && (glyph) < (GLYPH_PET_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_PET_FEM_OFF && (glyph) < (GLYPH_PET_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_RIDDEN_MALE_OFF && (glyph) < (GLYPH_RIDDEN_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_RIDDEN_FEM_OFF && (glyph) < (GLYPH_RIDDEN_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_DETECT_MALE_OFF && (glyph) < (GLYPH_DETECT_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_DETECT_FEM_OFF && (glyph) < (GLYPH_DETECT_FEM_OFF + NUMMONS))))) {
@@ -1822,8 +1822,8 @@ export function look_all(nearby, do_mons) {
                 }
             }
             if (lookbuf) {
-                let coordbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                let which = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let coordbuf = '';
+                let which = '';
                 let cmode = 0;
                 cmode = (game.iflags.getpos_coords != 110) ? game.iflags.getpos_coords : 109;
                 if (count == 1) {
@@ -1852,7 +1852,7 @@ export function look_all(nearby, do_mons) {
                     coordbuf = strkitten(coordbuf, 32);
                 }
                 outbuf = sprintf(outbuf, (cmode == 115) ? "%s  " : (cmode == 109) ? "%8s  " : "%12s  ", coordbuf);
-                outbuf = (outbuf || '') + sprintf('', "%s  ", encglyph(glyph));
+                outbuf = __nh_buf_append(outbuf, sprintf('', "%s  ", encglyph(glyph)));
                 /* guard against potential overflow */
                 lookbuf[256 /* sizeof(char [256]) */ - 1 - strlen(outbuf)] = 0;
                 outbuf = strcat(outbuf, lookbuf);
@@ -1881,13 +1881,13 @@ export function look_traps(nearby) {
     let lo_y = 0;
     let hi_x = 0;
     let hi_y = 0;
-    let lookbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let outbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let lookbuf = '';
+    let outbuf = '';
     win = (game.windowprocs.win_create_nhwindow)(5);
     look_region_nearby({ get value() { return lo_x; }, set value(_v) { lo_x = _v; } }, { get value() { return lo_y; }, set value(_v) { lo_y = _v; } }, { get value() { return hi_x; }, set value(_v) { hi_x = _v; } }, { get value() { return hi_y; }, set value(_v) { hi_y = _v; } }, nearby);
     for (y = lo_y; y <= hi_y; y++) {
         for (x = lo_x; x <= hi_x; x++) {
-            lookbuf[0] = 0;
+            lookbuf = '';
             glyph = glyph_at(x, y);
             if (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1)))) {
                 tnum = (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1))) ? (((((glyph) - (GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + S_arrow_trap) - S_arrow_trap + 1)) : MAX_GLYPH);
@@ -1895,14 +1895,14 @@ export function look_traps(nearby) {
                 ++count;
             } else if ((t = t_at(x, y)) != null && t.tseen && ((!(((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) && !(((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level))))) || ((game.viz_array[y][x] & 1) != 0))) {
                 lookbuf = strcpy(lookbuf, trapname(t.ttyp, (0)));
-                lookbuf = (lookbuf || '') + sprintf('', ", obscured by %s", encglyph(glyph));
+                lookbuf = __nh_buf_append(lookbuf, sprintf('', ", obscured by %s", encglyph(glyph)));
                 /* can't use /" to track traps moved by bubbles or
                           clouds except when hero has direct line of sight */
                 glyph = ((((S_arrow_trap + (((t).ttyp)) - 1)) == S_stone) ? GLYPH_CMAP_STONE_OFF : (((S_arrow_trap + (((t).ttyp)) - 1)) <= S_trwall) ? (((S_arrow_trap + (((t).ttyp)) - 1)) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : (((S_arrow_trap + (((t).ttyp)) - 1)) < S_altar) ? ((((S_arrow_trap + (((t).ttyp)) - 1)) - S_ndoor) + GLYPH_CMAP_A_OFF) : (((S_arrow_trap + (((t).ttyp)) - 1)) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : (((S_arrow_trap + (((t).ttyp)) - 1)) < S_arrow_trap + (TRAPNUM - 1)) ? ((((S_arrow_trap + (((t).ttyp)) - 1)) - S_grave) + GLYPH_CMAP_B_OFF) : (((S_arrow_trap + (((t).ttyp)) - 1)) <= S_goodpos) ? ((((S_arrow_trap + (((t).ttyp)) - 1)) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH);
                 ++count;
             }
             if (lookbuf) {
-                let coordbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let coordbuf = '';
                 let cmode = 0;
                 cmode = (game.iflags.getpos_coords != 110) ? game.iflags.getpos_coords : 109;
                 if (count == 1) {
@@ -1911,7 +1911,7 @@ export function look_traps(nearby) {
                     (game.windowprocs.win_putstr)(win, 0, "    ");
                 }
                 outbuf = sprintf(outbuf, (cmode == 115) ? "%s  " : (cmode == 109) ? "%8s  " : "%12s  ", coord_desc(x, y, coordbuf, cmode));
-                outbuf = (outbuf || '') + sprintf('', "%s  ", encglyph(glyph));
+                outbuf = __nh_buf_append(outbuf, sprintf('', "%s  ", encglyph(glyph)));
                 lookbuf[256 /* sizeof(char [256]) */ - 1 - strlen(outbuf)] = 0;
                 outbuf = strcat(outbuf, lookbuf);
                 (game.windowprocs.win_putmixed)(win, 0, outbuf);
@@ -1931,8 +1931,8 @@ export function look_traps(nearby) {
 export function look_engrs(nearby) {
     let win = 0;
     let e = null;
-    let lookbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let outbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let lookbuf = '';
+    let outbuf = '';
     let x = 0;
     let y = 0;
     let lo_x = 0;
@@ -1947,7 +1947,7 @@ export function look_engrs(nearby) {
     look_region_nearby({ get value() { return lo_x; }, set value(_v) { lo_x = _v; } }, { get value() { return lo_y; }, set value(_v) { lo_y = _v; } }, { get value() { return hi_x; }, set value(_v) { hi_x = _v; } }, { get value() { return hi_y; }, set value(_v) { hi_y = _v; } }, nearby);
     for (y = lo_y; y <= hi_y; y++) {
         for (x = lo_x; x <= hi_x; x++) {
-            lookbuf[0] = 0;
+            lookbuf = '';
             if (!game.level.locations[x][y].seenv) {
                 continue;
             }
@@ -1982,7 +1982,7 @@ export function look_engrs(nearby) {
                 ++count;
             }
             if (lookbuf) {
-                let coordbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let coordbuf = '';
                 let cmode = 0;
                 cmode = (game.iflags.getpos_coords != 110) ? game.iflags.getpos_coords : 109;
                 if (count == 1) {
@@ -1991,7 +1991,7 @@ export function look_engrs(nearby) {
                     (game.windowprocs.win_putstr)(win, 0, "    ");
                 }
                 outbuf = sprintf(outbuf, (cmode == 115) ? "%s  " : (cmode == 109) ? "%8s  " : "%12s  ", coord_desc(x, y, coordbuf, cmode));
-                outbuf = (outbuf || '') + sprintf('', "%s ", encglyph(glyph));
+                outbuf = __nh_buf_append(outbuf, sprintf('', "%s ", encglyph(glyph)));
                 lookbuf[256 /* sizeof(char [256]) */ - 1 - strlen(outbuf)] = 0;
                 outbuf = strcat(outbuf, lookbuf);
                 (game.windowprocs.win_putmixed)(win, 0, outbuf);
@@ -2014,7 +2014,7 @@ export function do_supplemental_info(name, pm, without_asking) {
     let entrytext = name;
     let bp = null;
     let bp2 = null;
-    let question = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let question = '';
     let yes_to_moreinfo = (0);
     let is_marauder = (((pm).mflags2 & 128) != 0);
     if (is_marauder && (strlen(name) < (256 - 1))) {
@@ -2023,7 +2023,7 @@ export function do_supplemental_info(name, pm, without_asking) {
      * meant to support in-game mythology, and not
      * available from data.base or other sources.
      */
-        let fullname = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let fullname = '';
         bp = strstri(name, " of ");
         bp2 = strstri(name, " the Fence");
         if (bp || bp2) {
@@ -2042,7 +2042,7 @@ export function do_supplemental_info(name, pm, without_asking) {
                 let gang = null;
                 if (bp) {
                     textp = suptext1;
-                    gang = bp + 4;
+                    gang = __nh_advance_str(bp, 4);
                     void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
                 } else {
                     textp = suptext2;
@@ -2050,7 +2050,7 @@ export function do_supplemental_info(name, pm, without_asking) {
                 }
                 datawin = (game.windowprocs.win_create_nhwindow)(4);
                 for (i = 0; textp[i]; i++) {
-                    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let buf = '';
                     let txt = null;
                     if (strstri(textp[i], "%s") != null) {
                         buf = sprintf(buf, textp[i], subs++ ? gang : fullname);
@@ -2143,7 +2143,7 @@ export function doidtrap() {
 export function whatdoes_help() {
     let fp = null;
     let p = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let tmpwin = 0;
     fp = fopen("keyhelp", "r");
     if (!fp) {
@@ -2156,8 +2156,8 @@ export function whatdoes_help() {
         if (buf == 35) {
             continue;
         }
-        for (p = buf; p; p++) {
-            if (p != 32 && p != 9) {
+        for (p = buf; __nh_char_at0(p); (p = __nh_advance_str(p, 1))) {
+            if (__nh_char_at0(p) != 32 && __nh_char_at0(p) != 9) {
                 break;
             }
         }
@@ -2188,10 +2188,10 @@ export function whatdoes_help() {
 /* if */
 /* 0 */
 export function dowhatdoes_core(q, cbuf) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let ec_desc = null;
     if ((ec_desc = key2extcmddesc(q)) != (null)) {
-        let keybuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let keybuf = '';
         buf = sprintf(buf, "%-8s%s.", key2txt(q, keybuf), ec_desc);
         cbuf = strcpy(cbuf, buf);
         /* note: if "%-8s" gets changed, the "%8.8s" in dowhatdoes() will
@@ -2203,7 +2203,7 @@ export function dowhatdoes_core(q, cbuf) {
 /* the whatdoes command */
 let __dowhatdoes_once = (0);
 export function dowhatdoes() {
-    let bufr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let bufr = '';
     let q = 0;
     let reslt = null;
     if (!__dowhatdoes_once) {
@@ -2238,7 +2238,7 @@ export function dowhatdoes() {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             pline("%s,", reslt);
             /* cheat by knowing how dowhatdoes_core() handles key portion */
-            pline("%8.8s%s", reslt, p + 1);
+            pline("%8.8s%s", reslt, __nh_advance_str(p, 1));
         }
     } else {
         pline("No such command '%s', char code %d (0%03o or 0x%02x).", visctrl(q), q, q, q);
@@ -2247,7 +2247,7 @@ export function dowhatdoes() {
 }
 export function docontact() {
     let cwin = (game.windowprocs.win_create_nhwindow)(5);
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     if (game.sysopt.support) {
         buf = sprintf(buf, "To contact local support, %s", game.sysopt.support);
         (game.windowprocs.win_putstr)(cwin, 0, buf);
@@ -2314,8 +2314,8 @@ const help_menu_items = [{ f: hmenu_doextversion, text: "About NetHack (version 
 /* the #help command */
 export function dohelp() {
     let tmpwin = (game.windowprocs.win_create_nhwindow)(4);
-    let helpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let helpbuf = '';
+    let tmpbuf = '';
     let i = 0;
     let n = 0;
     let selected = null;
@@ -2356,7 +2356,7 @@ export function dohelp() {
    with the implementation of a simple options subset, now need 'mO' to get
    the full options command; format it as 'm O' */
 export function setopt_cmd(outbuf) {
-    let cmdbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let cmdbuf = '';
     let cmdnm = null;
     let key = 0;
     outbuf = strcpy(outbuf, "'");
@@ -2369,7 +2369,7 @@ export function setopt_cmd(outbuf) {
         if (!cmdnm) {
             cmdnm = "optionsfull";
         }
-        outbuf = (outbuf || '') + sprintf('', "%s%.31s", (cmdnm != 35) ? "#" : "", cmdnm);
+        outbuf = __nh_buf_append(outbuf, sprintf('', "%s%.31s", (__nh_char_at0(cmdnm) != 35) ? "#" : "", cmdnm));
         outbuf = strcat(outbuf, "' or '");
         /* since there's no key bound to #optionsfull, include 'm O' */
         key = cmd_from_func(do_reqmenu);
@@ -2381,7 +2381,7 @@ export function setopt_cmd(outbuf) {
             if (!cmdnm) {
                 cmdnm = "reqmenu";
             }
-            outbuf = (outbuf || '') + sprintf('', "%s%.31s", (cmdnm != 35) ? "#" : "", cmdnm);
+            outbuf = __nh_buf_append(outbuf, sprintf('', "%s%.31s", (__nh_char_at0(cmdnm) != 35) ? "#" : "", cmdnm));
         }
         outbuf = strcat(outbuf, " ");
         /* this is slightly iffy because the user shouldn't type <space> to
@@ -2395,7 +2395,7 @@ export function setopt_cmd(outbuf) {
             if (!cmdnm) {
                 cmdnm = "options";
             }
-            outbuf = (outbuf || '') + sprintf('', "%s%.31s", (cmdnm != 35) ? "#" : "", cmdnm);
+            outbuf = __nh_buf_append(outbuf, sprintf('', "%s%.31s", (__nh_char_at0(cmdnm) != 35) ? "#" : "", cmdnm));
         }
     }
     outbuf = strcat(outbuf, "'");

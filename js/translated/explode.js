@@ -254,8 +254,8 @@ export function explode(x, y, type, dam, olet, expltype) {
     let grabbed = 0;
     let grabbing = 0;
     let grabxy = { x: 0, y: 0 };
-    let hallu_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let killr_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let hallu_buf = '';
+    let killr_buf = '';
     let exploding_wand_typ = 0;
     let you_exploding = (olet == (MAXOCLASSES + 2) && type >= 0);
     let didmsg = (0);
@@ -680,10 +680,10 @@ export function explode(x, y, type, dam, olet, expltype) {
                 } else if (olet == (MAXOCLASSES + 3)) {
                     /* svk.killer.name=="gas spore's explosion". */
                     game.killer.format = 2;
-                    nh_snprintf("explode", 655, game.killer.name, 256 /* sizeof(char [256]) */, "caught %sself in a %s", (genders[game.flags.female ? 1 : 0].him), str);
+                    game.killer.name = nh_snprintf("explode", 655, game.killer.name, 256 /* sizeof(char [256]) */, "caught %sself in a %s", (genders[game.flags.female ? 1 : 0].him), str);
                 } else if (type >= 0 && olet != SCROLL_CLASS) {
                     game.killer.format = 2;
-                    nh_snprintf("explode", 660, game.killer.name, 256 /* sizeof(char [256]) */, "caught %sself in %s own %s", (genders[game.flags.female ? 1 : 0].him), (genders[game.flags.female ? 1 : 0].his), str);
+                    game.killer.name = nh_snprintf("explode", 660, game.killer.name, 256 /* sizeof(char [256]) */, "caught %sself in %s own %s", (genders[game.flags.female ? 1 : 0].him), (genders[game.flags.female ? 1 : 0].his), str);
                 } else {
                     game.killer.format = (!strncmpi((str), ("tower of flame"), -1) || !strncmpi((str), ("fireball"), -1)) ? 0 : 1;
                     game.killer.name = strcpy(game.killer.name, str);

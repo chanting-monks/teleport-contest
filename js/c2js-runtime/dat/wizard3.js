@@ -58,5 +58,5 @@ export default async function({ __lua_bor, des, percent, selection }) {
       await des.object("\"", 11, 7);
     }) });
   let protected_ = __lua_bor(bounds2.negate(), wiz3);
-  globalThis.hell_tweaks(protected_);
+  await globalThis.hell_tweaks(protected_);
 }

@@ -8,7 +8,7 @@ import { sgn } from '../c2js-runtime/math.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, You_hear, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcpy } from '../c2js-runtime/string.js';
+import { __nh_char_at0, strcat, strchr, strcpy } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
 import { could_pole_mon, snuff_candle, use_pole, use_whip } from './apply.js';
 import { artifact_hit, is_art, spec_abon } from './artifact.js';
@@ -1002,7 +1002,7 @@ export function mhurtle_step(arg, x, y) {
             newsym(mon.mx, mon.my);
         }
         if (((mon.data) == game.mons[PM_COCKATRICE] || (mon.data) == game.mons[PM_CHICKATRICE]) && !(game.uarmu || game.uarm || game.uarmc)) {
-            nh_snprintf("mhurtle_step", 1061, game.killer.name, 256 /* sizeof(char [256]) */, "being hit by %s", x_monnam(mon, mon.mtame ? 3 : 2, "hurtling", 31 | 32, (0)));
+            game.killer.name = nh_snprintf("mhurtle_step", 1061, game.killer.name, 256 /* sizeof(char [256]) */, "being hit by %s", x_monnam(mon, mon.mtame ? 3 : 2, "hurtling", 31 | 32, (0)));
             instapetrify(game.killer.name);
             newsym(game.u.ux, game.u.uy);
         }
@@ -1123,7 +1123,7 @@ export function check_shop_obj(obj, x, y, broken) {
         }
     } else if (costly_xy) {
         let oshops = in_rooms(x, y, SHOPBASE);
-        if (oshops == game.u.ushops || oshops == game.u.ushops0) {
+        if (__nh_char_at0(oshops) == game.u.ushops || __nh_char_at0(oshops) == game.u.ushops0) {
             if (is_unpaid(obj)) {
                 /* ushops0: in case we threw while levitating and recoiled
            out of shop (most likely to the shk's spot in front of door) */
@@ -2104,7 +2104,7 @@ export function thitmonst(mon, obj) {
             mon.mstrategy &= ~(268435456 | 536870912);
         }
     } else if (guaranteed_hit) {
-        let trail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let trail = '';
         let monname = null;
         let md = game.u.ustuck.data;
         wakeup(mon, (1));
@@ -2135,7 +2135,7 @@ const __gem_accept_maybeluck = " hesitatingly";
 const __gem_accept_noluck = " graciously";
 const __gem_accept_addluck = " gratefully";
 export function gem_accept(mon, obj) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let is_buddy = 0;
     let is_gem = 0;
     let ret = 0;
@@ -2346,7 +2346,7 @@ export function breakobj(obj, x, y, hero_caused, from_invent) {
         } else if (!obj.no_charge && costly_spot(x, y)) {
             /* it is assumed that the obj is a floor-object */
             let o_shop = in_rooms(x, y, SHOPBASE);
-            let shkp = shop_keeper(o_shop);
+            let shkp = shop_keeper(__nh_char_at0(o_shop));
             if (shkp) {
                 /* (implies *o_shop != '\0') */
                 let eshkp = ((shkp).mextra.eshk);
@@ -2356,7 +2356,7 @@ export function breakobj(obj, x, y, hero_caused, from_invent) {
                 if (game.hero_seq != eshkp.break_seq) {
                     eshkp.seq_peaceful = shkp.mpeaceful;
                 }
-                if ((stolen_value(obj, x, y, eshkp.seq_peaceful, (0)) > 0) && (o_shop != game.u.ushops[0] || !inside_shop(game.u.ux, game.u.uy)) && game.hero_seq != eshkp.break_seq) {
+                if ((stolen_value(obj, x, y, eshkp.seq_peaceful, (0)) > 0) && (__nh_char_at0(o_shop) != game.u.ushops[0] || !inside_shop(game.u.ux, game.u.uy)) && game.hero_seq != eshkp.break_seq) {
                     make_angry_shk(shkp, x, y);
                 }
                 /* make_angry_shk() is only called on the first instance

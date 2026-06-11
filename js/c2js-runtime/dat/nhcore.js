@@ -34,7 +34,7 @@ export default async function({ nh, pairs, table, type }) {
       return true;
     };
   let prev_dgl_extrainfo = 0;
-  globalThis.mk_dgl_extrainfo = () => {
+  globalThis.mk_dgl_extrainfo = async () => {
       if (((prev_dgl_extrainfo == 0) || (prev_dgl_extrainfo + 50 < globalThis.u.moves))) {
           let filename = nh.dump_fmtstr("/tmp/nethack.%n.%d.log");
           let [extrai, err] = globalThis.io.open(filename, "w");
@@ -78,13 +78,13 @@ export default async function({ nh, pairs, table, type }) {
               extrai.write(str);
               extrai.close();
             } else {
-              nh.pline("Failed to open dgl extrainfo file: " + err);
+              await nh.pline("Failed to open dgl extrainfo file: " + err);
             }
           prev_dgl_extrainfo = globalThis.u.moves;
         }
     };
-  globalThis.show_getpos_tip = () => {
-      nh.text("Tip: Farlooking or selecting a map location\n\nYou are now in a \"farlook\" mode - the movement keys move the cursor,\nnot your character.  Game time does not advance.  This mode is used\nto look around the map, or to select a location on it.\n\nWhen in this mode, you can press ESC to return to normal game mode,\nand pressing ? will show the key help.\n");
+  globalThis.show_getpos_tip = async () => {
+      await nh.text("Tip: Farlooking or selecting a map location\n\nYou are now in a \"farlook\" mode - the movement keys move the cursor,\nnot your character.  Game time does not advance.  This mode is used\nto look around the map, or to select a location on it.\n\nWhen in this mode, you can press ESC to return to normal game mode,\nand pressing ? will show the key help.\n");
     };
   globalThis.nhcore = { getpos_tip: show_getpos_tip, enter_tutorial: globalThis.tutorial_enter, leave_tutorial: globalThis.tutorial_leave };
 }

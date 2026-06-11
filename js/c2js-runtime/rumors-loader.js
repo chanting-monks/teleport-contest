@@ -25,7 +25,7 @@ let _loaded = false;
 export function ensureRumorsLoaded() {
     if (_loaded) return;
     _loaded = true;
-    if (process.env.PHASE_TRACE) {
+    if (typeof process !== 'undefined' && process.env && process.env.PHASE_TRACE) {
         console.error(`[rumors-loader] tru=${RUMORS_BUNDLE.trueLines.length} fal=${RUMORS_BUNDLE.falseLines.length} eng=${RUMORS_BUNDLE.engraveLines.length} epi=${RUMORS_BUNDLE.epitaphLines.length}`);
     }
     registerRumorsData({

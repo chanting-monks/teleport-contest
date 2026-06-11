@@ -120,5 +120,5 @@ export default async function({ __lua_bor, des, math, selection }) {
   await des.levregion({ region: [1, 0, 12, 20], region_islev: 1, exclude: [20, 1, 70, 20], exclude_islev: 1, type: "branch" });
   await des.teleport_region({ region: [1, 0, 12, 20], region_islev: 1, exclude: [20, 1, 70, 20], exclude_islev: 1 });
   let protected_ = __lua_bor(bounds2.negate(), orcus1);
-  globalThis.hell_tweaks(protected_);
+  await globalThis.hell_tweaks(protected_);
 }

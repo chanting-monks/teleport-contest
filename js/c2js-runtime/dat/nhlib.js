@@ -25,7 +25,7 @@ export default async function({ __lua_band, __lua_bor, des, math, nh, obj, pairs
         }
     };
   globalThis.align = ["law", "neutral", "chaos"];
-  shuffle(globalThis.align);
+  await shuffle(globalThis.align);
   globalThis.d = (dice, faces) => {
       if ((faces == null)) {
           return math.random(1, dice);
@@ -109,7 +109,7 @@ export default async function({ __lua_band, __lua_bor, des, math, nh, obj, pairs
           let amount = 3 * math.random(1, 8);
           let bwalls = __lua_bor(selection.match(".w.").percentage(amount), selection.match(".\nw\n.").percentage(amount));
           bwalls = __lua_band(bwalls, prot);
-          bwalls.iterate((async (x, y) => {
+          await bwalls.iterate((async (x, y) => {
           await des.terrain(x, y, ".");
           await des.object("boulder", x, y);
         }));
@@ -121,8 +121,8 @@ export default async function({ __lua_band, __lua_bor, des, math, nh, obj, pairs
           await des.terrain(fwalls, "F");
         }
     };
-  globalThis.pline = (fmt, ...__lua_varargs) => {
-      nh.pline(string.format(fmt, table.unpack([...__lua_varargs])));
+  globalThis.pline = async (fmt, ...__lua_varargs) => {
+      await nh.pline(string.format(fmt, table.unpack([...__lua_varargs])));
     };
   globalThis.nh_set_variables_string = (key, tbl) => {
       return "nh_lua_variables[\"" + key + "\"]=" + table_stringify(tbl) + ";";
@@ -160,22 +160,22 @@ export default async function({ __lua_band, __lua_bor, des, math, nh, obj, pairs
         }
       return true;
     };
-  globalThis.tutorial_enter = () => {
-      nh.callback("cmd_before", "tutorial_cmd_before");
-      nh.callback("end_turn", "tutorial_turn");
-      nh.gamestate();
+  globalThis.tutorial_enter = async () => {
+      await nh.callback("cmd_before", "tutorial_cmd_before");
+      await nh.callback("end_turn", "tutorial_turn");
+      await nh.gamestate();
     };
-  globalThis.tutorial_leave = () => {
-      nh.callback("cmd_before", "tutorial_cmd_before", true);
-      nh.callback("end_turn", "tutorial_turn", true);
-      nh.gamestate(true);
+  globalThis.tutorial_leave = async () => {
+      await nh.callback("cmd_before", "tutorial_cmd_before", true);
+      await nh.callback("end_turn", "tutorial_turn", true);
+      await nh.gamestate(true);
     };
-  let tutorial_events = [{ func: (() => {
+  let tutorial_events = [{ func: (async () => {
       if ((globalThis.u.uhunger < 148)) {
               let o = obj.new("blessed food ration");
               o.placeobj(globalThis.u.ux, globalThis.u.uy);
-              nh.pline("Looks like you're getting hungry.  You'll starve to death, unless you eat something.", true);
-              nh.pline("Comestibles are eaten with '" + nh.eckey("eat") + "'", true);
+              await nh.pline("Looks like you're getting hungry.  You'll starve to death, unless you eat something.", true);
+              await nh.pline("Comestibles are eaten with '" + nh.eckey("eat") + "'", true);
               return true;
             }
     }) }];

@@ -11,7 +11,7 @@ export default async function({ des, nh, shuffle }) {
       const __hi = (globalThis.rm.width * globalThis.rm.height) / 2;
       const __step = 1;
       for (let i = 1; __step > 0 ? i <= __hi : i >= __hi; i += __step) {
-        shuffle(zombifiable);
+        await shuffle(zombifiable);
         let o = des.object({ id: "corpse", montype: zombifiable[0], buried: true });
         o.stop_timer("rot-corpse");
       }

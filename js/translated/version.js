@@ -6,7 +6,7 @@ import { game } from '../gstate.js';
 import { pline, raw_printf } from '../c2js-runtime/pline.js';
 import { regex_id } from '../c2js-runtime/regex.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strchr, strcmp, strcpy, strlen, strncmpi, strncpy, strrchr, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, strchr, strcmp, strcpy, strlen, strncmpi, strncpy, strrchr, strstri } from '../c2js-runtime/string.js';
 import { datamodel, eos, strip_newline, strsubst, tabexpand, what_datamodel_is_this } from './hacklib.js';
 import { exportascii } from './nh-constants.js';
 import { sfi_char, sfi_uchar, sfi_version_info, sfo_char, sfo_uchar, sfo_version_info } from './sfbase.js';
@@ -14,7 +14,7 @@ import { sfi_char, sfi_uchar, sfi_version_info, sfo_char, sfo_uchar, sfo_version
 /* fill buffer with short version (so caller can avoid including date.h)
  * buf cannot be NULL */
 export function version_string(buf, bufsz) {
-    nh_snprintf("version_string", 29, buf, bufsz, "%s", ((game.nomakedefs.version_string && game.nomakedefs.version_string[0]) ? game.nomakedefs.version_string : mdlib_version_string(buf, ".")));
+    buf = nh_snprintf("version_string", 29, buf, bufsz, "%s", ((game.nomakedefs.version_string && __nh_char_at0(game.nomakedefs.version_string)) ? game.nomakedefs.version_string : mdlib_version_string(buf, ".")));
     /* in case we try to write a paniclog entry after releasing
                  the 'nomakedefs' data */
     return buf;
@@ -25,9 +25,9 @@ export function getversionstring(buf, bufsz) {
 {
         let c = 0;
         let p = eos(buf);
-        let dotoff = (p > buf && p[-1] == 46);
+        let dotoff = (p > buf && __nh_char_at0(__nh_advance_str(p, -1)) == 46);
         if (dotoff) {
-            --p;
+            (p = __nh_advance_str(p, -1));
         }
         p = strcpy(p, " (");
         if (game.nomakedefs.git_sha) {
@@ -68,7 +68,7 @@ export function status_version(buf, bufsz, indent) {
         /* game's name {variants should use own name, not "NetHack"} */
         /* can be set to override default (base of filename) */
         name = nh_basename(game.hname, (0));
-        if (!name || !name) {
+        if (!name || !__nh_char_at0(name)) {
             showname = (0);
         }
     }
@@ -76,7 +76,7 @@ export function status_version(buf, bufsz, indent) {
         /* git branch name, if available */
         /*#if (NH_DEVEL_STATUS != NH_STATUS_RELEASED)*/
         altname = game.nomakedefs.git_branch;
-        if (!altname || !altname) {
+        if (!altname || !__nh_char_at0(altname)) {
             showbranch = (0);
         }
     }
@@ -107,13 +107,13 @@ export function status_version(buf, bufsz, indent) {
         indentation = " ";
     }
     if (shownum) {
-        nh_snprintf("status_version", 149, eos(buf), bufsz - strlen(buf), "%s%s", indentation, (game.nomakedefs.version_string && game.nomakedefs.version_string[0]) ? game.nomakedefs.version_string : mdlib_version_string(buf, "."));
+        nh_snprintf("status_version", 149, eos(buf), bufsz - strlen(buf), "%s%s", indentation, (game.nomakedefs.version_string && __nh_char_at0(game.nomakedefs.version_string)) ? game.nomakedefs.version_string : mdlib_version_string(buf, "."));
     }
     return buf;
 }
 /* the #versionshort command */
 export function doversion() {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     if (game.iflags.menu_requested) {
         return doextversion();
     }
@@ -125,7 +125,7 @@ export function doextversion() {
     let rtcontext = 0;
     let rtbuf = null;
     let f = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let p = null;
     let win = (game.windowprocs.win_create_nhwindow)(5);
     let use_dlb = (1);
@@ -142,8 +142,8 @@ export function doextversion() {
     if (strlen(buf) >= 80) {
         p = strrchr(buf, 40);
     }
-    if (p && p > buf && p[-1] == 32 && p[1] != 120) {
-        p[-1] = 0;
+    if (p && p > buf && __nh_char_at0(__nh_advance_str(p, -1)) == 32 && __nh_char_at0(__nh_advance_str(p, 1)) != 120) {
+        p = __nh_char_write(p, -1, 0);
     } else {
         p = null;
     }
@@ -227,18 +227,18 @@ export function doextversion() {
     return 0;
 }
 export function early_version_info(pastebuf) {
-    let buf1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf1 = '';
+    let buf2 = '';
     let buf = null;
     let tmp = null;
-    nh_snprintf("early_version_info", 285, buf1, 256 /* sizeof(char [256]) */, "test");
+    buf1 = nh_snprintf("early_version_info", 285, buf1, 256 /* sizeof(char [256]) */, "test");
     /* this is early enough that we have to do our own line-splitting */
     getversionstring(buf1, 256 /* sizeof(char [256]) */);
     /* split at start of version info */
     tmp = strstri(buf1, " (");
     if (tmp) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        nh_snprintf("early_version_info", 292, buf2, 256 /* sizeof(char [256]) */, "%s\n%s", buf1, tmp);
+        buf2 = nh_snprintf("early_version_info", 292, buf2, 256 /* sizeof(char [256]) */, "%s\n%s", buf1, tmp);
         buf = buf2;
     } else {
         buf = buf1;
@@ -277,7 +277,7 @@ export function insert_rtoption(buf) {
     for (i = 0; i < (Math.trunc(3 /* sizeof(struct rt_opt [3]) */ / 1 /* sizeof(struct rt_opt) */)); ++i) {
         /* we don't break out of the loop after a match; there might be
            other matches on the same line */
-        if (strstri(buf, game.rt_opts[i].token) && game.rt_opts[i].value) {
+        if (strstri(buf, game.rt_opts[i].token) && __nh_char_at0(game.rt_opts[i].value)) {
             buf = strsubst(buf, game.rt_opts[i].token, game.rt_opts[i].value);
         }
     }
@@ -313,7 +313,7 @@ export function check_version(version_data, filename, complain, utdflags) {
     return (1);
 }
 export function get_feature_notice_ver(str) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let ver_maj = 0;
     let ver_min = 0;
     let patch = 0;
@@ -324,16 +324,16 @@ export function get_feature_notice_ver(str) {
     }
     str = strcpy(buf, str);
     istr[j] = str;
-    while (str.value) {
-        if (str.value == 46) {
+    while (__nh_char_at0(str)) {
+        if (__nh_char_at0(str) == 46) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             j++;
             istr[j] = str;
             if (j == 2) {
                 break;
             }
-        } else if (strchr("0123456789", str.value) != null) {
-            str++;
+        } else if (strchr("0123456789", __nh_char_at0(str)) != null) {
+            (str = __nh_advance_str(str, 1));
         } else {
             return 0;
         }
@@ -367,13 +367,13 @@ export function copyright_banner_line(indx) {
 }
 /* called by argcheck(allmain.c) from early_options(sys/xxx/xxxmain.c) */
 export function dump_version_info() {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let hname = game.hname ? game.hname : "nethack";
     if (strlen(hname) > 33) {
         hname = eos((hname)) - 33;
     }
     runtime_info_init();
-    nh_snprintf("dump_version_info", 506, buf, 256 /* sizeof(char [256]) */, "%-12.33s %08lx %08lx %08lx", hname, game.nomakedefs.version_number, (game.nomakedefs.version_features & ~game.nomakedefs.ignored_features), game.nomakedefs.version_sanity1);
+    buf = nh_snprintf("dump_version_info", 506, buf, 256 /* sizeof(char [256]) */, "%-12.33s %08lx %08lx %08lx", hname, game.nomakedefs.version_number, (game.nomakedefs.version_features & ~game.nomakedefs.ignored_features), game.nomakedefs.version_sanity1);
     (game.windowprocs.win_raw_print)(buf);
     release_runtime_info();
     return;

@@ -9,7 +9,7 @@ import { alloc, free, memcpy } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strncmp, strrchr } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, atoi, strcat, strchr, strcmp, strcpy, strncmp, strrchr } from '../c2js-runtime/string.js';
 import { lift_covet_and_placebc, unplacebc_and_covet_placebc } from './ball.js';
 import { isok } from './cmd.js';
 import { is_ice, is_pool } from './dbridge.js';
@@ -522,21 +522,19 @@ export function fixup_special() {
         switch (r.rtype) {
             case LR_BRANCH:
                 added_branch = (1);
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
-                break;
+                /* TODO Phase 5+: goto place_it (label not in scope of break) */
             case LR_PORTAL:
-                if (r.rname.str >= 48 && r.rname.str <= 57) {
+                if (__nh_char_at0(r.rname.str) >= 48 && __nh_char_at0(r.rname.str) <= 57) {
                     Object.assign(lev, game.u.uz);
                     lev.dlevel = atoi(r.rname.str);
                 } else {
                     sp = find_level(r.rname.str);
                     Object.assign(lev, sp.dlevel);
                 }
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
-                break;
+                ;
             case LR_UPSTAIR:
             case LR_DOWNSTAIR:
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
+                // TODO LabelStmt place_it not at compound-stmt level
                 break;
             case LR_TELE:
             case LR_UPTELE:
@@ -706,7 +704,7 @@ export function migr_booty_item(otyp, gang) {
 }
 export function stolen_booty() {
     let gang = null;
-    let gang_name = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let gang_name = '';
     let mtmp = null;
     let cnt = 0;
     let i = 0;
@@ -799,7 +797,7 @@ export function maze_inbounds(x, y) {
     return (x >= 2 && y >= 2 && x < game.x_maze_max && y < game.y_maze_max && isok(x, y));
 }
 export function maze_remove_deadends(typ) {
-    let dirok = [0, 0, 0, 0];
+    let dirok = '';
     let x = 0;
     let y = 0;
     let dir = 0;
@@ -809,7 +807,7 @@ export function maze_remove_deadends(typ) {
     let dy = 0;
     let dx2 = 0;
     let dy2 = 0;
-    dirok[0] = 0;
+    dirok = '';
     for (x = 2; x < game.x_maze_max; x++) {
         for (y = 2; y < game.y_maze_max; y++) {
             if (((game.level.locations[x][y].typ) >= DOOR) && (x % 2) && (y % 2)) {
@@ -1076,24 +1074,24 @@ export function populate_maze() {
 }
 export function makemaz(s) {
     fnEnter("makemaz", "mkmaze.c", 0);
-    let protofile = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let protofile = '';
     let sp = Is_special(game.u.uz);
     let mm = { x: 0, y: 0 };
-    if (s.value) {
+    if (__nh_char_at0(s)) {
         if (sp && sp.rndlevs) {
-            nh_snprintf("makemaz", 1136, protofile, 20 /* sizeof(char [20]) */, "%s-%d", s, rnd(sp.rndlevs));
+            protofile = nh_snprintf("makemaz", 1136, protofile, 20 /* sizeof(char [20]) */, "%s-%d", s, rnd(sp.rndlevs));
         } else {
             protofile = strcpy(protofile, s);
         }
     } else if ((game.dungeons[game.u.uz.dnum].proto)) {
         if (dunlevs_in_dungeon(game.u.uz) > 1) {
             if (sp && sp.rndlevs) {
-                nh_snprintf("makemaz", 1144, protofile, 20 /* sizeof(char [20]) */, "%s%d-%d", game.dungeons[game.u.uz.dnum].proto, dunlev(game.u.uz), rnd(sp.rndlevs));
+                protofile = nh_snprintf("makemaz", 1144, protofile, 20 /* sizeof(char [20]) */, "%s%d-%d", game.dungeons[game.u.uz.dnum].proto, dunlev(game.u.uz), rnd(sp.rndlevs));
             } else {
-                nh_snprintf("makemaz", 1148, protofile, 20 /* sizeof(char [20]) */, "%s%d", game.dungeons[game.u.uz.dnum].proto, dunlev(game.u.uz));
+                protofile = nh_snprintf("makemaz", 1148, protofile, 20 /* sizeof(char [20]) */, "%s%d", game.dungeons[game.u.uz.dnum].proto, dunlev(game.u.uz));
             }
         } else if (sp && sp.rndlevs) {
-            nh_snprintf("makemaz", 1152, protofile, 20 /* sizeof(char [20]) */, "%s-%d", game.dungeons[game.u.uz.dnum].proto, rnd(sp.rndlevs));
+            protofile = nh_snprintf("makemaz", 1152, protofile, 20 /* sizeof(char [20]) */, "%s-%d", game.dungeons[game.u.uz.dnum].proto, rnd(sp.rndlevs));
         } else {
             protofile = strcpy(protofile, game.dungeons[game.u.uz.dnum].proto);
         }
@@ -1106,9 +1104,9 @@ export function makemaz(s) {
         if (ep) {
             /* strrchr always succeeds due to code in prior block */
             let len = ((strrchr(protofile, 45) - protofile) + 1);
-            while (ep && ep) {
+            while (ep && __nh_char_at0(ep)) {
                 if (!strncmp(ep, protofile, len)) {
-                    let pick = atoi(ep + len);
+                    let pick = atoi(__nh_advance_str(ep, len));
                     /* use choice only if valid */
                     if (pick > 0 && pick <= sp.rndlevs) {
                         sprintf(protofile + len, "%d", pick);
@@ -1117,7 +1115,7 @@ export function makemaz(s) {
                 } else {
                     ep = strchr(ep, 44);
                     if (ep) {
-                        ++ep;
+                        (ep = __nh_advance_str(ep, 1));
                     }
                 }
             }

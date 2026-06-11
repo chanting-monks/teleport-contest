@@ -16,13 +16,29 @@
 import { commentsBefore } from './parser.mjs';
 import {
     JS_RESERVED_RENAMES, BANNED_CALLS, runtimeDir, jsDir, projectRoot,
-    GLOBAL_BUCKETS, EXTERNAL_SYMBOLS,
+    GLOBAL_BUCKETS, EXTERNAL_SYMBOLS, HAND_PORTED_FUNCTIONS,
+    STRING_MODE_FILES,
 } from './c2js.config.mjs';
 import { relative as pathRelative, dirname as pathDirname, resolve as pathResolve, basename as pathBasename } from 'node:path';
 import { readFileSync as nodeReadFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const GLOBAL_BUCKETS_SET = new Set(GLOBAL_BUCKETS);
+
+/* §23.227 — Phase 1/2 string-mode dispatch.
+   - Env var NH_STRING_MODE forces string-mode for the whole TU set
+     (used by selective regen during Phase 2 batch trials).
+   - Per-file STRING_MODE_FILES (c2js.config.mjs) marks TUs that have
+     already migrated; future builds preserve their string-mode emit
+     without needing the env var set.
+   Call inStringMode(ctx) from any emit recognizer that needs the gate.
+   See docs/STRING_MIGRATION.md for the full plan and phase ordering. */
+const STRING_MODE_ENV = !!(typeof process !== 'undefined' && process.env && process.env.NH_STRING_MODE);
+function inStringMode(ctx) {
+    if (STRING_MODE_ENV) return true;
+    if (ctx && ctx.cFile && STRING_MODE_FILES.has(ctx.cFile)) return true;
+    return false;
+}
 
 // Per-site recognizer allowlist.  Loaded once at module init from
 // `recognizer-allowlist.json`.  Categories map to Sets of "file:fn"
@@ -842,9 +858,21 @@ function evalConstExprInline(node, scope) {
 function typedefDecl(node, ctx) {
     if (!node.name) return '';
     const t = stripQuals(node.type?.qualType || '');
-    const m = t.match(/^struct\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/);
+    const m = t.match(/^(?:struct|union)\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/);
     if (m && ctx.structs.has(m[1])) {
         ctx.structs.set(node.name, ctx.structs.get(m[1]));
+    } else {
+        // typedef of an ANONYMOUS struct: clang names the record
+        // after the typedef in qualType ("struct terrain") but the
+        // RecordDecl itself is nameless.  Pair via the
+        // ElaboratedType's ownedTagDecl id (exact, unlike adjacency).
+        const owned = (node.inner || []).find(
+            (c) => c.ownedTagDecl?.id)?.ownedTagDecl?.id;
+        const synKey = owned && `__anon_syn:${owned}`;
+        if (synKey && ctx.structs.has(synKey)) {
+            ctx.structs.set(node.name, ctx.structs.get(synKey));
+            if (m) ctx.structs.set(m[1], ctx.structs.get(synKey));
+        }
     }
     // For `typedef int boolean` and similar scalar typedefs there's
     // nothing to register; clang's qualType in user code already
@@ -856,11 +884,45 @@ function typedefDecl(node, ctx) {
 // VarDecls of the struct type can be zero-init'd, and emit a brief
 // JSDoc-style comment.  No JS class is generated here (Phase 1 path);
 // the struct's data lives as a plain object literal.
+// Collect a record's fields, synthesizing registry entries for
+// NESTED anonymous member structs (hack.h lev_region's inarea /
+// delarea).  Within one record's children, an anonymous RecordDecl
+// is immediately followed by the FieldDecl that uses it (C grammar
+// guarantees adjacency HERE, unlike top-level typedef sequences) —
+// register the nested fields under a synthetic per-id key and point
+// the field's type at it so zeroInitForStruct resolves the shape.
+function collectRecordFields(node, ctx) {
+    const fields = [];
+    let lastAnonKey = null;
+    for (const c of node.inner || []) {
+        if (c.kind === 'RecordDecl' && c.completeDefinition && !c.name) {
+            const subFields = collectRecordFields(c, ctx);
+            lastAnonKey = `__anon_syn:${c.id}`;
+            ctx.structs.set(lastAnonKey, subFields);
+        } else if (c.kind === 'FieldDecl' && c.name) {
+            let ftype = c.type?.qualType || '';
+            if (lastAnonKey && /\((?:anonymous|unnamed)/.test(ftype)
+                && !/[*\[]/.test(ftype)) {
+                ftype = lastAnonKey;
+                lastAnonKey = null;
+            }
+            fields.push({ name: renameIfReserved(c.name), type: ftype });
+        }
+    }
+    return fields;
+}
+
 function recordDecl(node, ctx) {
-    if (!node.name) return ''; // anonymous struct — TODO when we hit one
-    const fields = (node.inner || [])
-        .filter((n) => n.kind === 'FieldDecl')
-        .map((n) => ({ name: renameIfReserved(n.name), type: n.type?.qualType || '' }));
+    if (!node.name) {
+        // Anonymous top-level struct (`typedef struct { ... } terrain;`):
+        // register by clang node id; typedefDecl pairs via the
+        // ElaboratedType's ownedTagDecl id (Q9 iteration 19 — the
+        // adjacency-stash version mis-paired when nested anonymous
+        // records intervened, garbling lev_region/bughack's shape).
+        ctx.structs.set(`__anon_syn:${node.id}`, collectRecordFields(node, ctx));
+        return '';
+    }
+    const fields = collectRecordFields(node, ctx);
     ctx.structs.set(node.name, fields);
     if (fields.length === 0) return '';
     const fieldList = fields.map((f) => `${f.name}`).join(', ');
@@ -892,7 +954,7 @@ function structRegistryKey(typeStr, ctx) {
     // Anonymous struct: `struct (anonymous struct at PATH:LINE:COL)` or
     // `struct (anonymous at PATH:LINE:COL)` (desugaredQualType form).
     // Registered by collectAllStructs under key `__anon:PATH:LINE:COL`.
-    const anonMatch = t.match(/^(?:struct|union)\s*\(anonymous(?:\s+(?:struct|union))?\s+at\s+(.+?):(\d+):(\d+)\)\s*$/);
+    const anonMatch = t.match(/^(?:struct|union)\s*\((?:anonymous|unnamed)(?:\s+(?:struct|union))?\s+at\s+(.+?):(\d+):(\d+)\)\s*$/);
     if (anonMatch) {
         const key = `__anon:${anonMatch[1]}:${anonMatch[2]}:${anonMatch[3]}`;
         if (ctx.structs.has(key)) return key;
@@ -947,6 +1009,9 @@ function parseArrayType(typeStr) {
 
 // Generate the zero-init array literal for a variable of array type.
 // Returns null if the type isn't a fixed-size array.
+// String-mode applies only at top-level (zeroInitFor) — nested calls
+// from zeroInitForStruct (field init) keep array form so global struct
+// fields stay indexable.  See zeroInitFor for the gate.
 function zeroInitForArray(typeStr, ctx, seen = new Set()) {
     const arr = parseArrayType(typeStr);
     if (!arr) return null;
@@ -965,7 +1030,17 @@ function zeroInitForArray(typeStr, ctx, seen = new Set()) {
 
 // Combined initializer-or-zero helper used by both global and local
 // VarDecl.  Tries struct, then array, then scalar default.
+// §23.227 Phase 1 string-mode: function-local 1D char arrays become ''.
+// Multi-dim char arrays (e.g. `char rip[16][80]`), struct-nested fields,
+// and module-scope globals (`game.foo`) keep array form so cross-TU
+// indexed writes still work.  Gate: ctx.currentFnName must be set.
 function zeroInitFor(typeStr, ctx) {
+    if (inStringMode(ctx) && ctx && ctx.currentFnName) {
+        const arr = parseArrayType(typeStr);
+        if (arr && /^(unsigned\s+|signed\s+)?char$/.test(arr.element.trim())) {
+            return `''`;
+        }
+    }
     return zeroInitForStruct(typeStr, ctx)
         ?? zeroInitForArray(typeStr, ctx)
         ?? zeroForType({ qualType: typeStr });
@@ -978,6 +1053,37 @@ function functionDecl(node, ctx) {
     const body = (node.inner || []).find((n) => n.kind === 'CompoundStmt');
     if (!body) return ''; // forward decl
     const name = renameIfReserved(node.name);
+
+    // Hand-port stub-anchor recognizer.  When `(cFile, C name)` matches
+    // a HAND_PORTED_FUNCTIONS entry in c2js.config.mjs, emit a thin
+    // stub that delegates to the runtime hand-port file instead of
+    // translating the body.  See c2js.config.mjs's
+    // HAND_PORTED_FUNCTIONS comment for rationale.
+    //
+    // The stub preserves:
+    //   - export class (static stays unexported)
+    //   - function name + signature (params named identically)
+    //   - C-source comment block above the function (via the same
+    //     mechanism functionDecl uses for the normal path — the
+    //     comment is injected post-emit by build-engine, anchored to
+    //     the export-line text).
+    //
+    // Adds an import line via ctx.externalRefs so the build pipeline
+    // wires up the runtime helper module path.
+    const handPortEntry = HAND_PORTED_FUNCTIONS[ctx.cFile];
+    if (handPortEntry && handPortEntry.functions.includes(node.name)) {
+        const isStatic = node.storageClass === 'static';
+        const isMain = name === 'main';
+        const exportPrefix = (isStatic || isMain) ? '' : 'export ';
+        const importAlias = `__nh_hp_${name}`;
+        ctx.externalRefs?.set?.(importAlias,
+            `js/c2js-runtime/${handPortEntry.runtime}`);
+        const argList = params.join(', ');
+        return `${exportPrefix}function ${name}(${argList}) {\n`
+            + `    return ${importAlias}(${argList});\n`
+            + `}`;
+    }
+
     // Per-function: rebuild the labelById map so GotoStmt resolution
     // is local to this function (label names can repeat across
     // functions in the same C file).
@@ -1065,6 +1171,27 @@ function functionDecl(node, ctx) {
             }];
         }
     }
+    // §23.239 void-char*-out-param convention, callee side: the
+    // function returns its out-param buffer at EVERY exit.  Mid-body
+    // bare `return;` statements emit `return <param>;` (returnStmt
+    // consults ctx.voidOutParamReturnName), and a trailing return is
+    // appended when the body doesn't already end with one.
+    const prevVoidOutParamReturnName = ctx.voidOutParamReturnName;
+    if (VOID_CHAR_OUT_PARAM_RETURNS.has(node.name)
+        && body && Array.isArray(body.inner)) {
+        const outIdx = VOID_CHAR_OUT_PARAM_RETURNS.get(node.name);
+        const outName = params[outIdx];
+        if (outName) {
+            ctx.voidOutParamReturnName = outName;
+            const lastChild = body.inner[body.inner.length - 1];
+            if (lastChild?.kind !== 'ReturnStmt') {
+                body.inner = [...body.inner, {
+                    kind: 'SyntheticText',
+                    text: `return ${outName};`,
+                }];
+            }
+        }
+    }
     // Function-local variable name set.  Used by declRefExpr to
     // bypass the cross-TU `game.X` rewrite when a local shadows a
     // file-static name from another TU.  Includes parameters and
@@ -1112,9 +1239,24 @@ function functionDecl(node, ctx) {
             } else {
                 initJs = zeroInitFor(typeStr, ctx);
             }
+            registerCharArrayEmittedAsArray(ctx, vd.name, typeStr, initJs);
             const isConst = /\bconst\b/.test(typeStr || '');
             const hoistLine = `${isConst ? 'const' : 'let'} ${hoistedName} = ${initJs};`;
             hoistLines.push(hoistLine);
+            // Q9.5(b) single-process harness convergence: mutable
+            // hoisted statics persist for the process lifetime, so
+            // back-to-back sessions in one process leak C-static
+            // state (§23.143).  Register a reset closure that
+            // re-evaluates the initializer — exactly what a fresh
+            // process computes at module load — so the session
+            // driver's __nh_reset_statics() restores fresh-process
+            // semantics per session.
+            if (!isConst) {
+                ctx.externalRefs?.set?.('__nh_register_static',
+                    EXTERNAL_SYMBOLS['__nh_register_static']);
+                hoistLines.push(
+                    `__nh_register_static(() => { ${hoistedName} = ${initJs}; });`);
+            }
             // Inside-VarDecl-range capture for function-local statics
             // (§23.124).  When the static is a multi-line array/struct
             // initializer (e.g. `static const struct alt_spl names[] = {
@@ -1230,6 +1372,7 @@ function functionDecl(node, ctx) {
     ctx.localAliases = prevLocalAliases;
     ctx.eosWalkers = prevEosWalkers;
     ctx.linkedListIterators = prevLLI;
+    ctx.voidOutParamReturnName = prevVoidOutParamReturnName;
     return hoistPrefix + head + bodyJs;
 }
 
@@ -1534,6 +1677,7 @@ function globalVarDecl(node, ctx) {
     } else {
         initJs = zeroInitFor(typeStr, ctx);
     }
+    registerCharArrayEmittedAsArray(ctx, rawName, typeStr, initJs);
 
     // Spec §2: NetHack's `ga`..`gz` global structs flatten onto a
     // single `game` root.  Definition `struct ... ga = {a, b};` →
@@ -1638,6 +1782,24 @@ const RETURNS_FIRST_ARG = new Set([
     'disco_append_typename',
 ]);
 
+// §23.239 — void-char*-out-param convention.  C functions whose
+// OUT-PARAM is a `char *` the caller reads back after the call
+// (`getlin(qbuf, buf); if (!strcmp(buf, "\\033")) ...`).  JS strings
+// pass by value, so NO implementation can write back through the
+// param — the callee must RETURN the buffer and call sites must
+// rebind.  Maps fn name → out-param index.  Effects:
+//   1. callee: every bare `return;` emits `return <param>;` and a
+//      trailing `return <param>;` is appended (mid-body returns
+//      covered, unlike RETURNS_FIRST_ARG's end-only injection);
+//   2. call sites: statement-level `f(q, buf)` rewrites to
+//      `buf = f(q, buf)` via the MUTATING_STR_CALLS machinery
+//      (dst index from MUTATING_STR_CALL_DST_IDX below).
+// `fillbuf` exists only in self-test 55 (no NetHack collision).
+const VOID_CHAR_OUT_PARAM_RETURNS = new Map([
+    ['getlin', 1],
+    ['fillbuf', 1],
+]);
+
 function exprStmt(node, ctx) {
     // Statement-level CallExpr to a mutating-string helper:
     // the C call mutates its first arg, but our JS shim returns
@@ -1651,8 +1813,23 @@ function exprStmt(node, ctx) {
     }
     if (n?.kind === 'CallExpr') {
         const baseName = calleeBase(n.inner?.[0]);
-        if (MUTATING_STR_CALLS.has(baseName) && n.inner?.length >= 2) {
-            const lhsArg = n.inner[1];
+        if ((MUTATING_STR_CALLS.has(baseName)
+                || VOID_CHAR_OUT_PARAM_RETURNS.has(baseName))
+            && n.inner?.length >= 2) {
+            // Most callees in MUTATING_STR_CALLS take the destination
+            // buffer as the first arg (n.inner[1]).  The nh_snprintf
+            // family is special — args are (label, line, dst, size,
+            // fmt, ...) — so the dst lives at n.inner[3].  Without
+            // this offset the captured LHS would be the StringLiteral
+            // "label" or the integer line number, which fails the
+            // lvalue check below and silently skips capture.
+            // VOID_CHAR_OUT_PARAM_RETURNS callees carry their own
+            // out-param index (n.inner[idx+1]: inner[0] is the callee).
+            const dstArgIdx = (baseName === 'nh_snprintf') ? 3
+                : VOID_CHAR_OUT_PARAM_RETURNS.has(baseName)
+                    ? VOID_CHAR_OUT_PARAM_RETURNS.get(baseName) + 1 : 1;
+            if (n.inner.length <= dstArgIdx) return expr(node, ctx);
+            const lhsArg = n.inner[dstArgIdx];
             // The first arg might be wrapped in ImplicitCastExpr
             // (array-decay).  Render it directly so we get the bare
             // identifier / member-expression for both lhs assignment
@@ -3745,7 +3922,8 @@ function compoundStmt(node, ctx) {
             if (child.kind === 'DeclStmt') {
                 for (const d of child.inner || []) {
                     if (d.kind === 'VarDecl' && !seenNames.has(d.name)
-                        && d.storageClass !== 'static') {
+                        && d.storageClass !== 'static'
+                        && d.storageClass !== 'extern') {
                         allHoisted.push(d);
                         seenNames.add(d.name);
                     }
@@ -3754,6 +3932,20 @@ function compoundStmt(node, ctx) {
         }
         // Emit hoisted declarations with appropriate zero-init.
         for (const d of allHoisted) {
+            // Char-buffer walker candidate: the body's uses are
+            // rewritten to bufRef[__nh_<name>_idx] form, so hoist the
+            // INDEX, not a pointer let.  Previously this path emitted
+            // a plain pointer decl while the body used the index —
+            // ReferenceError __nh_ap_idx in goto-hoisted getobj
+            // (invent.c's `char *bp = buf, *ap = altlets;`).  Kept
+            // deliberately narrow: only the decl/assign emission is
+            // touched, not the label-selector structure (the broad
+            // version of this change broke need_more_cq label scope —
+            // see feedback_hoist_charbuffer_interaction).
+            if (ctx.charBufferRewrites?.has(d.name)) {
+                lines.push(`${ctx.pad()}let ${ctx.charBufferRewrites.get(d.name).idxName} = 0;`);
+                continue;
+            }
             const name = renameIfReserved(d.name);
             const initJs = zeroInitFor(d.type?.qualType, ctx);
             lines.push(`${ctx.pad()}let ${name} = ${initJs};`);
@@ -3767,6 +3959,15 @@ function compoundStmt(node, ctx) {
             for (const d of child.inner || []) {
                 if (d.kind !== 'VarDecl') continue;
                 if (d.storageClass === 'static') continue;
+                // Walker candidate's decl-init re-emitted as an
+                // assignment: the pointer binding doesn't exist (the
+                // hoist above emitted the index), so `ap = altlets`
+                // becomes a walk-index reset — mirroring the
+                // assignment-init rewrite in binaryOp (idxName = 0).
+                if (ctx.charBufferRewrites?.has(d.name)) {
+                    parts.push(`${ctx.pad()}${ctx.charBufferRewrites.get(d.name).idxName} = 0;`);
+                    continue;
+                }
                 const name = renameIfReserved(d.name);
                 const init = (d.inner || []).find(isExpr);
                 if (init) {
@@ -3835,6 +4036,15 @@ function declStmt(node, ctx) {
     for (const child of node.inner || []) {
         if (child.kind !== 'VarDecl') continue;
         if (child.storageClass === 'static') continue;
+        // `extern const T arr[]; /* defined elsewhere */` declared inside
+        // a function body — declares storage exists in another TU, not
+        // here.  Skip emitting `let arr = ...` so the JS import (which
+        // resolves to the actual translated array/function) isn't
+        // shadowed by a local null.  C example (insight.c::one_characteristic):
+        //   extern const char *const attrname[]; /* attrib.c */
+        // The translator was previously emitting `let attrname = null`,
+        // breaking the import shadow.
+        if (child.storageClass === 'extern') continue;
         // Char-buffer rewrite: `char *p = buf;` becomes
         // `let __nh_p_idx = 0;` (the buf reference is captured for
         // use by *p / *p++ writes elsewhere in the body).
@@ -3875,6 +4085,7 @@ function declStmt(node, ctx) {
         } else {
             initJs = zeroInitFor(typeStr, ctx);
         }
+        registerCharArrayEmittedAsArray(ctx, child.name, typeStr, initJs);
         lines.push(ctx.pad() + `let ${name} = ${initJs};`);
     }
     return lines.join('\n');
@@ -3882,7 +4093,15 @@ function declStmt(node, ctx) {
 
 function returnStmt(node, ctx) {
     const arg = (node.inner || []).find(isExpr);
-    if (!arg) return ctx.pad() + 'return;';
+    if (!arg) {
+        // §23.239 — inside a void-char*-out-param callee, every exit
+        // returns the out-param buffer so rebinding call sites see
+        // the mutations (JS strings can't write back through params).
+        if (ctx.voidOutParamReturnName) {
+            return ctx.pad() + `return ${ctx.voidOutParamReturnName};`;
+        }
+        return ctx.pad() + 'return;';
+    }
     return ctx.pad() + `return ${expr(arg, ctx)};`;
 }
 
@@ -6134,7 +6353,7 @@ function expr(node, ctx, opts = {}) {
         case 'CompoundAssignOperator': return compoundAssign(node, ctx);
         case 'CallExpr':             return callExpr(node, ctx);
         case 'ConditionalOperator':  return conditionalExpr(node, ctx);
-        case 'ArraySubscriptExpr':   return `${expr(node.inner[0], ctx)}[${expr(node.inner[1], ctx)}]`;
+        case 'ArraySubscriptExpr':   return arraySubscriptExpr(node, ctx);
         case 'MemberExpr':           return memberExpr(node, ctx);
         case 'InitListExpr':         return initListExpr(node, ctx, opts);
         case 'UnaryExprOrTypeTraitExpr': return unaryExprOrTypeTrait(node, ctx);
@@ -6560,10 +6779,80 @@ function binaryOp(node, ctx) {
     // Limited to NUL on the RHS to avoid misclassifying actual
     // mid-string writes (which would need offset tracking).
     if (op === '=' && l?.kind === 'UnaryOperator' && l.opcode === '*'
-        && isCharArrayDeclRef(l.inner?.[0])
+        && isCharArrayDeclRef(l.inner?.[0], ctx)
         && isNulCharLiteral(r)) {
-        const refName = paramRefName(l.inner?.[0]);
-        return `${refName} = ''`;
+        const rawRefName = paramRefName(l.inner?.[0]);
+        // Consult localStatics map for hoisted-static rename (e.g.
+        // `static char buf[BUFSZ]` → `__<fn>_buf`).  See companion
+        // logic in the ArraySubscriptExpr buf[0]=0 recognizer below.
+        const refName = ctx?.localStatics?.get?.(rawRefName)
+            || rawRefName;
+        /* §23.227 Phase 1 string-mode: when STRING_MODE is set, the
+           buffer was emitted as `let buf = ''` instead of an array,
+           so the byte-write `buf[0] = 0` is wrong (it writes a
+           character property on a string, no-op).  Emit the
+           array-form rebind `buf = ''` which works for string buffers.
+           Default off — current production keeps the array-form
+           byte write for §23.222cz reasons. */
+        if (inStringMode(ctx) && ctx && ctx.currentFnName) {
+            return `${refName} = ''`;
+        }
+        // §23.222cz — emit byte-write at index 0 rather than rebinding to ''.
+        // The prior emit `buf = ''` rebinds buf to an empty string, which
+        // breaks subsequent nh_snprintf(buf, ...) / Sprintf(buf, ...) calls
+        // since those check Array.isArray(buf) to decide whether to mutate.
+        // After the rebind, those calls become no-ops on the array, and any
+        // downstream `enlght_line(..., buf, ...)` sees an empty string.
+        // (Surface: insight.c background_enlightenment line 600 `*buf =
+        // *tmpbuf = '\0'` followed by `Snprintf(buf, ..., "in %s, on %s",
+        // dgnbuf, tmpbuf)` produces empty-buf "You are ." output.)
+        // `buf[0] = 0` correctly truncates the C string while preserving
+        // the array binding so subsequent sprintf calls mutate.
+        return `${refName}[0] = 0`;
+    }
+    // §23.227 Phase 1 string-mode: `buf[0] = '\0'` (ArraySubscriptExpr
+    // form with constant index 0) on a char-array local.  This is the
+    // explicit-subscript variant of the `*buf = 0` idiom handled above.
+    // In string-mode the buffer is a JS string, so the indexed write
+    // is a silent no-op; rebind to '' instead.  Default off keeps the
+    // bare array-byte-write emit unchanged for non-string-mode TUs.
+    if (op === '=' && l?.kind === 'ArraySubscriptExpr'
+        && inStringMode(ctx) && ctx && ctx.currentFnName
+        && isNulCharLiteral(r)) {
+        const base = stripCasts(l.inner?.[0]);
+        const idx = stripCasts(l.inner?.[1]);
+        if (base?.kind === 'DeclRefExpr'
+            && isCharArrayDeclRef(base, ctx)
+            && idx?.kind === 'IntegerLiteral'
+            && String(idx.value) === '0') {
+            const rawName = base.referencedDecl?.name || base.name;
+            // Consult localStatics map so a hoisted static-local (e.g.
+            // `static char buf[BUFSZ]` → `__<fn>_buf`) gets rebound to
+            // its hoisted name, not the raw C name.  Without this,
+            // `buf[0] = 0` in attrib.c's from_what emits `buf = ''`
+            // which shadows the module-scope __from_what_buf — the
+            // rest of the function still uses the hoisted name, so
+            // the function body would see a stale local-shadow ''
+            // rather than re-binding the module-scope buffer.
+            const hoistedName = ctx?.localStatics?.get?.(rawName);
+            const refName = renameIfReserved(hoistedName || rawName);
+            return `${refName} = ''`;
+        }
+        // MemberExpr base: `gk.killer.name[0] = '\0'` (level_tele's
+        // clear-the-killer-buffer idiom) — a char[N] STRUCT FIELD.
+        // The field holds a JS string (or null at init), so the
+        // indexed write was a silent no-op on strings and a strict
+        // TypeError on null — swallowed by the ^V dispatch catch, it
+        // silently aborted every wizard level-teleport (the getbones
+        // x7 cluster's final blocker, Q9 iteration 25).  Same rebind
+        // semantics as the DeclRef branch.
+        if (base?.kind === 'MemberExpr'
+            && isCharArrayFieldType(base)
+            && idx?.kind === 'IntegerLiteral'
+            && String(idx.value) === '0') {
+            const lhsJs = expr(base, ctx);
+            return `${lhsJs} = ''`;
+        }
     }
     // `*obj.field = '\0'` / `*arr[i].field = '\0'` where the field
     // is `char *` — the same "reset to empty string" idiom on a
@@ -6583,32 +6872,108 @@ function binaryOp(node, ctx) {
     // In JS, since `*bp` for a non-outparam pointer renders as just
     // `bp`, the captured RHS is `highc(bp)` (or `lowc(bp)`).  Replace
     // the whole assignment with the JS first-character transform.
-    if (op === '=' && l?.kind === 'UnaryOperator' && l.opcode === '*') {
-        const lhsRef = stripCasts(l.inner?.[0]);
-        const isHighcLowc = r?.kind === 'CallExpr'
+    //
+    // §23.228 — Extended to also match `X[0] = highc(X[0])` /
+    // `X[0] = lowc(X[0])` (ArraySubscriptExpr LHS form), the
+    // shknam.c / shk.c / et al. variant.  Same dual-mode IIFE emit.
+    // Must fire BEFORE the generic ArraySubscriptExpr-LHS char-ptr
+    // write recognizer below — the IIFE handles the empty-string
+    // short-circuit (`if (!__s) return __s`) that __nh_char_write
+    // doesn't (it would write a NUL byte at index 0 of an empty
+    // string, producing "\0" — non-empty 1-char — instead of "").
+    {
+        const lhsIsDeref = l?.kind === 'UnaryOperator' && l.opcode === '*';
+        const lhsIsIdx0 = l?.kind === 'ArraySubscriptExpr'
             && (() => {
-                const callee = stripCasts(r.inner?.[0]);
-                const name = callee?.referencedDecl?.name || callee?.name;
-                return name === 'highc' || name === 'lowc';
+                const i = stripCasts(l.inner?.[1]);
+                return i?.kind === 'IntegerLiteral' && String(i.value) === '0';
             })();
-        if (isHighcLowc && lhsRef?.kind === 'DeclRefExpr') {
-            const callee = stripCasts(r.inner?.[0]);
-            const calleeName = callee?.referencedDecl?.name || callee?.name;
-            const method = calleeName === 'highc' ? 'toUpperCase' : 'toLowerCase';
-            const refName = paramRefName(l.inner?.[0]);
-            // Char-array safe (§23.43): if refName is a `char buf[]`
-            // array, `arr[0]` is a NUMBER (not a string char), and
-            // `arr.slice(1)` returns an array.  Pre-coerce to JS
-            // string via inline NUL-terminator walk before applying
-            // first-char case transform.  String inputs short-circuit.
-            return `${refName} = (() => {`
-                + ` const __s = ${refName};`
-                + ` if (!__s) return __s;`
-                + ` const __t = Array.isArray(__s)`
-                + `   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()`
-                + `   : (__s + '');`
-                + ` return __t.length ? __t[0].${method}() + __t.slice(1) : __s;`
-                + ` })()`;
+        if (op === '=' && (lhsIsDeref || lhsIsIdx0)) {
+            const lhsRef = stripCasts(l.inner?.[0]);
+            const isHighcLowc = r?.kind === 'CallExpr'
+                && (() => {
+                    const callee = stripCasts(r.inner?.[0]);
+                    const name = callee?.referencedDecl?.name || callee?.name;
+                    return name === 'highc' || name === 'lowc';
+                })();
+            if (isHighcLowc && lhsRef?.kind === 'DeclRefExpr') {
+                const callee = stripCasts(r.inner?.[0]);
+                const calleeName = callee?.referencedDecl?.name || callee?.name;
+                const method = calleeName === 'highc' ? 'toUpperCase' : 'toLowerCase';
+                const refName = paramRefName(l.inner?.[0]);
+                // Char-array safe (§23.43): if refName is a `char buf[]`
+                // array, `arr[0]` is a NUMBER (not a string char), and
+                // `arr.slice(1)` returns an array.  Pre-coerce to JS
+                // string via inline NUL-terminator walk before applying
+                // first-char case transform.  String inputs short-circuit.
+                return `${refName} = (() => {`
+                    + ` const __s = ${refName};`
+                    + ` if (!__s) return __s;`
+                    + ` const __t = Array.isArray(__s)`
+                    + `   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()`
+                    + `   : (__s + '');`
+                    + ` return __t.length ? __t[0].${method}() + __t.slice(1) : __s;`
+                    + ` })()`;
+            }
+        }
+    }
+    // §23.228 — `p[idx] = X` write where p is a `char *` pointer.
+    // Pairs with the ArraySubscriptExpr read recognizer in
+    // arraySubscriptExpr(): without intercepting this BEFORE the
+    // generic emit, expr(LHS) would render the LHS as the function
+    // call `__nh_char_at0(__nh_advance_str(p, idx))` (the read form),
+    // which is invalid on the left of `=`.  Route through the
+    // __nh_char_write runtime helper which mutates an array in place
+    // (assignment to local is no-op rebind), creates a new string
+    // when p is string (rebind is meaningful), or sets `.value` on a
+    // scalar-ptr wrapper when idx===0.
+    //
+    // Restricted to char-pointer base (DeclRefExpr / MemberExpr with
+    // `char *` type); plain `char [N]` array bases keep their bare
+    // `arr[N] = X` emit since the dual-mode runtime preserves the
+    // array form for those.  See arraySubscriptExpr() for the
+    // matching type test.
+    // Skip when RHS is itself a chained assignment — let the chain
+    // handler below decompose into a comma expression first, so each
+    // arr[N] = X in the chain becomes a proper __nh_char_write call
+    // independently rather than nesting them as
+    // `outer[0] = __nh_char_write(outer, 0, inner[0] = __nh_char_write(...))`.
+    if (op === '=' && l?.kind === 'ArraySubscriptExpr'
+        && !(r?.kind === 'BinaryOperator' && isAssignmentOp(r.opcode))) {
+        const base = stripCasts(l.inner?.[0]);
+        const isCharPtrBase = (n) => {
+            if (!n) return false;
+            if (n.kind !== 'DeclRefExpr' && n.kind !== 'MemberExpr') return false;
+            const t = (n.type?.qualType || '').trim();
+            return /^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(t);
+        };
+        // §23.231 — Also handle char-array LHS in string-mode TUs.
+        // For local `char buf[N]` declarations, string-mode rebinds
+        // `buf = ''`.  Subsequent `buf[i] = X` writes silently no-op
+        // on the string.  Route through __nh_char_write so the rebind
+        // happens correctly.  In non-string-mode, the bare `buf[i] = X`
+        // still works on the array form.
+        const isCharArrayLocalInStringMode = (n) => {
+            if (!inStringMode(ctx) || !ctx?.currentFnName) return false;
+            if (!n) return false;
+            if (n.kind !== 'DeclRefExpr' && n.kind !== 'MemberExpr') return false;
+            return isCharArrayDeclRef(n, ctx);
+        };
+        if (isCharPtrBase(base) || isCharArrayLocalInStringMode(base)) {
+            ctx.externalRefs?.set?.('__nh_char_write',
+                EXTERNAL_SYMBOLS['__nh_char_write']);
+            const rawName = (base.referencedDecl?.name || base.name);
+            const hoistedName = ctx?.localStatics?.get?.(rawName);
+            const baseJs = hoistedName
+                ? renameIfReserved(hoistedName)
+                : expr(l.inner?.[0], ctx);
+            const idxJs = expr(l.inner?.[1], ctx);
+            const rJs = expr(r, ctx);
+            // Rebind base to the (possibly new) buffer returned by
+            // __nh_char_write.  For array p, this is a no-op rebind
+            // (helper returns the same array after mutating); for
+            // string p, the new string is bound to the local variable.
+            return `${baseJs} = __nh_char_write(${baseJs}, ${idxJs}, ${rJs})`;
         }
     }
     // Chained assignment over a pointer-mutation outer: C `*p = obj = X`
@@ -6624,13 +6989,46 @@ function binaryOp(node, ctx) {
     // Pure-RHS gate: substituting the inner RHS into the outer would
     // re-evaluate it.  Pure literals/DeclRefs are safe to evaluate
     // twice; complex expressions (function calls, etc.) are not.
-    if (op === '=' && lvalueNeedsPointerWrapper(l)
-        && r?.kind === 'BinaryOperator' && isAssignmentOp(r.opcode)
-        && isPureExprNode(r.inner?.[1])) {
-        const innerJs = expr(r, ctx);
-        const outerSynth = { ...node, inner: [l, r.inner[1]] };
-        const outerJs = binaryOp(outerSynth, ctx);
-        return `(${innerJs}, ${outerJs})`;
+    //
+    // §23.228 — LHS check extended to also include ArraySubscriptExpr
+    // (for chains like `pfx[0] = sfx[0] = buf[0] = '\0'` in
+    // insight.c::background_enlightenment).  Without the extension,
+    // the chain handler only fired for UnaryOp `*` LHS; the indexed
+    // form fell through to the generic emit which produced
+    // `pfx[0] = sfx[0] = buf[0] = 0` — fine in dual-mode arrays, but
+    // string-mode TUs where `buf[0] = 0` rebinds `buf = ''` would
+    // only rebind the rightmost variable; pfx and sfx would still
+    // hold their pre-truncation strings.
+    //
+    // For multi-level chains (3+), walk through nested assignments to
+    // find the innermost pure value.  Then synthesize the outer with
+    // that innermost as RHS.  Without this walk the chain handler
+    // only fires after the inner chain has decomposed, producing
+    // partial output like `pfx[0] = (buf[0] = 0, sfx[0] = 0)`.
+    const isChainLhs = lvalueNeedsPointerWrapper(l)
+        || l?.kind === 'ArraySubscriptExpr';
+    if (op === '=' && isChainLhs
+        && r?.kind === 'BinaryOperator' && isAssignmentOp(r.opcode)) {
+        // Walk the chain to find the innermost RHS value.  Stop when
+        // we hit a non-assignment expression (the actual stored value).
+        let innermost = r;
+        while (innermost?.kind === 'BinaryOperator'
+            && isAssignmentOp(innermost.opcode)
+            && innermost.inner?.[1]?.kind === 'BinaryOperator'
+            && isAssignmentOp(innermost.inner[1].opcode)) {
+            innermost = innermost.inner[1];
+        }
+        // innermost is now a BinaryOp(=) whose RHS is the literal/pure
+        // expression.  Require pure RHS so substituting it into the
+        // outer (which re-evaluates) is safe.
+        if (innermost?.kind === 'BinaryOperator'
+            && isAssignmentOp(innermost.opcode)
+            && isPureExprNode(innermost.inner?.[1])) {
+            const innerJs = expr(r, ctx);
+            const outerSynth = { ...node, inner: [l, innermost.inner[1]] };
+            const outerJs = binaryOp(outerSynth, ctx);
+            return `(${innerJs}, ${outerJs})`;
+        }
     }
     if (isAssignmentOp(op) && lvalueNeedsPointerWrapper(l)) {
         // Char-buffer write recognizer (slice 1): `*p = X` and
@@ -6640,6 +7038,22 @@ function binaryOp(node, ctx) {
         const cbr = (op === '=') ? matchCharBufferWrite(l, ctx) : null;
         if (cbr) {
             const rJs = expr(r, ctx);
+            // String-mode TU: the buf is a JS string — indexed stores
+            // are silent no-ops ("Cannot create property '0' on
+            // string" in strict contexts).  Emit slice-and-append:
+            // `buf.slice(0, idx++)` reads the pre-increment index, so
+            // the *p++ = X form composes directly.  A NUL write is
+            // C's terminator — truncate instead of appending '\0'
+            // (mirrors the eos-walker NUL-drop convention).
+            // (Q9 iteration 4c: getobj's altlets walker hit this on
+            // the first string-mode walker WRITE — hacklib's walkers
+            // only ever read.)
+            if (inStringMode(ctx)) {
+                const isNul = /^\(?0\)?$/.test(rJs.trim());
+                return isNul
+                    ? `${cbr.bufJs} = ${cbr.bufJs}.slice(0, ${cbr.idxAccess})`
+                    : `${cbr.bufJs} = ${cbr.bufJs}.slice(0, ${cbr.idxAccess}) + String.fromCharCode(${rJs})`;
+            }
             return `${cbr.bufJs}[${cbr.idxAccess}] = ${rJs}`;
         }
         // Eos-walker write: `*bp = X`, `*bp++ = X`, `*++bp = X`,
@@ -6864,6 +7278,47 @@ function binaryOp(node, ctx) {
             }
         }
     }
+    // §23.228 — `dop - disclosure_options` where both are `char *`
+    // typed locals/params/fields (typical pattern: dop assigned from
+    // strchr(disclosure_options, c) earlier, then offset extracted
+    // for table indexing).  Generalises the existing strchr-direct
+    // recognizer below: covers the case where the strchr result was
+    // stored to a local before the subtraction.
+    //
+    // In JS, both are strings or arrays.  Subtraction gives NaN.
+    // The correct offset is `disclosure_options.length - dop.length`
+    // assuming dop is a suffix (which it is when produced by
+    // strchr / nh_strchr / strrchr / strstr / nh_strsearch).  This
+    // matches the formula the existing strchr recognizer effectively
+    // computes via .indexOf.
+    //
+    // Restricted to `char *` / `const char *` on BOTH sides; comparing
+    // pointer types would fire here too but those are caught by the
+    // `<`/`>` recognizer below.
+    if (op === '-') {
+        // Accept both `char *` (typical strchr-result locals) and
+        // `char [N]` (the array form of static const tables like
+        // `disclosure_options[]`).  C arrays decay to pointers in
+        // expression context but the AST preserves the array type.
+        const isCharPtrOrArr = (n) => {
+            if (!n) return false;
+            const s = stripCasts(n);
+            if (!s) return false;
+            if (s.kind !== 'DeclRefExpr' && s.kind !== 'MemberExpr') return false;
+            const t = (s.type?.qualType || '').trim();
+            if (/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(t)) return true;
+            if (/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\[\s*\d*\s*\]\s*$/.test(t)) return true;
+            return false;
+        };
+        if (isCharPtrOrArr(l) && isCharPtrOrArr(r)) {
+            const lJs = expr(l, ctx);
+            const rJs = expr(r, ctx);
+            // Format: `(r.length - l.length)`.  Parenthesized so the
+            // result fits into expressions like `idx = (X - Y)` or
+            // `if (X - Y > 0)` without precedence surprises.
+            return `(${rJs}.length - ${lJs}.length)`;
+        }
+    }
     // `strchr(X, c) - X` — the C idiom for "find the index of c in X".
     // C pointer subtraction yields a numeric index; JS strchr returns
     // a suffix string, and `string - string` = NaN.  Rewrite to
@@ -6997,7 +7452,84 @@ function binaryOp(node, ctx) {
             return `${cbrSide.idxJs} ${op} ${cbrSide.pIdx}`;
         }
     }
+    // Both-sides address compare: `&A[i] OP &B[j]` on char pointers/
+    // buffers in string mode.  JS strings have no addresses to
+    // compare.  The only occurrence of this shape in NetHack's C
+    // (invent.c getobj: `&bp[suggested] == &buf[sizeof buf - 1]`) is
+    // a capacity guard where bp aliases buf at a small constant
+    // offset and the cap is unreachable in any real game state.
+    // Emit the index comparison `(i) OP (j)` (alias-offset-0
+    // assumption): matches the C truth value for every reachable
+    // state, and replaces the previous fallback emit — a string
+    // compared against a char code, where `'' == 0` coerces true and
+    // fired getobj's "inventory overflow" impossible spuriously on
+    // the first inventory item.
+    if (CMP_OPS.has(op) && inStringMode(ctx)) {
+        const lAddr = _matchAddrOfCharSubscript(l);
+        const rAddr = _matchAddrOfCharSubscript(r);
+        if (lAddr && rAddr) {
+            return `(${expr(lAddr.idxNode, ctx)}) ${op} (${expr(rAddr.idxNode, ctx)})`;
+        }
+    }
+    // Phase A3: expression-form `p + N` on a `(const)? char *` target
+    // (DeclRefExpr local / MemberExpr struct field) where p was not
+    // claimed by charBufferRewrites / strchrBoundPaths.  The generic
+    // emit `p + N` is a JS string concat (`"foo" + 5 → "foo5"`) that
+    // breaks every downstream string compare / slice.  Route through
+    // __nh_advance_str so the result is the proper suffix.  Applies
+    // at expression level so it composes inside function-call args,
+    // assignment RHS, etc.
+    //
+    // Coverage: `p + INTEGER` and `INTEGER + p` (additive identity).
+    // Order doesn't matter for the helper.  Restricted to integer-
+    // valued RHS — `p + q` (pointer + pointer) is not a valid C
+    // operation anyway, and `p + non_integer_typed_expr` is too
+    // surprising to silently rewrite.
+    if (op === '+') {
+        const lStripped = stripCasts(l);
+        const rStripped = stripCasts(r);
+        const isCharPtr = (n) => {
+            if (!n) return false;
+            if (n.kind !== 'DeclRefExpr' && n.kind !== 'MemberExpr') {
+                return false;
+            }
+            const t = (n.type?.qualType || '').trim();
+            return /^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(t);
+        };
+        if (isCharPtr(lStripped) && isIntegerTyped(r)) {
+            ctx.externalRefs?.set?.('__nh_advance_str',
+                EXTERNAL_SYMBOLS['__nh_advance_str']);
+            return `__nh_advance_str(${lJs}, ${rJs})`;
+        }
+        if (isCharPtr(rStripped) && isIntegerTyped(l)) {
+            ctx.externalRefs?.set?.('__nh_advance_str',
+                EXTERNAL_SYMBOLS['__nh_advance_str']);
+            return `__nh_advance_str(${rJs}, ${lJs})`;
+        }
+    }
     return `${lJs} ${op} ${rJs}`;
+}
+
+// Matcher for binaryOp's both-sides address compare: `&arr[i]` where
+// arr is a char pointer or char array lvalue (DeclRefExpr or
+// MemberExpr).  Returns { idxNode } or null.
+function _matchAddrOfCharSubscript(node) {
+    const s = stripCasts(node);
+    if (s?.kind !== 'UnaryOperator' || s.opcode !== '&') return null;
+    const sub = stripCasts(s.inner?.[0]);
+    if (sub?.kind !== 'ArraySubscriptExpr' || sub.inner?.length !== 2) {
+        return null;
+    }
+    const base = stripCasts(sub.inner[0]);
+    if (!base
+        || (base.kind !== 'DeclRefExpr' && base.kind !== 'MemberExpr')) {
+        return null;
+    }
+    const t = (base.type?.qualType || '').trim();
+    if (!/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*(?:\*|\[)/.test(t)) {
+        return null;
+    }
+    return { idxNode: sub.inner[1] };
 }
 
 // Helper for binaryOp's charBufferRewrites comparison emit.  Detects
@@ -7087,11 +7619,21 @@ function isStructValueLvalue(node, ctx) {
         n = n.inner?.[0];
     }
     if (!n) return false;
-    // Conservative: only DeclRefExpr (a bare local) and
-    // ArraySubscriptExpr (e.g. add_rect's `rect[rect_cnt] = *r`).
-    // MemberExpr is excluded because `s.field = X` is usually a
-    // primitive write, not a struct-value copy.
-    if (!['DeclRefExpr', 'ArraySubscriptExpr'].includes(n.kind)) {
+    // DeclRefExpr (a bare local), ArraySubscriptExpr (e.g. add_rect's
+    // `rect[rect_cnt] = *r`), and MemberExpr whose member TYPE is a
+    // registered struct.  MemberExpr was excluded as "usually a
+    // primitive write", but the structRegistryKey type check below
+    // already separates `s.field = X` primitive writes (primitive
+    // qualType → no registry match) from struct-member copies.  The
+    // exclusion made `gu.urole = roles[flags.initrole]` (role.c
+    // role_init; gu flattens to game) emit a REFERENCE alias — C
+    // struct assignment is a COPY — so the priest pantheon-god write
+    // `urole.lgod = ...` mutated the shared module-level roles[]
+    // table and the NEXT priest session in the same process skipped
+    // its randrole rn2(13) (Q9.5(b) cross-session leak, div=199 on
+    // seeds 0106/0367/0501).
+    if (!['DeclRefExpr', 'ArraySubscriptExpr', 'MemberExpr']
+        .includes(n.kind)) {
         return false;
     }
     const t = n.type?.qualType || '';
@@ -7343,16 +7885,62 @@ function isNulCharLiteral(node) {
 // whose original C type is a `char [N]` fixed-size array.  Used to
 // detect the C `*buf = '\0'` "reset to empty string" idiom which we
 // translate to `buf = ''` rather than a pointer-mutation marker.
-function isCharArrayDeclRef(node) {
+// §23.238 — decl/read consistency for char arrays with brace-list
+// initializers.  `static const char syms[] = { MAXOCLASSES, ... }`
+// emits as a JS ARRAY literal (initListExpr's array branch), but the
+// string-mode read path (arraySubscriptExpr → __nh_char_at0/
+// __nh_advance_str) assumed every `char [N]` decl is a JS string —
+// emitting string helpers against an array (makemon.js
+// set_mimic_sym's `syms` table; would TypeError when a mimic
+// spawns, and the drifted text noop'd the m_initappear patch).
+// Decl-emit sites (globalVarDecl, static hoist, declStmt) call this
+// after computing initJs; when a char-array decl actually emitted an
+// array literal, the name is excluded from isCharArrayDeclRef so
+// reads stay `arr[i]`.
+function registerCharArrayEmittedAsArray(ctx, name, typeStr, initJs) {
+    if (!ctx || !name || !initJs) return;
+    const t = (typeStr || '')
+        .replace(/^(const|volatile|restrict)\s+/, '')
+        .replace(/^(signed|unsigned)\s+/, '')
+        .trim();
+    if (!/^char\s*\[\s*\d+\s*\]$/.test(t)) return;
+    if (!initJs.trimStart().startsWith('[')) return;
+    if (!ctx.charArraysEmittedAsArray) {
+        ctx.charArraysEmittedAsArray = new Set();
+    }
+    ctx.charArraysEmittedAsArray.add(name);
+}
+
+// MemberExpr whose member type is a fixed-size char array
+// (`char name[BUFSZ]` struct field).  Companion to isCharArrayDeclRef
+// for the buf[0]='\0' clear idiom on struct fields.
+function isCharArrayFieldType(node) {
+    if (!node || node.kind !== 'MemberExpr') return false;
+    const t = (node.type?.qualType || '')
+        .replace(/^(const|volatile|restrict)\s+/, '')
+        .replace(/^(signed|unsigned)\s+/, '')
+        .trim();
+    return /^char\s*\[\s*\d+\s*\]$/.test(t);
+}
+
+function isCharArrayDeclRef(node, ctx) {
     let n = node;
     while (n && (n.kind === 'ParenExpr' || n.kind === 'ImplicitCastExpr')) {
         n = n.inner?.[0];
     }
     if (!n || n.kind !== 'DeclRefExpr') return false;
+    // Brace-list-initialized char arrays emit as JS arrays, not
+    // strings — reads must stay array-indexed (§23.238 above).
+    const declName = n.referencedDecl?.name ?? n.name;
+    if (ctx?.charArraysEmittedAsArray?.has(declName)) return false;
     // The DeclRefExpr's referencedDecl carries the declared variable's
-    // type; check for `char [N]`.  Strip leading qualifiers.
+    // type; check for `char [N]`.  Strip leading qualifiers and
+    // signed/unsigned modifiers.
     const t = (n.referencedDecl?.type?.qualType
-               ?? n.type?.qualType ?? '').replace(/^(const|volatile|restrict)\s+/, '').trim();
+               ?? n.type?.qualType ?? '')
+              .replace(/^(const|volatile|restrict)\s+/, '')
+              .replace(/^(signed|unsigned)\s+/, '')
+              .trim();
     return /^char\s*\[\s*\d+\s*\]$/.test(t);
 }
 
@@ -7492,7 +8080,24 @@ function unaryOp(node, ctx) {
     // form is handled by binaryOp before it reaches here.
     if (op === '*') {
         const cbr = matchCharBufferWrite(node, ctx);
-        if (cbr) return `${cbr.bufJs}[${cbr.idxAccess}]`;
+        if (cbr) {
+            // String-mode TU: buf is a JS string — `buf[idx]` yields a
+            // one-char STRING, or undefined past the end, where
+            // `undefined != 0` is TRUE: ggetobj's `(sym = *ip++)`
+            // terminator test never fired and the loop allocated until
+            // OOM (Q9 iteration 13, seed5002).  Route through the char
+            // helpers so reads are byte numbers with 0 at
+            // end-of-string, mirroring the string-mode WRITE form in
+            // binaryOp (iteration 4c).
+            if (inStringMode(ctx)) {
+                ctx.externalRefs?.set?.('__nh_char_at0',
+                    EXTERNAL_SYMBOLS['__nh_char_at0']);
+                ctx.externalRefs?.set?.('__nh_advance_str',
+                    EXTERNAL_SYMBOLS['__nh_advance_str']);
+                return `__nh_char_at0(__nh_advance_str(${cbr.bufJs}, ${cbr.idxAccess}))`;
+            }
+            return `${cbr.bufJs}[${cbr.idxAccess}]`;
+        }
     }
     // Linked-list iterator deref: `*var` where var is in
     // ctx.linkedListIterators emits as `<name>__parent[<name>__field]`.
@@ -7515,6 +8120,35 @@ function unaryOp(node, ctx) {
         const refName = paramRefName(innerNode);
         return `${refName}.value`;
     }
+    // §23.228 — `&p[N]` where p is `char *` — the C "address-of-element"
+    // idiom that translates to pointer-add.  C semantics:
+    // `&p[N] === p + N` (advance pointer N bytes).  Without this branch
+    // the `&` op was dropped (see `if (op === '&') return arg` below),
+    // and arraySubscriptExpr emits the read form __nh_char_at0(...).
+    // That returns a BYTE, not a pointer — assignment like
+    // `p = &p[N]` then rebinds p to a number instead of advancing it.
+    // Pre-existing rip.c::genl_outrip bug surfaced by the new
+    // arraySubscriptExpr recognizer; the fix routes to __nh_advance_str
+    // which is the pointer-add we want.
+    if (op === '&') {
+        const inner = stripCasts(innerNode);
+        if (inner?.kind === 'ArraySubscriptExpr') {
+            const base = stripCasts(inner.inner?.[0]);
+            const isCharPtrBase = (n) => {
+                if (!n) return false;
+                if (n.kind !== 'DeclRefExpr' && n.kind !== 'MemberExpr') return false;
+                const t = (n.type?.qualType || '').trim();
+                return /^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(t);
+            };
+            if (isCharPtrBase(base)) {
+                ctx.externalRefs?.set?.('__nh_advance_str',
+                    EXTERNAL_SYMBOLS['__nh_advance_str']);
+                const baseJs = expr(inner.inner[0], ctx);
+                const idxJs = expr(inner.inner[1], ctx);
+                return `__nh_advance_str(${baseJs}, ${idxJs})`;
+            }
+        }
+    }
     const arg = expr(innerNode, ctx);
     // C's address-of (&x) is a no-op in JS: objects already pass by
     // reference, so `&a` and `a` evaluate identically when the target
@@ -7522,10 +8156,69 @@ function unaryOp(node, ctx) {
     // would be expressed via a wrapper class in JS; defer to whatever
     // phase first hits a scalar address-of.
     if (op === '&') return arg;
-    // Dereference (*p) on a pointer-to-struct is also identity in JS,
-    // since the pointer IS the object reference.  Pointer-to-scalar
-    // is again a wrapper-class problem, deferred.
-    if (op === '*') return arg;
+    // Char-typed local pointer deref: `*p` where p is a local
+    // `const char *` / `char *` (NOT a scalar-ptr-param, NOT a
+    // charBufferRewrites walker, NOT a linkedListIterator — those
+    // are caught by earlier branches).  Emit `__nh_char_at0(p)` so
+    // the runtime helper handles all three concrete JS shapes the
+    // pointer may carry at runtime: a plain JS string (typical for
+    // pointer-to-string-literal locals like `gnam = gu.urole.lgod`),
+    // a char-array (`char buf[N]`), or a `{value: N}` scalar-ptr
+    // wrapper.
+    //
+    // Without this branch the previous fallthrough emit (`*p` →
+    // `p` no-op deref) produced silently-wrong comparisons like
+    // `if (gnam == 95)` for C's `if (*gnam == '_')` (always false
+    // since "Amaterasu Omikami" !== 95), causing
+    // `pray.c::align_gname` to never strip its leading-underscore
+    // proper-noun marker.  See e358388 for the prior per-site
+    // hand patch; this recognizer generalizes it.  Added 2026-05-31
+    // as Phase A1 of the translator-capability plan.
+    if (op === '*') {
+        const innerStripped = stripCasts(innerNode);
+        // Match `const char *`, `char *`, or
+        // `const? unsigned/signed? char *` (no further qualifier
+        // tail — uchar/int8/uint8 typedefs go through the
+        // scalar-ptr-param path when used as outparams; locals
+        // that happen to be uchar* are vanishingly rare and not
+        // exercised by current sessions).
+        // Accepts DeclRefExpr (local / param) OR MemberExpr (struct
+        // field like `d->bp`); the MemberExpr extension covers
+        // objnam.c's wish-parsing reads (`if (*d->bp == ...)`).
+        if (innerStripped
+            && (innerStripped.kind === 'DeclRefExpr'
+                || innerStripped.kind === 'MemberExpr')) {
+            const innerType = (innerStripped.type?.qualType || '').trim();
+            if (/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(innerType)) {
+                ctx.externalRefs?.set?.('__nh_char_at0',
+                    EXTERNAL_SYMBOLS['__nh_char_at0']);
+                return `__nh_char_at0(${arg})`;
+            }
+        }
+        // Phase A1 extension (§23.222cx): `*(p + N)` where p+N has
+        // `char *` type (after A3's pointer-arithmetic recognition).
+        // Without this, the inner BinaryOperator emits via A3 as
+        // `__nh_advance_str(p, N)` — a string SUFFIX, not a byte.
+        // The outer `*` deref must read the first byte of that
+        // suffix; emit `__nh_char_at0(...)` wrapping the A3 result.
+        //
+        // Covers C idioms like questpgr.c `*(c + 1)`, windows.c
+        // `*(str + 1) == 'G'`, vision.c `*limits >= *(limits + 1)`,
+        // hacklib.c `*(p - 1)`, mdlib.c `*(word + 1) == '('`, etc.
+        // Without this, those reads return string suffixes that
+        // silently compare-false against character literals.
+        if (innerStripped
+            && innerStripped.kind === 'BinaryOperator'
+            && (innerStripped.opcode === '+' || innerStripped.opcode === '-')) {
+            const exprType = (innerStripped.type?.qualType || '').trim();
+            if (/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(exprType)) {
+                ctx.externalRefs?.set?.('__nh_char_at0',
+                    EXTERNAL_SYMBOLS['__nh_char_at0']);
+                return `__nh_char_at0(${arg})`;
+            }
+        }
+        return arg;
+    }
     // `__extension__` is GCC's "this is a non-portable extension,
     // suppress warnings" prefix.  Clang represents it as a UnaryOp
     // wrapping the real expression.  Emit the inner directly.
@@ -7570,6 +8263,42 @@ function unaryOp(node, ctx) {
                 return `(${arg} = ${arg}.substring(1))`;
             }
             return `(${arg} = ${arg}.substring(0, ${arg}.length - 1))`;
+        }
+    }
+    // Phase A2: `++p` / `p++` / `--p` / `p--` on a local `char *` /
+    // `const char *` whose runtime binding is a JS string (or a char-
+    // array) where no charBufferRewrites walker / strchrBoundPaths
+    // claimed it.  The generic emit (`++p`) is a NaN-write no-op on
+    // strings; route through __nh_advance_str so the assignment
+    // re-binds to the suffix slice.  Statement form is canonical; in
+    // expression form, the assignment-expression value is the NEW p
+    // (matches prefix semantic; postfix-as-r-value is rare on string
+    // pointers and accepted as a small intentional gap).  Pairs with
+    // Phase A1's __nh_char_at0 deref recognizer so the typical pattern
+    // `if (*p == 'X') ++p;` (e.g. pray.c::align_gname's underscore
+    // strip) translates correctly without per-site hand-port.
+    if ((op === '++' || op === '--')) {
+        const innerStripped = stripCasts(innerNode);
+        const isCharPtrTarget = (n) => {
+            if (!n) return false;
+            // DeclRefExpr to a char-typed local / param.
+            // MemberExpr to a char-typed struct field (e.g. d.bp,
+            // d->p in C → emitted as `d.p` / `d.bp` in JS after
+            // arrow→dot normalization).  We require the OUTER
+            // expression's type to be char*; struct-relative cases
+            // mirror local-pointer semantics through __nh_advance_str
+            // (string slice or array slice rebind).
+            if (n.kind !== 'DeclRefExpr' && n.kind !== 'MemberExpr') {
+                return false;
+            }
+            const t = (n.type?.qualType || '').trim();
+            return /^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(t);
+        };
+        if (isCharPtrTarget(innerStripped)) {
+            ctx.externalRefs?.set?.('__nh_advance_str',
+                EXTERNAL_SYMBOLS['__nh_advance_str']);
+            const delta = (op === '++') ? '1' : '-1';
+            return `(${arg} = __nh_advance_str(${arg}, ${delta}))`;
         }
     }
     // C `ptr++` / `ptr--` on a struct-pointer-typed local advances
@@ -7619,6 +8348,23 @@ function compoundAssign(node, ctx) {
             const rewrite = ctx.charBufferRewrites.get(lName);
             const rJs = expr(r, ctx);
             return `${rewrite.idxName} ${op} ${rJs}`;
+        }
+    }
+    // Phase A2: `p += N` / `p -= N` on a `char *` / `const char *`
+    // target (DeclRefExpr local OR MemberExpr struct field) not
+    // claimed by charBufferRewrites.  Route through __nh_advance_str
+    // so the rebind respects JS-string / char-array suffix semantics.
+    // See unaryOp's Phase A2 block for the rationale.
+    if ((op === '+=' || op === '-=')
+        && (l?.kind === 'DeclRefExpr' || l?.kind === 'MemberExpr')) {
+        const innerType = (l.type?.qualType || '').trim();
+        if (/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(innerType)) {
+            const lName = expr(l, ctx);
+            const rJs = expr(r, ctx);
+            ctx.externalRefs?.set?.('__nh_advance_str',
+                EXTERNAL_SYMBOLS['__nh_advance_str']);
+            const delta = (op === '+=') ? rJs : `-(${rJs})`;
+            return `${lName} = __nh_advance_str(${lName}, ${delta})`;
         }
     }
     const lJs = expr(l, ctx);
@@ -7690,10 +8436,51 @@ function callExpr(node, ctx) {
         if (firstArg?.kind === 'CallExpr' && calleeBase(firstArg.inner?.[0]) === 'eos') {
             const eosArg = stripCasts(firstArg.inner?.[1]);
             if (eosArg?.kind === 'DeclRefExpr') {
-                const bufName = renameIfReserved(
-                    eosArg.referencedDecl?.name || eosArg.name);
+                // §23.232 — Consult localStatics so hoisted-static
+                // locals (e.g. `static char dloc[]` → `__do_statusline2_dloc`)
+                // use the hoisted name on both sides of the assignment.
+                // Without this, botl.c emitted `dloc = __nh_buf_append(dloc, ...)`
+                // referencing an undefined local — ReferenceError at runtime.
+                const rawName = eosArg.referencedDecl?.name || eosArg.name;
+                const hoistedName = ctx?.localStatics?.get?.(rawName);
+                const bufName = renameIfReserved(hoistedName || rawName);
                 const restArgs = args.slice(1).map((a) => expr(a, ctx)).join(', ');
-                return `${bufName} = (${bufName} || '') + sprintf('', ${restArgs})`;
+                // §23.222da — use __nh_buf_append helper which preserves
+                // char-array binding (mutates in place + returns buf) so
+                // subsequent nh_snprintf(buf, ...) on the same buf still
+                // mutates.  Strings concatenate as before.  Replaces the
+                // prior `buf = ((typeof buf === 'string') ? buf : '') +
+                // sprintf('', ...)` rebind-to-string emit which broke
+                // mixed concat-then-nh_snprintf usage in insight.c's
+                // background_enlightenment and similar paths.
+                ctx.externalRefs?.set?.('__nh_buf_append',
+                    EXTERNAL_SYMBOLS['__nh_buf_append']);
+                return `${bufName} = __nh_buf_append(${bufName}, sprintf('', ${restArgs}))`;
+            }
+        }
+    }
+
+    // strcat(eos(BUF), STR) — the C "append a literal string at the
+    // buffer's current end" idiom.  Same auto-capture treatment as the
+    // sprintf(eos(...)) recognizer above: rebind buf to __nh_buf_append(buf, STR).
+    // Without this, a string-mode buf stays unchanged because the
+    // intermediate eos(buf) returns '' (or a slice) and strcat operates
+    // on that throwaway — the caller's buf binding is never updated.
+    if ((baseName === 'strcat' || baseName === 'Strcat')
+        && args.length >= 2) {
+        const firstArg = stripCasts(args[0]);
+        if (firstArg?.kind === 'CallExpr' && calleeBase(firstArg.inner?.[0]) === 'eos') {
+            const eosArg = stripCasts(firstArg.inner?.[1]);
+            if (eosArg?.kind === 'DeclRefExpr') {
+                // §23.232 — Hoisted-static name lookup (same fix as
+                // sprintf-eos recognizer above).
+                const rawName = eosArg.referencedDecl?.name || eosArg.name;
+                const hoistedName = ctx?.localStatics?.get?.(rawName);
+                const bufName = renameIfReserved(hoistedName || rawName);
+                const restJs = expr(args[1], ctx);
+                ctx.externalRefs?.set?.('__nh_buf_append',
+                    EXTERNAL_SYMBOLS['__nh_buf_append']);
+                return `${bufName} = __nh_buf_append(${bufName}, ${restJs})`;
             }
         }
     }
@@ -7809,6 +8596,75 @@ function calleeBase(node) {
 function conditionalExpr(node, ctx) {
     const [cond, then_, else_] = node.inner;
     return `${expr(cond, ctx)} ? ${expr(then_, ctx)} : ${expr(else_, ctx)}`;
+}
+
+// §23.228 — ArraySubscriptExpr emit.
+// Default: bare `base[idx]` — correct for non-char arrays and for
+// LHS contexts (the binaryOp recognizers intercept write patterns
+// before they reach generic LHS emit).
+// Special case: when base is a `char *` / `const char *` pointer
+// (DeclRefExpr to a parameter or local), emit
+// `__nh_char_at0(__nh_advance_str(base, idx))` so the read works
+// uniformly whether base is at runtime a JS string, char-array, or
+// `{value: ...}` scalar-ptr wrapper.  Without this, `line[0] == 37`
+// on a string-typed `line` is `"%" == 37` which is silently false
+// (the original pline.c bug, §23.227 deferred-TU list entry).
+//
+// Restricted to char-pointer type (not `char [N]` array) on the
+// base.  Array-typed bases keep bare emit; in dual-mode those are
+// always JS arrays and byte indexing works.  String-mode TUs with
+// `char buf[N]` declarations rebind to string but their writes are
+// handled by the `buf[0]=0` recognizer + the highc/lowc recognizer
+// (added below); reads of `arr[N]` on a string-typed local fall
+// through to bare `arr[N]` which returns a single-char string —
+// the existing dual-mode runtime helpers handle either form for
+// downstream operations.  Tightening to also catch char[N]-in-
+// string-mode would require parent-context flow; deferred.
+function arraySubscriptExpr(node, ctx) {
+    const base = stripCasts(node.inner[0]);
+    const idx = node.inner[1];
+    // Recognize char-pointer base.  Both DeclRefExpr (parameter or
+    // local) and MemberExpr (struct field) are candidates.  Type
+    // check: pointee is `(const? signed?/unsigned?) char` and
+    // outer is `*` (pointer, not array).
+    const isCharPtr = (n) => {
+        if (!n) return false;
+        if (n.kind !== 'DeclRefExpr' && n.kind !== 'MemberExpr') return false;
+        const t = (n.type?.qualType || '').trim();
+        // `char *`, `const char *`, `signed char *`, `unsigned char *`.
+        // Exclude `char [N]` array (no trailing `*`) and `char *[N]`
+        // (array of pointers, with `[` after `*`).
+        return /^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(t);
+    };
+    // §23.231 — In a string-mode TU, `char buf[N]` becomes `let buf = ''`.
+    // Subsequent `buf[i]` reads on a string return a single-character
+    // string, not a byte number, so comparisons like `buf[i] == 65`
+    // silently fail.  Route through __nh_char_at0/__nh_advance_str for
+    // dual-mode safety.
+    const isCharArrayLocalInStringMode = (n) => {
+        if (!inStringMode(ctx) || !ctx?.currentFnName) return false;
+        if (!n) return false;
+        if (n.kind !== 'DeclRefExpr' && n.kind !== 'MemberExpr') return false;
+        return isCharArrayDeclRef(n, ctx);
+    };
+    if (isCharPtr(base) || isCharArrayLocalInStringMode(base)) {
+        ctx.externalRefs?.set?.('__nh_char_at0',
+            EXTERNAL_SYMBOLS['__nh_char_at0']);
+        const baseJs = expr(node.inner[0], ctx);
+        // Optimize the common case of idx == 0: drop __nh_advance_str
+        // and just call __nh_char_at0(base) directly.  Functionally
+        // identical to `__nh_char_at0(__nh_advance_str(base, 0))`.
+        const idxStripped = stripCasts(idx);
+        if (idxStripped?.kind === 'IntegerLiteral'
+            && String(idxStripped.value) === '0') {
+            return `__nh_char_at0(${baseJs})`;
+        }
+        ctx.externalRefs?.set?.('__nh_advance_str',
+            EXTERNAL_SYMBOLS['__nh_advance_str']);
+        const idxJs = expr(idx, ctx);
+        return `__nh_char_at0(__nh_advance_str(${baseJs}, ${idxJs}))`;
+    }
+    return `${expr(node.inner[0], ctx)}[${expr(node.inner[1], ctx)}]`;
 }
 
 function memberExpr(node, ctx) {

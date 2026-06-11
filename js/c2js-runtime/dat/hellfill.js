@@ -5,7 +5,7 @@
 export default async function({ des, math, percent, selection, shuffle, type }) {
   globalThis.hellobjects = async () => {
       let objclass = ["(", "/", "=", "+", ")", "[", "?", "*", "%"];
-      shuffle(objclass);
+      await shuffle(objclass);
       await des.object(objclass[0]);
       await des.object(objclass[0]);
       await des.object(objclass[1]);
@@ -17,7 +17,7 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
     };
   globalThis.hellmonsters = async () => {
       let monclass = ["V", "D", " ", "&", "Z"];
-      shuffle(monclass);
+      await shuffle(monclass);
       await des.monster({ class: monclass[0], peaceful: 0 });
       await des.monster({ class: monclass[0], peaceful: 0 });
       await des.monster({ class: monclass[1], peaceful: 0 });
@@ -107,7 +107,7 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
                       await des.replace_terrain({ region: [1, 1, 11, 9], fromterrain: "L", toterrain: "P" });
                     }
           let dblocs = [{ x: 1, y: 5, dir: "east", state: "closed" }, { x: 11, y: 5, dir: "west", state: "closed" }, { x: 6, y: 1, dir: "south", state: "closed" }, { x: 6, y: 9, dir: "north", state: "closed" }];
-          shuffle(dblocs);
+          await shuffle(dblocs);
           {
                       const __hi = math.random(1, dblocs.length);
                       const __step = 1;
@@ -116,7 +116,7 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
                       }
                     }
           let mons = ["H", "T", "@"];
-          shuffle(mons);
+          await shuffle(mons);
           {
                       const __hi = 3 + math.random(1, 5);
                       const __step = 1;
@@ -168,7 +168,7 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
               }
             }
     }) }];
-  globalThis.rnd_hell_prefab = (coldhell) => {
+  globalThis.rnd_hell_prefab = async (coldhell) => {
       let dorepeat = true;
       let nloops = 0;
       do {
@@ -177,11 +177,11 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
           let fab = hell_prefabs[(pf) - 1];
           let fabtype = type(fab);
           if ((fabtype == "function")) {
-              fab(coldhell);
+              await fab(coldhell);
               dorepeat = false;
             }
       else if ((fabtype == "table")) {
-              fab.contents(coldhell);
+              await fab.contents(coldhell);
               dorepeat = !(fab.repeatable && math.random(0, nloops * 2) == 0);
             }
         } while (!(((!dorepeat) || (nloops > 5))));
@@ -202,9 +202,9 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
       let tmpbounds = selection.match("-");
       let bnds = tmpbounds.bounds();
       let protected_area = selection.fillrect(bnds.lx, bnds.ly + 1, bnds.hx - 2, bnds.hy - 1);
-      globalThis.hell_tweaks(protected_area.negate());
+      await globalThis.hell_tweaks(protected_area.negate());
       if ((percent(25))) {
-              rnd_hell_prefab(false);
+              await rnd_hell_prefab(false);
             }
     }), (async () => {
       await des.level_init({ style: "solidfill", fg: " ", lit: 0 });
@@ -217,14 +217,14 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
       await des.level_init({ style: "maze", wallthick: 1, corrwid: cwid });
       let outside_walls = selection.match(" ");
       let wallterrain = ["F", "L"];
-      shuffle(wallterrain);
+      await shuffle(wallterrain);
       await des.replace_terrain({ mapfragment: "w", toterrain: wallterrain[0] });
       if ((cwid == 1)) {
               if ((wallterrain[0] == "F" && percent(80))) {
                   await des.replace_terrain({ mapfragment: ".\nF\n.", toterrain: ".", chance: 25 * math.random(4) });
                 }
         else if ((percent(25))) {
-                  rnd_hell_prefab(false);
+                  await rnd_hell_prefab(false);
                 }
             }
       await des.terrain(outside_walls, " ");
@@ -258,7 +258,7 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
               await des.terrain(selection.match("w"), "W");
             }
       if ((cwid == 1 && percent(25))) {
-              rnd_hell_prefab(true);
+              await rnd_hell_prefab(true);
             }
       await des.terrain(outside_walls, " ");
     }), (async () => {
@@ -280,5 +280,5 @@ export default async function({ des, math, percent, selection, shuffle, type }) 
     } else {
       await des.stair("down");
     }
-  populatemaze();
+  await populatemaze();
 }

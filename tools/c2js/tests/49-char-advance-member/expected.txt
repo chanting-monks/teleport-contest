@@ -1,0 +1,3 @@
+member_drop_first: materasu Omikami
+member_drop_n: terasu Omikami
+member_advance_postfix: materasu Omikami

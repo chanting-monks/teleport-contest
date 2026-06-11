@@ -64,7 +64,7 @@ export function sys_early_init() {
     /* if it's compiled in, default to on */
     game.sysopt.seduce = 1;
     sysopt_seduce_set(game.sysopt.seduce);
-    game.sysopt.saveformat[0] = game.sysopt.bonesformat[0] = historical;
+    (game.sysopt.bonesformat[0] = historical, game.sysopt.saveformat[0] = historical);
     game.sysopt.accessibility = 0;
     game.sysopt.hideusage = 0;
     return;

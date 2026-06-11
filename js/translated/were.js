@@ -190,7 +190,7 @@ export function were_summon(ptr, yours, visible, genbuf) {
     return total;
 }
 export function you_were() {
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let controllable_poly = (game.u.uprops[POLYMORPH_CONTROL].intrinsic || game.u.uprops[POLYMORPH_CONTROL].extrinsic) && !(game.u.uprops[STUNNED].intrinsic || (game.multi < 0 && (unconscious() || is_fainted())));
     if ((game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic) || game.u.umonnum == game.u.ulycn) {
         return;

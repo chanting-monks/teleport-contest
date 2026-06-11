@@ -5,7 +5,7 @@ import { game } from '../gstate.js';
 import { alloc, free, memcpy } from '../c2js-runtime/memory.js';
 import { regex_id } from '../c2js-runtime/regex.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strchr, strlen, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, atoi, nh_strchr_truncate, strchr, strlen, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
 import { cg, hexdd } from './decl.js';
 import { nul_glyphinfo } from './display.js';
 import { digit, fuzzymatch, mungspaces } from './hacklib.js';
@@ -184,14 +184,14 @@ export function colortable_to_int32(cte) {
     }
     return clr;
 }
-let __color_attr_to_str_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __color_attr_to_str_buf = '';
 export function color_attr_to_str(ca) {
     __color_attr_to_str_buf = sprintf(__color_attr_to_str_buf, "%s&%s", clr2colorname(ca.color), attr2attrname(ca.attr));
     return __color_attr_to_str_buf;
 }
 /* parse string like "color&attr" into color_attr */
 export function color_attr_parse_str(ca, str) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let amp = null;
     let tmp = 0;
     let c = 8;
@@ -281,7 +281,7 @@ export function match_str2clr(str, suppress_msg) {
             break;
         }
     }
-    if (i == (Math.trunc(27 /* sizeof(const struct color_names [27]) */ / 1 /* sizeof(const struct color_names) */)) && digit(str.value)) {
+    if (i == (Math.trunc(27 /* sizeof(const struct color_names [27]) */ / 1 /* sizeof(const struct color_names) */)) && digit(__nh_char_at0(str))) {
         c = atoi(str);
     }
     if (c < 0 || c >= 16) {
@@ -328,7 +328,7 @@ export function query_attr(prompt, dflt_attr) {
         any.a_int = i + 1;
         add_menu(tmpwin, nul_glyphinfo, any, 0, 0, attrnames[i].attr, clr, attrnames[i].name, (attrnames[i].attr == dflt_attr) ? 1 : 0);
     }
-    (game.windowprocs.win_end_menu)(tmpwin, (prompt && prompt.value) ? prompt : "Pick an attribute");
+    (game.windowprocs.win_end_menu)(tmpwin, (prompt && __nh_char_at0(prompt)) ? prompt : "Pick an attribute");
     pick_cnt = select_menu(tmpwin, allow_many ? 2 : 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (pick_cnt > 0) {
@@ -403,7 +403,7 @@ export function query_color(prompt, dflt_color) {
         any.a_int = i + 1;
         add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, 8, colornames[i].name, (colornames[i].color == dflt_color) ? 1 : 0);
     }
-    (game.windowprocs.win_end_menu)(tmpwin, (prompt && prompt.value) ? prompt : "Pick a color");
+    (game.windowprocs.win_end_menu)(tmpwin, (prompt && __nh_char_at0(prompt)) ? prompt : "Pick a color");
     pick_cnt = select_menu(tmpwin, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     /* remove temporary color name patterns and restore user-specified ones;
@@ -444,7 +444,7 @@ export function basic_menu_colors(load_colors) {
             game.menu_colorings = game.color_colorings;
         } else {
             /* create the alternate colorings once */
-            let cnm = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let cnm = '';
             let i = 0;
             let c = 0;
             let pmatchregex = !strncmpi((regex_id), ("pmatchregex"), -1);
@@ -491,7 +491,7 @@ export function add_menu_coloring_parsed(str, c, a) {
     if (!regex_compile(str, tmp.match)) {
         /* test_regex_pattern() has already validated this regexp but parsing
        it again could conceivably run out of memory */
-        let errbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let errbuf = '';
         let re_error_desc = regex_error_desc(tmp.match, errbuf);
         /* free first in case reason for regcomp failure was out-of-memory */
         regex_free(tmp.match);
@@ -515,14 +515,14 @@ export function add_menu_coloring(tmpstr) {
     let tmps = null;
     let cs = null;
     let amp = null;
-    let str = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let str = '';
     str = strncpy(str, tmpstr, 256 /* sizeof(char [256]) */ - 1);
     str[256 /* sizeof(char [256]) */ - 1] = 0;
     if ((cs = strchr(str, 61)) == null) {
         config_error_add("Malformed MENUCOLOR");
         return (0);
     }
-    tmps = cs + 1;
+    tmps = __nh_advance_str(cs, 1);
     tmps = mungspaces(tmps);
     if ((amp = strchr(tmps, 38)) != null) {
         tmps = nh_strchr_truncate(tmps, 38, 'chr');
@@ -541,14 +541,14 @@ export function add_menu_coloring(tmpstr) {
     /* the regexp portion here has not been condensed by mungspaces() */
     void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     tmps = str;
-    if (tmps == 34 || tmps == 39) {
-        cs--;
-        while (((__ctype_b_loc())[((cs))] & _ISspace)) {
-            cs--;
+    if (__nh_char_at0(tmps) == 34 || __nh_char_at0(tmps) == 39) {
+        (cs = __nh_advance_str(cs, -1));
+        while (((__ctype_b_loc())[((__nh_char_at0(cs)))] & _ISspace)) {
+            (cs = __nh_advance_str(cs, -1));
         }
-        if (cs == tmps) {
+        if (__nh_char_at0(cs) == __nh_char_at0(tmps)) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-            tmps++;
+            (tmps = __nh_advance_str(tmps, 1));
         }
     }
     return add_menu_coloring_parsed(tmps, c, a);
@@ -624,12 +624,12 @@ export function check_enhanced_colors(buf) {
          */
         let altbuf = null;
         let grey = strstri(buf, "grey");
-        let greyoffset = grey ? (grey - buf) : -1;
+        let greyoffset = grey ? ((buf.length - grey.length)) : -1;
         if (greyoffset >= 0) {
             altbuf = dupstr(buf);
             /* use direct copy because strsubst() is case-sensitive */
             /*(void) strncpy(&altbuf[greyoffset], "gray", 4);*/
-            memcpy(altbuf + greyoffset, "gray", 4);
+            memcpy(__nh_advance_str(altbuf, greyoffset), "gray", 4);
         }
         for (color = 0; color < (Math.trunc(155 /* sizeof(const struct nethack_color [155]) */ / 1 /* sizeof(const struct nethack_color) */)); ++color) {
             if (fuzzymatch(buf, colortable[color].name, " -_", (1)) || (altbuf && fuzzymatch(altbuf, colortable[color].name, " -_", (1)))) {
@@ -644,7 +644,7 @@ export function check_enhanced_colors(buf) {
     return retcolor;
 }
 /* return the canonical name of a particular color */
-let __wc_color_name_hexcolor = [0, 0, 0, 0, 0, 0, 0, 0];
+let __wc_color_name_hexcolor = '';
 export function wc_color_name(colorindx) {
     let result = "no-color";
     if (colorindx >= 0) {
@@ -659,7 +659,7 @@ export function wc_color_name(colorindx) {
             let r = (colorindx >> 16) & 255;
             let g = (colorindx >> 8) & 255;
             let b = colorindx & 255;
-            nh_snprintf("wc_color_name", 784, __wc_color_name_hexcolor, 8 /* sizeof(char [8]) */, "#%02x%02x%02x", r, g, b);
+            __wc_color_name_hexcolor = nh_snprintf("wc_color_name", 784, __wc_color_name_hexcolor, 8 /* sizeof(char [8]) */, "#%02x%02x%02x", r, g, b);
             result = __wc_color_name_hexcolor;
             for (indx = 16; indx < (Math.trunc(155 /* sizeof(const struct nethack_color [155]) */ / 1 /* sizeof(const struct nethack_color) */)); ++indx) {
                 if (colortable[indx].r == r && colortable[indx].g == g && colortable[indx].b == b) {
@@ -675,8 +675,8 @@ export function wc_color_name(colorindx) {
 /* hexdd[] is defined in decl.c */
 export function onlyhexdigits(buf) {
     let dp = buf;
-    for (dp = buf; dp.value; ++dp) {
-        if (!(strchr(hexdd, dp.value) || dp.value == 45)) {
+    for (dp = buf; __nh_char_at0(dp); (dp = __nh_advance_str(dp, 1))) {
+        if (!(strchr(hexdd, __nh_char_at0(dp)) || __nh_char_at0(dp) == 45)) {
             return (0);
         }
     }
@@ -692,20 +692,20 @@ export function rgbstr_to_int32(rgbstr) {
     let c_g = null;
     let c_b = null;
     let rgb = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let dash = (0);
-    nh_snprintf("rgbstr_to_int32", 823, buf, 256 /* sizeof(char [256]) */, "%s", rgbstr ? rgbstr : "");
+    buf = nh_snprintf("rgbstr_to_int32", 823, buf, 256 /* sizeof(char [256]) */, "%s", rgbstr ? rgbstr : "");
     if (buf && onlyhexdigits(buf)) {
         c_g = c_b = null;
         c_r = cp = buf;
-        while (cp) {
-            if (digit(cp) || cp == 45) {
-                if (cp == 45) {
+        while (__nh_char_at0(cp)) {
+            if (digit(__nh_char_at0(cp)) || __nh_char_at0(cp) == 45) {
+                if (__nh_char_at0(cp) == 45) {
                     void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
                     milestone++;
                     dash = (1);
                 }
-                cp++;
+                (cp = __nh_advance_str(cp, 1));
                 if (dash) {
                     if (milestone < 2) {
                         c_g = cp;

@@ -14,7 +14,7 @@ import { game } from '../gstate.js';
 import { memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, You_see, Your, pline, pline_The } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { strcat, strchr, strcpy } from '../c2js-runtime/string.js';
 import { spec_ability } from './artifact.js';
 import { acurr, exercise } from './attrib.js';
@@ -366,7 +366,7 @@ export function gold_detect(sobj) {
         if (!game.known) {
             /* no gold found on floor or monster's inventory.
            adjust message if you have gold in your inventory */
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             if (game.youmonst.data == game.mons[PM_GOLD_GOLEM]) {
                 buf = sprintf(buf, "You feel like a million %s!", currency(2));
             } else if (money_cnt(game.invent) || hidden_gold((1))) {
@@ -506,7 +506,7 @@ export function food_detect(sobj) {
                 game.u.uedibility = 1;
             }
         } else if (sobj) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             buf = sprintf(buf, "Your %s twitches%s.", body_part(NOSE), (sobj.blessed && !game.u.uedibility) ? " then starts to tingle" : "");
             if (sobj.blessed && !game.u.uedibility) {
                 let savebeginner = game.flags.beginner;
@@ -598,7 +598,7 @@ export function food_detect(sobj) {
 export function object_detect(detector, class_) {
     let x = 0;
     let y = 0;
-    let stuff = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let stuff = '';
     let is_cursed = (detector && detector.cursed);
     let do_dknown = (detector && (detector.oclass == POTION_CLASS || detector.oclass == SPBOOK_CLASS) && detector.blessed);
     let ct = 0;
@@ -1046,7 +1046,7 @@ export function trap_detect(sobj) {
         }
     }
     if (!found) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         buf = sprintf(buf, "Your %s stop itching.", makeplural(body_part(TOE)));
         strange_feeling(sobj, buf);
         return 1;
@@ -1713,7 +1713,7 @@ export function openone(zx, zy, num) {
 export function findit() {
     let num = 0;
     let k = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let found = { ft_cc: { x: 0, y: 0 }, num_sdoors: 0, num_scorrs: 0, num_traps: 0, num_mons: 0, num_invis: 0, num_cleared_invis: 0, num_kept_invis: 0 };
     /*
      *  findit() -> do_clear_area(findone) -> findone() -> foundone()
@@ -1732,10 +1732,10 @@ export function findit() {
     do_clear_area(game.u.ux, game.u.uy, 8, findone, found);
     /* count that controls "reveal" punctuation; 0..4 */
     k = !!found.num_sdoors + !!found.num_scorrs + !!found.num_traps + !!found.num_mons;
-    buf[0] = 0;
+    buf = '';
     if (found.num_sdoors) {
         if (found.num_sdoors > 1) {
-            buf = (buf || '') + sprintf('', "%d secret doors", found.num_sdoors);
+            buf = __nh_buf_append(buf, sprintf('', "%d secret doors", found.num_sdoors));
         } else {
             buf = strcat(buf, "a secret door");
         }
@@ -1748,7 +1748,7 @@ export function findit() {
             buf = strcat(buf, (k == 2) ? " and " : ", ");
         }
         if (found.num_scorrs > 1) {
-            buf = (buf || '') + sprintf('', "%d secret corridors", found.num_scorrs);
+            buf = __nh_buf_append(buf, sprintf('', "%d secret corridors", found.num_scorrs));
         } else {
             buf = strcat(buf, "a secret corridor");
         }
@@ -1761,7 +1761,7 @@ export function findit() {
             buf = strcat(buf, (k == 3 && !found.num_mons) ? ", and " : (k == 2) ? " and " : ", ");
         }
         if (found.num_traps > 1) {
-            buf = (buf || '') + sprintf('', "%d traps", found.num_traps);
+            buf = __nh_buf_append(buf, sprintf('', "%d traps", found.num_traps));
         } else {
             buf = strcat(buf, "a trap");
         }
@@ -1773,7 +1773,7 @@ export function findit() {
             buf = strcat(buf, (k > 2) ? ", and " : " and ");
         }
         if (found.num_mons > 1) {
-            buf = (buf || '') + sprintf('', "%d hidden monsters", found.num_mons);
+            buf = __nh_buf_append(buf, sprintf('', "%d hidden monsters", found.num_mons));
         } else {
             buf = strcat(buf, "a hidden monster");
         }
@@ -2163,7 +2163,7 @@ export function reveal_terrain(which_subset) {
         let y = 0;
         let glyph = 0;
         let default_glyph = 0;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         /* there is a TER_MAP bit too; we always show map regardless of it */
         let keep_traps = (which_subset & 2) != 0;
         let keep_objs = (which_subset & 4) != 0;
@@ -2186,13 +2186,13 @@ export function reveal_terrain(which_subset) {
         } else {
             buf = strcpy(buf, "known terrain");
             if (keep_traps) {
-                buf = (buf || '') + sprintf('', "%s traps", (keep_objs || keep_mons) ? "," : " and");
+                buf = __nh_buf_append(buf, sprintf('', "%s traps", (keep_objs || keep_mons) ? "," : " and"));
             }
             if (keep_objs) {
-                buf = (buf || '') + sprintf('', "%s%s objects", (keep_traps || keep_mons) ? "," : "", keep_mons ? "" : " and");
+                buf = __nh_buf_append(buf, sprintf('', "%s%s objects", (keep_traps || keep_mons) ? "," : "", keep_mons ? "" : " and"));
             }
             if (keep_mons) {
-                buf = (buf || '') + sprintf('', "%s and monsters", (keep_traps || keep_objs) ? "," : "");
+                buf = __nh_buf_append(buf, sprintf('', "%s and monsters", (keep_traps || keep_objs) ? "," : ""));
             }
         }
         pline("Showing %s only...", buf);

@@ -42,7 +42,7 @@ import { Amonnam, Monnam, a_monnam, mon_nam, x_monnam } from './do_name.js';
 import { tamedog } from './dog.js';
 import { In_V_tower, on_level } from './dungeon.js';
 import { in_rooms, losehp } from './hack.js';
-import { dist2, mungspaces } from './hacklib.js';
+import { dist2, highc, mungspaces } from './hacklib.js';
 import { align_str, record_achievement } from './insight.js';
 import { consume_obj_charge, sobj_at } from './invent.js';
 import { sleep_monst, slept_monst } from './mhitm.js';
@@ -593,7 +593,7 @@ export function do_improvisation(instr) {
                 break;
             } else if (!game.u.dx && !game.u.dy && !game.u.dz) {
                 if ((damage = zapyourself(instr, (1))) != 0) {
-                    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let buf = '';
                     buf = sprintf(buf, "using a magical horn on %sself", (genders[game.flags.female ? 1 : 0].him));
                     ;
                     losehp(damage, buf, 1);
@@ -718,9 +718,9 @@ export function improvised_notes(same_as_last_time) {
  * So you want music...
  */
 export function do_play_instrument(instr) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let c = 0;
-    let s = null;
+    let __nh_s_idx = 0;
     let x = 0;
     let y = 0;
     let ok = 0;
@@ -756,7 +756,13 @@ export function do_play_instrument(instr) {
             if (buf == 27) {
                 break nevermind;
             }
-            buf = (Array.isArray(buf) ? (() => { let r=''; for (let i=0;i<buf.length&&buf[i];i++) r+=String.fromCharCode(buf[i]); return r; })() : String(buf)).toUpperCase().replace(/H/g, 'B');
+            for (__nh_s_idx = 0; buf[__nh_s_idx]; __nh_s_idx++) {
+                /* convert to uppercase and change any "H" to the expected "B" */
+                buf[__nh_s_idx] = highc(buf[__nh_s_idx]);
+                if (buf[__nh_s_idx] == 72) {
+                    buf[__nh_s_idx] = 66;
+                }
+            }
         }
         You(!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) ? "extract a strange sound from %s!" : "can feel %s emitting vibrations.", the(xname(instr)));
         ;
@@ -859,4 +865,3 @@ export function obj_to_instr(obj) {
 }
 /*music.c*/
 /* some monsters are immune */
-/* convert to uppercase and change any "H" to the expected "B" */

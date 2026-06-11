@@ -462,7 +462,7 @@ export function drink_ok(obj) {
 }
 /* "Quaffing is like drinking, except you spill more." - Terry Pratchett */
 /* the #quaff command */
-export async function dodrink() {
+export function dodrink() {
     let otmp = null;
     if (game.u.uprops[STRANGLED].intrinsic) {
         pline("If you can't breathe air, how can you drink liquid?");
@@ -543,13 +543,13 @@ export async function dodrink() {
         useup(otmp);
         return 1;
     }
-    return await dopotion(otmp);
+    return dopotion(otmp);
 }
-export async function dopotion(otmp) {
+export function dopotion(otmp) {
     let retval = 0;
     otmp.in_use = (1);
     game.potion_nothing = game.potion_unkn = 0;
-    if ((retval = await peffects(otmp)) >= 0) {
+    if ((retval = peffects(otmp)) >= 0) {
         return retval ? 1 : 0;
     }
     if (game.potion_nothing) {
@@ -868,7 +868,7 @@ export function peffect_sickness(otmp) {
         if ((game.urole.mnum == (PM_HEALER))) {
             pline("Fortunately, you have been immunized.");
         } else {
-            let contaminant = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let contaminant = '';
             let typ = rn2(A_MAX);
             contaminant = sprintf(contaminant, "%s%s", ((game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic)) ? "mildly " : "", (otmp.corpsenm) ? "contaminated tap water" : "contaminated potion");
             if (!game.u.uprops[FIXED_ABIL].extrinsic) {
@@ -950,7 +950,7 @@ export function peffect_blindness(otmp) {
     }
     make_blinded(itimeout_incr((game.u.uprops[BLINDED].intrinsic & 16777215), (rn2(200) + (250 - 125 * bcsign(otmp)))), !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked));
 }
-export async function peffect_gain_level(otmp) {
+export function peffect_gain_level(otmp) {
     if (otmp.cursed) {
         let on_lvl_1 = (ledger_no(game.u.uz) == 1);
         game.potion_unkn++;
@@ -968,7 +968,7 @@ export async function peffect_gain_level(otmp) {
                 }
             }
             You("rise up, through the %s!", ceiling(game.u.ux, game.u.uy));
-            await goto_level(newlevel, (0), (0), (0));
+            goto_level(newlevel, (0), (0), (0));
         } else {
             You("have an uneasy feeling.");
         }
@@ -1169,7 +1169,7 @@ export function peffect_polymorph(otmp) {
         }
     }
 }
-export async function peffects(otmp) {
+export function peffects(otmp) {
     switch (otmp.otyp) {
         case POT_RESTORE_ABILITY:
         case SPE_RESTORE_ABILITY:
@@ -1231,7 +1231,7 @@ export async function peffects(otmp) {
             peffect_blindness(otmp);
             break;
         case POT_GAIN_LEVEL:
-            await peffect_gain_level(otmp);
+            peffect_gain_level(otmp);
             break;
         case POT_HEALING:
             peffect_healing(otmp);
@@ -1460,7 +1460,7 @@ export function potionhit(mon, obj, how) {
             pline("Crash!");
         } else {
             let mnam = mon_nam(mon);
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             if (hit_saddle && saddle) {
                 buf = sprintf(buf, "%s saddle", s_suffix(x_monnam(mon, 1, null, (1 | 8), (0))));
             } else if ((((mon.data).mflags1 & 32768) == 0)) {
@@ -1503,15 +1503,15 @@ export function potionhit(mon, obj, how) {
         }
     } else if (hit_saddle && saddle) {
         let mnam = null;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let saddle_glows = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
+        let saddle_glows = '';
         let affected = (0);
         let useeit = !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && canseemon(mon) && ((game.viz_array[ty][tx] & 2) != 0);
         mnam = x_monnam(mon, 1, null, (1 | 8), (0));
         buf = sprintf(buf, "%s", upstart(s_suffix(mnam)));
         switch (obj.otyp) {
             case POT_WATER:
-                nh_snprintf("potionhit", 1718, saddle_glows, 256 /* sizeof(char [256]) */, "%s %s", buf, aobjnam(saddle, "glow"));
+                saddle_glows = nh_snprintf("potionhit", 1718, saddle_glows, 256 /* sizeof(char [256]) */, "%s %s", buf, aobjnam(saddle, "glow"));
                 affected = H2Opotion_dip(obj, saddle, useeit, saddle_glows);
                 break;
             case POT_POLYMORPH:
@@ -2051,8 +2051,8 @@ const __dodip_Dip_ = "Dip ";
 export function dodip() {
     let potion = null;
     let obj = null;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let obuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
+    let obuf = '';
     /* last resort obj name for prompt */
     let shortestname = null;
     let here = game.level.locations[game.u.ux][game.u.uy].typ;
@@ -2081,7 +2081,7 @@ export function dodip() {
      * getobj: "What do you want to dip <the object> into? [xyz or ?*] "
      */
     if (is_hands) {
-        nh_snprintf("dodip", 2299, obuf, 128 /* sizeof(char [128]) */, "your %s", makeplural(body_part(HAND)));
+        obuf = nh_snprintf("dodip", 2299, obuf, 128 /* sizeof(char [128]) */, "your %s", makeplural(body_part(HAND)));
     } else {
         obuf = strcpy(obuf, short_oname(obj, doname, thesimpleoname, 128 - 78 /* sizeof(char [78]) */));
     }
@@ -2089,7 +2089,7 @@ export function dodip() {
         if (!can_reach_floor((0))) {
             ;
         } else if (at_fountain) {
-            nh_snprintf("dodip", 2316, qbuf, 128 /* sizeof(char [128]) */, "%s%s into the fountain?", __dodip_Dip_, game.flags.verbose ? obuf : shortestname);
+            qbuf = nh_snprintf("dodip", 2316, qbuf, 128 /* sizeof(char [128]) */, "%s%s into the fountain?", __dodip_Dip_, game.flags.verbose ? obuf : shortestname);
             if (yn_function(qbuf, ynchars, 110, (1)) == 121) {
                 /* preceding #dip with 'm' skips the possibility of dipping into pools,
        fountains, and sinks plus the extra prompting which those entail */
@@ -2105,7 +2105,7 @@ export function dodip() {
             }
             ++game.drink_ok_extra;
         } else if (at_sink) {
-            nh_snprintf("dodip", 2327, qbuf, 128 /* sizeof(char [128]) */, "%s%s into the sink?", __dodip_Dip_, game.flags.verbose ? obuf : shortestname);
+            qbuf = nh_snprintf("dodip", 2327, qbuf, 128 /* sizeof(char [128]) */, "%s%s into the sink?", __dodip_Dip_, game.flags.verbose ? obuf : shortestname);
             if (yn_function(qbuf, ynchars, 110, (1)) == 121) {
                 if (!is_hands) {
                     obj.pickup_prev = 0;
@@ -2116,7 +2116,7 @@ export function dodip() {
             ++game.drink_ok_extra;
         } else if (at_pool) {
             let pooltype = waterbody_name(game.u.ux, game.u.uy);
-            nh_snprintf("dodip", 2339, qbuf, 128 /* sizeof(char [128]) */, "%s%s into the %s?", __dodip_Dip_, game.flags.verbose ? obuf : shortestname, pooltype);
+            qbuf = nh_snprintf("dodip", 2339, qbuf, 128 /* sizeof(char [128]) */, "%s%s into the %s?", __dodip_Dip_, game.flags.verbose ? obuf : shortestname, pooltype);
             if (yn_function(qbuf, ynchars, 110, (1)) == 121) {
                 if (((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked)) {
                     /* "Dip <the object> into the {pool, moat, &c}?" */
@@ -2147,7 +2147,7 @@ export function dodip() {
             ++game.drink_ok_extra;
         }
     }
-    nh_snprintf("dodip", 2367, qbuf, 128 /* sizeof(char [128]) */, "dip %s into", game.flags.verbose ? obuf : shortestname);
+    qbuf = nh_snprintf("dodip", 2367, qbuf, 128 /* sizeof(char [128]) */, "dip %s into", game.flags.verbose ? obuf : shortestname);
     /* "What do you want to dip <the object> into? [xyz or ?*] " */
     potion = getobj(qbuf, drink_ok, 0);
     if (!potion) {
@@ -2162,7 +2162,7 @@ export function dodip() {
 export function dip_into() {
     let obj = null;
     let potion = null;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     if (!cmdq_peek(CQ_CANNED)) {
         impossible("dip_into: where is potion?");
         return 4;
@@ -2172,7 +2172,7 @@ export function dip_into() {
     if (!potion || potion.oclass != POTION_CLASS) {
         return 2;
     }
-    nh_snprintf("dip_into", 2398, qbuf, 128 /* sizeof(char [128]) */, "dip into %s%s", ((potion).quan != 1 || ((potion).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "one of " : "", thesimpleoname(potion));
+    qbuf = nh_snprintf("dip_into", 2398, qbuf, 128 /* sizeof(char [128]) */, "dip into %s%s", ((potion).quan != 1 || ((potion).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "one of " : "", thesimpleoname(potion));
     /* "What do you want to dip into <the potion>? [abc or ?*] " */
     obj = getobj(qbuf, dip_ok, 2);
     if (!obj) {
@@ -2208,7 +2208,7 @@ export function dip_potion_explosion(obj, dmg) {
 /* called by dodip() or dip_into() after obj and potion have been chosen */
 export function potion_dip(obj, potion) {
     let singlepotion = null;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let mixture = 0;
     more_dips: {
         if (potion == obj && potion.quan == 1) {
@@ -2361,7 +2361,7 @@ export function potion_dip(obj, potion) {
         }
         if (((obj.oclass == WEAPON_CLASS && game.objects[obj.otyp].oc_subtyp >= -P_SHURIKEN && game.objects[obj.otyp].oc_subtyp <= -P_BOW) || permapoisoned(obj))) {
             if (potion.otyp == POT_SICKNESS && !obj.otrapped) {
-                let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let buf = '';
                 if (potion.quan > 1) {
                     buf = sprintf(buf, "One of %s", the(xname(potion)));
                 } else {
@@ -2460,12 +2460,12 @@ export function potion_dip(obj, potion) {
     }
     potion.in_use = (0);
     if ((obj.otyp == UNICORN_HORN || obj.otyp == AMETHYST) && (mixture = mixtype(obj, potion)) != STRANGE_OBJECT) {
-        let oldbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let newbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let oldbuf = '';
+        let newbuf = '';
         let old_otyp = potion.otyp;
         let old_dknown = (0);
         let more_than_one = potion.quan > 1;
-        oldbuf[0] = 0;
+        oldbuf = '';
         if (potion.dknown) {
             old_dknown = (1);
             oldbuf = sprintf(oldbuf, "%s ", hcolor((game.obj_descr[(game.objects[potion.otyp]).oc_descr_idx].oc_descr)));
@@ -2594,8 +2594,8 @@ export function djinni_from_bottle(obj) {
 /* optional attacker whose heat triggered it */
 export function split_mon(mon, mtmp) {
     let mtmp2 = null;
-    let reason = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    reason[0] = 0;
+    let reason = '';
+    reason = '';
     if (mtmp) {
         reason = sprintf(reason, " from %s heat", (mtmp == game.youmonst) ? c_common_strings.c_the_your[1] : s_suffix(mon_nam(mtmp)));
     }

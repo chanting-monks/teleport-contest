@@ -7,7 +7,7 @@ export default async function({ des, math, nh, selection, shuffle }) {
   await des.level_flags("mazelevel", "noteleport", "hardfloor", "solidify");
   await des.map({ halign: "half-left", valign: "center", map: "  --- --- ---  \n  |.| |.| |.|  \n---S---S---S---\n|.......+.+...|\n---+-----.-----\n  |...\\.|.+.|  \n---+-----.-----\n|.......+.+...|\n---S---S---S---\n  |.| |.| |.|  \n  --- --- ---  \n" });
   let niches = [[3, 1], [3, 9], [7, 1], [7, 9], [11, 1], [11, 9]];
-  shuffle(niches);
+  await shuffle(niches);
   await des.ladder("down", 11, 5);
   await des.monster("Vlad the Impaler", 6, 5);
   await des.monster("V", niches[0]);

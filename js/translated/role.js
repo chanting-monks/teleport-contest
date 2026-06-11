@@ -27,8 +27,8 @@ import { game } from '../gstate.js';
 import { free } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { yn_function } from './cmd.js';
 import { cg } from './decl.js';
 import { nul_glyphinfo } from './display.js';
@@ -193,7 +193,7 @@ export function randrole_filtered() {
 export function str2role(str) {
     let i = 0;
     let len = 0;
-    if (!str || !str[0]) {
+    if (!str || !__nh_char_at0(str)) {
         /* Couldn't find anything appropriate */
         return (-1);
     }
@@ -211,7 +211,7 @@ export function str2role(str) {
             return i;
         }
     }
-    if ((len == 1 && (str.value == 42 || str.value == 64)) || !strncmpi(str, game.randomstr, len)) {
+    if ((len == 1 && (__nh_char_at0(str) == 42 || __nh_char_at0(str) == 64)) || !strncmpi(str, game.randomstr, len)) {
         return (-2);
     }
     return (-1);
@@ -247,7 +247,7 @@ export function randrace(rolenum) {
 export function str2race(str) {
     let i = 0;
     let len = 0;
-    if (!str || !str[0]) {
+    if (!str || !__nh_char_at0(str)) {
         return (-1);
     }
     len = Strlen_(str, "str2race", 822);
@@ -262,7 +262,7 @@ export function str2race(str) {
             return i;
         }
     }
-    if ((len == 1 && (str.value == 42 || str.value == 64)) || !strncmpi(str, game.randomstr, len)) {
+    if ((len == 1 && (__nh_char_at0(str) == 42 || __nh_char_at0(str) == 64)) || !strncmpi(str, game.randomstr, len)) {
         return (-2);
     }
     return (-1);
@@ -298,7 +298,7 @@ export function randgend(rolenum, racenum) {
 export function str2gend(str) {
     let i = 0;
     let len = 0;
-    if (!str || !str[0]) {
+    if (!str || !__nh_char_at0(str)) {
         return (-1);
     }
     len = Strlen_(str, "str2gend", 889);
@@ -311,7 +311,7 @@ export function str2gend(str) {
             return i;
         }
     }
-    if ((len == 1 && (str.value == 42 || str.value == 64)) || !strncmpi(str, game.randomstr, len)) {
+    if ((len == 1 && (__nh_char_at0(str) == 42 || __nh_char_at0(str) == 64)) || !strncmpi(str, game.randomstr, len)) {
         return (-2);
     }
     return (-1);
@@ -346,7 +346,7 @@ export function randalign(rolenum, racenum) {
 export function str2align(str) {
     let i = 0;
     let len = 0;
-    if (!str || !str[0]) {
+    if (!str || !__nh_char_at0(str)) {
         return (-1);
     }
     len = Strlen_(str, "str2align", 952);
@@ -358,7 +358,7 @@ export function str2align(str) {
             return i;
         }
     }
-    if ((len == 1 && (str.value == 42 || str.value == 64)) || !strncmpi(str, game.randomstr, len)) {
+    if ((len == 1 && (__nh_char_at0(str) == 42 || __nh_char_at0(str) == 64)) || !strncmpi(str, game.randomstr, len)) {
         return (-2);
     }
     return (-1);
@@ -684,33 +684,33 @@ export function gotrolefilter() {
    put back into an RC file by #saveoptions */
 export function rolefilterstring(outbuf, which) {
     let i = 0;
-    outbuf[0] = outbuf[1] = 0;
+    (outbuf = __nh_char_write(outbuf, 1, 0), outbuf = __nh_char_write(outbuf, 0, 0));
     switch (which) {
         case 1:
             for (i = 0; i < (Math.trunc(14 /* sizeof(const struct Role [14]) */ / 1 /* sizeof(const struct Role) */)) - 1; ++i) {
                 if (game.rfilter.roles[i]) {
-                    outbuf = (outbuf || '') + sprintf('', " !%.3s", roles[i].name.m);
+                    outbuf = __nh_buf_append(outbuf, sprintf('', " !%.3s", roles[i].name.m));
                 }
             }
             break;
         case 2:
             for (i = 0; i < (Math.trunc(6 /* sizeof(const struct Race [6]) */ / 1 /* sizeof(const struct Race) */)) - 1; ++i) {
                 if ((game.rfilter.mask & races[i].selfmask) != 0) {
-                    outbuf = (outbuf || '') + sprintf('', " !%s", races[i].noun);
+                    outbuf = __nh_buf_append(outbuf, sprintf('', " !%s", races[i].noun));
                 }
             }
             break;
         case 3:
             for (i = 0; i < (Math.trunc(4 /* sizeof(const struct Gender [4]) */ / 1 /* sizeof(const struct Gender) */)) - 1; ++i) {
                 if ((game.rfilter.mask & genders[i].allow) != 0) {
-                    outbuf = (outbuf || '') + sprintf('', " !%s", genders[i].adj);
+                    outbuf = __nh_buf_append(outbuf, sprintf('', " !%s", genders[i].adj));
                 }
             }
             break;
         case 4:
             for (i = 0; i < (Math.trunc(4 /* sizeof(const struct Align [4]) */ / 1 /* sizeof(const struct Align) */)) - 1; ++i) {
                 if ((game.rfilter.mask & aligns[i].allow) != 0) {
-                    outbuf = (outbuf || '') + sprintf('', " !%s", aligns[i].adj);
+                    outbuf = __nh_buf_append(outbuf, sprintf('', " !%s", aligns[i].adj));
                 }
             }
             break;
@@ -720,7 +720,7 @@ export function rolefilterstring(outbuf, which) {
             break;
     }
     /* constructed with a leading space; drop it */
-    return outbuf[1];
+    return __nh_advance_str(outbuf, 1);
 }
 export function clearrolefilter(which) {
     let i = 0;
@@ -792,7 +792,7 @@ export function root_plselection_prompt(suppliedbuf, buflen, rolenum, racenum, g
     let k = 0;
     let gendercount = 0;
     let aligncount = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let donefirst = (0);
     if (!suppliedbuf || buflen < 1) {
         return __root_plselection_prompt_err_ret;
@@ -802,7 +802,7 @@ export function root_plselection_prompt(suppliedbuf, buflen, rolenum, racenum, g
     for (k = 0; k < 4; ++k) {
         game.role_pa[k] = 0;
     }
-    buf[0] = 0;
+    buf = '';
     suppliedbuf.value = 0;
     if (racenum != (-1) && racenum != (-2)) {
         aligncount = race_alignmentcount(racenum);
@@ -928,7 +928,7 @@ export function root_plselection_prompt(suppliedbuf, buflen, rolenum, racenum, g
 export function build_plselection_prompt(buf, buflen, rolenum, racenum, gendnum, alignnum) {
     let defprompt = "Shall I pick a character for you? [ynaq] ";
     let num_post_attribs = 0;
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tmpbuf = '';
     let p = null;
     if (buflen < 128) {
         return defprompt;
@@ -948,7 +948,7 @@ export function build_plselection_prompt(buf, buflen, rolenum, racenum, gendnum,
     /* don't bother splitting caveman/cavewoman or priest/priestess
        in order to apply possessive suffix to both halves, but do
        change "priest/priestess'" to "priest/priestess's" */
-    if ((p = strstri(buf, "priest/priestess'")) != null && p[18 /* sizeof(char [18]) */ - 1 /* sizeof(char [1]) */] == 0) {
+    if ((p = strstri(buf, "priest/priestess'")) != null && __nh_char_at0(__nh_advance_str(p, 18 /* sizeof(char [18]) */ - 1 /* sizeof(char [1]) */)) == 0) {
         buf = strkitten(buf, 115);
     }
     /* buf should now be:
@@ -1002,14 +1002,14 @@ export function plnamesuffix() {
     let eptr = null;
     let i = 0;
     if (game.sysopt.genericusers) {
-        if (game.sysopt.genericusers == 42) {
+        if (__nh_char_at0(game.sysopt.genericusers) == 42) {
             /* some generic user names will be ignored in favor of prompting */
             game.plname[0] = 0;
         } else {
             /* need to ignore appended '-role-race-gender-alignment';
                'plnamelen' is non-zero when dealing with plname[] value that
                contains a username with dash(es) in it and is usually 0 */
-            i = ((eptr = strchr(game.plname + game.plnamelen, 45)) != null) ? (eptr - game.plname) : Strlen_(game.plname, "plnamesuffix", 1680);
+            i = ((eptr = strchr(game.plname + game.plnamelen, 45)) != null) ? ((game.plname.length - eptr.length)) : Strlen_(game.plname, "plnamesuffix", 1680);
             /* look for plname[] in the 'genericusers' space-separated list */
             if (findword(game.sysopt.genericusers, game.plname, i, (0))) {
                 game.plname[0] = 0;
@@ -1058,7 +1058,7 @@ const __role_selection_prolog_choosing = " choosing now";
 const __role_selection_prolog_not_yet = " not yet specified";
 const __role_selection_prolog_rand_choice = " random";
 export function role_selection_prolog(which, where) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let r = 0;
     let c = 0;
     let gend = 0;
@@ -1115,7 +1115,7 @@ export function role_selection_prolog(which, where) {
         if (gend == 1) {
             sprintf(strchr(buf, 58), ": %s", roles[r].name.f);
         } else if (gend < 0) {
-            buf = (buf || '') + sprintf('', "/%s", roles[r].name.f);
+            buf = __nh_buf_append(buf, sprintf('', "/%s", roles[r].name.f));
         }
     }
     (game.windowprocs.win_putstr)(where, 0, buf);
@@ -1134,7 +1134,7 @@ export function role_selection_prolog(which, where) {
 const __role_menu_extra_RS_menu_let = [61, 63, 47, 34, 91];
 export function role_menu_extra(which, where, preselect) {
     let any = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let what = null;
     let constrainer = null;
     let forcedvalue = null;
@@ -1261,7 +1261,7 @@ export function role_menu_extra(which, where, preselect) {
         buf = sprintf(buf, "Pick%s %s first", (f >= 0) ? " another" : "", what);
         add_menu(where, nul_glyphinfo, any, __role_menu_extra_RS_menu_let[which], 0, 0, clr, buf, 0);
     } else if (which == 5) {
-        let setfiltering = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let setfiltering = '';
         any.a_int = ((-2) - ((5) + 1));
         setfiltering = sprintf(setfiltering, "%s role/race/&c filtering", gotrolefilter() ? "Reset" : "Set");
         add_menu(where, nul_glyphinfo, any, 126, 0, 0, clr, setfiltering, 0);
@@ -1458,7 +1458,7 @@ export function genl_player_selection() {
 /* try to reduce clutter in the code below... */
 /* guts of tty's player_selection() */
 export function genl_player_setup(screenheight) {
-    let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pbuf = '';
     let any = 0;
     let i = 0;
     let k = 0;
@@ -1956,7 +1956,7 @@ export function reset_role_filtering() {
     let win = 0;
     let i = 0;
     let n = 0;
-    let filterprompt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let filterprompt = '';
     let selected = null;
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
@@ -2024,7 +2024,7 @@ export function maybe_skip_seps(rows, aspect) {
 }
 /* start a menu; show role aspects specified so far as a header line */
 export function plsel_startmenu(ttyrows, aspect) {
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let win = 0;
     let rolename = null;
     rigid_role_checks();
@@ -2055,7 +2055,7 @@ export function setup_rolemenu(win, filtering, race, gend, algn) {
     let role_ok = 0;
     let thisch = 0;
     let lastch = 0;
-    let rolenamebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let rolenamebuf = '';
     let clr = 8;
     any = cg.zeroany;
     for (i = 0; roles[i].name.m; i++) {

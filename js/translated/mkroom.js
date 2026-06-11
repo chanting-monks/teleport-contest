@@ -16,6 +16,7 @@ import { fnEnter } from '../c2js-runtime/trace.js';
  */
 import { game } from '../gstate.js';
 import { impossible } from '../c2js-runtime/panic.js';
+import { __nh_char_at0 } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { def_oc_syms } from './drawing.js';
 import { In_hell, induced_align, level_difficulty } from './dungeon.js';
@@ -96,54 +97,54 @@ export function mkshop() {
             /* first determine shoptype */
             ep = nh_getenv("SHOPTYPE");
             if (ep) {
-                if (ep == 122 || ep == 90) {
+                if (__nh_char_at0(ep) == 122 || __nh_char_at0(ep) == 90) {
                     mkzoo(ZOO);
                     return;
                 }
-                if (ep == 109 || ep == 77) {
+                if (__nh_char_at0(ep) == 109 || __nh_char_at0(ep) == 77) {
                     mkzoo(MORGUE);
                     return;
                 }
-                if (ep == 98 || ep == 66) {
+                if (__nh_char_at0(ep) == 98 || __nh_char_at0(ep) == 66) {
                     mkzoo(BEEHIVE);
                     return;
                 }
-                if (ep == 116 || ep == 84 || ep == 92) {
+                if (__nh_char_at0(ep) == 116 || __nh_char_at0(ep) == 84 || __nh_char_at0(ep) == 92) {
                     mkzoo(COURT);
                     return;
                 }
-                if (ep == 115 || ep == 83) {
+                if (__nh_char_at0(ep) == 115 || __nh_char_at0(ep) == 83) {
                     mkzoo(BARRACKS);
                     return;
                 }
-                if (ep == 97 || ep == 65) {
+                if (__nh_char_at0(ep) == 97 || __nh_char_at0(ep) == 65) {
                     mkzoo(ANTHOLE);
                     return;
                 }
-                if (ep == 99 || ep == 67) {
+                if (__nh_char_at0(ep) == 99 || __nh_char_at0(ep) == 67) {
                     mkzoo(COCKNEST);
                     return;
                 }
-                if (ep == 108 || ep == 76) {
+                if (__nh_char_at0(ep) == 108 || __nh_char_at0(ep) == 76) {
                     mkzoo(LEPREHALL);
                     return;
                 }
-                if (ep == 95) {
+                if (__nh_char_at0(ep) == 95) {
                     mktemple();
                     return;
                 }
-                if (ep == 125) {
+                if (__nh_char_at0(ep) == 125) {
                     mkswamp();
                     return;
                 }
                 for (i = 0; shtypes[i].name; i++) {
-                    if (ep == def_oc_syms[shtypes[i].symb].sym) {
+                    if (__nh_char_at0(ep) == def_oc_syms[shtypes[i].symb].sym) {
                         break gottype;
                     }
                 }
-                if (ep == 103 || ep == 71) {
+                if (__nh_char_at0(ep) == 103 || __nh_char_at0(ep) == 71) {
                     i = 0;
-                } else if (ep == 118 || ep == 86) {
+                } else if (__nh_char_at0(ep) == 118 || __nh_char_at0(ep) == 86) {
                     i = FODDERSHOP - SHOPBASE;
                 } else {
                     i = -1;

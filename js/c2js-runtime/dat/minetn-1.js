@@ -29,7 +29,7 @@ export default async function({ __lua_band, des, math, percent, selection, shuff
   await des.replace_terrain({ region: [7, 12, 11, 14], fromterrain: "|", toterrain: ".", chance: 18 });
   await des.replace_terrain({ region: [28, 12, 28, 14], fromterrain: "|", toterrain: ".", chance: 33 });
   let place = [[5, 4], [9, 5], [13, 4], [26, 4], [31, 5], [30, 14], [5, 14], [10, 13], [26, 14], [27, 13]];
-  shuffle(place);
+  await shuffle(place);
   await des.object({ id: "corpse", x: 20, y: 12, montype: "aligned cleric" });
   await des.object({ id: "corpse", coord: place[0], montype: "shopkeeper" });
   await des.object({ id: "corpse", coord: place[1], montype: "shopkeeper" });

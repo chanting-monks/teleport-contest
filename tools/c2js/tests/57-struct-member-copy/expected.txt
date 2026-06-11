@@ -1,0 +1,2 @@
+urole.god=Crom table.god=(null)
+second.god=(null)

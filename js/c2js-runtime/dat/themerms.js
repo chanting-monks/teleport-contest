@@ -9,10 +9,10 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
       await des.terrain(ice, "I");
       if ((percent(25))) {
               let mintime = 1000 - (nh.level_difficulty() * 100);
-              let ice_melter = ((x, y) => {
-            nh.start_timer_at(x, y, "melt-ice", mintime + nh.rn2(1000));
+              let ice_melter = (async (x, y) => {
+            await nh.start_timer_at(x, y, "melt-ice", mintime + nh.rn2(1000));
           });
-              ice.iterate(ice_melter);
+              await ice.iterate(ice_melter);
             }
     }) }, { name: "Cloud room", contents: (async (rm) => {
       let fog = selection.room();
@@ -33,22 +33,22 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
                       await des.trap("rolling boulder", x, y);
                     }
         });
-      locs.iterate(func);
+      await locs.iterate(func);
     }) }, { name: "Spider nest", contents: (async (rm) => {
       let spooders = nh.level_difficulty() > 8;
       let locs = selection.room().percentage(30);
       let func = (async (x, y) => {
           await des.trap({ type: "web", x: x, y: y, spider_on_web: spooders && percent(80) });
         });
-      locs.iterate(func);
+      await locs.iterate(func);
     }) }, { name: "Trap room", contents: (async (rm) => {
       let traps = ["arrow", "dart", "falling rock", "bear", "land mine", "sleep gas", "rust", "anti magic"];
-      shuffle(traps);
+      await shuffle(traps);
       let locs = selection.room().percentage(30);
       let func = (async (x, y) => {
           await des.trap(traps[0], x, y);
         });
-      locs.iterate(func);
+      await locs.iterate(func);
     }) }, { name: "Garden", eligible: ((rm) => {
       return rm.lit == true;
     }), contents: (async (rm) => {
@@ -79,7 +79,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
                       }
                     }
         }) });
-    }) }, { name: "Buried zombies", contents: ((rm) => {
+    }) }, { name: "Buried zombies", contents: (async (rm) => {
       let diff = nh.level_difficulty();
       let zombifiable = ["kobold", "gnome", "orc", "dwarf"];
       if (diff > 3) {
@@ -92,7 +92,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
               const __hi = (rm.width * rm.height) / 2;
               const __step = 1;
               for (let i = 1; __step > 0 ? i <= __hi : i >= __hi; i += __step) {
-                shuffle(zombifiable);
+                await shuffle(zombifiable);
                 let o = des.object({ id: "corpse", montype: zombifiable[0], buried: true });
                 o.stop_timer("rot-corpse");
                 o.start_timer("zombify-mon", math.random(990, 1010));
@@ -165,7 +165,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
                       await des.monster({ class: "m", appear_as: "obj:chest" });
                     }
         });
-      locs.iterate(func);
+      await locs.iterate(func);
     }) }, { name: "Teleportation hub", contents: (async (rm) => {
       let locs = selection.room().filter_mapchar(".");
       {
@@ -234,7 +234,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
     }) }, { name: "Pillars", contents: (async () => {
       await des.room({ type: "themed", w: 10, h: 10, contents: (async (rm) => {
           let terr = ["-", "-", "-", "-", "L", "P", "T"];
-          shuffle(terr);
+          await shuffle(terr);
           {
                       const __hi = (rm.width / 4) - 1;
                       const __step = 1;
@@ -257,7 +257,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
           await des.room({ type: "themed", x: (rm.width - 1) / 2, y: (rm.height - 1) / 2, w: 1, h: 1, joined: false, contents: (async () => {
               if ((percent(50))) {
                               let mons = ["M", "V", "L", "Z"];
-                              shuffle(mons);
+                              await shuffle(mons);
                               await des.monster({ class: mons[0], x: 0, y: 0, waiting: 1 });
                             } else {
                               await des.object({ id: "corpse", montype: "@", coord: [0, 0] });
@@ -272,92 +272,92 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
       let hei = 3 + (nh.rn2(3) * 2);
       await des.room({ type: "ordinary", filled: 1, w: wid, h: hei, contents: (async (rm) => {
           let feature = ["C", "L", "I", "P", "T"];
-          shuffle(feature);
+          await shuffle(feature);
           await des.terrain((rm.width - 1) / 2, (rm.height - 1) / 2, feature[0]);
         }) });
     }) }, { name: "L-shaped", contents: (async () => {
-      await des.map({ map: "-----xxx\n|...|xxx\n|...|xxx\n|...----\n|......|\n|......|\n|......|\n--------", contents: ((m) => {
-          filler_region(1, 1);
+      await des.map({ map: "-----xxx\n|...|xxx\n|...|xxx\n|...----\n|......|\n|......|\n|......|\n--------", contents: (async (m) => {
+          await filler_region(1, 1);
         }) });
     }) }, { name: "L-shaped, rot 1", contents: (async () => {
-      await des.map({ map: "xxx-----\nxxx|...|\nxxx|...|\n----...|\n|......|\n|......|\n|......|\n--------", contents: ((m) => {
-          filler_region(5, 1);
+      await des.map({ map: "xxx-----\nxxx|...|\nxxx|...|\n----...|\n|......|\n|......|\n|......|\n--------", contents: (async (m) => {
+          await filler_region(5, 1);
         }) });
     }) }, { name: "L-shaped, rot 2", contents: (async () => {
-      await des.map({ map: "--------\n|......|\n|......|\n|......|\n----...|\nxxx|...|\nxxx|...|\nxxx-----", contents: ((m) => {
-          filler_region(1, 1);
+      await des.map({ map: "--------\n|......|\n|......|\n|......|\n----...|\nxxx|...|\nxxx|...|\nxxx-----", contents: (async (m) => {
+          await filler_region(1, 1);
         }) });
     }) }, { name: "L-shaped, rot 3", contents: (async () => {
-      await des.map({ map: "--------\n|......|\n|......|\n|......|\n|...----\n|...|xxx\n|...|xxx\n-----xxx", contents: ((m) => {
-          filler_region(1, 1);
+      await des.map({ map: "--------\n|......|\n|......|\n|......|\n|...----\n|...|xxx\n|...|xxx\n-----xxx", contents: (async (m) => {
+          await filler_region(1, 1);
         }) });
     }) }, { name: "Blocked center", contents: (async () => {
       await des.map({ map: "-----------\n|.........|\n|.........|\n|.........|\n|...LLL...|\n|...LLL...|\n|...LLL...|\n|.........|\n|.........|\n|.........|\n-----------", contents: (async (m) => {
           if ((percent(30))) {
                       let terr = ["-", "P"];
-                      shuffle(terr);
+                      await shuffle(terr);
                       await des.replace_terrain({ region: [1, 1, 9, 9], fromterrain: "L", toterrain: terr[0] });
                     }
-          filler_region(1, 1);
+          await filler_region(1, 1);
         }) });
     }) }, { name: "Circular, small", contents: (async () => {
-      await des.map({ map: "xx---xx\nx--.--x\n--...--\n|.....|\n--...--\nx--.--x\nxx---xx", contents: ((m) => {
-          filler_region(3, 3);
+      await des.map({ map: "xx---xx\nx--.--x\n--...--\n|.....|\n--...--\nx--.--x\nxx---xx", contents: (async (m) => {
+          await filler_region(3, 3);
         }) });
     }) }, { name: "Circular, medium", contents: (async () => {
-      await des.map({ map: "xx-----xx\nx--...--x\n--.....--\n|.......|\n|.......|\n|.......|\n--.....--\nx--...--x\nxx-----xx", contents: ((m) => {
-          filler_region(4, 4);
+      await des.map({ map: "xx-----xx\nx--...--x\n--.....--\n|.......|\n|.......|\n|.......|\n--.....--\nx--...--x\nxx-----xx", contents: (async (m) => {
+          await filler_region(4, 4);
         }) });
     }) }, { name: "Circular, big", contents: (async () => {
-      await des.map({ map: "xxx-----xxx\nx---...---x\nx-.......-x\n--.......--\n|.........|\n|.........|\n|.........|\n--.......--\nx-.......-x\nx---...---x\nxxx-----xxx", contents: ((m) => {
-          filler_region(5, 5);
+      await des.map({ map: "xxx-----xxx\nx---...---x\nx-.......-x\n--.......--\n|.........|\n|.........|\n|.........|\n--.......--\nx-.......-x\nx---...---x\nxxx-----xxx", contents: (async (m) => {
+          await filler_region(5, 5);
         }) });
     }) }, { name: "T-shaped", contents: (async () => {
-      await des.map({ map: "xxx-----xxx\nxxx|...|xxx\nxxx|...|xxx\n----...----\n|.........|\n|.........|\n|.........|\n-----------", contents: ((m) => {
-          filler_region(5, 5);
+      await des.map({ map: "xxx-----xxx\nxxx|...|xxx\nxxx|...|xxx\n----...----\n|.........|\n|.........|\n|.........|\n-----------", contents: (async (m) => {
+          await filler_region(5, 5);
         }) });
     }) }, { name: "T-shaped, rot 1", contents: (async () => {
-      await des.map({ map: "-----xxx\n|...|xxx\n|...|xxx\n|...----\n|......|\n|......|\n|......|\n|...----\n|...|xxx\n|...|xxx\n-----xxx", contents: ((m) => {
-          filler_region(2, 2);
+      await des.map({ map: "-----xxx\n|...|xxx\n|...|xxx\n|...----\n|......|\n|......|\n|......|\n|...----\n|...|xxx\n|...|xxx\n-----xxx", contents: (async (m) => {
+          await filler_region(2, 2);
         }) });
     }) }, { name: "T-shaped, rot 2", contents: (async () => {
-      await des.map({ map: "-----------\n|.........|\n|.........|\n|.........|\n----...----\nxxx|...|xxx\nxxx|...|xxx\nxxx-----xxx", contents: ((m) => {
-          filler_region(2, 2);
+      await des.map({ map: "-----------\n|.........|\n|.........|\n|.........|\n----...----\nxxx|...|xxx\nxxx|...|xxx\nxxx-----xxx", contents: (async (m) => {
+          await filler_region(2, 2);
         }) });
     }) }, { name: "T-shaped, rot 3", contents: (async () => {
-      await des.map({ map: "xxx-----\nxxx|...|\nxxx|...|\n----...|\n|......|\n|......|\n|......|\n----...|\nxxx|...|\nxxx|...|\nxxx-----", contents: ((m) => {
-          filler_region(5, 5);
+      await des.map({ map: "xxx-----\nxxx|...|\nxxx|...|\n----...|\n|......|\n|......|\n|......|\n----...|\nxxx|...|\nxxx|...|\nxxx-----", contents: (async (m) => {
+          await filler_region(5, 5);
         }) });
     }) }, { name: "S-shaped", contents: (async () => {
-      await des.map({ map: "-----xxx\n|...|xxx\n|...|xxx\n|...----\n|......|\n|......|\n|......|\n----...|\nxxx|...|\nxxx|...|\nxxx-----", contents: ((m) => {
-          filler_region(2, 2);
+      await des.map({ map: "-----xxx\n|...|xxx\n|...|xxx\n|...----\n|......|\n|......|\n|......|\n----...|\nxxx|...|\nxxx|...|\nxxx-----", contents: (async (m) => {
+          await filler_region(2, 2);
         }) });
     }) }, { name: "S-shaped, rot 1", contents: (async () => {
-      await des.map({ map: "xxx--------\nxxx|......|\nxxx|......|\n----......|\n|......----\n|......|xxx\n|......|xxx\n--------xxx", contents: ((m) => {
-          filler_region(5, 5);
+      await des.map({ map: "xxx--------\nxxx|......|\nxxx|......|\n----......|\n|......----\n|......|xxx\n|......|xxx\n--------xxx", contents: (async (m) => {
+          await filler_region(5, 5);
         }) });
     }) }, { name: "Z-shaped", contents: (async () => {
-      await des.map({ map: "xxx-----\nxxx|...|\nxxx|...|\n----...|\n|......|\n|......|\n|......|\n|...----\n|...|xxx\n|...|xxx\n-----xxx", contents: ((m) => {
-          filler_region(5, 5);
+      await des.map({ map: "xxx-----\nxxx|...|\nxxx|...|\n----...|\n|......|\n|......|\n|......|\n|...----\n|...|xxx\n|...|xxx\n-----xxx", contents: (async (m) => {
+          await filler_region(5, 5);
         }) });
     }) }, { name: "Z-shaped, rot 1", contents: (async () => {
-      await des.map({ map: "--------xxx\n|......|xxx\n|......|xxx\n|......----\n----......|\nxxx|......|\nxxx|......|\nxxx--------", contents: ((m) => {
-          filler_region(2, 2);
+      await des.map({ map: "--------xxx\n|......|xxx\n|......|xxx\n|......----\n----......|\nxxx|......|\nxxx|......|\nxxx--------", contents: (async (m) => {
+          await filler_region(2, 2);
         }) });
     }) }, { name: "Cross", contents: (async () => {
-      await des.map({ map: "xxx-----xxx\nxxx|...|xxx\nxxx|...|xxx\n----...----\n|.........|\n|.........|\n|.........|\n----...----\nxxx|...|xxx\nxxx|...|xxx\nxxx-----xxx", contents: ((m) => {
-          filler_region(6, 6);
+      await des.map({ map: "xxx-----xxx\nxxx|...|xxx\nxxx|...|xxx\n----...----\n|.........|\n|.........|\n|.........|\n----...----\nxxx|...|xxx\nxxx|...|xxx\nxxx-----xxx", contents: (async (m) => {
+          await filler_region(6, 6);
         }) });
     }) }, { name: "Four-leaf clover", contents: (async () => {
-      await des.map({ map: "-----x-----\n|...|x|...|\n|...---...|\n|.........|\n---.....---\nxx|.....|xx\n---.....---\n|.........|\n|...---...|\n|...|x|...|\n-----x-----", contents: ((m) => {
-          filler_region(6, 6);
+      await des.map({ map: "-----x-----\n|...|x|...|\n|...---...|\n|.........|\n---.....---\nxx|.....|xx\n---.....---\n|.........|\n|...---...|\n|...|x|...|\n-----x-----", contents: (async (m) => {
+          await filler_region(6, 6);
         }) });
     }) }, { name: "Water-surrounded vault", contents: (async () => {
       await des.map({ map: "}}}}}}\n}----}\n}|..|}\n}|..|}\n}----}\n}}}}}}", contents: (async (m) => {
           await des.region({ region: [3, 3, 3, 3], type: "themed", irregular: true, filled: 0, joined: false });
           let nasty_undead = ["giant zombie", "ettin zombie", "vampire lord"];
           let chest_spots = [[2, 2], [3, 2], [2, 3], [3, 3]];
-          shuffle(chest_spots);
+          await shuffle(chest_spots);
           let escape_items = ["scroll of teleportation", "ring of teleportation", "wand of teleportation", "wand of digging"];
           let itm = obj.new(escape_items[(math.random(escape_items.length)) - 1]);
           let itmcls = itm.class();
@@ -375,7 +375,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
                         await des.object({ id: "chest", coord: chest_spots[(i) - 1] });
                       }
                     }
-          shuffle(nasty_undead);
+          await shuffle(nasty_undead);
           await des.monster(nasty_undead[0], 2, 2);
           await des.exclusion({ type: "teleport", region: [2, 2, 3, 3] });
         }) });
@@ -469,22 +469,22 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
         }
       return null;
     };
-  globalThis.themerooms_generate = () => {
+  globalThis.themerooms_generate = async () => {
       if (globalThis.debug_rm_idx != null) {
           let actualrm = lookup_by_name("default", false);
           if (percent(50)) {
               if (is_eligible(globalThis.themerooms[(globalThis.debug_rm_idx) - 1])) {
                   actualrm = globalThis.debug_rm_idx;
                 } else {
-                  pline("Warning: themeroom '" + globalThis.themerooms[(globalThis.debug_rm_idx) - 1].name + "' is ineligible");
+                  await pline("Warning: themeroom '" + globalThis.themerooms[(globalThis.debug_rm_idx) - 1].name + "' is ineligible");
                 }
             }
-          globalThis.themerooms[(actualrm) - 1].contents();
+          await globalThis.themerooms[(actualrm) - 1].contents();
           return;
         }
     else if (globalThis.debug_fill_idx != null) {
           let actualrm = lookup_by_name(percent(50) && "Default room with themed fill" || "default");
-          globalThis.themerooms[(actualrm) - 1].contents();
+          await globalThis.themerooms[(actualrm) - 1].contents();
           return;
         }
       let pick = null;
@@ -494,7 +494,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
           const __step = 1;
           for (let i = 1; __step > 0 ? i <= __hi : i >= __hi; i += __step) {
             if ((type(globalThis.themerooms[(i) - 1]) != "table")) {
-                  nh.impossible("themed room " + i + " is not a table");
+                  await nh.impossible("themed room " + i + " is not a table");
                 }
         else if (is_eligible(globalThis.themerooms[(i) - 1], null)) {
                   let this_frequency;
@@ -511,12 +511,12 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
           }
         }
       if (pick == null) {
-          nh.impossible("no eligible themed rooms?");
+          await nh.impossible("no eligible themed rooms?");
           return;
         }
-      globalThis.themerooms[(pick) - 1].contents();
+      await globalThis.themerooms[(pick) - 1].contents();
     };
-  globalThis.pre_themerooms_generate = () => {
+  globalThis.pre_themerooms_generate = async () => {
       let debug_themerm = nh.debug_themerm(false);
       let debug_fill = nh.debug_themerm(true);
       let xtrainfo = "";
@@ -526,23 +526,23 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
           if (lookup_by_name(debug_themerm, true) != null) {
               xtrainfo = "; it is a fill type";
             }
-          pline("Warning: themeroom '" + debug_themerm + "' not found in themerooms" + xtrainfo, true);
+          await pline("Warning: themeroom '" + debug_themerm + "' not found in themerooms" + xtrainfo, true);
         }
       if (debug_fill != null && globalThis.debug_fill_idx == null) {
           if (lookup_by_name(debug_fill, false) != null) {
               xtrainfo = "; it is a room type";
             }
-          pline("Warning: themeroom fill '" + debug_fill + "' not found in themeroom_fills" + xtrainfo, true);
+          await pline("Warning: themeroom fill '" + debug_fill + "' not found in themeroom_fills" + xtrainfo, true);
         }
     };
   globalThis.post_themerooms_generate = () => {
     };
-  globalThis.themeroom_fill = (rm) => {
+  globalThis.themeroom_fill = async (rm) => {
       if (globalThis.debug_fill_idx != null) {
           if (is_eligible(globalThis.themeroom_fills[(globalThis.debug_fill_idx) - 1], rm)) {
-              globalThis.themeroom_fills[(globalThis.debug_fill_idx) - 1].contents(rm);
+              await globalThis.themeroom_fills[(globalThis.debug_fill_idx) - 1].contents(rm);
             } else {
-              pline("Warning: fill '" + globalThis.themeroom_fills[(globalThis.debug_fill_idx) - 1].name + "' is not eligible in room that generated it");
+              await pline("Warning: fill '" + globalThis.themeroom_fills[(globalThis.debug_fill_idx) - 1].name + "' is not eligible in room that generated it");
             }
           return;
         }
@@ -553,7 +553,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
           const __step = 1;
           for (let i = 1; __step > 0 ? i <= __hi : i >= __hi; i += __step) {
             if ((type(globalThis.themeroom_fills[(i) - 1]) != "table")) {
-                  nh.impossible("themeroom fill " + i + " must be a table");
+                  await nh.impossible("themeroom fill " + i + " must be a table");
                 }
         else if (is_eligible(globalThis.themeroom_fills[(i) - 1], rm)) {
                   let this_frequency;
@@ -570,10 +570,10 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
           }
         }
       if (pick == null) {
-          nh.impossible("no eligible themed room fills?");
+          await nh.impossible("no eligible themed room fills?");
           return;
         }
-      globalThis.themeroom_fills[(pick) - 1].contents(rm);
+      await globalThis.themeroom_fills[(pick) - 1].contents(rm);
     };
   globalThis.make_dig_engraving = async (data) => {
       let floors = selection.negate().filter_mapchar(".");
@@ -607,11 +607,11 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
         }
       await des.trap(data);
     };
-  globalThis.post_level_generate = () => {
+  globalThis.post_level_generate = async () => {
       for (let __ip_i = 0; __ip_i < postprocess.length; __ip_i++) {
           const i = __ip_i + 1;
           const v = postprocess[__ip_i];
-          v.handler(v.data);
+          await v.handler(v.data);
         }
       postprocess = [];
     };

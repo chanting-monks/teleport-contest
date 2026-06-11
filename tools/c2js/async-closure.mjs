@@ -24,11 +24,44 @@
 // more seeds later only needs an additional entry in
 // SEED_INDIRECT_MEMBERS.
 
-const SEED_INDIRECT_MEMBERS = new Set([
-    'win_nhgetch',
-]);
+import { INDIRECT_ASYNC_MEMBERS, INDIRECT_ASYNC_GLOBALS } from './c2js.config.mjs';
 
+// (UNWEDGE_PLAN Q8) The seed set covers every indirect dispatch shape
+// whose targets can be async: input windowprocs + fn-pointer table
+// members (timeout_funcs[i].f, ef_funct) — see c2js.config.mjs.  The
+// C call-graph walker has no edges through pointers, so functions
+// containing such calls join the closure via hitsSeed instead.
+const SEED_INDIRECT_MEMBERS = new Set(INDIRECT_ASYNC_MEMBERS);
+
+// Function-pointer GLOBALS called as (*name)(): the deref is peeled
+// by stripCasts, leaving a DeclRefExpr whose name is a variable, not
+// a function — no call-graph edge.  Treat as seeds too.
+const SEED_INDIRECT_GLOBALS = new Set(INDIRECT_ASYNC_GLOBALS);
+
+// opts.extraSeedMembers (Set<string>, default empty): additional
+// input-reading windowprocs members to treat as seeds.  Needed when
+// pruning the pline family (§23.235): C `yn_function`/`getlin` reach
+// `win_nhgetch` in the AST only THROUGH pline-family paths (their own
+// input read is the indirect `win_yn_function`/`win_getlin` call,
+// whose JS implementation awaits — invisible to the C AST walk).
+// Without extra seeds, pruning pline would wrongly demote them to
+// sync.  Production default behavior is unchanged when empty.
+
+// opts.pruneNames (Set<string>, default empty): functions whose JS
+// runtime implementation is known-synchronous even though their C
+// body reaches the input seed.  A pruned name never joins the closure
+// and therefore never propagates async-ness to its callers.
+//
+// Rationale (§23.235): C `pline` reaches `win_nhgetch` via
+// `more()`/`readchar`, but the JS port's pline is a synchronous
+// message-queue write — the --More-- input wait lives in `nhgetch`
+// itself.  Without pruning, pline drags ~2,700 functions into the
+// closure to guard an await that the JS implementation never takes.
 export function computeAsyncClosure(parsed, opts = {}) {
+    const pruneNames = opts.pruneNames || new Set();
+    const seedMembers = opts.extraSeedMembers
+        ? new Set([...SEED_INDIRECT_MEMBERS, ...opts.extraSeedMembers])
+        : SEED_INDIRECT_MEMBERS;
     // Step 1: for each FunctionDecl with a body across all TUs, scan
     // the body for callees.  Record direct callees by name and a
     // single hitsSeed bit for any indirect call matching the seed
@@ -41,7 +74,7 @@ export function computeAsyncClosure(parsed, opts = {}) {
             const body = (decl.inner || []).find((n) => n?.kind === 'CompoundStmt');
             if (!body) continue;
             const info = { directCallees: new Set(), hitsSeed: false };
-            scanCalls(body, info);
+            scanCalls(body, info, seedMembers);
             fnInfo.set(decl.name, info);
         }
     }
@@ -60,6 +93,7 @@ export function computeAsyncClosure(parsed, opts = {}) {
         changed = false;
         for (const [name, info] of fnInfo) {
             if (asyncSet.has(name)) continue;
+            if (pruneNames.has(name)) continue;
             if (info.hitsSeed) {
                 asyncSet.add(name);
                 if (via) via.set(name, SEED_SENTINEL);
@@ -111,18 +145,21 @@ function stripCasts(n) {
     return n;
 }
 
-function scanCalls(node, info) {
+function scanCalls(node, info, seedMembers = SEED_INDIRECT_MEMBERS) {
     if (!node || typeof node !== 'object') return;
     if (node.kind === 'CallExpr') {
         const callee = stripCasts(node.inner?.[0]);
         if (callee?.kind === 'DeclRefExpr') {
             const name = callee.referencedDecl?.name;
-            if (name) info.directCallees.add(name);
+            if (name) {
+                info.directCallees.add(name);
+                if (SEED_INDIRECT_GLOBALS.has(name)) info.hitsSeed = true;
+            }
         } else if (callee?.kind === 'MemberExpr'
-            && SEED_INDIRECT_MEMBERS.has(callee.name)) {
+            && seedMembers.has(callee.name)) {
             info.hitsSeed = true;
         }
         // fall through — args may contain nested CallExprs
     }
-    for (const c of node.inner || []) scanCalls(c, info);
+    for (const c of node.inner || []) scanCalls(c, info, seedMembers);
 }

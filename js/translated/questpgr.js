@@ -8,7 +8,7 @@ import { free } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcat, strchr, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, nh_strchr_truncate, strcat, strchr, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { artiname } from './artifact.js';
 import { rank_of } from './botl.js';
 import { copynchars, eos, highc, lowc, s_suffix, strNsubst } from './hacklib.js';
@@ -21,7 +21,7 @@ import { rn2 } from './rnd.js';
 import { genders } from './role.js';
 
 /* sometimes find_qarti(gi.invent), and gi.invent can be null */
-export function quest_info(typ) {
+export async function quest_info(typ) {
     switch (typ) {
         case 0:
             return game.urole.questarti;
@@ -32,7 +32,7 @@ export function quest_info(typ) {
         case MS_GUARDIAN:
             return game.urole.guardnum;
         default:
-            impossible("quest_info(%d)", typ);
+            await impossible("quest_info(%d)", typ);
     }
     return 0;
 }
@@ -123,13 +123,6 @@ export async function stinky_nemesis(mon) {
     let mesg = null;
     let res = 0;
     ((mon));
-    /* get the quest text for dying nemesis; don't assume that mon is
-       hero's own role's nemesis (overkill since m_detach() and nemdead()
-       both make that assumption--valid for normal play but not necessarily
-       valid for wizard mode) */
-    /* since nemdead() just gave the message for hero's nemesis even if 'mon'
-       is some other role's nemesis (feasible in wizard mode), base any gas
-       cloud on the text that was shown even if not appropriate for 'mon' */
     await com_pager_core(game.urole.filecode, "killed_nemesis", 0, { get value() { return mesg; }, set value(_v) { mesg = _v; } });
     if (mesg) {
         /* this is somewhat fragile; it assumes that when both {noxious or
@@ -150,11 +143,11 @@ export async function stinky_nemesis(mon) {
    overwrites cvt_buf[] */
 /* 'd' => deity, 'l' => leader, 'n' => nemesis, 'o' => arti */
 /* 'h'|'H'|'i'|'I'|'j'|'J' */
-export function qtext_pronoun(who, which) {
+export async function qtext_pronoun(who, which) {
     let pnoun = null;
     let godgend = 0;
     let lwhich = lowc(which);
-    if (who == 111 && (strstri(game.cvt_buf, "Eyes ") || strncmpi((game.cvt_buf), (makesingular(game.cvt_buf)), -1))) {
+    if (who == 111 && (strstri(game.cvt_buf, "Eyes ") || strncmpi((game.cvt_buf), (await makesingular(game.cvt_buf)), -1))) {
         /*
      * Invalid subject (not d,l,n,o) yields neuter, singular result.
      *
@@ -172,7 +165,7 @@ export function qtext_pronoun(who, which) {
     }
     return;
 }
-export function convert_arg(c) {
+export async function convert_arg(c) {
     let str = null;
     switch (c) {
         case 112:
@@ -201,7 +194,7 @@ export function convert_arg(c) {
             break;
         case 79:
         case 111:
-            str = the(artiname(game.urole.questarti));
+            str = await the(artiname(game.urole.questarti));
             if (c == 79) {
                 /* shorten "the Foo of Bar" to "the Foo"
                (buffer returned by the() is modifiable) */
@@ -230,10 +223,10 @@ export function convert_arg(c) {
             str = align_str(game.u.ualign.type);
             break;
         case 100:
-            str = align_gname(game.u.ualignbase[1]);
+            str = await align_gname(game.u.ualignbase[1]);
             break;
         case 68:
-            str = align_gname(1);
+            str = await align_gname(1);
             break;
         case 67:
             str = "chaotic";
@@ -259,28 +252,28 @@ export function convert_arg(c) {
     }
     game.cvt_buf = strcpy(game.cvt_buf, str);
 }
-export function convert_line(in_line, out_line) {
+export async function convert_line(in_line, out_line) {
     let c = null;
     let cc = null;
     cc = out_line;
-    for (c = in_line; c; c++) {
+    for (c = in_line; __nh_char_at0(c); (c = __nh_advance_str(c, 1))) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        switch (c) {
+        switch (__nh_char_at0(c)) {
             case 13:
             case 10:
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
                 return;
             case 37:
-                if ((c + 1)) {
-                    convert_arg((++c));
-                    switch ((++c)) {
+                if (__nh_char_at0((__nh_advance_str(c, 1)))) {
+                    await convert_arg(((c = __nh_advance_str(c, 1))));
+                    switch (((c = __nh_advance_str(c, 1)))) {
                         case 65:
-                            cc = strcat(cc, An(game.cvt_buf));
-                            cc += strlen(cc);
+                            cc = strcat(cc, await An(game.cvt_buf));
+                            cc = __nh_advance_str(cc, strlen(cc));
                             continue;
                         case 97:
-                            cc = strcat(cc, an(game.cvt_buf));
-                            cc += strlen(cc);
+                            cc = strcat(cc, await an(game.cvt_buf));
+                            cc = __nh_advance_str(cc, strlen(cc));
                             continue;
                         case 67:
                             game.cvt_buf[0] = highc(game.cvt_buf[0]);
@@ -291,19 +284,19 @@ export function convert_line(in_line, out_line) {
                         case 73:
                         case 106:
                         case 74:
-                            if (strchr("dlno", lowc((c - 1)))) {
-                                qtext_pronoun((c - 1), c);
+                            if (strchr("dlno", lowc(__nh_char_at0((c - 1))))) {
+                                await qtext_pronoun(__nh_char_at0((c - 1)), __nh_char_at0(c));
                             /* replace name with pronoun;
                    valid for %d, %l, %n, and %o */
                             } else {
-                                --c;
+                                (c = __nh_advance_str(c, -1));
                             }
                             break;
                         case 80:
                             game.cvt_buf[0] = highc(game.cvt_buf[0]);
                             ;
                         case 112:
-                            game.cvt_buf = strcpy(game.cvt_buf, makeplural(game.cvt_buf));
+                            game.cvt_buf = strcpy(game.cvt_buf, await makeplural(game.cvt_buf));
                             break;
                         /* append possessive suffix */
                         case 83:
@@ -315,53 +308,53 @@ export function convert_line(in_line, out_line) {
                         case 116:
                             if (!strncmpi(game.cvt_buf, "the ", 4)) {
                                 cc = strcat(cc, game.cvt_buf[4]);
-                                cc += strlen(cc);
+                                cc = __nh_advance_str(cc, strlen(cc));
                                 continue;
                             }
                             break;
                         default:
-                            --c;
+                            (c = __nh_advance_str(c, -1));
                             break;
                     }
                     cc = strcat(cc, game.cvt_buf);
-                    cc += strlen(game.cvt_buf);
+                    cc = __nh_advance_str(cc, strlen(game.cvt_buf));
                     break;
                 }
                 ;
             default:
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = c) */;
+                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0(c)) */;
                 break;
         }
-        if (cc > out_line[256 - 1]) {
-            panic("convert_line: overflow");
+        if (cc > __nh_advance_str(out_line, 256 - 1)) {
+            await panic("convert_line: overflow");
         }
     }
     void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     return;
 }
-export function deliver_by_pline(str) {
-    let in_line = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let out_line = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+export async function deliver_by_pline(str) {
+    let in_line = '';
+    let out_line = '';
     let msgp = str;
     let msgend = eos(str);
     while (msgp < msgend) {
         /* copynchars() will stop at newline if it finds one */
         in_line = copynchars(in_line, msgp, 256 /* sizeof(char [256]) */ - 1);
-        msgp += strlen(in_line) + 1;
-        convert_line(in_line, out_line);
-        pline("%s", out_line);
+        msgp = __nh_advance_str(msgp, strlen(in_line) + 1);
+        await convert_line(in_line, out_line);
+        await pline("%s", out_line);
     }
 }
-export function deliver_by_window(msg, how) {
-    let in_line = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let out_line = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+export async function deliver_by_window(msg, how) {
+    let in_line = '';
+    let out_line = '';
     let msgp = msg;
     let msgend = eos(msg);
     let datawin = (game.windowprocs.win_create_nhwindow)(how);
     while (msgp < msgend) {
         in_line = copynchars(in_line, msgp, 256 /* sizeof(char [256]) */ - 1);
-        msgp += strlen(in_line) + 1;
-        convert_line(in_line, out_line);
+        msgp = __nh_advance_str(msgp, strlen(in_line) + 1);
+        await convert_line(in_line, out_line);
         (game.windowprocs.win_putstr)(datawin, 0, out_line);
     }
     (game.windowprocs.win_display_nhwindow)(datawin, 1);
@@ -396,13 +389,13 @@ export async function com_pager_core(section, msgid, showerror, rawtext) {
     L = await nhl_init(sbi);
     if (!L) {
         if (showerror) {
-            impossible("com_pager: await nhl_init() failed");
+            await impossible("com_pager: nhl_init() failed");
         }
         break compagerdone;
     }
     if (!await nhl_loadlua(L, "quest.lua")) {
         if (showerror) {
-            impossible("com_pager: %s not found.", "quest.lua");
+            await impossible("com_pager: %s not found.", "quest.lua");
         }
         break compagerdone;
     }
@@ -410,14 +403,14 @@ export async function com_pager_core(section, msgid, showerror, rawtext) {
     lua_getglobal(L, "questtext");
     if (!lua_istable(L, -1)) {
         if (showerror) {
-            impossible("com_pager: questtext in %s is not a lua table", "quest.lua");
+            await impossible("com_pager: questtext in %s is not a lua table", "quest.lua");
         }
         break compagerdone;
     }
     lua_getfield(L, -1, section);
     if (!lua_istable(L, -1)) {
         if (showerror) {
-            impossible("com_pager: questtext[%s] in %s is not a lua table", section, "quest.lua");
+            await impossible("com_pager: questtext[%s] in %s is not a lua table", section, "quest.lua");
         }
         break compagerdone;
     }
@@ -437,9 +430,9 @@ export async function com_pager_core(section, msgid, showerror, rawtext) {
             }
             if (showerror) {
                 if (!fallback_msgid) {
-                    impossible("com_pager: questtext[%s][%s] in %s is not a lua table", section, msgid, "quest.lua");
+                    await impossible("com_pager: questtext[%s][%s] in %s is not a lua table", section, msgid, "quest.lua");
                 } else {
-                    impossible("com_pager: questtext[%s][%s] and [][%s] in %s are not lua tables", section, msgid, fallback_msgid, "quest.lua");
+                    await impossible("com_pager: questtext[%s][%s] and [][%s] in %s are not lua tables", section, msgid, fallback_msgid, "quest.lua");
                 }
             }
             break compagerdone;
@@ -459,7 +452,7 @@ export async function com_pager_core(section, msgid, showerror, rawtext) {
             lua_pop(L, 1);
             if (nelems < 2) {
                 if (showerror) {
-                    impossible("com_pager: questtext[%s][%s] in %s is not an array of strings", section, fallback_msgid ? fallback_msgid : msgid, "quest.lua");
+                    await impossible("com_pager: questtext[%s][%s] in %s is not an array of strings", section, fallback_msgid ? fallback_msgid : msgid, "quest.lua");
                 }
                 break compagerdone;
             }
@@ -478,7 +471,7 @@ export async function com_pager_core(section, msgid, showerror, rawtext) {
          * FIXME:  should update quest.lua to include proper synopsis line
          * for any item subject to having its delivery converted to by_window.
          */
-                let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let tmpbuf = '';
                 tmpbuf = sprintf(tmpbuf, "[%.*s]", 256 - 1 - 2, text);
                 /* change every newline character to a space */
                 strNsubst(tmpbuf, "\n", " ", 0);
@@ -486,16 +479,15 @@ export async function com_pager_core(section, msgid, showerror, rawtext) {
             }
         }
         if (output == 0 || output == 1) {
-            deliver_by_pline(text);
+            await deliver_by_pline(text);
         } else {
-            deliver_by_window(text, (output == 3) ? 4 : 5);
+            await deliver_by_window(text, (output == 3) ? 4 : 5);
         }
         if (synopsis) {
-            let in_line = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let out_line = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let in_line = '';
+            let out_line = '';
             in_line = strcpy(in_line, synopsis);
-            /* not yet -- brackets need to be removed from quest.lua */
-            convert_line(in_line, out_line);
+            await convert_line(in_line, out_line);
             /* bypass message delivery but be available for ^P recall */
             (game.windowprocs.win_putmsghistory)(out_line, 0);
         }
@@ -523,28 +515,36 @@ export async function qt_pager(msgid) {
         await com_pager_core("common", msgid, 1, null);
     }
 }
-export function qt_montype() {
+export async function qt_montype() {
     let qpm = 0;
     if (rn2(5)) {
         qpm = game.urole.enemy1num;
         if (qpm != NON_PM && rn2(5) && !(game.mvitals[qpm].mvflags & 2)) {
             return game.mons[qpm];
         }
-        return mkclass(game.urole.enemy1sym, 0);
+        return await mkclass(game.urole.enemy1sym, 0);
     }
     qpm = game.urole.enemy2num;
     if (qpm != NON_PM && rn2(5) && !(game.mvitals[qpm].mvflags & 2)) {
         return game.mons[qpm];
     }
-    return mkclass(game.urole.enemy2sym, 0);
+    return await mkclass(game.urole.enemy2sym, 0);
 }
 /* special levels can include a custom arrival message; display it */
-export function deliver_splev_message() {
+export async function deliver_splev_message() {
     if (game.lev_message) {
-        /* there's no provision for delivering via window instead of pline */
-        deliver_by_pline(game.lev_message);
+        await deliver_by_pline(game.lev_message);
         free(game.lev_message);
         game.lev_message = null;
     }
 }
 /*questpgr.c*/
+/* get the quest text for dying nemesis; don't assume that mon is
+       hero's own role's nemesis (overkill since m_detach() and nemdead()
+       both make that assumption--valid for normal play but not necessarily
+       valid for wizard mode) */
+/* since nemdead() just gave the message for hero's nemesis even if 'mon'
+       is some other role's nemesis (feasible in wizard mode), base any gas
+       cloud on the text that was shown even if not appropriate for 'mon' */
+/* not yet -- brackets need to be removed from quest.lua */
+/* there's no provision for delivering via window instead of pline */

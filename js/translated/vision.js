@@ -432,7 +432,6 @@ export function rogue_vision(next, rmin, rmax) {
  */
 let __vision_recalc_colbump = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 export function vision_recalc(control) {
-    let seenv_matrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
     let temp_array = null;
     let next_array = null;
     let next_row = null;
@@ -654,7 +653,7 @@ export function vision_recalc(control) {
      *      Even so, that is not entirely correct.  But it seems close
      *      enough for now.
      */
-        __vision_recalc_colbump[game.u.ux] = __vision_recalc_colbump[game.u.ux + 1] = 1;
+        (__vision_recalc_colbump[game.u.ux + 1] = 1, __vision_recalc_colbump[game.u.ux] = 1);
         for (row = 0; row < 21; row++) {
             dy = game.u.uy - row;
             dy = ((dy) < 0 ? -1 : ((dy) ? 1 : 0));
@@ -741,7 +740,7 @@ export function vision_recalc(control) {
                 }
             }
         }
-        __vision_recalc_colbump[game.u.ux] = __vision_recalc_colbump[game.u.ux + 1] = 0;
+        (__vision_recalc_colbump[game.u.ux + 1] = 0, __vision_recalc_colbump[game.u.ux] = 0);
     }
     /* This newsym() caused a crash delivering msg about failure to open
      * dungeon file init_dungeons() -> panic() -> done(11) ->
@@ -1359,14 +1358,14 @@ export function right_side(row, left, right_mark, limits) {
      * limit value is the start of a new circle radius (meaning we depend
      * on the structure of circle_data[]).
      */
-    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (limits.value >= (limits + 1)));
+    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (limits >= (limits + 1)));
     if (!game.vis_func) {
         rowp = game.cs_rows[row];
         row_min = game.cs_left[row];
         row_max = game.cs_right[row];
     }
     if (limits) {
-        lim_max = game.start_col + limits.value;
+        lim_max = game.start_col + limits;
         if (lim_max > 80 - 1) {
             lim_max = 80 - 1;
         }
@@ -1762,14 +1761,14 @@ export function left_side(row, left_mark, right, limits) {
     let row_max = null;
     let lim_min = 0;
     nrow = row + game.step;
-    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (limits.value >= (limits + 1)));
+    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (limits >= (limits + 1)));
     if (!game.vis_func) {
         rowp = game.cs_rows[row];
         row_min = game.cs_left[row];
         row_max = game.cs_right[row];
     }
     if (limits) {
-        lim_min = game.start_col - limits.value;
+        lim_min = game.start_col - limits;
         if (lim_min < 0) {
             lim_min = 0;
         }

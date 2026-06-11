@@ -27,6 +27,7 @@
 // indices are 1-based positive or negative-from-top, matching the
 // Lua C API.
 
+import { assertNotThenable } from './tripwire.js';
 const NIL = Object.freeze({ type: 'nil', value: null });
 
 // Type constants (mirror the standard Lua 5.3 LUA_T* values).
@@ -153,6 +154,23 @@ export function lua_pushstring(L, s) { L.stack.push({ type: 'string', value: asK
 export function lua_pushlstring(L, s, _len) { lua_pushstring(L, s); }
 export function lua_pushlightuserdata(L, ud) { L.stack.push({ type: 'userdata', value: ud, light: true }); }
 export function lua_pushjsfunction(L, fn) { L.stack.push({ type: 'function', value: fn }); }
+
+// C ref lua_error — raise a Lua error with the value on top of the
+// stack.  In this JS model a throw is the longjmp: lua_pcall_async's
+// catch converts it to LUA_ERRRUN with L.error set, which
+// nhl_pcall_handle then surfaces (impossible/panic per errflag) —
+// the same propagation C gets.  Used by nhl_error (translated
+// lspo_* "Wrong parameters" paths); was missing from the namespace
+// (Q9 iteration 28: lspo_level_flags' error path threw
+// "lua.lua_error is not a function" instead of the Lua error).
+export function lua_error(L) {
+    const top = L.stack[L.stack.length - 1];
+    let msg = 'lua error';
+    if (top && top.type === 'string') {
+        msg = (typeof top.value === 'string') ? top.value : String(top.value);
+    }
+    throw new Error(msg);
+}
 // Lua C function pointers via fengari: same as JS function.
 export const lua_pushcfunction = lua_pushjsfunction;
 export const lua_pushcclosure = (L, fn, _nupvalues) => lua_pushjsfunction(L, fn);
@@ -474,6 +492,11 @@ function callJsFunctionOnStack(L, nargs, nresults) {
     let returned = 0;
     try {
         const r = f.value(L);
+        // Tripwire (UNWEDGE_PLAN Q4): an async handler here returns a
+        // Promise that the `typeof r === 'number'` check below would
+        // silently DROP — the exact fire-and-forget that §23.235
+        // diagnosed.  A Lua C-function cannot await; fail loud.
+        assertNotThenable(r, `lua handler ${f.value.name || '(anon)'}`);
         returned = (typeof r === 'number' && r >= 0) ? r : 0;
     } catch (e) {
         L.frameBases.pop();
@@ -497,6 +520,59 @@ function callJsFunctionOnStack(L, nargs, nresults) {
         L.stack.length = fnIdx + returned;
     }
     // Step 5: adjust to nresults (LUA_MULTRET = -1 means keep all).
+    if (nresults !== -1) {
+        while (L.stack.length < fnIdx + nresults) L.stack.push(NIL);
+        L.stack.length = fnIdx + nresults;
+    }
+    return LUA_OK;
+}
+
+// Async twin of callJsFunctionOnStack (UNWEDGE_PLAN Q6): identical
+// stack/frame discipline, but the handler's return is AWAITED — so an
+// async handler runs to completion before the caller continues, with
+// its integer result honored.  This replaces the Promise-stash
+// protocol (which returned 0 to Lua BEFORE the handler's effects
+// happened — the §23.235 fire-and-forget, formalized).  The sync
+// path keeps its Q4 tripwire: an async handler reaching lua_call /
+// lua_pcall is a routing bug and fails loud.
+export async function lua_pcall_async(L, nargs, nresults) {
+    const callerFb = frameBase(L);
+    const fnIdx = L.stack.length - 1 - nargs;
+    if (fnIdx < callerFb) {
+        L.error = 'no function on stack';
+        return LUA_ERRRUN;
+    }
+    const f = L.stack[fnIdx];
+    if (!f || f.type !== 'function') {
+        L.error = 'attempt to call a ' + lua_typename(L, luaTypeOf(f)) + ' value';
+        L.stack.length = fnIdx;
+        L.stack.push({ type: 'string', value: L.error });
+        return LUA_ERRRUN;
+    }
+    L.stack.splice(fnIdx, 1);
+    const newBase = fnIdx;
+    L.frameBases.push(newBase);
+    let returned = 0;
+    try {
+        const r = await f.value(L);
+        returned = (typeof r === 'number' && r >= 0) ? r : 0;
+    } catch (e) {
+        L.frameBases.pop();
+        L.error = String(e?.message || e);
+        L.stack.length = fnIdx;
+        L.stack.push({ type: 'string', value: L.error });
+        return LUA_ERRRUN;
+    }
+    L.frameBases.pop();
+    const finalTop = L.stack.length;
+    const resultsStart = finalTop - returned;
+    if (resultsStart > fnIdx) {
+        const results = L.stack.slice(resultsStart, finalTop);
+        L.stack.length = fnIdx;
+        for (const r of results) L.stack.push(r);
+    } else {
+        L.stack.length = fnIdx + returned;
+    }
     if (nresults !== -1) {
         while (L.stack.length < fnIdx + nresults) L.stack.push(NIL);
         L.stack.length = fnIdx + nresults;
@@ -557,6 +633,10 @@ export function luaL_checktype(L, idx, t) {
         throw new Error('bad argument #' + idx + ' (' + lua_typename(L, t) + ' expected)');
     }
 }
+// C ref luaL_typename — type name of the value at idx.
+export function luaL_typename(L, idx) {
+    return lua_typename(L, lua_type(L, idx));
+}
 export function luaL_optstring(L, idx, def) {
     return lua_isnil(L, idx) ? def : luaL_checkstring(L, idx);
 }
@@ -576,10 +656,12 @@ export function luaL_checkoption(L, idx, def, names) {
 // `lua.lua_X(...)` (fengari namespacing) keeps working as we
 // migrate.  Each property maps to the corresponding function above.
 export const lua = {
+    lua_pcall_async,
     lua_newstate, lua_close, lua_gettop, lua_settop, lua_pop, lua_remove,
     lua_pushvalue, lua_pushnil, lua_pushboolean, lua_pushinteger,
     lua_pushnumber, lua_pushstring, lua_pushlstring, lua_pushlightuserdata,
     lua_pushjsfunction, lua_pushcfunction, lua_pushcclosure,
+    lua_error,
     lua_newtable, lua_createtable, lua_setfield, lua_getfield,
     lua_settable, lua_gettable, lua_rawseti, lua_rawget, lua_rawset,
     lua_rawgeti, lua_setmetatable, lua_getmetatable, lua_len, lua_rawlen,

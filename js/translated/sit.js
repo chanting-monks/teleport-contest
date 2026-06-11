@@ -5,6 +5,7 @@
 import { game } from '../gstate.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
+import { atoi } from '../c2js-runtime/string.js';
 import { is_art, spec_ability } from './artifact.js';
 import { adjattrib, change_luck, exercise } from './attrib.js';
 import { yn_function } from './cmd.js';
@@ -76,9 +77,9 @@ export function throne_sit_effect() {
         /* [why so convoluted? it's the same as '!rn2(3)'] */
         let effect = rnd(13);
         if (game.flags.debug && !game.iflags.debug_fuzzer) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             let which = 0;
-            buf[0] = 0;
+            buf = '';
             getlin("Throne sit effect (1..13) [0=random]", buf);
             if (buf[0] == 27) {
                 pline("%s", c_common_strings.c_Never_mind);

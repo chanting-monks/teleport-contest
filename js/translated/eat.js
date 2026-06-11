@@ -7,8 +7,8 @@ import { abs, sgn } from '../c2js-runtime/math.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, You_hear, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strcmp, strcpy, strlen, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strcmp, strcpy, strlen, strncmpi } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
 import { o_unleash, tinnable } from './apply.js';
 import { retouch_equipment, retouch_object, touch_artifact } from './artifact.js';
@@ -772,11 +772,7 @@ export function cprefx(pm) {
     }
 }
 export function fix_petrification() {
-    /* Blessed food detection grants hero a one-use
-     * ability to detect food that is unfit for consumption
-     * or dangerous and avoid it.
-     */
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
         buf = sprintf(buf, "What a pity--you just ruined a future piece of %sart!", (acurr(A_CHA)) > 15 ? "fine " : "");
     } else {
@@ -1253,7 +1249,7 @@ export function cpostfx(pm) {
         case PM_SMALL_MIMIC:
             tmp += 20;
             if (game.youmonst.data.mlet != S_MIMIC && !(game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic)) {
-                let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let buf = '';
                 let tempshape = !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "a pile of gold" : "an orange";
                 if (!game.u.uconduct.polyselfs++) {
                     livelog_printf(32, "changed form for the first time by mimicking %s", tempshape);
@@ -1467,7 +1463,7 @@ export function tin_variety_txt(s, tinvariety) {
         tinvariety.value = -1;
         for (k = 0; k < (Math.trunc(16 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/eat.c:138:14) [16]) */ / 1 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/eat.c:138:14)) */)) - 1; ++k) {
             l = strlen(tintxts[k].txt);
-            if (!strncmpi(s, tintxts[k].txt, l) && (strlen(s) > l) && s[l] == 32) {
+            if (!strncmpi(s, tintxts[k].txt, l) && (strlen(s) > l) && __nh_char_at0(__nh_advance_str(s, l)) == 32) {
                 tinvariety.value = k;
                 return (l + 1);
             }
@@ -1480,7 +1476,7 @@ export function tin_variety_txt(s, tinvariety) {
  * as is the case with caller xname().
  */
 export function tin_details(obj, mnum, buf) {
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf2 = '';
     if (!obj || !buf) {
         return;
     }
@@ -1495,15 +1491,15 @@ export function tin_details(obj, mnum, buf) {
                 buf2 = sprintf(buf2, "%s %s of ", tintxts[r].txt, buf);
                 buf = strcpy(buf, buf2);
             } else {
-                buf = (buf || '') + sprintf('', " of %s ", tintxts[r].txt);
+                buf = __nh_buf_append(buf, sprintf('', " of %s ", tintxts[r].txt));
             }
         } else {
             strcpy(eos(buf), " of ");
         }
         if ((((game.mons[mnum]).mlet == S_BLOB || (game.mons[mnum]).mlet == S_JELLY || (game.mons[mnum]).mlet == S_FUNGUS || (game.mons[mnum]).mlet == S_VORTEX || (game.mons[mnum]).mlet == S_LIGHT || ((game.mons[mnum]).mlet == S_ELEMENTAL && (game.mons[mnum]) != game.mons[PM_STALKER]) || ((game.mons[mnum]).mlet == S_GOLEM && (game.mons[mnum]) != game.mons[PM_FLESH_GOLEM] && (game.mons[mnum]) != game.mons[PM_LEATHER_GOLEM]) || ((game.mons[mnum]).mlet == S_GHOST)) || ((game.mons[mnum]).mlet == S_PUDDING && (game.mons[mnum]) != game.mons[PM_BLACK_PUDDING]))) {
-            buf = (buf || '') + sprintf('', "%s", game.mons[mnum].pmnames[NEUTRAL]);
+            buf = __nh_buf_append(buf, sprintf('', "%s", game.mons[mnum].pmnames[NEUTRAL]));
         } else {
-            buf = (buf || '') + sprintf('', "%s meat", game.mons[mnum].pmnames[NEUTRAL]);
+            buf = __nh_buf_append(buf, sprintf('', "%s meat", game.mons[mnum].pmnames[NEUTRAL]));
         }
     }
 }
@@ -1979,16 +1975,16 @@ export function eatcorpse(otmp) {
         let pmxnam = food_xname(otmp, (0));
         let idx = (((game.mons[mnum]).mlet == S_BLOB || (game.mons[mnum]).mlet == S_JELLY || (game.mons[mnum]).mlet == S_FUNGUS || (game.mons[mnum]).mlet == S_VORTEX || (game.mons[mnum]).mlet == S_LIGHT || ((game.mons[mnum]).mlet == S_ELEMENTAL && (game.mons[mnum]) != game.mons[PM_STALKER]) || ((game.mons[mnum]).mlet == S_GOLEM && (game.mons[mnum]) != game.mons[PM_FLESH_GOLEM] && (game.mons[mnum]) != game.mons[PM_LEATHER_GOLEM]) || ((game.mons[mnum]).mlet == S_GHOST)) || ((game.mons[mnum]).mlet == S_PUDDING && (game.mons[mnum]) != game.mons[PM_BLACK_PUDDING])) ? 0 : rn2((Math.trunc(5 /* sizeof(const char *const [5]) */ / 1 /* sizeof(const char *const) */)));
         let palat_msg = __eatcorpse_palatable_msgs[idx];
-        let use_is = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) || (palatable && palat_msg == 73));
+        let use_is = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) || (palatable && __nh_char_at0(palat_msg) == 73));
         if (!strncmpi(pmxnam, "the ", 4)) {
-            pmxnam += 4;
+            pmxnam = __nh_advance_str(pmxnam, 4);
         }
-        pline("%s%s %s %s%c", (((game.mons[mnum]).mflags2 & 524288) != 0) ? "" : the_unique_pm(game.mons[mnum]) ? "The " : "This ", pmxnam, use_is ? "is" : "tastes", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? (yummy ? ((game.u.umonnum == PM_TIGER) ? "gr-r-reat" : "gnarly") : palatable ? "copacetic" : "grody") : (yummy ? "delicious" : palatable ? palat_msg[1] : "terrible"), (yummy || !palatable) ? 33 : 46);
+        pline("%s%s %s %s%c", (((game.mons[mnum]).mflags2 & 524288) != 0) ? "" : the_unique_pm(game.mons[mnum]) ? "The " : "This ", pmxnam, use_is ? "is" : "tastes", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? (yummy ? ((game.u.umonnum == PM_TIGER) ? "gr-r-reat" : "gnarly") : palatable ? "copacetic" : "grody") : (yummy ? "delicious" : palatable ? __nh_advance_str(palat_msg, 1) : "terrible"), (yummy || !palatable) ? 33 : 46);
     }
     return retcode;
 }
 /* called as you start to eat */
-let __start_eating_msgbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __start_eating_msgbuf = '';
 export function start_eating(otmp, already_partly_eaten) {
     let old_nomovemsg = null;
     let save_nomovemsg = null;
@@ -2544,9 +2540,13 @@ export function fpostfx(otmp) {
  * return 2 if the food was dangerous and you chose to eat it anyway.
  */
 export function edibility_prompts(otmp) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let foodsmell = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let it_or_they = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    /* Blessed food detection grants hero a one-use
+     * ability to detect food that is unfit for consumption
+     * or dangerous and avoid it.
+     */
+    let buf = '';
+    let foodsmell = '';
+    let it_or_they = '';
     /* 5.0: decaying globs don't become tainted anymore; in 3.6, they did */
     let cadaver = (otmp.otyp == CORPSE);
     let stoneorslime = (0);
@@ -2577,29 +2577,29 @@ export function edibility_prompts(otmp) {
      * These problems with food should be checked in
      * order from most detrimental to least detrimental.
      */
-    buf[0] = 0;
+    buf = '';
     if (cadaver && rotted > 5 && !(game.u.uprops[SICK_RES].intrinsic || game.u.uprops[SICK_RES].extrinsic || defended(game.youmonst, 33))) {
-        nh_snprintf("edibility_prompts", 2675, buf, 256 /* sizeof(char [256]) */, "%s like %s could be tainted!", foodsmell, it_or_they);
+        buf = nh_snprintf("edibility_prompts", 2675, buf, 256 /* sizeof(char [256]) */, "%s like %s could be tainted!", foodsmell, it_or_they);
     } else if (stoneorslime) {
-        nh_snprintf("edibility_prompts", 2679, buf, 256 /* sizeof(char [256]) */, "%s like %s could be something very dangerous!", foodsmell, it_or_they);
+        buf = nh_snprintf("edibility_prompts", 2679, buf, 256 /* sizeof(char [256]) */, "%s like %s could be something very dangerous!", foodsmell, it_or_they);
     } else if (cadaver && rotted > 5 && (game.u.uprops[SICK_RES].intrinsic || game.u.uprops[SICK_RES].extrinsic || defended(game.youmonst, 33))) {
-        nh_snprintf("edibility_prompts", 2686, buf, 256 /* sizeof(char [256]) */, "%s like %s could be tainted.", foodsmell, it_or_they);
+        buf = nh_snprintf("edibility_prompts", 2686, buf, 256 /* sizeof(char [256]) */, "%s like %s could be tainted.", foodsmell, it_or_they);
     } else if (otmp.oeroded || (cadaver && rotted > 3)) {
-        nh_snprintf("edibility_prompts", 2690, buf, 256 /* sizeof(char [256]) */, "%s like %s could be rotten!", foodsmell, it_or_they);
+        buf = nh_snprintf("edibility_prompts", 2690, buf, 256 /* sizeof(char [256]) */, "%s like %s could be rotten!", foodsmell, it_or_they);
     } else if (cadaver && (((game.mons[mnum]).mflags1 & 268435456) != 0) && !(game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic)) {
-        nh_snprintf("edibility_prompts", 2694, buf, 256 /* sizeof(char [256]) */, "%s like %s might be poisonous!", foodsmell, it_or_they);
+        buf = nh_snprintf("edibility_prompts", 2694, buf, 256 /* sizeof(char [256]) */, "%s like %s might be poisonous!", foodsmell, it_or_they);
     } else if (otmp.otyp == APPLE && otmp.cursed && !(game.u.uprops[SLEEP_RES].intrinsic || game.u.uprops[SLEEP_RES].extrinsic)) {
-        nh_snprintf("edibility_prompts", 2698, buf, 256 /* sizeof(char [256]) */, "%s like %s might have been poisoned.", foodsmell, it_or_they);
+        buf = nh_snprintf("edibility_prompts", 2698, buf, 256 /* sizeof(char [256]) */, "%s like %s might have been poisoned.", foodsmell, it_or_they);
     } else if (cadaver && !(((game.mons[mnum]).mlet == S_BLOB || (game.mons[mnum]).mlet == S_JELLY || (game.mons[mnum]).mlet == S_FUNGUS || (game.mons[mnum]).mlet == S_VORTEX || (game.mons[mnum]).mlet == S_LIGHT || ((game.mons[mnum]).mlet == S_ELEMENTAL && (game.mons[mnum]) != game.mons[PM_STALKER]) || ((game.mons[mnum]).mlet == S_GOLEM && (game.mons[mnum]) != game.mons[PM_FLESH_GOLEM] && (game.mons[mnum]) != game.mons[PM_LEATHER_GOLEM]) || ((game.mons[mnum]).mlet == S_GHOST)) || ((game.mons[mnum]).mlet == S_PUDDING && (game.mons[mnum]) != game.mons[PM_BLACK_PUDDING])) && !game.u.uconduct.unvegetarian && (game.urole.mnum == (PM_MONK))) {
-        nh_snprintf("edibility_prompts", 2701, buf, 256 /* sizeof(char [256]) */, "%s unhealthy.", foodsmell);
+        buf = nh_snprintf("edibility_prompts", 2701, buf, 256 /* sizeof(char [256]) */, "%s unhealthy.", foodsmell);
     } else if (cadaver && (((game.mons[mnum]).mflags1 & 134217728) != 0) && !(game.u.uprops[ACID_RES].intrinsic || game.u.uprops[ACID_RES].extrinsic)) {
-        nh_snprintf("edibility_prompts", 2703, buf, 256 /* sizeof(char [256]) */, "%s rather acidic.", foodsmell);
+        buf = nh_snprintf("edibility_prompts", 2703, buf, 256 /* sizeof(char [256]) */, "%s rather acidic.", foodsmell);
     } else if ((game.u.umonnum != game.u.umonster) && game.u.umonnum == PM_RUST_MONSTER && (game.objects[otmp.otyp].oc_material >= IRON && game.objects[otmp.otyp].oc_material <= MITHRIL) && otmp.oerodeproof) {
-        nh_snprintf("edibility_prompts", 2707, buf, 256 /* sizeof(char [256]) */, "%s disgusting to you right now.", foodsmell);
+        buf = nh_snprintf("edibility_prompts", 2707, buf, 256 /* sizeof(char [256]) */, "%s disgusting to you right now.", foodsmell);
     } else if (!game.u.uconduct.unvegan && ((material == LEATHER || material == BONE || material == DRAGON_HIDE || material == WAX) || (cadaver && !((game.mons[mnum]).mlet == S_BLOB || (game.mons[mnum]).mlet == S_JELLY || (game.mons[mnum]).mlet == S_FUNGUS || (game.mons[mnum]).mlet == S_VORTEX || (game.mons[mnum]).mlet == S_LIGHT || ((game.mons[mnum]).mlet == S_ELEMENTAL && (game.mons[mnum]) != game.mons[PM_STALKER]) || ((game.mons[mnum]).mlet == S_GOLEM && (game.mons[mnum]) != game.mons[PM_FLESH_GOLEM] && (game.mons[mnum]) != game.mons[PM_LEATHER_GOLEM]) || ((game.mons[mnum]).mlet == S_GHOST))))) {
-        nh_snprintf("edibility_prompts", 2717, buf, 256 /* sizeof(char [256]) */, "%s foul and unfamiliar to you.", foodsmell);
+        buf = nh_snprintf("edibility_prompts", 2717, buf, 256 /* sizeof(char [256]) */, "%s foul and unfamiliar to you.", foodsmell);
     } else if (!game.u.uconduct.unvegetarian && ((material == LEATHER || material == BONE || material == DRAGON_HIDE) || (cadaver && !(((game.mons[mnum]).mlet == S_BLOB || (game.mons[mnum]).mlet == S_JELLY || (game.mons[mnum]).mlet == S_FUNGUS || (game.mons[mnum]).mlet == S_VORTEX || (game.mons[mnum]).mlet == S_LIGHT || ((game.mons[mnum]).mlet == S_ELEMENTAL && (game.mons[mnum]) != game.mons[PM_STALKER]) || ((game.mons[mnum]).mlet == S_GOLEM && (game.mons[mnum]) != game.mons[PM_FLESH_GOLEM] && (game.mons[mnum]) != game.mons[PM_LEATHER_GOLEM]) || ((game.mons[mnum]).mlet == S_GHOST)) || ((game.mons[mnum]).mlet == S_PUDDING && (game.mons[mnum]) != game.mons[PM_BLACK_PUDDING]))))) {
-        nh_snprintf("edibility_prompts", 2722, buf, 256 /* sizeof(char [256]) */, "%s unfamiliar to you.", foodsmell);
+        buf = nh_snprintf("edibility_prompts", 2722, buf, 256 /* sizeof(char [256]) */, "%s unfamiliar to you.", foodsmell);
     }
     if (buf) {
         nh_snprintf("edibility_prompts", 2727, eos(buf), 256 /* sizeof(char [256]) */ - strlen(buf), "  Eat %s anyway?", (otmp.quan == 1) ? "it" : "one");
@@ -2932,7 +2932,7 @@ export function use_tin_opener(obj) {
     }
     if (obj != game.uwep) {
         if (obj.cursed && obj.bknown) {
-            let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let qbuf = '';
             if (yn_function(safe_qbuf(qbuf, "Really wield ", "?", obj, doname, thesimpleoname, "that"), ynqchars, 113, (1)) != 121) {
                 return 0;
             }
@@ -3327,7 +3327,7 @@ export function tin_ok(obj) {
 /* 0, no check, 1, corpses, 2, tinnable corpses */
 export function floorfood(verb, corpsecheck) {
     let otmp = null;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let c = 0;
     let uptr = null;
     let feeding = 0;
@@ -3413,7 +3413,7 @@ export function floorfood(verb, corpsecheck) {
         for (otmp = game.level.objects[game.u.ux][game.u.uy]; otmp; otmp = otmp.v.v_nexthere) {
             if (corpsecheck ? (otmp.otyp == CORPSE && (corpsecheck == 1 || tinnable(otmp))) : feeding ? (otmp.oclass != COIN_CLASS && is_edible(otmp)) : otmp.oclass == FOOD_CLASS) {
                 /* Is there some food (probably a heavy corpse) here on the ground? */
-                let qsfx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let qsfx = '';
                 let one = (otmp.quan == 1);
                 if (otmp.otyp == CORPSE && will_feel_cockatrice(otmp, (0))) {
                     /* if blind and without gloves, attempting to eat (or tin or
@@ -3524,11 +3524,11 @@ export function eaten_stat(base, obj) {
 /* reduce obj's oeaten field, making sure it never hits or passes 0 */
 export function consume_oeaten(obj, amt) {
     if (!obj_nutrition(obj)) {
-        let itembuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let itembuf = '';
         let otyp = obj.otyp;
         if (otyp == CORPSE || otyp == EGG || otyp == TIN) {
             itembuf = strcpy(itembuf, (otyp == CORPSE) ? "corpse" : (otyp == EGG) ? "egg" : (otyp == TIN) ? "tin" : "other?");
-            itembuf = (itembuf || '') + sprintf('', " [%d]", obj.corpsenm);
+            itembuf = __nh_buf_append(itembuf, sprintf('', " [%d]", obj.corpsenm));
         } else {
             itembuf = sprintf(itembuf, "%d", otyp);
         }

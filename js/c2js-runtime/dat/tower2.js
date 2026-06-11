@@ -7,7 +7,7 @@ export default async function({ des, selection, shuffle }) {
   await des.level_flags("mazelevel", "noteleport", "hardfloor", "solidify");
   await des.map({ halign: "half-left", valign: "center", map: "  --- --- ---  \n  |.| |.| |.|  \n---S---S---S---\n|.S.........S.|\n---.------+----\n  |......|..|  \n--------.------\n|.S......+..S.|\n---S---S---S---\n  |.| |.| |.|  \n  --- --- ---  \n" });
   let place = [[3, 1], [7, 1], [11, 1], [1, 3], [13, 3], [1, 7], [13, 7], [3, 9], [7, 9], [11, 9]];
-  shuffle(place);
+  await shuffle(place);
   await des.ladder("up", 11, 5);
   await des.ladder("down", 3, 7);
   await des.door("locked", 10, 4);
@@ -26,7 +26,7 @@ export default async function({ des, selection, shuffle }) {
   await des.object("water walking boots", place[6]);
   await des.object("crystal plate mail", place[7]);
   let spbooks = ["spellbook of invisibility", "spellbook of cone of cold", "spellbook of create familiar", "spellbook of clairvoyance", "spellbook of charm monster", "spellbook of stone to flesh", "spellbook of polymorph"];
-  shuffle(spbooks);
+  await shuffle(spbooks);
   await des.object(spbooks[0], place[8]);
   await des.non_diggable(selection.area(0, 0, 14, 10));
 }

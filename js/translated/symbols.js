@@ -5,7 +5,7 @@ import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { pline } from '../c2js-runtime/pline.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strchr, strcmp, strlen, strncmpi, strrchr } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strchr, strcmp, strlen, strncmpi, strrchr } from '../c2js-runtime/string.js';
 import { cg } from './decl.js';
 import { nul_glyphinfo, reset_glyphmap } from './display.js';
 import { def_monsyms, def_oc_syms, def_r_oc_syms, def_warnsyms, defsyms } from './drawing.js';
@@ -170,8 +170,8 @@ export function init_rogue_symbols() {
     for (i = 0; i < MAXPCHARS; i++) {
         game.rogue_syms[i + (0)] = defsyms[i].sym;
     }
-    game.rogue_syms[S_vodoor] = game.rogue_syms[S_hodoor] = game.rogue_syms[S_ndoor] = 43;
-    game.rogue_syms[S_upstair] = game.rogue_syms[S_dnstair] = 37;
+    ((game.rogue_syms[S_ndoor] = 43, game.rogue_syms[S_hodoor] = 43), game.rogue_syms[S_vodoor] = 43);
+    (game.rogue_syms[S_dnstair] = 37, game.rogue_syms[S_upstair] = 37);
     for (i = 0; i < MAXOCLASSES; i++) {
         game.rogue_syms[i + ((0) + MAXPCHARS)] = def_r_oc_syms[i];
     }
@@ -322,7 +322,7 @@ export function parse_sym_line(buf, which_set) {
     let enhanced_unavailable = (0);
     let is_glyph = (0);
     if (strlen(buf) >= 256) {
-        buf[256 - 1] = 0;
+        buf = __nh_char_write(buf, 256 - 1, 0);
     }
     /* convert each instance of whitespace (tabs, consecutive spaces)
        into a single space; leading and trailing spaces are stripped */
@@ -332,8 +332,8 @@ export function parse_sym_line(buf, which_set) {
        separating space slips through; for handling or set description,
        symbol set creator is responsible for preceding '#' with a space
        and that comment itself doesn't contain " #") */
-    if ((commentp = strrchr(buf, 35)) != null && commentp[-1] == 32) {
-        commentp[-1] = 0;
+    if ((commentp = strrchr(buf, 35)) != null && __nh_char_at0(__nh_advance_str(commentp, -1)) == 32) {
+        commentp = __nh_char_write(commentp, -1, 0);
     }
     bufp = strchr(buf, 61);
     altp = strchr(buf, 58);
@@ -353,12 +353,12 @@ export function parse_sym_line(buf, which_set) {
         return 0;
     }
     /* skip '=' and space which follows, if any */
-    ++bufp;
-    if (bufp == 32) {
-        ++bufp;
+    (bufp = __nh_advance_str(bufp, 1));
+    if (__nh_char_at0(bufp) == 32) {
+        (bufp = __nh_advance_str(bufp, 1));
     }
     symp = match_sym(buf);
-    if (!symp && buf[0] == 71 && buf[1] == 95) {
+    if (!symp && __nh_char_at0(buf) == 71 && __nh_char_at0(__nh_advance_str(buf, 1)) == 95) {
         if (game.chosen_symset_start) {
             is_glyph = match_glyph(buf);
         } else {
@@ -589,7 +589,7 @@ export function savedsym_add(name, val, which_set) {
 }
 export function savedsym_strbuf(sbuf) {
     let tmp = game.saved_symbols;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     while (tmp) {
         buf = sprintf(buf, "%sSYMBOLS=%s:%s\n", (tmp.which_set == ROGUESET) ? "ROGUE" : "", tmp.name, tmp.val);
         strbuf_append(sbuf, buf);
@@ -606,32 +606,32 @@ export function parsesymbols(opts, which_set) {
     let first_unquoted_colon = null;
     let symp = null;
     let is_glyph = (0);
-    for (ch = opts + 1; ch; ++ch) {
+    for (ch = __nh_advance_str(opts, 1); __nh_char_at0(ch); (ch = __nh_advance_str(ch, 1))) {
         /* are there any commas or colons that aren't quoted? */
         let prech = null;
         let postch = null;
         prech = ch - 1;
-        postch = ch + 1;
-        if (!postch) {
+        postch = __nh_advance_str(ch, 1);
+        if (!__nh_char_at0(postch)) {
             break;
         }
-        if (ch == 44) {
-            if (prech == 39 && postch == 39) {
+        if (__nh_char_at0(ch) == 44) {
+            if (__nh_char_at0(prech) == 39 && __nh_char_at0(postch) == 39) {
                 continue;
             }
-            if (prech == 92) {
-                continue;
-            }
-        }
-        if (ch == 58) {
-            if (prech == 39 && postch == 39) {
+            if (__nh_char_at0(prech) == 92) {
                 continue;
             }
         }
-        if (ch == 44 && !first_unquoted_comma) {
+        if (__nh_char_at0(ch) == 58) {
+            if (__nh_char_at0(prech) == 39 && __nh_char_at0(postch) == 39) {
+                continue;
+            }
+        }
+        if (__nh_char_at0(ch) == 44 && !first_unquoted_comma) {
             first_unquoted_comma = ch;
         }
-        if (ch == 58 && !first_unquoted_colon) {
+        if (__nh_char_at0(ch) == 58 && !first_unquoted_colon) {
             first_unquoted_colon = ch;
         }
     }
@@ -654,7 +654,7 @@ export function parsesymbols(opts, which_set) {
     symname = mungspaces(symname);
     strval = mungspaces(strval);
     symp = match_sym(symname);
-    if (!symp && symname[0] == 71 && symname[1] == 95) {
+    if (!symp && __nh_char_at0(symname) == 71 && __nh_char_at0(__nh_advance_str(symname, 1)) == 95) {
         is_glyph = match_glyph(symname);
     }
     if (!symp && !is_glyph) {
@@ -662,10 +662,10 @@ export function parsesymbols(opts, which_set) {
     }
     if (symp) {
         if (symp.range && symp.range != SYM_CONTROL) {
-            if (game.symset[which_set].handling == H_UTF8 || (lowc(strval[0]) == 117 && strval[1] == 43)) {
-                let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            if (game.symset[which_set].handling == H_UTF8 || (lowc(__nh_char_at0(strval)) == 117 && __nh_char_at0(__nh_advance_str(strval, 1)) == 43)) {
+                let buf = '';
                 let glyph = 0;
-                nh_snprintf("parsesymbols", 836, buf, 256 /* sizeof(char [256]) */, "%s:%s", opts, strval);
+                buf = nh_snprintf("parsesymbols", 836, buf, 256 /* sizeof(char [256]) */, "%s:%s", opts, strval);
                 glyphrep_to_custom_map_entries(buf, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
             } else {
                 val = sym_val(strval);
@@ -689,7 +689,7 @@ export function match_sym(buf) {
     let q = strchr(buf, 61);
     let sp = loadsyms;
     /* G_ lines will never match here */
-    if ((buf[0] == 71 || buf[0] == 103) && buf[1] == 95) {
+    if ((__nh_char_at0(buf) == 71 || __nh_char_at0(buf) == 103) && __nh_char_at0(__nh_advance_str(buf, 1)) == 95) {
         return null;
     }
     if (!p || (q && q < p)) {
@@ -698,10 +698,10 @@ export function match_sym(buf) {
     if (p) {
         /* note: there will be at most one space before the '='
            because caller has condensed buf[] with mungspaces() */
-        if (p > buf && p[-1] == 32) {
-            p--;
+        if (p > buf && __nh_char_at0(__nh_advance_str(p, -1)) == 32) {
+            (p = __nh_advance_str(p, -1));
         }
-        len = (p - buf);
+        len = ((buf.length - p.length));
     }
     const __nhi_sp_arr = sp;
     for (let __nhi_sp = 0; (sp = __nhi_sp_arr[__nhi_sp]) && (sp.range); __nhi_sp++) {
@@ -729,12 +729,12 @@ export function do_symset(rogueflag) {
     let tmpwin = 0;
     let any = 0;
     let n = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let symset_pick = null;
     let ready_to_switch = (0);
     let nothing_to_do = (0);
     let symset_name = null;
-    let fmtstr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let fmtstr = '';
     let sl = null;
     let res = 0;
     let which_set = 0;

@@ -6,6 +6,7 @@
 //#define TURN_OFF_LOGGING 0x20
 import { game } from '../gstate.js';
 import { fprintf, nh_snprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0 } from '../c2js-runtime/string.js';
 import { exportascii, historical, invalid } from './nh-constants.js';
 
 game.sfoprocs = [{ ext: null, fn: { sf_arti_info: null, sf_nhrect: null, sf_branch: null, sf_bubble: null, sf_cemetery: null, sf_context_info: null, sf_nhcoord: null, sf_damage: null, sf_dest_area: null, sf_dgn_topology: null, sf_dungeon: null, sf_d_level: null, sf_ebones: null, sf_edog: null, sf_egd: null, sf_emin: null, sf_engr: null, sf_epri: null, sf_eshk: null, sf_fe: null, sf_flag: null, sf_fruit: null, sf_gamelog_line: null, sf_kinfo: null, sf_levelflags: null, sf_ls_t: null, sf_linfo: null, sf_mapseen_feat: null, sf_mapseen_flags: null, sf_mapseen_rooms: null, sf_mkroom: null, sf_monst: null, sf_mvitals: null, sf_obj: null, sf_objclass: null, sf_q_score: null, sf_rm: null, sf_spell: null, sf_stairway: null, sf_s_level: null, sf_trap: null, sf_version_info: null, sf_you: null, sf_any: null, sf_aligntyp: null, sf_boolean: null, sf_coordxy: null, sf_genericptr: null, sf_int: null, sf_int16: null, sf_int32: null, sf_int64: null, sf_long: null, sf_schar: null, sf_short: null, sf_size_t: null, sf_time_t: null, sf_uchar: null, sf_uint16: null, sf_uint32: null, sf_uint64: null, sf_ulong: null, sf_unsigned: null, sf_ushort: null, sf_xint16: null, sf_xint8: null, sf_char: null, sf_bitfield: null } }, { ext: null, fn: { sf_arti_info: null, sf_nhrect: null, sf_branch: null, sf_bubble: null, sf_cemetery: null, sf_context_info: null, sf_nhcoord: null, sf_damage: null, sf_dest_area: null, sf_dgn_topology: null, sf_dungeon: null, sf_d_level: null, sf_ebones: null, sf_edog: null, sf_egd: null, sf_emin: null, sf_engr: null, sf_epri: null, sf_eshk: null, sf_fe: null, sf_flag: null, sf_fruit: null, sf_gamelog_line: null, sf_kinfo: null, sf_levelflags: null, sf_ls_t: null, sf_linfo: null, sf_mapseen_feat: null, sf_mapseen_flags: null, sf_mapseen_rooms: null, sf_mkroom: null, sf_monst: null, sf_mvitals: null, sf_obj: null, sf_objclass: null, sf_q_score: null, sf_rm: null, sf_spell: null, sf_stairway: null, sf_s_level: null, sf_trap: null, sf_version_info: null, sf_you: null, sf_any: null, sf_aligntyp: null, sf_boolean: null, sf_coordxy: null, sf_genericptr: null, sf_int: null, sf_int16: null, sf_int32: null, sf_int64: null, sf_long: null, sf_schar: null, sf_short: null, sf_size_t: null, sf_time_t: null, sf_uchar: null, sf_uint16: null, sf_uint32: null, sf_uint64: null, sf_ulong: null, sf_unsigned: null, sf_ushort: null, sf_xint16: null, sf_xint8: null, sf_char: null, sf_bitfield: null } }, { ext: null, fn: { sf_arti_info: null, sf_nhrect: null, sf_branch: null, sf_bubble: null, sf_cemetery: null, sf_context_info: null, sf_nhcoord: null, sf_damage: null, sf_dest_area: null, sf_dgn_topology: null, sf_dungeon: null, sf_d_level: null, sf_ebones: null, sf_edog: null, sf_egd: null, sf_emin: null, sf_engr: null, sf_epri: null, sf_eshk: null, sf_fe: null, sf_flag: null, sf_fruit: null, sf_gamelog_line: null, sf_kinfo: null, sf_levelflags: null, sf_ls_t: null, sf_linfo: null, sf_mapseen_feat: null, sf_mapseen_flags: null, sf_mapseen_rooms: null, sf_mkroom: null, sf_monst: null, sf_mvitals: null, sf_obj: null, sf_objclass: null, sf_q_score: null, sf_rm: null, sf_spell: null, sf_stairway: null, sf_s_level: null, sf_trap: null, sf_version_info: null, sf_you: null, sf_any: null, sf_aligntyp: null, sf_boolean: null, sf_coordxy: null, sf_genericptr: null, sf_int: null, sf_int16: null, sf_int32: null, sf_int64: null, sf_long: null, sf_schar: null, sf_short: null, sf_size_t: null, sf_time_t: null, sf_uchar: null, sf_uint16: null, sf_uint32: null, sf_uint64: null, sf_ulong: null, sf_unsigned: null, sf_ushort: null, sf_xint16: null, sf_xint8: null, sf_char: null, sf_bitfield: null } }];
@@ -2208,7 +2209,7 @@ export function sf_log(nhfp, t1, sz, cnt, txtvalue) {
         fflush(fp);
     }
 }
-let __sfvalue_char_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_char_buf = '';
 export function sfvalue_char(a, n) {
     let i = 0;
     let cp = null;
@@ -2218,135 +2219,135 @@ export function sfvalue_char(a, n) {
     } else {
         __sfvalue_char_buf[(120 /* sizeof(char [120]) */ - 1)] = 0;
     }
-    for (i = 0; i < n; ++i , ++cp , ++a) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = a.value) */;
+    for (i = 0; i < n; ++i , (cp = __nh_advance_str(cp, 1)) , (a = __nh_advance_str(a, 1))) {
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0(a)) */;
     }
     void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     return __sfvalue_char_buf;
 }
-let __sfvalue_boolean_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_boolean_buf = '';
 export function sfvalue_boolean(a) {
-    nh_snprintf("sfvalue_boolean", 428, __sfvalue_boolean_buf, 20 /* sizeof(char [20]) */, "%s", (a.value == 0) ? "false" : "true");
+    __sfvalue_boolean_buf = nh_snprintf("sfvalue_boolean", 428, __sfvalue_boolean_buf, 20 /* sizeof(char [20]) */, "%s", (a.value == 0) ? "false" : "true");
     return __sfvalue_boolean_buf;
 }
-let __sfvalue_schar_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_schar_buf = '';
 export function sfvalue_schar(a) {
-    nh_snprintf("sfvalue_schar", 436, __sfvalue_schar_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_schar_buf = nh_snprintf("sfvalue_schar", 436, __sfvalue_schar_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_schar_buf;
 }
-let __sfvalue_aligntyp_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_aligntyp_buf = '';
 export function sfvalue_aligntyp(a) {
-    nh_snprintf("sfvalue_aligntyp", 444, __sfvalue_aligntyp_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_aligntyp_buf = nh_snprintf("sfvalue_aligntyp", 444, __sfvalue_aligntyp_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_aligntyp_buf;
 }
-let __sfvalue_any_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_any_buf = '';
 export function sfvalue_any(a) {
-    nh_snprintf("sfvalue_any", 455, __sfvalue_any_buf, 20 /* sizeof(char [20]) */, "%ld", a.a_int64);
+    __sfvalue_any_buf = nh_snprintf("sfvalue_any", 455, __sfvalue_any_buf, 20 /* sizeof(char [20]) */, "%ld", a.a_int64);
     return __sfvalue_any_buf;
 }
-let __sfvalue_genericptr_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_genericptr_buf = '';
 export function sfvalue_genericptr(a) {
-    nh_snprintf("sfvalue_genericptr", 465, __sfvalue_genericptr_buf, 20 /* sizeof(char [20]) */, "%s", (a == null) ? "0" : "glorkum");
+    __sfvalue_genericptr_buf = nh_snprintf("sfvalue_genericptr", 465, __sfvalue_genericptr_buf, 20 /* sizeof(char [20]) */, "%s", (a == null) ? "0" : "glorkum");
     return __sfvalue_genericptr_buf;
 }
-let __sfvalue_int16_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_int16_buf = '';
 export function sfvalue_int16(a) {
-    nh_snprintf("sfvalue_int16", 473, __sfvalue_int16_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_int16_buf = nh_snprintf("sfvalue_int16", 473, __sfvalue_int16_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_int16_buf;
 }
-let __sfvalue_int32_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_int32_buf = '';
 export function sfvalue_int32(a) {
-    nh_snprintf("sfvalue_int32", 481, __sfvalue_int32_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_int32_buf = nh_snprintf("sfvalue_int32", 481, __sfvalue_int32_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_int32_buf;
 }
-let __sfvalue_int64_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_int64_buf = '';
 export function sfvalue_int64(a) {
-    nh_snprintf("sfvalue_int64", 488, __sfvalue_int64_buf, 20 /* sizeof(char [20]) */, "%ld", a.value);
+    __sfvalue_int64_buf = nh_snprintf("sfvalue_int64", 488, __sfvalue_int64_buf, 20 /* sizeof(char [20]) */, "%ld", a.value);
     return __sfvalue_int64_buf;
 }
-let __sfvalue_uchar_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_uchar_buf = '';
 export function sfvalue_uchar(a) {
     let x = 0;
     x = a.value;
-    nh_snprintf("sfvalue_uchar", 498, __sfvalue_uchar_buf, 20 /* sizeof(char [20]) */, "%03u", x);
+    __sfvalue_uchar_buf = nh_snprintf("sfvalue_uchar", 498, __sfvalue_uchar_buf, 20 /* sizeof(char [20]) */, "%03u", x);
     return __sfvalue_uchar_buf;
 }
-let __sfvalue_uint16_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_uint16_buf = '';
 export function sfvalue_uint16(a) {
-    nh_snprintf("sfvalue_uint16", 506, __sfvalue_uint16_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
+    __sfvalue_uint16_buf = nh_snprintf("sfvalue_uint16", 506, __sfvalue_uint16_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_uint16_buf;
 }
-let __sfvalue_uint32_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_uint32_buf = '';
 export function sfvalue_uint32(a) {
-    nh_snprintf("sfvalue_uint32", 514, __sfvalue_uint32_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
+    __sfvalue_uint32_buf = nh_snprintf("sfvalue_uint32", 514, __sfvalue_uint32_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_uint32_buf;
 }
-let __sfvalue_uint64_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_uint64_buf = '';
 export function sfvalue_uint64(a) {
-    nh_snprintf("sfvalue_uint64", 522, __sfvalue_uint64_buf, 20 /* sizeof(char [20]) */, "%lu", a.value);
+    __sfvalue_uint64_buf = nh_snprintf("sfvalue_uint64", 522, __sfvalue_uint64_buf, 20 /* sizeof(char [20]) */, "%lu", a.value);
     return __sfvalue_uint64_buf;
 }
-let __sfvalue_size_t_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_size_t_buf = '';
 export function sfvalue_size_t(a) {
-    nh_snprintf("sfvalue_size_t", 530, __sfvalue_size_t_buf, 20 /* sizeof(char [20]) */, "%s", "");
+    __sfvalue_size_t_buf = nh_snprintf("sfvalue_size_t", 530, __sfvalue_size_t_buf, 20 /* sizeof(char [20]) */, "%s", "");
     return __sfvalue_size_t_buf;
 }
-let __sfvalue_time_t_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_time_t_buf = '';
 export function sfvalue_time_t(a) {
-    nh_snprintf("sfvalue_time_t", 538, __sfvalue_time_t_buf, 20 /* sizeof(char [20]) */, "%s", "");
+    __sfvalue_time_t_buf = nh_snprintf("sfvalue_time_t", 538, __sfvalue_time_t_buf, 20 /* sizeof(char [20]) */, "%s", "");
     return __sfvalue_time_t_buf;
 }
-let __sfvalue_short_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_short_buf = '';
 export function sfvalue_short(a) {
-    nh_snprintf("sfvalue_short", 546, __sfvalue_short_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_short_buf = nh_snprintf("sfvalue_short", 546, __sfvalue_short_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_short_buf;
 }
-let __sfvalue_ushort_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_ushort_buf = '';
 export function sfvalue_ushort(a) {
-    nh_snprintf("sfvalue_ushort", 554, __sfvalue_ushort_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
+    __sfvalue_ushort_buf = nh_snprintf("sfvalue_ushort", 554, __sfvalue_ushort_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_ushort_buf;
 }
-let __sfvalue_int_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_int_buf = '';
 export function sfvalue_int(a) {
-    nh_snprintf("sfvalue_int", 562, __sfvalue_int_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_int_buf = nh_snprintf("sfvalue_int", 562, __sfvalue_int_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_int_buf;
 }
-let __sfvalue_unsigned_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_unsigned_buf = '';
 export function sfvalue_unsigned(a) {
-    nh_snprintf("sfvalue_unsigned", 570, __sfvalue_unsigned_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
+    __sfvalue_unsigned_buf = nh_snprintf("sfvalue_unsigned", 570, __sfvalue_unsigned_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_unsigned_buf;
 }
-let __sfvalue_long_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_long_buf = '';
 export function sfvalue_long(a) {
-    nh_snprintf("sfvalue_long", 578, __sfvalue_long_buf, 20 /* sizeof(char [20]) */, "%ld", a.value);
+    __sfvalue_long_buf = nh_snprintf("sfvalue_long", 578, __sfvalue_long_buf, 20 /* sizeof(char [20]) */, "%ld", a.value);
     return __sfvalue_long_buf;
 }
-let __sfvalue_ulong_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_ulong_buf = '';
 export function sfvalue_ulong(a) {
-    nh_snprintf("sfvalue_ulong", 586, __sfvalue_ulong_buf, 20 /* sizeof(char [20]) */, "%lu", a.value);
+    __sfvalue_ulong_buf = nh_snprintf("sfvalue_ulong", 586, __sfvalue_ulong_buf, 20 /* sizeof(char [20]) */, "%lu", a.value);
     return __sfvalue_ulong_buf;
 }
-let __sfvalue_xint8_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_xint8_buf = '';
 export function sfvalue_xint8(a) {
-    nh_snprintf("sfvalue_xint8", 594, __sfvalue_xint8_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_xint8_buf = nh_snprintf("sfvalue_xint8", 594, __sfvalue_xint8_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_xint8_buf;
 }
-let __sfvalue_xint16_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_xint16_buf = '';
 export function sfvalue_xint16(a) {
-    nh_snprintf("sfvalue_xint16", 603, __sfvalue_xint16_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
+    __sfvalue_xint16_buf = nh_snprintf("sfvalue_xint16", 603, __sfvalue_xint16_buf, 20 /* sizeof(char [20]) */, "%d", a.value);
     return __sfvalue_xint16_buf;
 }
-let __sfvalue_bitfield_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __sfvalue_bitfield_buf = '';
 export function sfvalue_bitfield(a) {
-    nh_snprintf("sfvalue_bitfield", 612, __sfvalue_bitfield_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
+    __sfvalue_bitfield_buf = nh_snprintf("sfvalue_bitfield", 612, __sfvalue_bitfield_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __sfvalue_bitfield_buf;
 }
-let __bitfield_dump_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __bitfield_dump_buf = '';
 export function bitfield_dump(a) {
-    nh_snprintf("bitfield_dump", 621, __bitfield_dump_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
+    __bitfield_dump_buf = nh_snprintf("bitfield_dump", 621, __bitfield_dump_buf, 20 /* sizeof(char [20]) */, "%u", a.value);
     return __bitfield_dump_buf;
 }
-let __complex_dump_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __complex_dump_buf = '';
 export function complex_dump(a) {
     let i = 0;
     let uc = a;
@@ -2354,7 +2355,7 @@ export function complex_dump(a) {
     for (i = 0; i < (Math.trunc(40 /* sizeof(unsigned int [10]) */ / 4 /* sizeof(unsigned int) */)); ++i) {
         x[i] = uc++;
     }
-    nh_snprintf("complex_dump", 636, __complex_dump_buf, 50 /* sizeof(char [50]) */, "%03x %03x %03x %03x %03x %03x %03x %03x %03x %03x", x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9]);
+    __complex_dump_buf = nh_snprintf("complex_dump", 636, __complex_dump_buf, 50 /* sizeof(char [50]) */, "%03x %03x %03x %03x %03x %03x %03x %03x %03x %03x", x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9]);
     __complex_dump_buf[40] = 0;
     return __complex_dump_buf;
 }

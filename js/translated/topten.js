@@ -19,8 +19,8 @@ import { abs } from '../c2js-runtime/math.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { raw_printf } from '../c2js-runtime/pline.js';
-import { fprintf, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp } from '../c2js-runtime/string.js';
+import { __nh_buf_append, fprintf, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp } from '../c2js-runtime/string.js';
 import { timet_to_seconds } from './allmain.js';
 import { rank_of, rank_to_xlev } from './botl.js';
 import { yyyymmdd } from './calendar.js';
@@ -53,7 +53,7 @@ export function formatkiller(buf, siz, how, incl_helpless) {
     let l = 0;
     let c = 0;
     let kname = game.killer.name;
-    buf[0] = 0;
+    buf = __nh_char_write(buf, 0, 0);
     switch (game.killer.format) {
         default:
             impossible("bad killer format? (%d)", game.killer.format);
@@ -66,7 +66,7 @@ export function formatkiller(buf, siz, how, incl_helpless) {
         case 1:
             buf = strncat(buf, __formatkiller_killed_by_prefix[how], siz - 1);
             l = Strlen_(buf, "formatkiller", 123);
-            buf += l , siz -= l;
+            buf = __nh_advance_str(buf, l) , siz -= l;
             break;
     }
     while (--siz > 0) {
@@ -76,7 +76,7 @@ export function formatkiller(buf, siz, how, incl_helpless) {
      * so make sure that that text can't confuse field splitting when
      * record, logfile, or xlogfile is re-read at some later point.
      */
-        c = kname++;
+        c = (kname = __nh_advance_str(kname, 1));
         if (!c) {
             break;
         } else if (c == 44) {
@@ -134,13 +134,13 @@ const __readentry_fmt = "%d.%d.%d %ld %d %d %d %d %d %d %ld %ld %d ";
 const __readentry_fmt32 = "%c%c %[^,],%[^\n]%*c";
 const __readentry_fmt33 = "%s %s %s %s %[^,],%[^\n]%*c";
 export function readentry(rfile, tt) {
-    let inbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let s1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let s2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let s3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let s4 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let s5 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let s6 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let inbuf = '';
+    let s1 = '';
+    let s2 = '';
+    let s3 = '';
+    let s4 = '';
+    let s5 = '';
+    let s6 = '';
     if (fscanf(rfile, __readentry_fmt, tt.ver_major, tt.ver_minor, tt.patchlevel, tt.points, tt.deathdnum, tt.deathlev, tt.maxlvl, tt.hp, tt.maxhp, tt.deaths, tt.deathdate, tt.birthdate, tt.uid) != 13) {
         /* Version_ Pts DgnLevs_ Hp___ Died__Born id */
         /* note: input below must read the record's terminating newline */
@@ -154,14 +154,14 @@ export function readentry(rfile, tt) {
             /* sscanf will fail and tt->points will be set to 0 */
             inbuf = '';
         } else if (!strchr(inbuf, 10)) {
-            strcpy(inbuf[129 /* sizeof(char [129]) */ - 2], "\n");
+            strcpy({ get value() { return __nh_char_at0(__nh_advance_str(inbuf, 129 /* sizeof(char [129]) */ - 2)); }, set value(_v) { __nh_char_at0(__nh_advance_str(inbuf, 129 /* sizeof(char [129]) */ - 2)) = _v; } }, "\n");
             discardexcess(rfile);
         }
         if (tt.ver_major < 3 || (tt.ver_major == 3 && tt.ver_minor < 3)) {
             /* Check for backwards compatibility */
             let i = 0;
             if (sscanf(inbuf, __readentry_fmt32, tt.plrole, tt.plgend, s1, s2) == 4) {
-                tt.plrole[1] = tt.plgend[1] = 0;
+                (tt.plgend[1] = 0, tt.plrole[1] = 0);
                 tt.name = copynchars(tt.name, s1, (11 /* sizeof(char [11]) */) - 1);
                 tt.death = copynchars(tt.death, s2, (101 /* sizeof(char [101]) */) - 1);
             } else {
@@ -211,13 +211,13 @@ export function writeentry(rfile, tt) {
 /* as tab is never used in eg. svp.plname or death, no need to mangle those. */
 export function writexlentry(rfile, tt, how) {
     /* xlogfile field separator. */
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let achbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let tmpbuf = '';
+    let achbuf = '';
     buf = sprintf(buf, "version=%d.%d.%d", tt.ver_major, tt.ver_minor, tt.patchlevel);
-    buf = (buf || '') + sprintf('', "%cpoints=%ld%cdeathdnum=%d%cdeathlev=%d", 9, tt.points, 9, tt.deathdnum, 9, tt.deathlev);
-    buf = (buf || '') + sprintf('', "%cmaxlvl=%d%chp=%d%cmaxhp=%d", 9, tt.maxlvl, 9, tt.hp, 9, tt.maxhp);
-    buf = (buf || '') + sprintf('', "%cdeaths=%d%cdeathdate=%ld%cbirthdate=%ld%cuid=%d", 9, tt.deaths, 9, tt.deathdate, 9, tt.birthdate, 9, tt.uid);
+    buf = __nh_buf_append(buf, sprintf('', "%cpoints=%ld%cdeathdnum=%d%cdeathlev=%d", 9, tt.points, 9, tt.deathdnum, 9, tt.deathlev));
+    buf = __nh_buf_append(buf, sprintf('', "%cmaxlvl=%d%chp=%d%cmaxhp=%d", 9, tt.maxlvl, 9, tt.hp, 9, tt.maxhp));
+    buf = __nh_buf_append(buf, sprintf('', "%cdeaths=%d%cdeathdate=%ld%cbirthdate=%ld%cuid=%d", 9, tt.deaths, 9, tt.deathdate, 9, tt.birthdate, 9, tt.uid));
     fprintf(rfile, "%s", buf);
     buf = sprintf(buf, "%crole=%s%crace=%s%cgender=%s%calign=%s", 9, tt.plrole, 9, tt.plrace, 9, tt.plgend, 9, tt.plalign);
     /* make a copy of death reason that doesn't include ", while helpless" */
@@ -335,19 +335,19 @@ export function encodeachieve(secondlong) {
 /* add the achievement or conduct comma-separated to string */
 export function add_achieveX(buf, achievement, condition) {
     if (condition) {
-        if (buf[0] != 0) {
+        if (__nh_char_at0(buf) != 0) {
             buf = strcat(buf, ",");
         }
         buf = strcat(buf, achievement);
     }
 }
 export function encode_extended_achievements(buf) {
-    let rnkbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let rnkbuf = '';
     let achievement = null;
     let i = 0;
     let achidx = 0;
     let absidx = 0;
-    buf[0] = 0;
+    buf = __nh_char_write(buf, 0, 0);
     for (i = 0; game.u.uachieved[i]; i++) {
         achidx = game.u.uachieved[i];
         absidx = abs(achidx);
@@ -437,7 +437,7 @@ export function encode_extended_achievements(buf) {
     return buf;
 }
 export function encode_extended_conducts(buf) {
-    buf[0] = 0;
+    buf = __nh_char_write(buf, 0, 0);
     add_achieveX(buf, "foodless", !game.u.uconduct.food);
     add_achieveX(buf, "vegan", !game.u.uconduct.unvegan);
     add_achieveX(buf, "vegetarian", !game.u.uconduct.unvegetarian);
@@ -560,7 +560,7 @@ export function topten(how, when) {
         if (game.flags.debug || game.flags.explore) {
             if (how != PANICKED) {
                 if (!game.program_state.done_hup) {
-                    let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let pbuf = '';
                     topten_print("");
                     pbuf = sprintf(pbuf, "Since you were in %s mode, the score list will not be checked.", game.flags.debug ? "wizard" : "discover");
                     topten_print(pbuf);
@@ -626,7 +626,7 @@ export function topten(how, when) {
                     rank0 = 0;
                     rank1 = rank;
                     if (!game.program_state.done_hup) {
-                        let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                        let pbuf = '';
                         pbuf = sprintf(pbuf, "You didn't beat your previous score of %ld points.", t1.points);
                         topten_print(pbuf);
                         topten_print("");
@@ -673,7 +673,7 @@ export function topten(how, when) {
                     if (rank0 <= 10) {
                         topten_print("You made the top ten list!");
                     } else {
-                        let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                        let pbuf = '';
                         pbuf = sprintf(pbuf, "You reached the %d%s place on the top %d list.", rank0, ordin(rank0), game.sysopt.entrymax);
                         topten_print(pbuf);
                     }
@@ -739,59 +739,48 @@ export function topten(how, when) {
     }
 }
 export function outheader() {
-    /* Hand-port: C outheader builds the scoreboard column header
-       " No  Points     Name" + N spaces + "Hp [max]" with column-71
-       alignment via `while (bp < linebuf + 71) *bp++ = ' ';`.
-
-       Translator emitted the loop body as a `void 0` TODO so the
-       padding never happened, and the trailing "Hp [max]" suffix
-       was applied to a discarded `bp` (a copy of `linebuf` from the
-       broken eos() — bp wasn't a real interior pointer in JS).
-
-       JS rewrite: native padEnd to fill to col 71, then concat
-       "Hp [max]".  topten_print accepts the string. */
     const header = " No  Points     Name".padEnd(80 - 9, ' ') + "Hp [max]";
     topten_print(header);
 }
 /* so>0: standout line; so=0: ordinary line */
 export function outentry(rank, t1, so) {
     let second_line = (1);
-    let linebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let linebuf = '';
     let bp = null;
-    let hpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let linebuf3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let hpbuf = '';
+    let linebuf3 = '';
     let hppos = 0;
     let lngr = 0;
-    linebuf[0] = 0;
+    linebuf = '';
     if (rank) {
-        linebuf = (linebuf || '') + sprintf('', "%3d", rank);
+        linebuf = __nh_buf_append(linebuf, sprintf('', "%3d", rank));
     } else {
         linebuf = strcat(linebuf, "   ");
     }
-    linebuf = (linebuf || '') + sprintf('', " %10ld  %.10s", t1.points ? t1.points : game.u.urexp, t1.name);
-    linebuf = (linebuf || '') + sprintf('', "-%s", t1.plrole);
+    linebuf = __nh_buf_append(linebuf, sprintf('', " %10ld  %.10s", t1.points ? t1.points : game.u.urexp, t1.name));
+    linebuf = __nh_buf_append(linebuf, sprintf('', "-%s", t1.plrole));
     if (t1.plrace[0] != 63) {
-        linebuf = (linebuf || '') + sprintf('', "-%s", t1.plrace);
+        linebuf = __nh_buf_append(linebuf, sprintf('', "-%s", t1.plrace));
     }
-    linebuf = (linebuf || '') + sprintf('', "-%s", t1.plgend);
+    linebuf = __nh_buf_append(linebuf, sprintf('', "-%s", t1.plgend));
     /* Printing of gender and alignment is intentional.  It has been
      * part of the NetHack Geek Code, and illustrates a proper way to
      * specify a character from the command line.
      */
     if (t1.plalign[0] != 63) {
-        linebuf = (linebuf || '') + sprintf('', "-%s ", t1.plalign);
+        linebuf = __nh_buf_append(linebuf, sprintf('', "-%s ", t1.plalign));
     } else {
         linebuf = strcat(linebuf, " ");
     }
     if (!strncmp("escaped", t1.death, 7)) {
-        linebuf = (linebuf || '') + sprintf('', "escaped the dungeon %s[max level %d]", !strncmp(" (", t1.death + 7, 2) ? t1.death + 7 + 2 : "", t1.maxlvl);
+        linebuf = __nh_buf_append(linebuf, sprintf('', "escaped the dungeon %s[max level %d]", !strncmp(" (", t1.death + 7, 2) ? t1.death + 7 + 2 : "", t1.maxlvl));
         /* fixup for closing paren in "escaped... with...Amulet)[max..." */
         if ((bp = strchr(linebuf, 41)) != null) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = (t1.deathdnum == (game.dungeon_topology.) */;
         }
         second_line = (0);
     } else if (!strncmp("ascended", t1.death, 8)) {
-        linebuf = (linebuf || '') + sprintf('', "ascended to demigod%s-hood", (t1.plgend[0] == 70) ? "dess" : "");
+        linebuf = __nh_buf_append(linebuf, sprintf('', "ascended to demigod%s-hood", (t1.plgend[0] == 70) ? "dess" : ""));
         second_line = (0);
     } else {
         if (!strncmp(t1.death, "quit", 4)) {
@@ -801,7 +790,7 @@ export function outentry(rank, t1, so) {
             linebuf = strcat(linebuf, "starved to death");
             second_line = (0);
         } else if (!strncmp(t1.death, "choked", 6)) {
-            linebuf = (linebuf || '') + sprintf('', "choked on h%s food", (t1.plgend[0] == 70) ? "er" : "is");
+            linebuf = __nh_buf_append(linebuf, sprintf('', "choked on h%s food", (t1.plgend[0] == 70) ? "er" : "is"));
         } else if (!strncmp(t1.death, "poisoned", 8)) {
             linebuf = strcat(linebuf, "was poisoned");
         } else if (!strncmp(t1.death, "crushed", 7)) {
@@ -835,14 +824,14 @@ export function outentry(rank, t1, so) {
                     arg = "Void";
                     break;
             }
-            linebuf = (linebuf || '') + sprintf('', fmt, arg);
+            linebuf = __nh_buf_append(linebuf, sprintf('', fmt, arg));
         } else {
-            linebuf = (linebuf || '') + sprintf('', " in %s", game.dungeons[t1.deathdnum].dname);
+            linebuf = __nh_buf_append(linebuf, sprintf('', " in %s", game.dungeons[t1.deathdnum].dname));
             if (t1.deathdnum != (game.dungeon_topology.d_knox_level).dnum) {
-                linebuf = (linebuf || '') + sprintf('', " on level %d", t1.deathlev);
+                linebuf = __nh_buf_append(linebuf, sprintf('', " on level %d", t1.deathlev));
             }
             if (t1.deathlev != t1.maxlvl) {
-                linebuf = (linebuf || '') + sprintf('', " [max %d]", t1.maxlvl);
+                linebuf = __nh_buf_append(linebuf, sprintf('', " [max %d]", t1.maxlvl));
             }
         }
         /* kludge for "quit while already on Charon's boat" */
@@ -862,14 +851,14 @@ export function outentry(rank, t1, so) {
     }
     lngr = strlen(linebuf);
     if (t1.hp <= 0) {
-        hpbuf[0] = 45 , hpbuf[1] = 0;
+        hpbuf = __nh_char_write(hpbuf, 0, 45) , hpbuf = __nh_char_write(hpbuf, 1, 0);
     } else {
         hpbuf = sprintf(hpbuf, "%d", t1.hp);
     }
     /* beginning of hp column after padding (not actually padded yet) */
     hppos = 80 - (11 /* sizeof(char [11]) */ - 1 /* sizeof(char [1]) */);
     while (lngr >= hppos) {
-        for (bp = eos(linebuf); !(bp == 32 && bp - linebuf < hppos); bp--) {
+        for (bp = eos(linebuf); !(__nh_char_at0(bp) == 32 && (linebuf.length - bp.length) < hppos); (bp = __nh_advance_str(bp, -1))) {
             ;
         }
         /* special case: word is too long, wrap in the middle */
@@ -879,12 +868,12 @@ export function outentry(rank, t1, so) {
         /* special case: if about to wrap in the middle of maximum
            dungeon depth reached, wrap in front of it instead */
         if (bp > linebuf + 5 && !strncmp(bp - 5, " [max", 5)) {
-            bp -= 5;
+            bp = __nh_advance_str(bp, -(5));
         }
-        if (bp != 32) {
+        if (__nh_char_at0(bp) != 32) {
             linebuf3 = strcpy(linebuf3, bp);
         } else {
-            linebuf3 = strcpy(linebuf3, bp + 1);
+            linebuf3 = strcpy(linebuf3, __nh_advance_str(bp, 1));
         }
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
         if (so) {
@@ -896,7 +885,7 @@ export function outentry(rank, t1, so) {
         } else {
             topten_print(linebuf);
         }
-        nh_snprintf("outentry", 1082, linebuf, 256 /* sizeof(char [256]) */, "%15s %s", "", linebuf3);
+        linebuf = nh_snprintf("outentry", 1082, linebuf, 256 /* sizeof(char [256]) */, "%15s %s", "", linebuf3);
         lngr = Strlen_(linebuf, "outentry", 1083);
     }
     /* beginning of hp column not including padding */
@@ -908,7 +897,7 @@ export function outentry(rank, t1, so) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
         }
         bp = strcpy(bp, hpbuf);
-        bp = (bp || '') + sprintf('', " %s[%d]", (t1.maxhp < 10) ? "  " : (t1.maxhp < 100) ? " " : "", t1.maxhp);
+        bp = __nh_buf_append(bp, sprintf('', " %s[%d]", (t1.maxhp < 10) ? "  " : (t1.maxhp < 100) ? " " : "", t1.maxhp));
     }
     if (so) {
         bp = eos(linebuf);
@@ -964,16 +953,16 @@ export function score_wanted(current_ver, rank, t1, playerct, players, uid) {
      */
     for (i = 0; i < playerct; i++) {
         arg = players[i];
-        if (arg[0] == 45 && arg[1] == 117 && arg[2] != 0) {
-            arg += 2;
+        if (__nh_char_at0(arg) == 45 && __nh_char_at0(__nh_advance_str(arg, 1)) == 117 && __nh_char_at0(__nh_advance_str(arg, 2)) != 0) {
+            arg = __nh_advance_str(arg, 2);
         }
-        if (arg[0] == 45 && strchr("pru", arg[1]) && !arg[2] && i + 1 < playerct) {
+        if (__nh_char_at0(arg) == 45 && strchr("pru", __nh_char_at0(__nh_advance_str(arg, 1))) && !__nh_char_at0(__nh_advance_str(arg, 2)) && i + 1 < playerct) {
             nxt = players[i + 1];
-            if ((arg[1] == 112 && str2role(nxt) == str2role(t1.plrole)) || (arg[1] == 114 && str2race(nxt) == str2race(t1.plrace)) || (arg[1] == 117 && (!strcmp(nxt, "all") || !strncmp(t1.name, nxt, 10)))) {
+            if ((__nh_char_at0(__nh_advance_str(arg, 1)) == 112 && str2role(nxt) == str2role(t1.plrole)) || (__nh_char_at0(__nh_advance_str(arg, 1)) == 114 && str2race(nxt) == str2race(t1.plrace)) || (__nh_char_at0(__nh_advance_str(arg, 1)) == 117 && (!strcmp(nxt, "all") || !strncmp(t1.name, nxt, 10)))) {
                 return 1;
             }
             i++;
-        } else if (!strcmp(arg, "all") || !strncmp(t1.name, arg, 10) || (arg[0] == 45 && arg[1] == t1.plrole[0] && !arg[2]) || (digit(arg[0]) && rank <= atoi(arg))) {
+        } else if (!strcmp(arg, "all") || !strncmp(t1.name, arg, 10) || (__nh_char_at0(arg) == 45 && __nh_char_at0(__nh_advance_str(arg, 1)) == t1.plrole[0] && !__nh_char_at0(__nh_advance_str(arg, 2))) || (digit(__nh_char_at0(arg)) && rank <= atoi(arg))) {
             return 1;
         }
     }
@@ -985,7 +974,7 @@ export function score_wanted(current_ver, rank, t1, playerct, players, uid) {
  * and argv[1] starting with "-s".
  * caveat: some shells might allow argv elements to be arbitrarily long.
  */
-export async function prscore(argc, argv) {
+export function prscore(argc, argv) {
     let players = null;
     let player0 = null;
     let i = 0;
@@ -993,7 +982,7 @@ export async function prscore(argc, argv) {
     let rank = 0;
     let t1 = null;
     let rfile = null;
-    let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pbuf = '';
     let p = null;
     let ln = 0;
     let uid = -1;
@@ -1015,7 +1004,7 @@ export async function prscore(argc, argv) {
         ;
         /* If the score list isn't after a game, we never went through
      * initialization. */
-        await init_dungeons();
+        init_dungeons();
         init_done = (1);
     }
     if (argv[1][1] == 45 || !argv[1][2]) {
@@ -1042,7 +1031,7 @@ export async function prscore(argc, argv) {
             players = null;
         } else {
             player0 = game.plname;
-            if (!player0) {
+            if (!__nh_char_at0(player0)) {
                 player0 = "all";
             }
             /* if no plname[], show all scores

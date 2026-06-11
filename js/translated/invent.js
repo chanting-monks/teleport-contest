@@ -7,8 +7,8 @@ import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, Your, pline, pline_The } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strstr, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strstr, strstri } from '../c2js-runtime/string.js';
 import { confers_luck, discover_artifact, is_art, set_artifact_intrinsic, touch_artifact, undiscovered_artifact } from './artifact.js';
 import { acurr, set_moreluck } from './attrib.js';
 import { get_strength_str } from './botl.js';
@@ -225,7 +225,7 @@ export function inuse_classify(sort_item, obj) {
 /* sortloot() classification; called at most once [per sort] for each object;
    also called by '\' command if discoveries use sortloot order */
 let __loot_classify_def_srt_order = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-let __loot_classify_armcat = [0, 0, 0, 0, 0, 0, 0, 0];
+let __loot_classify_armcat = '';
 export function loot_classify(sort_item, obj) {
     /* we may eventually make this a settable option to always use
        with sortloot instead of only when the 'sortpack' option isn't
@@ -252,26 +252,26 @@ export function loot_classify(sort_item, obj) {
     seen = obj.dknown ? (1) : (0) , classorder = game.flags.sortpack ? game.flags.inv_order : __loot_classify_def_srt_order;
     p = strchr(classorder, oclass);
     if (p) {
-        k = 1 + (p - classorder);
+        k = 1 + ((classorder.length - p.length));
     } else {
         k = 1 + strlen(classorder) + (oclass != VENOM_CLASS);
     }
     sort_item.orderclass = k;
     switch (oclass) {
         case ARMOR_CLASS:
-            if (!__loot_classify_armcat[7]) {
+            if (!__nh_char_at0(__nh_advance_str(__loot_classify_armcat, 7))) {
                 /* subclass designation; only a few classes have subclasses
        and the non-armor ones we use are fairly arbitrary */
                 /* one-time init; we use a different order than the subclass
                values defined by objclass.h */
-                __loot_classify_armcat[ARM_HELM] = 1;
-                __loot_classify_armcat[ARM_GLOVES] = 2;
-                __loot_classify_armcat[ARM_BOOTS] = 3;
-                __loot_classify_armcat[ARM_SHIELD] = 4;
-                __loot_classify_armcat[ARM_CLOAK] = 5;
-                __loot_classify_armcat[ARM_SHIRT] = 6;
-                __loot_classify_armcat[ARM_SUIT] = 7;
-                __loot_classify_armcat[7] = 8;
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, ARM_HELM, 1);
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, ARM_GLOVES, 2);
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, ARM_BOOTS, 3);
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, ARM_SHIELD, 4);
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, ARM_CLOAK, 5);
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, ARM_SHIRT, 6);
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, ARM_SUIT, 7);
+                __loot_classify_armcat = __nh_char_write(__loot_classify_armcat, 7, 8);
             }
             k = game.objects[otyp].oc_subtyp;
             /* oc_armcat overloads oc_subtyp which is an 'schar' so guard
@@ -279,7 +279,7 @@ export function loot_classify(sort_item, obj) {
             if (k < 0 || k >= 7) {
                 k = 7;
             }
-            k = __loot_classify_armcat[k];
+            k = __nh_char_at0(__nh_advance_str(__loot_classify_armcat, k));
             /* player used ESC to quit menu */
             /* no longer need to collect letters; sortloot() takes care of it, but
        still want to count far enough to know whether anything is in use */
@@ -1181,7 +1181,7 @@ export function carry_obj_effects(obj) {
 /* argument to use when formatting message */
 /* message to display if successfully held */
 export function hold_another_object(obj, drop_fmt, drop_arg, hold_msg) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     drop_it: {
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
             observe_object(obj);
@@ -1553,34 +1553,34 @@ export function compactify(buf) {
     let ilet = 0;
     let ilet1 = 0;
     let ilet2 = 0;
-    ilet2 = buf[0];
-    ilet1 = buf[1];
-    buf[++i2] = buf[++i1];
-    ilet = buf[i1];
+    ilet2 = __nh_char_at0(buf);
+    ilet1 = __nh_char_at0(__nh_advance_str(buf, 1));
+    buf = __nh_char_write(buf, ++i2, __nh_char_at0(__nh_advance_str(buf, ++i1)));
+    ilet = __nh_char_at0(__nh_advance_str(buf, i1));
     while (ilet) {
         if (ilet == ilet1 + 1) {
             if (ilet1 == ilet2 + 1) {
-                buf[i2 - 1] = ilet1 = 45;
+                (ilet1 = 45, buf = __nh_char_write(buf, i2 - 1, 45));
             } else if (ilet2 == 45) {
-                buf[i2 - 1] = ++ilet1;
-                buf[i2] = buf[++i1];
-                ilet = buf[i1];
+                buf = __nh_char_write(buf, i2 - 1, ++ilet1);
+                buf = __nh_char_write(buf, i2, __nh_char_at0(__nh_advance_str(buf, ++i1)));
+                ilet = __nh_char_at0(__nh_advance_str(buf, i1));
                 /* otmp has already been updated */
                 continue;
             }
         } else if (ilet == 35) {
             /* compact three or more consecutive '#'
                characters into "#-#" */
-            if (i2 >= 2 && buf[i2 - 2] == 35 && buf[i2 - 1] == 35) {
-                buf[i2 - 1] = 45;
-            } else if (i2 >= 3 && buf[i2 - 3] == 35 && buf[i2 - 2] == 45 && buf[i2 - 1] == 35) {
+            if (i2 >= 2 && __nh_char_at0(__nh_advance_str(buf, i2 - 2)) == 35 && __nh_char_at0(__nh_advance_str(buf, i2 - 1)) == 35) {
+                buf = __nh_char_write(buf, i2 - 1, 45);
+            } else if (i2 >= 3 && __nh_char_at0(__nh_advance_str(buf, i2 - 3)) == 35 && __nh_char_at0(__nh_advance_str(buf, i2 - 2)) == 45 && __nh_char_at0(__nh_advance_str(buf, i2 - 1)) == 35) {
                 --i2;
             }
         }
         ilet2 = ilet1;
         ilet1 = ilet;
-        buf[++i2] = buf[++i1];
-        ilet = buf[i1];
+        buf = __nh_char_write(buf, ++i2, __nh_char_at0(__nh_advance_str(buf, ++i1)));
+        ilet = __nh_char_at0(__nh_advance_str(buf, i1));
     }
 }
 /* some objects shouldn't be split when count given to getobj or askchain */
@@ -1592,25 +1592,25 @@ export function taking_off(action) {
     return !strcmp(action, "take off") || !strcmp(action, "remove");
 }
 export function mime_action(word) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let bp = null;
     let pfx = null;
     let sfx = null;
     buf = strcpy(buf, word);
     bp = pfx = sfx = null;
     if ((bp = strstr(buf, " on the ")) != null) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        sfx = (bp + 1);
+        buf = nh_strchr_truncate(buf, " on the ", 'str');
+        sfx = (bp.substring(1));
     }
     if ((!strncmp(buf, "rub the ", 8) && strstr(buf + 8, " on")) || (!strncmp(buf, "dip ", 4) && strstr(buf + 4, " into"))) {
         /* "rub the royal jelly on" -> "rubbing the royal jelly on", or
            "dip <foo> into" => "dipping <foo> into" */
-        buf[3] = 0;
-        pfx = buf[3 + 1];
+        buf = __nh_char_write(buf, 3, 0);
+        pfx = __nh_char_at0(__nh_advance_str(buf, 3 + 1));
     }
     if ((bp = strstr(buf, " or ")) != null) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        bp = (rn2(2) ? buf : (bp + 4));
+        buf = nh_strchr_truncate(buf, " or ", 'str');
+        bp = (rn2(2) ? buf : (bp.substring(4)));
     } else {
         bp = buf;
     }
@@ -1658,10 +1658,10 @@ const __getobj_only_one = "can only throw one at a time";
 export function getobj(word, obj_ok, ctrlflags) {
     let otmp = null;
     let ilet = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let lets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let altlets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let qbuf = '';
+    let lets = '';
+    let altlets = '';
     let suggested = 0;
     let bp = null;
     let ap = null;
@@ -1759,9 +1759,6 @@ export function getobj(word, obj_ok, ctrlflags) {
             /* treat as likely candidate */
             case GETOBJ_SUGGEST:
                 allownone = (1);
-                /* nothing currently gives this for '-'
-                                     * but theoretically could if wearing
-                                     * gloves */
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 45) */;
                 /* put a space after the '-' in the prompt */
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
@@ -1771,7 +1768,10 @@ export function getobj(word, obj_ok, ctrlflags) {
             case GETOBJ_EXCLUDE_INACCESS:
             case GETOBJ_EXCLUDE_SELECTABLE:
                 allownone = (1);
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 45) */;
+                /* nothing currently gives this for '-'
+                                     * but theoretically could if wearing
+                                     * gloves */
+                altlets[__nh_ap_idx++] = 45;
                 break;
             /* player skipped some alternative that's
                                     * not in inventory, now the hands/self
@@ -1790,12 +1790,12 @@ export function getobj(word, obj_ok, ctrlflags) {
        inventory letters */
         sortedinvent = sortloot(game.invent, 2, (0), null);
         for (let __nhi_srtinv = 0; (srtinv = sortedinvent[__nhi_srtinv]) && ((otmp = srtinv.obj) != null); __nhi_srtinv++) {
-            if (suggested >= 255) {
+            if (__nh_advance_str(bp, suggested) == __nh_char_at0(__nh_advance_str(buf, 256 /* sizeof(char [256]) */ - 1)) || __nh_ap_idx == 256 /* sizeof(char [256]) */ - 1) {
                 /* we must have a huge number of noinvsym items somehow */
                 impossible("getobj: inventory overflow");
                 break;
             }
-            bp[suggested++] = otmp.invlet;
+            bp = __nh_char_write(bp, suggested++, otmp.invlet);
             switch ((obj_ok)(otmp)) {
                 case GETOBJ_EXCLUDE_INACCESS:
                     suggested--;
@@ -1808,7 +1808,7 @@ export function getobj(word, obj_ok, ctrlflags) {
                 case GETOBJ_DOWNPLAY:
                     suggested--;
                     forceprompt = (1);
-                    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = otmp.invlet) */;
+                    altlets[__nh_ap_idx++] = otmp.invlet;
                     break;
                 case GETOBJ_SUGGEST:
                     break;
@@ -1820,10 +1820,10 @@ export function getobj(word, obj_ok, ctrlflags) {
             }
         }
         unsortloot({ get value() { return sortedinvent; }, set value(_v) { sortedinvent = _v; } });
-        bp[suggested] = 0;
+        bp = __nh_char_write(bp, suggested, 0);
         /* If no objects were suggested but we added '- ' at the beginning for
      * hands, destroy the trailing space */
-        if (suggested == 0 && bp > buf && bp[-1] == 32) {
+        if (suggested == 0 && bp > buf && __nh_char_at0(__nh_advance_str(bp, -1)) == 32) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
         }
         lets = strcpy(lets, bp);
@@ -1831,7 +1831,7 @@ export function getobj(word, obj_ok, ctrlflags) {
         if (suggested > 5) {
             compactify(bp);
         }
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        altlets[__nh_ap_idx] = 0;
         if (suggested == 0 && !forceprompt && !allownone) {
             You("don't have anything %sto %s.", inaccess ? "else " : "", word);
             return null;
@@ -1853,10 +1853,10 @@ export function getobj(word, obj_ok, ctrlflags) {
                 msggiven = (1);
                 oneloop = (1);
             } else {
-                if (!buf[0]) {
+                if (!__nh_char_at0(buf)) {
                     qbuf = strcat(qbuf, " [*]");
                 } else {
-                    qbuf = (qbuf || '') + sprintf('', " [%s or ?*]", buf);
+                    qbuf = __nh_buf_append(qbuf, sprintf('', " [%s or ?*]", buf));
                 }
                 ilet = yn_function(qbuf, null, 0, (0));
             }
@@ -1866,7 +1866,7 @@ export function getobj(word, obj_ok, ctrlflags) {
                     pline("No count allowed with this command.");
                     continue;
                 }
-                ilet = get_count(null, ilet, 32767, tmpcnt, 1);
+                ilet = get_count(null, ilet, 32767, { get value() { return tmpcnt; }, set value(_v) { tmpcnt = _v; } }, 1);
                 if (tmpcnt) {
                     cnt = tmpcnt;
                     cntgiven = (1);
@@ -1890,16 +1890,16 @@ export function getobj(word, obj_ok, ctrlflags) {
            select-from-invent before checking whether gold has been picked */
                     let allowed_choices = (ilet == 63) ? lets : null;
                     let ctmp = 0;
-                    let menuquery = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let menuquery = '';
                     let handsbuf = null;
                     if (ilet == 63 && !lets && altlets) {
                         allowed_choices = altlets;
                     }
-                    menuquery[0] = qbuf[0] = 0;
+                    (qbuf = '', menuquery = '');
                     if (game.iflags.force_invmenu) {
-                        nh_snprintf("getobj", 1975, menuquery, 128 /* sizeof(char [128]) */, "What do you want to %s?", word);
+                        menuquery = nh_snprintf("getobj", 1975, menuquery, 128 /* sizeof(char [128]) */, "What do you want to %s?", word);
                     }
-                    if (!allowed_choices || allowed_choices == 45 || buf == 45) {
+                    if (!allowed_choices || __nh_char_at0(allowed_choices) == 45 || buf == 45) {
                         handsbuf = getobj_hands_txt(word, qbuf);
                     }
                     ilet = display_pickinv(allowed_choices, handsbuf, menuquery, allownone, (1), allowcnt ? ctmp : null);
@@ -2080,12 +2080,12 @@ export function ggetobj(word, fn, mx, combo, resultflags) {
     let unpaid = 0;
     let oc_of_sym = 0;
     let sym = 0;
-    let ip = null;
-    let olets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let ilets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let extra_removeables = [0, 0, 0, 0];
+    let __nh_ip_idx = 0;
+    let olets = '';
+    let ilets = '';
+    let extra_removeables = '';
     let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     if (!game.invent) {
         You("have nothing to %s.", word);
         if (resultflags) {
@@ -2111,46 +2111,46 @@ export function ggetobj(word, fn, mx, combo, resultflags) {
         /* no further identifications */
         return -1;
     } else if (game.invent) {
-        ilets[iletct++] = 32;
+        ilets = __nh_char_write(ilets, iletct++, 32);
         if (unpaid) {
-            ilets[iletct++] = 117;
+            ilets = __nh_char_write(ilets, iletct++, 117);
         }
         if (count_buc(game.invent, 256, ofilter)) {
-            ilets[iletct++] = 66;
+            ilets = __nh_char_write(ilets, iletct++, 66);
         }
         if (count_buc(game.invent, 1024, ofilter)) {
-            ilets[iletct++] = 85;
+            ilets = __nh_char_write(ilets, iletct++, 85);
         }
         if (count_buc(game.invent, 512, ofilter)) {
-            ilets[iletct++] = 67;
+            ilets = __nh_char_write(ilets, iletct++, 67);
         }
         if (count_buc(game.invent, 2048, ofilter)) {
-            ilets[iletct++] = 88;
+            ilets = __nh_char_write(ilets, iletct++, 88);
         }
         if (count_justpicked(game.invent)) {
-            ilets[iletct++] = 80;
+            ilets = __nh_char_write(ilets, iletct++, 80);
         }
-        ilets[iletct++] = 97;
+        ilets = __nh_char_write(ilets, iletct++, 97);
     }
-    ilets[iletct++] = 105;
+    ilets = __nh_char_write(ilets, iletct++, 105);
     if (!combo) {
-        ilets[iletct++] = 109;
+        ilets = __nh_char_write(ilets, iletct++, 109);
     }
     /* allow menu presentation on request */
-    ilets[iletct] = 0;
+    ilets = __nh_char_write(ilets, iletct, 0);
     for (; ; ) {
         qbuf = sprintf(qbuf, "What kinds of thing do you want to %s? [%s]", word, ilets);
         getlin(qbuf, buf);
-        if (buf[0] == 27) {
+        if (__nh_char_at0(buf) == 27) {
             return 0;
         }
         if (strchr(buf, 105)) {
             /* $ + a-z + A-Z + # + slop + \0 */
-            let ailets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let ailets = '';
             let otmp = null;
             let nextobj = null;
             /* applicable inventory letters; if empty, show entire invent */
-            ailets[0] = 0;
+            ailets = '';
             if (ofilter) {
                 for (otmp = game.invent; otmp; otmp = nextobj) {
                     nextobj = otmp.nobj;
@@ -2167,7 +2167,7 @@ export function ggetobj(word, fn, mx, combo, resultflags) {
             break;
         }
     }
-    extra_removeables[0] = 0;
+    extra_removeables = '';
     if (takeoff) {
         /* arbitrary types of items can be placed in the weapon slots
            [any duplicate entries in extra_removeables[] won't matter] */
@@ -2181,9 +2181,9 @@ export function ggetobj(word, fn, mx, combo, resultflags) {
             extra_removeables = strkitten(extra_removeables, game.uquiver.oclass);
         }
     }
-    ip = buf;
-    olets[oletct = 0] = 0;
-    while ((sym = ip++) != 0) {
+    __nh_ip_idx = 0;
+    olets = __nh_char_write(olets, oletct = 0, 0);
+    while ((sym = buf[__nh_ip_idx++]) != 0) {
         if (sym == 32) {
             continue;
         }
@@ -2229,8 +2229,8 @@ export function ggetobj(word, fn, mx, combo, resultflags) {
         } else {
             if (!strchr(olets, oc_of_sym)) {
                 add_valid_menu_class(oc_of_sym);
-                olets[oletct++] = oc_of_sym;
-                olets[oletct] = 0;
+                olets = __nh_char_write(olets, oletct++, oc_of_sym);
+                olets = __nh_char_write(olets, oletct, 0);
             }
         }
     }
@@ -2280,8 +2280,8 @@ export function askchain(objchn, olets, allflag, fn, ckfn, mx, word) {
     let first = 0;
     let ininv = 0;
     let bycat = 0;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qpfx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
+    let qpfx = '';
     let sortedchn = null;
     cnt = 0;
     dud = 0;
@@ -2328,7 +2328,7 @@ export function askchain(objchn, olets, allflag, fn, ckfn, mx, word) {
             } else {
                 ilet++;
             }
-            if (olets && olets.value && otmp.oclass != olets.value) {
+            if (olets && __nh_char_at0(olets) && otmp.oclass != __nh_char_at0(olets)) {
                 continue;
             }
             if (takeoff && !is_worn(otmp)) {
@@ -2416,7 +2416,7 @@ export function askchain(objchn, olets, allflag, fn, ckfn, mx, word) {
                     break ret;
             }
         }
-        if (olets && olets.value && ++olets) {
+        if (olets && __nh_char_at0(olets) && (olets = __nh_advance_str(olets, 1))) {
             continue nextclass;
         }
         if (!takeoff && (dud || cnt)) {
@@ -2449,7 +2449,7 @@ export function reroll_menu() {
     let tmpglyph = 0;
     let tmpglyphinfo = { glyph: 0, ttychar: 0, framecolor: 0, gm: { glyphflags: 0, sym: { color: 0, symidx: 0 }, customcolor: 0, color256idx: 0, tileidx: 0, u: null } };
     let option = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
     any = cg.zeroany;
@@ -2528,7 +2528,7 @@ export function menu_identify(id_limit) {
     let i = 0;
     let first = 1;
     let tryct = 5;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     while (id_limit) {
         buf = sprintf(buf, "What would you like to identify %s?", first ? "first" : "next");
         n = query_objlist(buf, game.invent, (32 | 64 | 8 | 16), { get value() { return pick_list; }, set value(_v) { pick_list = _v; } }, 2, not_fully_identified);
@@ -2713,25 +2713,25 @@ export function obj_to_let(obj) {
  */
 export function prinv(prefix, obj, quan) {
     let total_of = (quan && (quan < obj.quan));
-    let totalbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let totalbuf = '';
     if (!prefix) {
         prefix = "";
     }
-    totalbuf[0] = 0;
+    totalbuf = '';
     if (total_of) {
-        nh_snprintf("prinv", 2886, totalbuf, 128 /* sizeof(char [128]) */, " (%ld in total).", obj.quan);
+        totalbuf = nh_snprintf("prinv", 2886, totalbuf, 128 /* sizeof(char [128]) */, " (%ld in total).", obj.quan);
     }
-    pline("%s%s%s%s", prefix, prefix.value ? " " : "", xprname(obj, null, obj_to_let(obj), !total_of, 0, quan), game.flags.verbose ? totalbuf : "");
+    pline("%s%s%s%s", prefix, __nh_char_at0(prefix) ? " " : "", xprname(obj, null, obj_to_let(obj), !total_of, 0, quan), game.flags.verbose ? totalbuf : "");
 }
 /* text to print instead of obj */
 /* inventory letter */
 /* append period; (dot && cost => Iu) */
 /* cost (for inventory of unpaid or expended items) */
 /* if non-0, print this quantity, not obj->quan */
-let __xprname_li = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __xprname_li = '';
 export function xprname(obj, txt, let_, dot, cost, quan) {
     /* plenty of room for count and hallucinatory currency */
-    let suffix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let suffix = '';
     /* signed int for %*s formatting */
     let sfxlen = 0;
     let txtlen = 0;
@@ -2909,7 +2909,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
     let doing_perm_invent = (0);
     let save_flags_sortpack = 0;
     let usextra = (xtra_choice && allowxtra);
-    if (lets && !lets.value) {
+    if (lets && !__nh_char_at0(lets)) {
         lets = null;
     }
     if (lets || usextra || wizid || want_reply || game.WIN_INVEN == (-1)) {
@@ -2976,12 +2976,12 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
             ret = (game.windowprocs.win_message_menu)(45, 1, xprname(null, xtra_choice, 45, (1), 0, 0));
         } else {
             for (otmp = game.invent; otmp; otmp = otmp.nobj) {
-                if (!lets || otmp.invlet == lets[0]) {
+                if (!lets || otmp.invlet == __nh_char_at0(lets)) {
                     break;
                 }
             }
             if (otmp) {
-                ret = (game.windowprocs.win_message_menu)(otmp.invlet, want_reply ? 1 : 0, xprname(otmp, null, lets[0], (1), 0, 0));
+                ret = (game.windowprocs.win_message_menu)(otmp.invlet, want_reply ? 1 : 0, xprname(otmp, null, __nh_char_at0(lets), (1), 0, 0));
             }
         }
         if (out_cnt) {
@@ -3034,12 +3034,12 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
     any = cg.zeroany;
     if (wizid) {
         let unid_cnt = 0;
-        let prompt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let prompt = '';
         unid_cnt = count_unidentified(game.invent);
         prompt = sprintf(prompt, "Debug Identify");
         /* 'title' rather than 'prompt' */
         if (unid_cnt) {
-            prompt = (prompt || '') + sprintf('', " -- unidentified or partially identified item%s", (((unid_cnt) == 1) ? "" : "s"));
+            prompt = __nh_buf_append(prompt, sprintf('', " -- unidentified or partially identified item%s", (((unid_cnt) == 1) ? "" : "s")));
         }
         add_menu_str(win, prompt);
         if (!unid_cnt) {
@@ -3054,7 +3054,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
                the #wizidentify command, so include it as a group accelerator
                but use '_' as the primary selector */
             if (unid_cnt > 1) {
-                prompt = (prompt || '') + sprintf('', " (%s for all)", visctrl(game.iflags.override_ID));
+                prompt = __nh_buf_append(prompt, sprintf('', " (%s for all)", visctrl(game.iflags.override_ID)));
             }
             add_menu(win, nul_glyphinfo, any, 95, game.iflags.override_ID, 0, clr, prompt, 2);
             gotsomething = (1);
@@ -3078,7 +3078,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
             if (lets && !strchr(lets, otmp.invlet)) {
                 continue;
             }
-            if (!game.flags.sortpack || otmp.oclass == invlet) {
+            if (!game.flags.sortpack || otmp.oclass == __nh_char_at0(invlet)) {
                 if (wizid && !not_fully_identified(otmp)) {
                     continue;
                 }
@@ -3097,7 +3097,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
                 if (inuse_only ? (srtinv.orderclass != prevorderclass) : (game.flags.sortpack && !classcount)) {
                     /* maybe insert a class header */
                     let withsym = (want_reply && game.iflags.menu_head_objsym);
-                    let class_header = inuse_only ? inuse_headers[srtinv.orderclass] : let_to_name(invlet, (0), withsym);
+                    let class_header = inuse_only ? inuse_headers[srtinv.orderclass] : let_to_name(__nh_char_at0(invlet), (0), withsym);
                     add_menu_heading(win, class_header);
                     classcount++;
                     prevorderclass = srtinv.orderclass;
@@ -3111,7 +3111,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
                 }
                 if (otmp == inuse_fakeobj) {
                     /* fake item to format as "bare|gloved hands" */
-                    let barehands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let barehands = '';
                     /* like doname() below, makeplural() returns an obuf[] */
                     formattedobj = makeplural(body_part(HAND));
                     barehands = sprintf(barehands, "%s %s (no weapon)", game.uarmg ? "gloved" : "bare", formattedobj);
@@ -3130,10 +3130,10 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
             }
         }
         if (game.flags.sortpack) {
-            if (++invlet) {
+            if ((invlet = __nh_advance_str(invlet, 1))) {
                 continue nextclass;
             }
-            if (--invlet != venom_inv) {
+            if ((invlet = __nh_advance_str(invlet, -1)) != venom_inv) {
                 invlet = venom_inv;
                 continue nextclass;
             }
@@ -3169,7 +3169,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
             add_menu_str(win, inuse_only ? __display_pickinv_not_using_anything : (!show_gold && skipped_gold) ? __display_pickinv_only_carrying_gold : __display_pickinv_not_carrying_anything);
             want_reply = (0);
         }
-        (game.windowprocs.win_end_menu)(win, (query && query.value) ? query : null);
+        (game.windowprocs.win_end_menu)(win, (query && __nh_char_at0(query)) ? query : null);
         n = select_menu(win, wizid ? 2 : want_reply ? 1 : 0, selected);
         if (n > 0) {
             if (wizid) {
@@ -3224,7 +3224,7 @@ export function display_inventory(lets, want_reply) {
         if (cmdq.typ == CMDQ_KEY) {
             let otmp = null;
             for (otmp = game.invent; otmp; otmp = otmp.nobj) {
-                if (otmp.invlet == cmdq.key && (!lets || !lets.value || strchr(lets, def_oc_syms[otmp.oclass].sym))) {
+                if (otmp.invlet == cmdq.key && (!lets || !__nh_char_at0(lets) || strchr(lets, def_oc_syms[otmp.oclass].sym))) {
                     free(cmdq);
                     return otmp.invlet;
                 }
@@ -3268,10 +3268,10 @@ export function display_used_invlets(avoidlet) {
                 if (ilet == avoidlet) {
                     continue;
                 }
-                if (!game.flags.sortpack || otmp.oclass == invlet) {
+                if (!game.flags.sortpack || otmp.oclass == __nh_char_at0(invlet)) {
                     if (game.flags.sortpack && !classcount) {
                         any = cg.zeroany;
-                        add_menu_heading(win, let_to_name(invlet, (0), (0)));
+                        add_menu_heading(win, let_to_name(__nh_char_at0(invlet), (0), (0)));
                         classcount++;
                     }
                     any.a_char = ilet;
@@ -3280,7 +3280,7 @@ export function display_used_invlets(avoidlet) {
                     add_menu(win, tmpglyphinfo, any, ilet, 0, 0, clr, doname(otmp), 0);
                 }
             }
-            if (game.flags.sortpack && ++invlet) {
+            if (game.flags.sortpack && (invlet = __nh_advance_str(invlet, 1))) {
                 continue;
             }
             invdone = 1;
@@ -3459,9 +3459,9 @@ export function dounpaid(count, floorcount, buriedcount) {
         for (otmp = game.invent; otmp; otmp = otmp.nobj) {
             ilet = otmp.invlet;
             if (otmp.unpaid) {
-                if (!game.flags.sortpack || otmp.oclass == invlet) {
+                if (!game.flags.sortpack || otmp.oclass == __nh_char_at0(invlet)) {
                     if (game.flags.sortpack && !classcount) {
-                        (game.windowprocs.win_putstr)(win, 0, let_to_name(invlet, (1), (0)));
+                        (game.windowprocs.win_putstr)(win, 0, let_to_name(__nh_char_at0(invlet), (1), (0)));
                         classcount++;
                     }
                     totcost += cost = unpaid_cost(otmp, COST_NOCONTENTS);
@@ -3472,7 +3472,7 @@ export function dounpaid(count, floorcount, buriedcount) {
                 }
             }
         }
-    } while (game.flags.sortpack && (++invlet));
+    } while (game.flags.sortpack && ((invlet = __nh_advance_str(invlet, 1))));
     if (count > num_so_far) {
         /* something unpaid is contained */
         if (game.flags.sortpack) {
@@ -3497,7 +3497,7 @@ export function dounpaid(count, floorcount, buriedcount) {
                     }
                 }
                 if (!otmp.cknown) {
-                    let contbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let contbuf = '';
                     contbuf = sprintf(contbuf, "%s contents", s_suffix(xname(otmp)));
                     (game.windowprocs.win_putstr)(win, 0, xprname(null, contbuf, 62, (1), contcost, 0));
                 }
@@ -3516,7 +3516,7 @@ export function dounpaid(count, floorcount, buriedcount) {
        spot then filled by a boulder (or perhaps a theme room with a pool
        and an unpaid item moved into that by wall repair, then freezing) */
         /* floorcount + buriedcount > 0 */
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let floorverb = (xtracount > 1) ? "are" : "is";
         let where = (buriedcount == 0) ? "on the floor" : (floorcount == 0) ? "under the floor" : "on or under the floor";
         if (!count) {
@@ -3580,8 +3580,8 @@ export function dotypeinv() {
     let n = 0;
     let i = 0;
     let extra_types = null;
-    let types = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let title = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let types = '';
+    let title = '';
     let before = null;
     let after = null;
     let class_count = 0;
@@ -3613,7 +3613,7 @@ export function dotypeinv() {
             You("aren't carrying anything.");
             break doI_done;
         }
-        title[0] = 0;
+        title = '';
         u_carried = count_unpaid(game.invent);
         u_floor = count_unpaid(game.level.objlist);
         u_buried = count_unpaid(game.level.buriedobjlist);
@@ -3652,62 +3652,60 @@ export function dotypeinv() {
         }
         if (traditional) {
             /* collect list of classes of objects carried, for use as a prompt */
-            types[0] = 0;
+            types = '';
             class_count = collect_obj_classes(types, game.invent, (0), null, { get value() { return itemcount; }, set value(_v) { itemcount = _v; } });
             if (any_unpaid || billx || (bcnt + ccnt + ucnt + xcnt) != 0 || jcnt) {
-                types[class_count++] = 32;
+                types = __nh_char_write(types, class_count++, 32);
             }
             if (any_unpaid) {
-                types[class_count++] = 117;
+                types = __nh_char_write(types, class_count++, 117);
             }
             if (billx) {
-                types[class_count++] = 120;
+                types = __nh_char_write(types, class_count++, 120);
             }
             if (bcnt) {
-                types[class_count++] = 66;
+                types = __nh_char_write(types, class_count++, 66);
             }
             if (ucnt) {
-                types[class_count++] = 85;
+                types = __nh_char_write(types, class_count++, 85);
             }
             if (ccnt) {
-                types[class_count++] = 67;
+                types = __nh_char_write(types, class_count++, 67);
             }
             if (xcnt) {
-                types[class_count++] = 88;
+                types = __nh_char_write(types, class_count++, 88);
             }
             if (jcnt) {
-                types[class_count++] = 80;
+                types = __nh_char_write(types, class_count++, 80);
             }
-            types[class_count] = 0;
+            types = __nh_char_write(types, class_count, 0);
             /* add everything not already included; user won't see these */
             extra_types = eos(types);
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 27) */;
+            types += String.fromCharCode(27);
             if (!any_unpaid) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 117) */;
+                types += String.fromCharCode(117);
             }
             if (!billx) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 120) */;
+                types += String.fromCharCode(120);
             }
             if (!bcnt) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 66) */;
+                types += String.fromCharCode(66);
             }
             if (!ucnt) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 85) */;
+                types += String.fromCharCode(85);
             }
             if (!ccnt) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 67) */;
+                types += String.fromCharCode(67);
             }
             if (!xcnt) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 88) */;
+                types += String.fromCharCode(88);
             }
             if (!jcnt) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 80) */;
+                types += String.fromCharCode(80);
             }
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             for (i = 0; i < MAXOCLASSES; i++) {
                 if (!strchr(types, def_oc_syms[i].sym)) {
-                    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = def_oc_syms[i].sym) */;
-                    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+                    types += String.fromCharCode(def_oc_syms[i].sym);
                 }
             }
             if (class_count > 1) {
@@ -3723,7 +3721,7 @@ export function dotypeinv() {
                     c = 120;
                 /* only one thing to itemize */
                 } else {
-                    c = types[0];
+                    c = __nh_char_at0(types);
                 }
             }
         }
@@ -3778,7 +3776,7 @@ export function dotypeinv() {
             game.this_type = oclass;
         }
         if (strchr("BUCXP", c)) {
-            title = sprintf(title, "Items %s", (before && before) ? before : after);
+            title = sprintf(title, "Items %s", (before && __nh_char_at0(before)) ? before : after);
             /* the before and after phrases for "you have no..." can both be
            treated as mutually-exclusive suffices when creating a title */
             /* get rid of trailing space from 'before' and double-space from
@@ -3800,7 +3798,7 @@ export function dotypeinv() {
 }
 /* return a string describing the dungeon feature at <x,y> if there
    is one worth mentioning at that location; otherwise null */
-let __dfeature_at_altbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __dfeature_at_altbuf = '';
 export function dfeature_at(x, y, buf) {
     let lev = game.level.locations[x][y];
     let ltyp = lev.typ;
@@ -3870,8 +3868,8 @@ export function look_here(obj_cnt, lookhere_flags) {
     let trap = null;
     let verb = ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "feel" : "see";
     let dfeature = null;
-    let fbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let fbuf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let fbuf = '';
+    let fbuf2 = '';
     let tmpwin = 0;
     let skip_objects = 0;
     let felt_cockatrice = (0);
@@ -3885,7 +3883,7 @@ export function look_here(obj_cnt, lookhere_flags) {
         let mtmp = game.u.ustuck;
         fbuf = sprintf(fbuf, "Contents of %s %s", s_suffix(mon_nam(mtmp)), mbodypart(mtmp, STOMACH));
         /* Skip "Contents of " by using fbuf index 12 */
-        You("%s to %s what is lying in %s.", ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "try" : "look around", verb, fbuf[12]);
+        You("%s to %s what is lying in %s.", ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "try" : "look around", verb, __nh_char_at0(__nh_advance_str(fbuf, 12)));
         otmp = mtmp.minvent;
         if (otmp) {
             for (; otmp; otmp = otmp.nobj) {
@@ -3922,8 +3920,8 @@ export function look_here(obj_cnt, lookhere_flags) {
     }
     if (!skip_objects) {
         let reg = null;
-        let regbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        regbuf[0] = 0;
+        let regbuf = '';
+        regbuf = '';
         if ((reg = visible_region_at(game.u.ux, game.u.uy)) != null) {
             regbuf = sprintf(regbuf, "a %s cloud", reg_damg(reg) ? "poison gas" : "vapor");
         }
@@ -4027,7 +4025,7 @@ export function look_here(obj_cnt, lookhere_flags) {
             feel_cockatrice(otmp, (0));
         }
     } else {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
         tmpwin = (game.windowprocs.win_create_nhwindow)(4);
         if (dfeature && !skip_dfeature) {
@@ -4073,7 +4071,7 @@ export function will_feel_cockatrice(otmp, force_touch) {
     return (0);
 }
 export function feel_cockatrice(otmp, force_touch) {
-    let kbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let kbuf = '';
     if (will_feel_cockatrice(otmp, force_touch)) {
         kbuf = strcpy(kbuf, corpse_xname(otmp, null, 4));
         /* "the <cockatrice> corpse" */
@@ -4205,14 +4203,14 @@ export function doprgold() {
        person, but you have no such preternatural gold-sense. */
     let hmoney = hidden_gold((0));
     if (game.flags.verbose) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         if (!umoney) {
             buf = strcpy(buf, "Your wallet is empty");
         } else {
             buf = sprintf(buf, "Your wallet contains %ld %s", umoney, currency(umoney));
         }
         if (hmoney) {
-            buf = (buf || '') + sprintf('', ", %s you have %ld %s stashed away in your pack", umoney ? "and" : "but", hmoney, umoney ? "more" : currency(hmoney));
+            buf = __nh_buf_append(buf, sprintf('', ", %s you have %ld %s stashed away in your pack", umoney ? "and" : "but", hmoney, umoney ? "more" : currency(hmoney)));
         }
         pline("%s.", buf);
     } else {
@@ -4242,18 +4240,20 @@ export function doprwep() {
         }
     } else {
         /* 4: uwep, uswapwep, uquiver, terminator */
-        let lets = [0, 0, 0, 0];
+        /* 8: up to 7 pieces of armor plus terminator */
+        /* 3: uright, uleft, terminator */
+        let lets = '';
         let ct = 0;
         /* obj_to_let() will assign letters to all of invent if necessary
            (for '!fixinv') so doesn't need to be repeated once called here */
-        lets[ct++] = obj_to_let(game.uwep);
+        lets = __nh_char_write(lets, ct++, obj_to_let(game.uwep));
         if (game.uswapwep) {
-            lets[ct++] = game.uswapwep.invlet;
+            lets = __nh_char_write(lets, ct++, game.uswapwep.invlet);
         }
         if (game.uquiver) {
-            lets[ct++] = game.uquiver.invlet;
+            lets = __nh_char_write(lets, ct++, game.uquiver.invlet);
         }
-        lets[ct] = 0;
+        lets = __nh_char_write(lets, ct, 0);
         dispinv_with_action(lets, (1), null);
     }
     return 0;
@@ -4265,29 +4265,21 @@ export function noarmor(report_uskin) {
     } else {
         let p = null;
         let uskinname = null;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         uskinname = strcpy(buf, simpleonames(game.uskin));
         /* shorten "set of <color> dragon scales" to "<color> scales"
            and "<color> dragon scale mail" to "<color> scale mail" */
-        /* Translator gap: C `uskinname += 7` skips "set of "; in JS
-           that's string-concat producing "set of <X>7".  Slice
-           replacement. */
         if (!strncmpi(uskinname, "set of ", 7)) {
-            uskinname = (typeof uskinname === 'string') ? uskinname.slice(7) : uskinname + 7;
+            uskinname = __nh_advance_str(uskinname, 7);
         }
-        /* Translator gap: C inner loop overwrites " dragon " with the
-           7 chars from p+8 onward (effectively splicing " dragon "
-           out of the name).  JS string is immutable; replace the
-           string-fast-path with String.prototype.replace.  Char-array
-           fallback retains the broken translator output. */
         if (typeof uskinname === 'string') {
             const idx = uskinname.toLowerCase().indexOf(' dragon ');
             if (idx >= 0) {
                 uskinname = uskinname.slice(0, idx) + uskinname.slice(idx + 7);
             }
         } else if ((p = strstri(uskinname, " dragon ")) != null) {
-            while ((p[1] = p[8]) != 0) {
-                ++p;
+            while ((p = __nh_char_write(p, 1, __nh_char_at0(__nh_advance_str(p, 8)))) != 0) {
+                (p = __nh_advance_str(p, 1));
             }
         }
         You("are not wearing armor but have %s embedded in your skin.", uskinname);
@@ -4303,35 +4295,34 @@ export function doprarm() {
      */
         noarmor((1));
     } else {
-        /* 8: up to 7 pieces of armor plus terminator */
-        let lets = [0, 0, 0, 0, 0, 0, 0, 0];
+        let lets = '';
         let ct = 0;
         /* obj_to_let() will assign letters to all of invent if necessary
            (for '!fixinv') so doesn't need to be repeated once called, but
            each armor slot doesn't know whether any that precede have made
            that call so just do it for each one; use SORTPACK_INUSE order */
         if (game.uarm) {
-            lets[ct++] = obj_to_let(game.uarm);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uarm));
         }
         if (game.uarmc) {
-            lets[ct++] = obj_to_let(game.uarmc);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uarmc));
         }
         if (game.uarms) {
-            lets[ct++] = obj_to_let(game.uarms);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uarms));
         }
         if (game.uarmh) {
-            lets[ct++] = obj_to_let(game.uarmh);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uarmh));
         }
         if (game.uarmg) {
-            lets[ct++] = obj_to_let(game.uarmg);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uarmg));
         }
         if (game.uarmf) {
-            lets[ct++] = obj_to_let(game.uarmf);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uarmf));
         }
         if (game.uarmu) {
-            lets[ct++] = obj_to_let(game.uarmu);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uarmu));
         }
-        lets[ct] = 0;
+        lets = __nh_char_write(lets, ct, 0);
         dispinv_with_action(lets, (1), null);
     }
     return 0;
@@ -4341,25 +4332,24 @@ export function doprring() {
     if (!game.uleft && !game.uright) {
         You("are not wearing any rings.");
     } else {
-        /* 3: uright, uleft, terminator */
-        let lets = [0, 0, 0];
+        let lets = '';
         let use_inuse_mode = (0);
         let ct = 0;
         if (game.uright) {
             /* if either ring is a meat ring, switch to use_inuse_mode in order
            to label it/them as "Rings" rather than "Comestibles" */
-            lets[ct++] = obj_to_let(game.uright);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uright));
             if (game.uright.oclass != RING_CLASS) {
                 use_inuse_mode = (1);
             }
         }
         if (game.uleft) {
-            lets[ct++] = obj_to_let(game.uleft);
+            lets = __nh_char_write(lets, ct++, obj_to_let(game.uleft));
             if (game.uleft.oclass != RING_CLASS) {
                 use_inuse_mode = (1);
             }
         }
-        lets[ct] = 0;
+        lets = __nh_char_write(lets, ct, 0);
         /* also switch to use_inuse_mode if there are two rings or player
            used the 'm' prefix */
         if (ct > 1 || game.iflags.menu_requested) {
@@ -4374,11 +4364,11 @@ export function dopramulet() {
     if (!game.uamul) {
         You("are not wearing an amulet.");
     } else {
-        let lets = [0, 0];
+        let lets = '';
         /* using display_inventory() instead of prinv() allows player
            to use 'm "' to force and menu and be able to choose amulet
            in order to perform a context-sensitive item action */
-        lets[0] = obj_to_let(game.uamul) , lets[1] = 0;
+        lets = __nh_char_write(lets, 0, obj_to_let(game.uamul)) , lets = __nh_char_write(lets, 1, 0);
         dispinv_with_action(lets, (1), "Amulet");
     }
     return 0;
@@ -4402,7 +4392,7 @@ export function tool_being_used(obj) {
 export function doprtool() {
     let otmp = null;
     let ct = 0;
-    let lets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let lets = '';
     for (otmp = game.invent; otmp; otmp = otmp.nobj) {
         if (tool_being_used(otmp)) {
             /* we could be carrying more than 52 items; theoretically they
@@ -4410,10 +4400,10 @@ export function doprtool() {
             if (ct >= 53 /* sizeof(char [53]) */ - 1) {
                 break;
             }
-            lets[ct++] = obj_to_let(otmp);
+            lets = __nh_char_write(lets, ct++, obj_to_let(otmp));
         }
     }
-    lets[ct] = 0;
+    lets = __nh_char_write(lets, ct, 0);
     if (!ct) {
         You("are not using any tools.");
     } else {
@@ -4481,7 +4471,7 @@ export function let_to_name(let_, unpaid, showsym) {
     if (oclass) {
         class_name = names[oclass];
     } else if ((pos = strchr(oth_symbols, let_)) != null) {
-        class_name = oth_names[pos - oth_symbols];
+        class_name = oth_names[(oth_symbols.length - pos.length)];
     } else {
         class_name = names[ILLOBJ_CLASS];
     }
@@ -4684,7 +4674,7 @@ export function adjust_split() {
         /* got first digit, get more until next non-digit (except for
            backspace/delete which will take away most recent digit and
            keep going; we expect one of ' ', '\n', or '\r') */
-        let_ = get_count(null, dig, 0, splitamount, 4 | 2);
+        let_ = get_count(null, dig, 0, { get value() { return splitamount; }, set value(_v) { splitamount = _v; } }, 4 | 2);
         if (!let_ || let_ == 27 || !strchr(quitchars, let_)) {
             pline("%s", c_common_strings.c_Never_mind);
             return 2;
@@ -4713,8 +4703,8 @@ export function doorganize_core(obj) {
     let cur = 0;
     let trycnt = 0;
     let let_ = 0;
-    let lets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let lets = '';
+    let qbuf = '';
     let objname = null;
     let otmpname = null;
     let adj_type = null;
@@ -4741,18 +4731,18 @@ export function doorganize_core(obj) {
         }
     }
     /* initialize the list with all lower and upper case letters */
-    lets[0] = (obj.oclass == COIN_CLASS) ? GOLD_SYM : 32;
+    lets = __nh_char_write(lets, 0, (obj.oclass == COIN_CLASS) ? GOLD_SYM : 32);
     for (ix = 1 , let_ = 97; let_ <= 122; ) {
-        lets[ix++] = let_++;
+        lets = __nh_char_write(lets, ix++, let_++);
     }
     for (let_ = 65; let_ <= 90; ) {
-        lets[ix++] = let_++;
+        lets = __nh_char_write(lets, ix++, let_++);
     }
-    lets[(1 + invlet_basic)] = 32;
-    lets[55 /* sizeof(char [55]) */ - 1] = 0;
+    lets = __nh_char_write(lets, (1 + invlet_basic), 32);
+    lets = __nh_char_write(lets, 55 /* sizeof(char [55]) */ - 1, 0);
     /* for floating inv letters, truncate list after the first open slot */
     if (!game.flags.invlet_constant && (ix = inv_cnt((0))) < invlet_basic) {
-        lets[ix + (splitting ? 1 : 2)] = 0;
+        lets = __nh_char_write(lets, ix + (splitting ? 1 : 2), 0);
     }
     for (otmp = game.invent; otmp; otmp = otmp.nobj) {
         if (otmp != obj && !mergable(otmp, obj)) {
@@ -4762,21 +4752,21 @@ export function doorganize_core(obj) {
             /* overflow defaults to off, but it we find a stack using that
                slot, switch to on -- the opposite of normal invlet handling */
             if (let_ >= 97 && let_ <= 122) {
-                lets[1 + let_ - 97] = 32;
+                lets = __nh_char_write(lets, 1 + let_ - 97, 32);
             } else if (let_ >= 65 && let_ <= 90) {
-                lets[1 + let_ - 65 + 26] = 32;
+                lets = __nh_char_write(lets, 1 + let_ - 65 + 26, 32);
             } else if (let_ == 35) {
-                lets[(1 + invlet_basic)] = 35;
+                lets = __nh_char_write(lets, (1 + invlet_basic), 35);
             }
         }
     }
     /* compact the list by removing all the blanks */
-    for (ix = cur = 0; lets[ix]; ix++) {
-        if (lets[ix] != 32 && cur++ < ix) {
-            lets[cur - 1] = lets[ix];
+    for (ix = cur = 0; __nh_char_at0(__nh_advance_str(lets, ix)); ix++) {
+        if (__nh_char_at0(__nh_advance_str(lets, ix)) != 32 && cur++ < ix) {
+            lets = __nh_char_write(lets, cur - 1, __nh_char_at0(__nh_advance_str(lets, ix)));
         }
     }
-    lets[cur] = 0;
+    lets = __nh_char_write(lets, cur, 0);
     /* and by dashing runs of letters */
     if (cur > 5) {
         compactify(lets);
@@ -4787,7 +4777,7 @@ export function doorganize_core(obj) {
     } else {
         qbuf = sprintf(qbuf, "Split %ld", obj.quan);
     }
-    qbuf = (qbuf || '') + sprintf('', " to what [%s]%s?", lets, game.invent ? " (? see used letters)" : "");
+    qbuf = __nh_buf_append(qbuf, sprintf('', " to what [%s]%s?", lets, game.invent ? " (? see used letters)" : ""));
     for (trycnt = 1; ; ++trycnt) {
         /* note: splitting->quan is the amount being left in original slot */
         let_ = !isgold ? yn_function(qbuf, null, 0, (1)) : GOLD_SYM;
@@ -4981,7 +4971,7 @@ export function worn_wield_only(obj) {
 /* menu title */
 export function display_minventory(mon, dflags, title) {
     let ret = null;
-    let tmp = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tmp = '';
     let n = 0;
     let selected = null;
     let do_all = (dflags & 8) != 0;
@@ -5064,7 +5054,7 @@ export function cinv_ansimpleoname(obj) {
    Used for wand of probing of non-empty containers and statues. */
 export function display_cinventory(obj) {
     let ret = null;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let n = 0;
     let selected = null;
     safe_qbuf(qbuf, "Contents of ", ":", obj, cinv_doname, cinv_ansimpleoname, "that");
@@ -5097,7 +5087,7 @@ export function only_here(obj) {
  */
 export function display_binventory(x, y, as_if_seen) {
     let obj = null;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let underwhat = "here";
     let selected = null;
     let n = 0;

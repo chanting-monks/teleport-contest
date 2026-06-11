@@ -10,7 +10,7 @@ import { __builtin_va_end, __builtin_va_start } from '../c2js-runtime/builtins.j
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { panic } from '../c2js-runtime/panic.js';
 import { fprintf, vsnprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncmp, strncpy, strrchr } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncpy, strrchr } from '../c2js-runtime/string.js';
 import { dirtocoord, isok, yn_function } from './cmd.js';
 import { ynchars } from './decl.js';
 import { flush_screen } from './display.js';
@@ -159,7 +159,7 @@ export function vpline(line, the_args) {
         if (!strchr(line, 37)) {
             /* format does not specify any substitutions; use it as-is */
             ln = strlen(line);
-        } else if (line[0] == 37 && line[1] == 115 && !line[2]) {
+        } else if (__nh_char_at0(line) == 37 && __nh_char_at0(__nh_advance_str(line, 1)) == 115 && !__nh_char_at0(__nh_advance_str(line, 2))) {
             /* "%s" => single string; skip format and use its first argument;
            unlike with the format, it is irrelevant whether the argument
            contains any percent signs */
@@ -527,10 +527,10 @@ export function nhassert_failed(expression, filepath, line) {
        from a path. */
     filename = filepath;
     if ((p = strrchr(filename, 47)) != null) {
-        filename = p + 1;
+        filename = __nh_advance_str(p, 1);
     }
     if ((p = strrchr(filename, 92)) != null) {
-        filename = p + 1;
+        filename = __nh_advance_str(p, 1);
     }
     /* usually "device:[directory]name"
        but might be "device:[root.][directory]name"

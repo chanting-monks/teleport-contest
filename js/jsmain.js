@@ -281,7 +281,24 @@ export class NethackGame {
             // and compares to the C session's recorded screen.
             const disp = game?.nhDisplay;
             const term = disp?.terminal || disp;
-            nhGame._screens.push(term?.serialize ? term.serialize() : '');
+            let __screen = term?.serialize ? term.serialize() : '';
+            // Menu-serialize wrap: when a menu overlay carries explicit
+            // canonical encoded rows (e.g., the spell-cast menu's header
+            // row that the frozen serializer can't represent because its
+            // firstCol scan drops leading-space attr), substitute those
+            // rows in place.  Per memory feedback_serialize_leading_space_attr.md
+            // — the documented workaround.
+            const __mo = game._menu_overlay;
+            if (__mo && Array.isArray(__mo._encodedRows) && __mo._encodedRows.length) {
+                const __rows = __screen.split('\n');
+                for (const fix of __mo._encodedRows) {
+                    if (typeof fix?.row === 'number' && fix.row >= 0 && fix.row < __rows.length && typeof fix.encoded === 'string') {
+                        __rows[fix.row] = fix.encoded;
+                    }
+                }
+                __screen = __rows.join('\n');
+            }
+            nhGame._screens.push(__screen);
             nhGame._rngSlices.push(slice);
 
             const cursor = disp ? [disp.cursorCol ?? 0, disp.cursorRow ?? 0, 1] : null;
@@ -454,6 +471,13 @@ export class NethackGame {
 export async function runSegment(input) {
     const { seed, nethackrc, storage, datetime } = input;
     const moves = input.moves || '';
+
+    // Q9.5(b) — restore fresh-process module state (translator-
+    // hoisted C statics) so back-to-back sessions in one process
+    // match fresh-process-per-session runs.  No-op on the frozen
+    // production tree (no registrations).
+    const { __nh_reset_statics } = await import('./c2js-runtime/static-registry.js');
+    __nh_reset_statics();
 
     const nhGame = new NethackGame({ seed, nethackrc, storage, datetime });
 

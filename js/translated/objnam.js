@@ -9,8 +9,8 @@ import { abs } from '../c2js-runtime/math.js';
 import { memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, atoi, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
 import { artifact_exists, artifact_light, artifact_name, artiname, find_artifact, glow_color, glow_verb, nartifact_exist, permapoisoned, undiscovered_artifact } from './artifact.js';
 import { isok, yn_function } from './cmd.js';
 import { is_ice, is_lava, is_pool, is_pool_or_lava } from './dbridge.js';
@@ -180,7 +180,7 @@ export function obj_typename(otyp) {
                 xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
             }
             if (dn) {
-                buf = (buf || '') + sprintf('', " (%s)", dn);
+                buf = __nh_buf_append(buf, sprintf('', " (%s)", dn));
             }
             return buf;
         case ARMOR_CLASS:
@@ -201,7 +201,7 @@ export function obj_typename(otyp) {
                     xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
                 }
                 if (dn) {
-                    buf = (buf || '') + sprintf('', " (%s)", dn);
+                    buf = __nh_buf_append(buf, sprintf('', " (%s)", dn));
                 }
             } else {
                 buf = strcat(buf, dn ? dn : actualn);
@@ -219,14 +219,14 @@ export function obj_typename(otyp) {
         if (ocl.oc_unique) {
             buf = strcpy(buf, actualn);
         } else {
-            buf = (buf || '') + sprintf('', " of %s", actualn);
+            buf = __nh_buf_append(buf, sprintf('', " of %s", actualn));
         }
     }
     if (un) {
         xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
     }
     if (dn) {
-        buf = (buf || '') + sprintf('', " (%s)", dn);
+        buf = __nh_buf_append(buf, sprintf('', " (%s)", dn));
     }
     return buf;
 }
@@ -342,9 +342,7 @@ export function fruitname(juice) {
     let buf = nextobuf();
     let fruit_nam = strstri(game.pl_fruit, " of ");
     if (fruit_nam) {
-        /* Hand-port: C `fruit_nam += 4` skips " of " prefix in
-           pl_fruit ("X of Y" → "Y").  Slice 4 chars in JS. */
-        fruit_nam = (typeof fruit_nam === 'string') ? fruit_nam.slice(4) : fruit_nam;
+        fruit_nam = __nh_advance_str(fruit_nam, 4);
     } else {
         fruit_nam = game.pl_fruit;
     }
@@ -499,7 +497,7 @@ export function xcalled(buf, siz, pfx, sfx) {
     if (pfxlen > bufsiz) {
         panic("xcalled: not enough room for prefix (%d > %d)", pfxlen, bufsiz);
     }
-    buf = (buf || '') + sprintf('', "%s called %.*s", pfx, bufsiz - pfxlen, sfx);
+    buf = __nh_buf_append(buf, sprintf('', "%s called %.*s", pfx, bufsiz - pfxlen, sfx));
 }
 export function xname(obj) {
     return xname_flags(obj, 0);
@@ -758,7 +756,8 @@ export function xname_flags(obj, cxn_flags) {
                 let statue_pmname = obj_pmname(obj);
                 nh_snprintf("xname_flags", 813, buf, bufspaceleft, "%s%s of %s%s", ((game.urole.mnum == (PM_ARCHEOLOGIST)) && (obj.spe & 4) != 0) ? "historic " : "", actualn, (((game.mons[omndx]).mflags2 & 524288) != 0) ? "" : the_unique_pm(game.mons[omndx]) ? "the " : just_an(anbuf, statue_pmname), statue_pmname);
             } else if (typ == BOULDER && obj.corpsenm == 1) {
-                strcat(strcpy(buf, "next "), actualn);
+                strcpy(buf, "next ");
+                strcat(buf, actualn);
                 /* sometimes caller wants "next boulder" rather than just
                "boulder" (when pushing against a pile of more than one);
                originally we just tested for non-0 but checking for 1 is
@@ -936,7 +935,7 @@ export function xname_flags(obj, cxn_flags) {
                 break;
             case CANDY_BAR:
                 lbl = candy_wrapper_text(obj);
-                if (lbl) {
+                if (__nh_char_at0(lbl)) {
                     do {
                         nh_snprintf("xname_flags", 987, buf_eos - 0, bufspaceleft + 0, " labeled \"%s\"", lbl);
                         buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
@@ -974,8 +973,7 @@ export function xname_flags(obj, cxn_flags) {
         }
     }
     if (!strncmpi(buf, "the ", 4)) {
-        /* Hand-port: C `buf += 4` skips "the " prefix.  Slice in JS. */
-        buf = (typeof buf === 'string') ? buf.slice(4) : buf;
+        buf = __nh_advance_str(buf, 4);
     }
     buf_eos = eos(buf);
     if (buf_eos >= buf_end) {
@@ -1038,8 +1036,7 @@ export function minimal_xname(obj) {
     /* undo forced setting of bareobj.blessed for cleric (priest[ess]);
        bufp is an obuf[] so a pointer into the middle of that is viable */
     if (!strncmp(bufp, "uncursed ", 9)) {
-        /* Hand-port: C `bufp += 9` skips "uncursed " prefix.  Slice in JS. */
-        bufp = (typeof bufp === 'string') ? bufp.slice(9) : bufp;
+        bufp = __nh_advance_str(bufp, 9);
     }
     game.objects[otyp].oc_uname = saveobcls.oc_uname;
     game.objects[otyp].oc_name_known = saveobcls.oc_name_known;
@@ -1202,11 +1199,7 @@ export function doname_base(obj, doname_flags) {
      */
         /* must check opoisoned--someone can have a weirdly-named fruit */
         /* doesn't affect bp_eos or bpspaceleft */
-        /* Hand-port: C `bp += 9` is pointer-arith to skip "poisoned ".
-           In JS strings, `bp + 9` is concatenation — produces
-           "poisoned arrow9" garbage.  Use slice(9) to skip the
-           9-char prefix. */
-        bp = (typeof bp === 'string') ? bp.slice(9) : bp;
+        bp = __nh_advance_str(bp, 9);
         ispoisoned = (1);
     }
     /* fruits are allowed to be given artifact names; when that happens,
@@ -1227,10 +1220,7 @@ export function doname_base(obj, doname_flags) {
         /* skip article prefix for corpses [else corpse_xname()
            would have to be taught how to strip it off again] */
         if (!strncmpi(bp, "the ", 4)) {
-            /* Hand-port: C `bp += 4` is pointer-arith to skip "the ".
-               In JS, use slice(4) — same pattern as the poisoned-prefix
-               skip a few lines up. */
-            bp = (typeof bp === 'string') ? bp.slice(4) : bp;
+            bp = __nh_advance_str(bp, 4);
         }
         prefix = strcpy(prefix, "the ");
     } else if (!fake_arti) {
@@ -1357,7 +1347,7 @@ export function doname_base(obj, doname_flags) {
             }
             add_erosion_words(obj, prefix);
             if (known) {
-                prefix = (prefix || '') + sprintf('', "%+d ", obj.spe);
+                prefix = __nh_buf_append(prefix, sprintf('', "%+d ", obj.spe));
             }
             break;
         case TOOL_CLASS:
@@ -1469,7 +1459,7 @@ export function doname_base(obj, doname_flags) {
                 } while (0);
             }
             if (known && game.objects[obj.otyp].oc_charged) {
-                prefix = (prefix || '') + sprintf('', "%+d ", obj.spe);
+                prefix = __nh_buf_append(prefix, sprintf('', "%+d ", obj.spe));
             }
             break;
         case FOOD_CLASS:
@@ -1524,7 +1514,7 @@ export function doname_base(obj, doname_flags) {
                     } while (0);
                 }
                 if (known && game.objects[obj.otyp].oc_charged) {
-                    prefix = (prefix || '') + sprintf('', "%+d ", obj.spe);
+                    prefix = __nh_buf_append(prefix, sprintf('', "%+d ", obj.spe));
                 }
             }
             break;
@@ -1677,19 +1667,10 @@ export function doname_base(obj, doname_flags) {
         append_price_quote(bp, bp_eos, obj.otyp);
     }
     if (!strncmp(prefix, "a ", 2)) {
-        /* Hand-port: C `prefix + 2` is pointer-arith to skip "a ".
-           In JS strings, `prefix + 2` is concatenation producing
-           "a foo2" garbage that gets re-prepended through tmpbuf
-           — the seed1800 "a 2 a 2 2dart" output for a +2 dart on
-           the floor is this exact bug.  Use slice(2) to skip the
-           2-char "a " prefix faithfully.  Same pattern as the
-           bp += 9 / bp += 4 fixes around lines 1204 and 1228.
-           Also: just_an mutates its outbuf via C pointer semantics
-           that JS strings can't honor, so capture its return value
-           directly to pick the new "a "/"an " article. */
-        const _remainder = (typeof prefix === 'string') ? prefix.slice(2)
-            : (Array.isArray(prefix) ? prefix.slice(2) : prefix);
-        tmpbuf = strcpy(tmpbuf, _remainder);
+        /* Hand-port: just_an mutates its outbuf via C pointer
+           semantics that JS strings can't honor, so capture its
+           return value directly to pick the new "a "/"an " article. */
+        tmpbuf = strcpy(tmpbuf, __nh_advance_str(prefix, 2));
         /* save current prefix, without "a "; might be empty */
         /* set prefix[] to "", "a ", or "an " */
         const _article = just_an([0, 0, 0, 0], tmpbuf ? tmpbuf : bp);
@@ -1863,25 +1844,21 @@ export function corpse_xname(otmp, adjective, cxn_flags) {
     /* note: over time, various instances of the(mon_name()) have crept
        into the code, so the() has been modified to deal with capitalized
        monster names; we could switch to using it below like an() */
-    /* Translator-bug fix: C tests `!*adjective` (empty C-string).
-       Use proper JS-string empty check. */
-    if (!adjective || (typeof adjective === 'string' ? adjective.length === 0
-                     : Array.isArray(adjective) ? !adjective[0]
-                     : !adjective.value)) {
+    if (!adjective || !__nh_char_at0(adjective)) {
         nambuf = strcat(nambuf, mnam);
     } else {
         /* adjective positioning depends upon format of monster name */
         /* Medusa's cursed partly eaten corpse */
         if (possessive) {
-            nambuf = (nambuf || '') + sprintf('', "%s %s", mnam, adjective);
+            nambuf = __nh_buf_append(nambuf, sprintf('', "%s %s", mnam, adjective));
         } else {
-            nambuf = (nambuf || '') + sprintf('', "%s %s", adjective, mnam);
+            nambuf = __nh_buf_append(nambuf, sprintf('', "%s %s", adjective, mnam));
         }
         /* in case adjective has a trailing space, squeeze it out */
         nambuf = mungspaces(nambuf);
         /* doname() might include a count in the adjective argument;
            if so, don't prepend an article */
-        if (digit(adjective.value)) {
+        if (digit(__nh_char_at0(adjective))) {
             /* normal case:  newt corpse */
             /* omit_corpse doesn't apply; quantity is always 1 */
             /* makeplural(nambuf) => append "s" to "corpse" */
@@ -2079,15 +2056,15 @@ export function singular(otmp, func) {
 export function just_an(outbuf, str) {
     let c0 = 0;
     if (Array.isArray(outbuf) && outbuf.length > 0) outbuf[0] = 0;
-    c0 = lowc((typeof str === 'string') ? str.charCodeAt(0) : (str && str[0]) || 0);
-    if (!str[1] || str[1] == 32) {
+    c0 = lowc(__nh_char_at0(str));
+    if (!__nh_char_at0(__nh_advance_str(str, 1)) || __nh_char_at0(__nh_advance_str(str, 1)) == 32) {
         outbuf = strcpy(outbuf, strchr("aefhilmnosx", c0) ? "an " : "a ");
     } else if (!strncmpi(str, "the ", 4) || !strncmpi((str), ("molten lava"), -1) || !strncmpi((str), ("iron bars"), -1) || !strncmpi((str), ("ice"), -1)) {
         ;
     } else {
         /* normal case is "an <vowel>" or "a <consonant>" */
         /* some exceptions warranting "a <vowel>" */
-        if ((strchr(vowels, c0) && (strncmpi(str, "one", 3) || (str[3] && !strchr("-_ ", str[3]))) && strncmpi(str, "eu", 2) && strncmpi(str, "uke", 3) && strncmpi(str, "ukulele", 7) && strncmpi(str, "unicorn", 7) && strncmpi(str, "uranium", 7) && strncmpi(str, "useful", 6)) || (c0 == 120 && !strchr(vowels, lowc(str[1])))) {
+        if ((strchr(vowels, c0) && (strncmpi(str, "one", 3) || (__nh_char_at0(__nh_advance_str(str, 3)) && !strchr("-_ ", __nh_char_at0(__nh_advance_str(str, 3))))) && strncmpi(str, "eu", 2) && strncmpi(str, "uke", 3) && strncmpi(str, "ukulele", 7) && strncmpi(str, "unicorn", 7) && strncmpi(str, "uranium", 7) && strncmpi(str, "useful", 6)) || (c0 == 120 && !strchr(vowels, lowc(__nh_char_at0(__nh_advance_str(str, 1)))))) {
             outbuf = strcpy(outbuf, "an ");
         } else {
             outbuf = strcpy(outbuf, "a ");
@@ -2255,13 +2232,10 @@ export function paydoname(obj) {
            been purchased so that when paydoname() is called by
            shk_names_obj(), we'll provide "a/an <container>" instead of
            "your <container>" */
-            /* Hand-port: `p += N` C pointer-arith → JS slice(N).
-               Strip article "a "/"an " before re-prepending "an unpaid"
-               or "your". */
             if (!strncmp(p, "a ", 2)) {
-                p = (typeof p === 'string') ? p.slice(2) : p;
+                p = __nh_advance_str(p, 2);
             } else if (!strncmp(p, "an ", 3)) {
-                p = (typeof p === 'string') ? p.slice(3) : p;
+                p = __nh_advance_str(p, 3);
             }
             p = strprepend(p, obj.unpaid ? "an unpaid " : "your ");
         }
@@ -2387,7 +2361,11 @@ export function bare_artifactname(obj) {
         outbuf = nextobuf();
         outbuf = strcpy(outbuf, artiname(obj.oartifact));
         if (!strncmp(outbuf, "The ", 4)) {
-            outbuf[0] = lowc(outbuf[0]);
+            if (typeof outbuf === 'string' && outbuf.length > 0) {
+                outbuf = String.fromCharCode(lowc(outbuf.charCodeAt(0))) + outbuf.slice(1);
+            } else if (Array.isArray(outbuf) && outbuf.length > 0) {
+                outbuf[0] = lowc(outbuf[0]);
+            }
         }
     } else {
         outbuf = xname(obj);
@@ -2446,7 +2424,7 @@ export function vtense(subj, verb) {
                 break sing;
             }
             spot = null;
-            for (sp = subj; (sp = strchr(sp, 32)) != null; ++sp) {
+            for (sp = subj; (sp = strchr(sp, 32)) != null; (sp = __nh_advance_str(sp, 1))) {
                 if (!strncmpi(sp, " of ", 4) || !strncmpi(sp, " from ", 6) || !strncmpi(sp, " called ", 8) || !strncmpi(sp, " named ", 7) || !strncmpi(sp, " labeled ", 9)) {
                     if (sp != subj) {
                         spot = sp - 1;
@@ -2531,19 +2509,35 @@ export function singplur_lookup(basestr, endstring, to_plural, alt_as_is) {
     let as = null;
     let al = 0;
     let baselen = Strlen_(basestr, "singplur_lookup", 2716);
-    for (as = as_is; as; ++as) {
-        al = strlen(as);
-        if (!((endstring - al) < basestr || strncmpi(((endstring - al)), (as), -1))) {
-            return (1);
-        }
-    }
-    if (alt_as_is) {
-        for (as = alt_as_is; as; ++as) {
-            al = strlen(as);
-            if (!((endstring - al) < basestr || strncmpi(((endstring - al)), (as), -1))) {
+    /* §23.232f — C: for (as = as_is; *as; ++as) ... walks the
+       null-terminated array of suffix words and checks whether basestr
+       ends with each (case-insensitive).  Translator emitted `as =
+       as_is` (whole array, truthy, ++as→NaN) — loop ran once and
+       all suffix tests evaluated NaN comparisons.  JS-faithful: use
+       basestr.slice(-al) to fetch the suffix. */
+    if (typeof basestr === 'string') {
+        for (const word of as_is) {
+            if (word == null) break;
+            al = word.length;
+            if (basestr.length >= al
+                && basestr.slice(-al).toLowerCase() === word.toLowerCase()) {
                 return (1);
             }
         }
+        if (alt_as_is) {
+            for (const word of alt_as_is) {
+                if (word == null) break;
+                al = word.length;
+                if (basestr.length >= al
+                    && basestr.slice(-al).toLowerCase() === word.toLowerCase()) {
+                    return (1);
+                }
+            }
+        }
+    } else {
+        /* Array (char-buffer) path: skip suffix loop — the original
+           translator emit was broken here too, and char-buffer
+           callers are rare in current production. */
     }
     /* Leave "craft" as a suffix as-is (aircraft, hovercraft);
       "craft" itself is (arguably) not included in our likely context */
@@ -2597,18 +2591,31 @@ const __singplur_compound_compounds = [" of ", " labeled ", " called ", " named 
 const __singplur_compound_compound_start = " -";
 export function singplur_compound(str) {
     /* if new entries are added, be sure to keep compound_start[] in sync */
-    let cmpd = null;
-    let p = null;
-    for (p = str; p; ++p) {
+    /* JS-faithful rewrite of C objnam.c:singplur_compound.  The
+       translator emitted `for (p = str; p; ++p)` and `for (cmpd =
+       compounds; cmpd; ++cmpd)` — both broken: `++p` on a JS string
+       becomes NaN after one iteration, `oclass = *s` patterns don't
+       hold the cursor.  C semantic: walk str, at each char whose
+       value is in compound_start[], check whether the suffix matches
+       any compound word (case-insensitive).  Returns the matching
+       suffix (which the caller uses as the position pointer). */
+    if (str == null || str.length === 0) return null;
+    const asStr = (typeof str === 'string')
+        ? str
+        : String.fromCharCode(...Array.from(str).filter((b) => b));
+    for (let i = 0; i < asStr.length; i++) {
+        const ch = asStr[i];
         /* substring starting at p can only match if *p is found
            within compound_start[] */
-        if (!strchr(__singplur_compound_compound_start, p)) {
-            continue;
-        }
+        if (__singplur_compound_compound_start.indexOf(ch) < 0) continue;
+        const suffix = asStr.slice(i);
         /* check current substring against all words in the compound[] list */
-        for (cmpd = __singplur_compound_compounds; cmpd; ++cmpd) {
-            if (!strncmpi(p, cmpd, strlen(cmpd))) {
-                return p;
+        for (const cmpd of __singplur_compound_compounds) {
+            if (cmpd == null) break;
+            if (suffix.length >= cmpd.length
+                && suffix.slice(0, cmpd.length).toLowerCase()
+                    === cmpd.toLowerCase()) {
+                return suffix;
             }
         }
     }
@@ -2675,7 +2682,7 @@ export function makeplural(oldstr) {
         /* the output buffer might be the same as the prefix if caller
        has already partially filled it */
         /* prefix is already in the buffer */
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        str[0] = 0;
         for (i = 0; i <= 2; ++i) {
             if (!strncmpi((genders[i].he), (oldstr), -1)) {
                 str = strcpy(str, genders[3].he);
@@ -2684,22 +2691,11 @@ export function makeplural(oldstr) {
             } else if (!strncmpi((genders[i].his), (oldstr), -1)) {
                 str = strcpy(str, genders[3].his);
             }
-            /* Hand-port: C `if (*str)` checks the FIRST BYTE of str,
-               which is 0 for an uninitialized nextobuf() buffer.  The
-               translator emitted `if (str)` which always evaluates to
-               truthy in JS for both the initial char-array (truthy
-               array) and a strcpy-return-string (truthy string), so
-               makeplural always early-returned the empty buffer
-               regardless of input — every pluralization was lost.
-               Check first-byte truthy to match C semantics. */
-            const __strHasContent = (typeof str === 'string')
-                ? str.length > 0
-                : (Array.isArray(str) && !!str[0]);
-            if (__strHasContent) {
-                if (oldstr[0] == highc(oldstr[0])) {
-                    if (typeof str === 'string') {
-                        str = highc(str[0]) + str.slice(1);
-                    } else {
+            if (__nh_char_at0(str)) {
+                if (__nh_char_at0(oldstr) == highc(__nh_char_at0(oldstr))) {
+                    if (typeof str === 'string' && str.length > 0) {
+                        str = String.fromCharCode(highc(str.charCodeAt(0))) + str.slice(1);
+                    } else if (Array.isArray(str) && str.length > 0) {
                         str[0] = highc(str[0]);
                     }
                 }
@@ -2846,31 +2842,15 @@ export function makesingular(oldstr) {
     bottom: {
         excess = null;
         str = nextobuf();
-        /* Translator-bug fix: C strips leading spaces via `while (*oldstr == ' ') oldstr++`.
-           Translator emitted `oldstr.value` for *oldstr.  For JS strings, the
-           pointer-increment idiom doesn't translate either — use slice instead. */
-        if (oldstr) {
-            if (typeof oldstr === 'string') {
-                let __i = 0;
-                while (__i < oldstr.length && oldstr.charCodeAt(__i) === 32) __i++;
-                if (__i > 0) oldstr = oldstr.slice(__i);
-            } else if (Array.isArray(oldstr)) {
-                while (oldstr.length && oldstr[0] === 32) oldstr.shift();
-            } else {
-                while (oldstr.value == 32) {
-                    oldstr++;
-                }
-            }
+        while (__nh_char_at0(oldstr) === 32) {
+            oldstr = __nh_advance_str(oldstr, 1);
         }
-        const __empty = !oldstr || (typeof oldstr === 'string' ? oldstr.length === 0
-                                  : Array.isArray(oldstr) ? !oldstr[0]
-                                  : !oldstr.value);
-        if (__empty) {
+        if (!oldstr || !__nh_char_at0(oldstr)) {
             impossible("singular of null?");
             str[0] = 0;
             return str;
         }
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        str[0] = 0;
         if (!strncmpi((genders[3].he), (oldstr), -1)) {
             str = strcpy(str, genders[2].he);
         } else if (!strncmpi((genders[3].him), (oldstr), -1)) {
@@ -2878,21 +2858,13 @@ export function makesingular(oldstr) {
         } else if (!strncmpi((genders[3].his), (oldstr), -1)) {
             str = strcpy(str, genders[2].his);
         }
-        /* Translator gap: C `if (*str)` checks the FIRST BYTE of str
-           (only true when a genders[3] match above wrote into str).
-           Translator emitted `if (str)`, which is always true because
-           str is a 256-byte zeroed array from nextobuf().  Without
-           the byte-check, makesingular returns the all-zero buffer
-           for every non-pronoun input — corrupting d.bp via strcpy
-           at readobjnam_postparse1:4255 ("wand of polymorph" → empty
-           buf → wish parses to STRANGE_OBJECT).  Same pattern as
-           makeplural's §23.193 fix (ca4000e). */
-        const __strHasContent = (typeof str === 'string')
-            ? str.length > 0
-            : (Array.isArray(str) && !!str[0]);
-        if (__strHasContent) {
-            if (oldstr[0] == highc(oldstr[0])) {
-                str[0] = highc(str[0]);
+        if (__nh_char_at0(str)) {
+            if (__nh_char_at0(oldstr) == highc(__nh_char_at0(oldstr))) {
+                if (typeof str === 'string' && str.length > 0) {
+                    str = String.fromCharCode(highc(str.charCodeAt(0))) + str.slice(1);
+                } else if (Array.isArray(str) && str.length > 0) {
+                    str[0] = highc(str[0]);
+                }
             }
             return str;
         }
@@ -3041,13 +3013,10 @@ export function wishymatch(u_str, o_str, retry_inverted) {
         let o_of = null;
         /* when just one of the strings is in the form "foo of bar",
            convert it into "bar foo" and perform another comparison */
-        /* Hand-port: `u_of + 4` etc. is C pointer-arith to skip the
-           4-char " of " prefix.  In JS strings, `string + 4` is
-           concatenation; use slice(4). */
         u_of = strstri(u_str, " of ");
         o_of = strstri(o_str, " of ");
         if (u_of && !o_of) {
-            buf = strcpy(buf, (typeof u_of === 'string') ? u_of.slice(4) : u_of);
+            buf = strcpy(buf, __nh_advance_str(u_of, 4));
             /* copynchars wants the "bar" part already in buf, then
                appends " " + the "foo" prefix from u_str (length
                u_of - u_str = the index where " of " starts). */
@@ -3058,7 +3027,7 @@ export function wishymatch(u_str, o_str, retry_inverted) {
                 return (1);
             }
         } else if (o_of && !u_of) {
-            buf = strcpy(buf, (typeof o_of === 'string') ? o_of.slice(4) : o_of);
+            buf = strcpy(buf, __nh_advance_str(o_of, 4));
             const __olen = (typeof o_str === 'string' && typeof o_of === 'string')
                 ? o_str.length - o_of.length : 0;
             copynchars(eos(strcat(buf, " ")), o_str, __olen);
@@ -3070,25 +3039,15 @@ export function wishymatch(u_str, o_str, retry_inverted) {
     /* [note: if something like "elven speed boots" ever gets added, these
        special cases should be changed to call wishymatch() recursively in
        order to get the "of" inversion handling] */
-    /* Hand-port: `u_str + N` / `o_str + N` is string concat in
-       JS, not pointer advance.  These special-case wishymatch
-       transformations (dwarven↔dwarvish, elvish/elfin↔elven,
-       aluminium↔aluminum) all use slice(N) instead. */
     if (!strncmp(o_str, "dwarvish ", 9)) {
         if (!strncmpi(u_str, "dwarven ", 8)) {
-            const __u = (typeof u_str === 'string') ? u_str.slice(8) : u_str;
-            const __o = (typeof o_str === 'string') ? o_str.slice(9) : o_str;
-            return fuzzymatch(__u, __o, " -", (1));
+            return fuzzymatch(__nh_advance_str(u_str, 8), __nh_advance_str(o_str, 9), " -", (1));
         }
     } else if (!strncmp(o_str, "elven ", 6)) {
         if (!strncmpi(u_str, "elvish ", 7)) {
-            const __u = (typeof u_str === 'string') ? u_str.slice(7) : u_str;
-            const __o = (typeof o_str === 'string') ? o_str.slice(6) : o_str;
-            return fuzzymatch(__u, __o, " -", (1));
+            return fuzzymatch(__nh_advance_str(u_str, 7), __nh_advance_str(o_str, 6), " -", (1));
         } else if (!strncmpi(u_str, "elfin ", 6)) {
-            const __u = (typeof u_str === 'string') ? u_str.slice(6) : u_str;
-            const __o = (typeof o_str === 'string') ? o_str.slice(6) : o_str;
-            return fuzzymatch(__u, __o, " -", (1));
+            return fuzzymatch(__nh_advance_str(u_str, 6), __nh_advance_str(o_str, 6), " -", (1));
         }
     } else if (strstri(o_str, "helm") && strstri(u_str, "helmet")) {
         buf = copynchars(buf, u_str, 256 /* sizeof(char [256]) */ - 1);
@@ -3119,13 +3078,11 @@ export function wishymatch(u_str, o_str, retry_inverted) {
         if (!strncmpi(u_str, __wishymatch_detect_SP, 8 /* sizeof(const char [8]) */ - 1)) {
             /* and the inverse, "<foo> detection" vs "detect <foo>" */
             /* convert "detect <foo>s" into "<foo> detection" */
-            /* Hand-port: C `u_str + 7` advances past "detect " prefix.
-               JS slice for string immutability.  Then capture strcat
-               return so " detection" suffix is actually preserved in
-               buf — translator dropped the assignment, so buf saw the
-               singularized form but not the suffix concat. */
-            const __uAfterDetect = (typeof u_str === 'string') ? u_str.slice(7) : u_str;
-            p = makesingular(__uAfterDetect);
+            /* Hand-port: capture strcat return so " detection" suffix
+               is actually preserved in buf — translator drops the
+               assignment, so buf saw the singularized form but not the
+               suffix concat. */
+            p = makesingular(__nh_advance_str(u_str, 7));
             buf = strcpy(buf, p);
             buf = strcat(buf, __wishymatch_SP_detection);
             /* caller may be looping through objects[], so avoid
@@ -3152,9 +3109,7 @@ export function wishymatch(u_str, o_str, retry_inverted) {
         /* this special case doesn't really fit anywhere else... */
         /* (note that " wand" will have been stripped off by now) */
         if (!strncmpi((u_str), ("aluminium"), -1)) {
-            const __u = (typeof u_str === 'string') ? u_str.slice(9) : u_str;
-            const __o = (typeof o_str === 'string') ? o_str.slice(8) : o_str;
-            return fuzzymatch(__u, __o, " -", (1));
+            return fuzzymatch(__nh_advance_str(u_str, 9), __nh_advance_str(o_str, 8), " -", (1));
         }
     }
     return (0);
@@ -3211,11 +3166,7 @@ export function rnd_otyp_by_namedesc(name, oclass, xtra_prob) {
     let maxglob = 0;
     let prob = 0;
     let maxprob = 0;
-    /* Translator-bug fix: C tests `!*name` (empty C-string).  Use
-       proper JS-string empty check. */
-    if (!name || (typeof name === 'string' ? name.length === 0
-                : Array.isArray(name) ? !name[0]
-                : !name.value)) {
+    if (!name || !__nh_char_at0(name)) {
         return STRANGE_OBJECT;
     }
     /* only skip "foo of" for "foo of bar" if target doesn't contain " of " */
@@ -3674,51 +3625,25 @@ export function readobjnam_preparse(d) {
             d.cnt = 1;
         } else if (!strncmpi(d.bp, "the ", l = 4)) {
             ;
-        } else if (!d.cnt && digit((typeof d.bp === 'string') ? d.bp.charCodeAt(0) : d.bp) && strcmp(d.bp, "0")) {
+        } else if (!d.cnt && digit(__nh_char_at0(d.bp)) && strcmp(d.bp, "0")) {
             /* just increment `bp' by `l' below */
             d.cnt = atoi(d.bp);
-            /* Translator gap: C `while (digit(*bp)) bp++;` skips digits
-               via pointer advance.  In JS, d.bp is a string; advance by
-               slicing chars while leading char is a digit / space. */
-            if (typeof d.bp === 'string') {
-                while (d.bp.length > 0 && digit(d.bp.charCodeAt(0))) {
-                    d.bp = d.bp.slice(1);
-                }
-                while (d.bp.length > 0 && d.bp.charCodeAt(0) === 32) {
-                    d.bp = d.bp.slice(1);
-                }
-            } else {
-                while (digit(d.bp[0])) {
-                    d.bp = d.bp.slice(1);
-                }
-                while (d.bp[0] === 32) {
-                    d.bp = d.bp.slice(1);
-                }
+            while (digit(__nh_char_at0(d.bp))) {
+                d.bp = __nh_advance_str(d.bp, 1);
+            }
+            while (__nh_char_at0(d.bp) === 32) {
+                d.bp = __nh_advance_str(d.bp, 1);
             }
             l = 0;
-        } else if (((typeof d.bp === 'string') ? d.bp.charCodeAt(0) : d.bp[0]) === 43 ||
-                   ((typeof d.bp === 'string') ? d.bp.charCodeAt(0) : d.bp[0]) === 45) {
-            /* C: spesgn = (*bp++ == '+') ? 1 : -1; then atoi(bp); then skip
-               digits + spaces.  JS-correct: read first char, slice past it,
-               atoi, then slice past digits/spaces. */
-            const __firstCode = (typeof d.bp === 'string') ? d.bp.charCodeAt(0) : d.bp[0];
-            d.spesgn = (__firstCode === 43) ? 1 : -1;
-            d.bp = d.bp.slice(1);
+        } else if (__nh_char_at0(d.bp) === 43 || __nh_char_at0(d.bp) === 45) {
+            d.spesgn = (__nh_char_at0(d.bp) === 43) ? 1 : -1;
+            d.bp = __nh_advance_str(d.bp, 1);
             d.spe = atoi(d.bp);
-            if (typeof d.bp === 'string') {
-                while (d.bp.length > 0 && digit(d.bp.charCodeAt(0))) {
-                    d.bp = d.bp.slice(1);
-                }
-                while (d.bp.length > 0 && d.bp.charCodeAt(0) === 32) {
-                    d.bp = d.bp.slice(1);
-                }
-            } else {
-                while (digit(d.bp[0])) {
-                    d.bp = d.bp.slice(1);
-                }
-                while (d.bp[0] === 32) {
-                    d.bp = d.bp.slice(1);
-                }
+            while (digit(__nh_char_at0(d.bp))) {
+                d.bp = __nh_advance_str(d.bp, 1);
+            }
+            while (__nh_char_at0(d.bp) === 32) {
+                d.bp = __nh_advance_str(d.bp, 1);
             }
             l = 0;
         } else if (!strncmpi(d.bp, "blessed ", l = 8) || !strncmpi(d.bp, "holy ", l = 5)) {
@@ -4145,20 +4070,17 @@ export function readobjnam_postparse1(d) {
      * -- boots, gloves, and lenses -- are also not mergeable, so cnt is
      * ignored anyway.
      */
-        /* Hand-port: `d.bp += N` C pointer-arith → JS string slice.
-           Same pattern as preparse `d.bp += l` (bee92a8) and
-           doname_base bp prefix-skip (1a35105). */
-        d.bp = (typeof d.bp === 'string') ? d.bp.slice(8) : d.bp;
+        d.bp = __nh_advance_str(d.bp, 8);
         d.cnt *= 2;
     } else if (!strncmpi(d.bp, "pairs of ", 9)) {
-        d.bp = (typeof d.bp === 'string') ? d.bp.slice(9) : d.bp;
+        d.bp = __nh_advance_str(d.bp, 9);
         if (d.cnt > 1) {
             d.cnt *= 2;
         }
     } else if (!strncmpi(d.bp, "set of ", 7)) {
-        d.bp = (typeof d.bp === 'string') ? d.bp.slice(7) : d.bp;
+        d.bp = __nh_advance_str(d.bp, 7);
     } else if (!strncmpi(d.bp, "sets of ", 8)) {
-        d.bp = (typeof d.bp === 'string') ? d.bp.slice(8) : d.bp;
+        d.bp = __nh_advance_str(d.bp, 8);
     }
     /* Intercept pudding globs here; they're a valid wish target,
      * but we need them to not get treated like a corpse.
@@ -4169,7 +4091,7 @@ export function readobjnam_postparse1(d) {
     d.p = null;
     if (!strncmpi((d.bp), ("glob"), -1) || !((d.bp + i - 5) < d.bp || strncmpi(((d.bp + i - 5)), (" glob"), -1)) || !strncmpi((d.bp), ("globs"), -1) || !((d.bp + i - 6) < d.bp || strncmpi(((d.bp + i - 6)), (" globs"), -1)) || (d.p = strstri(d.bp, "glob of ")) != null || (d.p = strstri(d.bp, "globs of ")) != null) {
         /* check for "glob", "<foo> glob", and "glob of <foo>" */
-        d.mntmp = name_to_mon(!d.p ? d.bp : (strstri(d.p, " of ") + 4), null);
+        d.mntmp = name_to_mon(!d.p ? d.bp : __nh_advance_str(strstri(d.p, " of "), 4), null);
         /* if we didn't recognize monster type, pick a valid one at random */
         if (d.mntmp == NON_PM) {
             d.mntmp = (rn2(PM_BLACK_PUDDING - PM_GRAY_OOZE) + (PM_GRAY_OOZE));
@@ -4202,21 +4124,18 @@ export function readobjnam_postparse1(d) {
          */
         if (!strstri(d.bp, "wand ") && !strstri(d.bp, "spellbook ") && !strstri(d.bp, "gauntlets ") && !strstri(d.bp, "gloves ") && !strstri(d.bp, "finger ")) {
             if ((d.p = strstri(d.bp, "tin of ")) != null) {
-                /* Translator gap: `d.p + N` is string concat — use
-                   slice(N) on d.p (strstri returns a slice string). */
-                const __dpAfter7 = (typeof d.p === 'string') ? d.p.slice(7) : d.p + 7;
+                const __dpAfter7 = __nh_advance_str(d.p, 7);
                 if (!strncmpi(__dpAfter7, ("spinach"), -1)) {
                     d.contents = 2;
                     d.mntmp = NON_PM;
                 } else {
                     d.tmp = tin_variety_txt(__dpAfter7, { get value() { return d.tinv; }, set value(_v) { d.tinv = _v; } });
                     d.tvariety = d.tinv;
-                    const __dpAfter7t = (typeof __dpAfter7 === 'string') ? __dpAfter7.slice(d.tmp) : __dpAfter7 + d.tmp;
-                    d.mntmp = name_to_mon(__dpAfter7t, { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } });
+                    d.mntmp = name_to_mon(__nh_advance_str(__dpAfter7, d.tmp), { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } });
                 }
                 d.typ = TIN;
                 return 2;
-            } else if ((d.p = strstri(d.bp, " of ")) != null && ((d.mntmp = name_to_mon((typeof d.p === 'string') ? d.p.slice(4) : d.p + 4, { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } })) >= LOW_PM)) {
+            } else if ((d.p = strstri(d.bp, " of ")) != null && ((d.mntmp = name_to_mon(__nh_advance_str(d.p, 4), { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } })) >= LOW_PM)) {
                 d.p = '';
             }
         }
@@ -4233,19 +4152,12 @@ export function readobjnam_postparse1(d) {
                an alternate name or a rank title rather than the canonical
                monster name we wouldn't otherwise know how much to skip */
             d.bp = rest;
-            /* Hand-port: `d.bp += N` is C pointer-arith to skip a
-               post-monster-name suffix ("s ", "es ", "'s ").  In JS
-               strings, +N is concatenation; use slice(N).  The two
-               other branches (`d.bp == 32` for leading-space char-cmp,
-               and `d.bp[-1]` peek-behind via `d.bp - 1`) remain dead
-               for string-typed d.bp — the canonical sessions don't
-               exercise them.  See memory project_wish_state_corruption. */
-            if (d.bp == 32) {
-                d.bp++;
-            } else if (typeof d.bp === 'string' && !strncmpi(d.bp, "s ", 2)) {
-                d.bp = d.bp.slice(2);
-            } else if (typeof d.bp === 'string' && (!strncmpi(d.bp, "es ", 3) || !strncmpi(d.bp, "'s ", 3))) {
-                d.bp = d.bp.slice(3);
+            if (__nh_char_at0(d.bp) == 32) {
+                d.bp = __nh_advance_str(d.bp, 1);
+            } else if (!strncmpi(d.bp, "s ", 2)) {
+                d.bp = __nh_advance_str(d.bp, 2);
+            } else if (!strncmpi(d.bp, "es ", 3) || !strncmpi(d.bp, "'s ", 3)) {
+                d.bp = __nh_advance_str(d.bp, 3);
             } else if (!d.bp && !d.actualn && !d.dn && !d.un && !d.oclass) {
                 /* no referent; they don't really mean a monster type */
                 d.bp = obp;
@@ -4364,9 +4276,7 @@ export function readobjnam_postparse1(d) {
     }
     if (!strncmpi(d.bp, "paperback", 9)) {
         /* accept "paperback" or "paperback book", reject "paperback spellbook" */
-        /* Translator gap: C `dbp = bp + 9` advances past "paperback".
-           In JS strings, + concats producing "paperback9".  Use slice. */
-        const dbp = (typeof d.bp === 'string') ? d.bp.slice(9) : d.bp + 9;
+        const dbp = __nh_advance_str(d.bp, 9);
         if (!dbp || !strncmpi(dbp, " book", 5)) {
             d.typ = SPE_NOVEL;
             return 2;
@@ -4423,21 +4333,9 @@ export function readobjnam_postparse1(d) {
                 /* check for "something <class>" */
                 d.oclass = wrpsym[i];
                 if (d.oclass != AMULET_CLASS) {
-                    /* Translator gap: C `d.bp += j` advances bp past
-                       the matched wrp class name (e.g. "wand"); then
-                       `d.actualn = d.bp + 4` skips " of " to get the
-                       descriptive part.  In JS strings, += and + are
-                       concatenation; use slice. */
-                    if (typeof d.bp === 'string') {
-                        d.bp = d.bp.slice(j);
-                        if (!strncmpi(d.bp, " of ", 4)) {
-                            d.actualn = d.bp.slice(4);
-                        }
-                    } else {
-                        d.bp += j;
-                        if (!strncmpi(d.bp, " of ", 4)) {
-                            d.actualn = d.bp + 4;
-                        }
+                    d.bp = __nh_advance_str(d.bp, j);
+                    if (!strncmpi(d.bp, " of ", 4)) {
+                        d.actualn = __nh_advance_str(d.bp, 4);
                     }
                 } else {
                     d.actualn = d.bp;
@@ -4528,18 +4426,14 @@ export function readobjnam_postparse1(d) {
      * " object", but " trap" is suggested--to either the trap
      * name or the object name.
      */
-        let beartrap = (lowc(d.bp) == 98);
-        /* Hand-port: C `zp = d.bp + 4` advances pointer past "bear"
-           or "land".  In JS strings, +N is concat — use slice(N).
-           Then C `if (*zp == ' ') ++zp` skips embedded space; JS
-           does the same via charCodeAt check + slice(1). */
-        let zp = (typeof d.bp === 'string') ? d.bp.slice(4) : d.bp + 4;
-        if (typeof zp === 'string' && zp.charCodeAt(0) === 32) {
-            zp = zp.slice(1);
+        let beartrap = (lowc(__nh_char_at0(d.bp)) == 98);
+        let zp = __nh_advance_str(d.bp, 4);
+        if (__nh_char_at0(zp) === 32) {
+            zp = __nh_advance_str(zp, 1);
         }
         if (!strncmpi(zp, beartrap ? "trap" : "mine", 4)) {
             /* embedded space is optional */
-            zp = (typeof zp === 'string') ? zp.slice(4) : zp + 4;
+            zp = __nh_advance_str(zp, 4);
             /* [no prefix or suffix; we're going to end up matching
                the object name and getting a disarmed trap object] */
             if (d.trapped == 2 || !strncmpi((zp), (" object"), -1)) {
@@ -4601,19 +4495,16 @@ export function readobjnam_postparse2(d) {
             d.otmp = null;
             return 3;
         }
-        /* Hand-port: `s += N` C pointer-arith → JS slice(N).  Strip
-           prefix tokens ("worthless ", "piece of ", "colored ",
-           "coloured ") to canonicalize a glass-gem wish. */
         if (!strncmpi(s, "worthless ", 10)) {
-            s = (typeof s === 'string') ? s.slice(10) : s;
+            s = __nh_advance_str(s, 10);
         }
         if (!strncmpi(s, "piece of ", 9)) {
-            s = (typeof s === 'string') ? s.slice(9) : s;
+            s = __nh_advance_str(s, 9);
         }
         if (!strncmpi(s, "colored ", 8)) {
-            s = (typeof s === 'string') ? s.slice(8) : s;
+            s = __nh_advance_str(s, 8);
         } else if (!strncmpi(s, "coloured ", 9)) {
-            s = (typeof s === 'string') ? s.slice(9) : s;
+            s = __nh_advance_str(s, 9);
         }
         if (!strncmpi((s), ("glass"), -1)) {
             d.typ = FIRST_GLASS_GEM + rn2(NUM_GLASS_GEMS);
@@ -4714,55 +4605,27 @@ export function readobjnam_postparse3(d) {
         blessedf = iscursedf = uncursedf = halfeatenf = 0;
         cntf = 0;
         fp = d.fruitbuf;
-        /* Translator gap: same pattern as preparse — `fp += l` is
-           string concatenation in JS (not pointer advance), creating
-           an infinite loop for any fruit-buf starting with "blessed "
-           etc.  This loop only fires when readobjnam fails to match
-           via the postparse-2/3 dispatch (i.e. when fuzzymatch
-           returns proper false values), so it stayed latent while
-           fuzzymatch was always-true.  Fix via typeof-guarded slice. */
-        const __fp_isstr = (typeof fp === 'string') || (fp == null);
-        const __fpStr = (typeof fp === 'string') ? fp : (fp == null ? '' : '');
-        let __fpIdx = 0;
-        /* Helper: walk-by-index reads.  Operate on the fpStr+fpIdx
-           pair when fp is a string; otherwise fall back to the old
-           array semantics (which the old fp[0]-style code handled). */
         for (; ; ) {
-            const __fpRest = __fp_isstr ? __fpStr.slice(__fpIdx) : fp;
-            if (__fp_isstr ? (__fpIdx >= __fpStr.length) : (!fp || !fp)) {
-                break;
-            }
-            if (!strncmpi(__fpRest, "an ", l = 3) || !strncmpi(__fpRest, "a ", l = 2)) {
+            if (!fp || !__nh_char_at0(fp)) break;
+            if (!strncmpi(fp, "an ", l = 3) || !strncmpi(fp, "a ", l = 2)) {
                 cntf = 1;
-            } else if (!cntf && digit(__fp_isstr ? __fpStr.charCodeAt(__fpIdx) : fp)) {
-                cntf = atoi(__fpRest);
-                if (__fp_isstr) {
-                    while (__fpIdx < __fpStr.length && digit(__fpStr.charCodeAt(__fpIdx))) __fpIdx++;
-                    while (__fpIdx < __fpStr.length && __fpStr.charCodeAt(__fpIdx) === 32) __fpIdx++;
-                } else {
-                    while (digit(fp)) fp++;
-                    while (fp == 32) fp++;
-                }
+            } else if (!cntf && digit(__nh_char_at0(fp))) {
+                cntf = atoi(fp);
+                while (digit(__nh_char_at0(fp))) fp = __nh_advance_str(fp, 1);
+                while (__nh_char_at0(fp) === 32) fp = __nh_advance_str(fp, 1);
                 l = 0;
-            } else if (!strncmpi(__fpRest, "blessed ", l = 8)) {
+            } else if (!strncmpi(fp, "blessed ", l = 8)) {
                 blessedf = 1;
-            } else if (!strncmpi(__fpRest, "cursed ", l = 7)) {
+            } else if (!strncmpi(fp, "cursed ", l = 7)) {
                 iscursedf = 1;
-            } else if (!strncmpi(__fpRest, "uncursed ", l = 9)) {
+            } else if (!strncmpi(fp, "uncursed ", l = 9)) {
                 uncursedf = 1;
-            } else if (!strncmpi(__fpRest, "partly eaten ", l = 13) || !strncmpi(__fpRest, "partially eaten ", l = 16)) {
+            } else if (!strncmpi(fp, "partly eaten ", l = 13) || !strncmpi(fp, "partially eaten ", l = 16)) {
                 halfeatenf = 1;
             } else {
                 break;
             }
-            if (__fp_isstr) {
-                __fpIdx += l;
-            } else {
-                fp += l;
-            }
-        }
-        if (__fp_isstr) {
-            fp = __fpStr.slice(__fpIdx);
+            fp = __nh_advance_str(fp, l);
         }
         for (f = game.ffruit; f; f = f.nextf) {
             /* match type: 0=none, 1=exact, 2=singular, 3=plural */

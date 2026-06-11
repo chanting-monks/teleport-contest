@@ -30,8 +30,19 @@ export function isaac64_init(ctx, seed_bytes, len) {
     ctx.n = 0;
     ctx.r = new Array(SZ).fill(0n);
     ctx.m = new Array(SZ).fill(0n);
-    const seed = (typeof len === 'number' && Array.isArray(seed_bytes))
-        ? seed_bytes.slice(0, len)
-        : seed_bytes;
+    // §23.232y: rnd.c STRING_MODE migration converts new_rng_state from
+    // a char-array [0,0,...] to a string '' — `seed_bytes` arrives as a
+    // string in that case.  Frozen isaac64 does `BigInt(seed_bytes[idx])`
+    // which fails on a single-char string ('a' isn't a BigInt).  Coerce
+    // string to a byte array of char codes so the frozen path sees the
+    // same shape regardless of which side built the seed.
+    let coerced = seed_bytes;
+    if (typeof seed_bytes === 'string') {
+        coerced = new Array(seed_bytes.length);
+        for (let i = 0; i < seed_bytes.length; i++) coerced[i] = seed_bytes.charCodeAt(i);
+    }
+    const seed = (typeof len === 'number' && Array.isArray(coerced))
+        ? coerced.slice(0, len)
+        : coerced;
     frozen_reseed(ctx, seed);
 }

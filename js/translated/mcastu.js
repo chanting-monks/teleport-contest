@@ -6,7 +6,7 @@ import { game } from '../gstate.js';
 import { abs, sgn } from '../c2js-runtime/math.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, You_hear, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { strcpy } from '../c2js-runtime/string.js';
 import { acurr, adjuhploss, losestr, minuhpmax, setuhpmax } from './attrib.js';
 import { is_waterwall } from './dbridge.js';
@@ -313,7 +313,7 @@ export function m_cure_self(mtmp, dmg) {
 /* unlike the finger of death spell which behaves like a wand of death,
    this monster spell only attacks the hero */
 export function touch_of_death(mtmp) {
-    let kbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let kbuf = '';
     let dmg = 50 + d(8, 6);
     let drain = Math.trunc(dmg / 2);
     /* if we get here, we know that hero isn't magic resistant and isn't
@@ -360,9 +360,9 @@ export function death_inflicted_by(outbuf, deathreason, mtmp) {
         if (!(((champtr).mflags2 & 524288) != 0) && !the_unique_pm(mptr)) {
             realnm = an(realnm);
         }
-        outbuf = (outbuf || '') + sprintf('', " inflicted by %s%s", the_unique_pm(mptr) ? "the " : "", realnm);
+        outbuf = __nh_buf_append(outbuf, sprintf('', " inflicted by %s%s", the_unique_pm(mptr) ? "the " : "", realnm));
         if (champtr != mptr) {
-            outbuf = (outbuf || '') + sprintf('', " imitating %s", an(fakenm));
+            outbuf = __nh_buf_append(outbuf, sprintf('', " imitating %s", an(fakenm)));
         }
     }
     return outbuf;
@@ -435,7 +435,7 @@ export function mcast_weaken_you(mtmp, dmg) {
         monstseesu(M_SEEN_MAGR);
         You_feel("momentarily weakened.");
     } else {
-        let kbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let kbuf = '';
         You("suddenly feel weaker!");
         dmg = mtmp.m_lev - 6;
         /* paranoia since only chosen when m_lev is high */
@@ -589,7 +589,7 @@ export function mcast_insects(mtmp) {
        left, go for (sticks to) snakes.  -3. */
     let pm = mkclass(S_ANT, 0);
     let mtmp2 = null;
-    let whatbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let whatbuf = '';
     let let_ = (pm ? S_ANT : S_SNAKE);
     let success = (0);
     let seecaster = 0;

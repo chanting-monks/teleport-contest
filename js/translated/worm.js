@@ -299,7 +299,7 @@ export function wormgone(worm) {
      *  the hidden tail segment which is co-located with the head.)
      */
     toss_wsegs(game.wtails[wnum], (1));
-    game.wheads[wnum] = game.wtails[wnum] = null;
+    (game.wtails[wnum] = null, game.wheads[wnum] = null);
     game.wgrowtime[wnum] = 0;
     /* we don't expect to encounter this here but check for it anyway;
        when a long worm gets created by a polymorph zap, it gets flagged
@@ -522,7 +522,7 @@ export function save_worm(nhfp) {
                 free((curr));
                 curr = temp;
             }
-            game.wheads[i] = game.wtails[i] = null;
+            (game.wtails[i] = null, game.wheads[i] = null);
             game.wgrowtime[i] = 0;
         }
     }
@@ -686,7 +686,7 @@ export function place_worm_tail_randomly(worm, x, y) {
        if it doesn't get tossed, it will become the final tail segment and
        get new coordinates */
     game.wheads[wnum].wx = game.wheads[wnum].wy = 0;
-    game.wheads[wnum] = new_tail = curr;
+    (new_tail = curr, game.wheads[wnum] = curr);
     curr = curr.nseg;
     new_tail.nseg = null;
     new_tail.wx = x;

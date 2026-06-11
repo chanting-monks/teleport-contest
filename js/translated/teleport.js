@@ -7,8 +7,8 @@ import { game } from '../gstate.js';
 import { free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, Your, pline, verbalize } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, atoi, strcat, strchr, strcmp, strcpy } from '../c2js-runtime/string.js';
 import { get_mleash, m_unleash, next_to_u } from './apply.js';
 import { acurr, exercise } from './attrib.js';
 import { drag_ball, move_bc, placebc, unplacebc } from './ball.js';
@@ -482,7 +482,7 @@ export function teleds(nux, nuy, teleds_flags) {
        room entry message, if any, so need to check for vault exit prior
        to spoteffects; but spoteffects() sets up new value for u.urooms
        and vault code depends upon that value, so we need to fake it */
-        let save_urooms = [0, 0, 0, 0, 0];
+        let save_urooms = '';
         save_urooms = strcpy(save_urooms, game.u.urooms);
         strcpy(game.u.urooms, in_rooms(game.u.ux, game.u.uy, VAULT));
         /* if hero has left vault, make guard notice */
@@ -775,10 +775,10 @@ export function scrolltele(scroll) {
         if (unconscious()) {
             pline("Being unconscious, you cannot control your teleport.");
         } else {
-            let whobuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let whobuf = '';
             whobuf = strcpy(whobuf, "you");
             if (game.u.usteed) {
-                whobuf = (whobuf || '') + sprintf('', " and %s", mon_nam(game.u.usteed));
+                whobuf = __nh_buf_append(whobuf, sprintf('', " and %s", mon_nam(game.u.usteed)));
             }
             pline("Where do %s want to be teleported?", whobuf);
             if (scroll) {
@@ -1031,7 +1031,7 @@ export function level_tele() {
     let newlevel = { dnum: 0, dlevel: 0 };
     /* when surviving dest of -N */
     let escape_by_flying = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let force_dest = (0);
     if (game.iflags.debug_fuzzer) {
         do {
@@ -1050,47 +1050,47 @@ export function level_tele() {
     let __controllable_taken = false;
     if (((game.u.uprops[TELEPORT_CONTROL].intrinsic || game.u.uprops[TELEPORT_CONTROL].extrinsic) && !game.u.uprops[STUNNED].intrinsic) || game.flags.debug) {
         __controllable_taken = true;
-        let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let qbuf = '';
         let trycnt = 0;
         qbuf = strcpy(qbuf, "To what level do you want to teleport?");
-        /* levTport_menu-force-menu fix */
         levtport_pick: do {
-            let __force_menu = (0);
             if (game.iflags.menu_requested) {
                 /* wizard mode 'm ^V' skips prompting on first pass
                    (note: level Tport via menu won't have any second pass) */
                 game.iflags.menu_requested = (0);
                 if (game.flags.debug) {
-                    __force_menu = (1);
+                    /* TODO Phase 5+: goto levTport_menu (label not in scope of break) */
                 }
             }
-            if (!__force_menu) {
-                if (++trycnt == 2) {
-                    if (game.flags.debug) {
-                        qbuf = strcat(qbuf, " [type a number, name, or ? for a menu]");
-                    } else {
-                        qbuf = strcat(qbuf, " [type a number or name]");
-                    }
+            if (++trycnt == 2) {
+                if (game.flags.debug) {
+                    qbuf = strcat(qbuf, " [type a number, name, or ? for a menu]");
+                } else {
+                    qbuf = strcat(qbuf, " [type a number or name]");
                 }
-                /* EDIT_GETLIN: if we're on second or later pass,
+            }
+            /* EDIT_GETLIN: if we're on second or later pass,
                             the previous input was invalid so don't use it
                             as getlin()'s preloaded default answer */
-                buf = '';
-                getlin(qbuf, buf);
-                if (!strcmp(buf, "*")) {
-                    __do_random_levtport = true;
-                    break levtport_pick;
-                } else if (game.u.uprops[CONFUSION].intrinsic && rnl(5)) {
-                    pline("Oops...");
-                    __do_random_levtport = true;
-                    break levtport_pick;
-                } else if (!strcmp(buf, "\x1b")) {
-                    return;
-                }
+            buf = '';
+            getlin(qbuf, buf);
+            if (!strcmp(buf, "*")) {
+                __do_random_levtport = true;
+                break levtport_pick;
+            } else if (game.u.uprops[CONFUSION].intrinsic && rnl(5)) {
+                pline("Oops...");
+                __do_random_levtport = true;
+                break levtport_pick;
+            } else if (!strcmp(buf, "\x1b")) {
+                return;
             }
-            if (__force_menu || (game.flags.debug && !strcmp(buf, "?"))) {
+            if (game.flags.debug && !strcmp(buf, "?")) {
                 let destlev = 0;
                 let destdnum = 0;
+                levTport_menu: {
+                }
+                destlev = 0;
+                destdnum = 0;
                 newlev = print_dungeon((1), { get value() { return destlev; }, set value(_v) { destlev = _v; } }, { get value() { return destdnum; }, set value(_v) { destdnum = _v; } });
                 if (!newlev) {
                     return;
@@ -1111,34 +1111,33 @@ export function level_tele() {
             } else if ((newlev = lev_by_name(buf)) == 0) {
                 newlev = atoi(buf);
             }
-        } while (!newlev && !digit(buf[0]) && (buf[0] != 45 || !digit(buf[1])) && trycnt < 10);
-        if (!__do_random_levtport && newlev == 0) {
+        } while (!newlev && !digit(__nh_char_at0(buf)) && (__nh_char_at0(buf) != 45 || !digit(__nh_char_at0(__nh_advance_str(buf, 1)))) && trycnt < 10);
+        if (newlev == 0) {
+            /* no dungeon escape via this route */
             if (trycnt >= 10) {
-                __do_random_levtport = true;
-            } else {
-                if (yn_function("Go to Nowhere.  Are you sure?", ynqchars, 113, (1)) != 121) {
-                    return;
-                }
-                You("%s in agony as your body begins to warp...", ((game.youmonst.data).msound == MS_SILENT) ? "writhe" : "scream");
-                (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
-                You("cease to exist.");
-                if (game.invent) {
-                    Your("possessions land on the %s with a thud.", surface(game.u.ux, game.u.uy));
-                }
-                game.killer.format = 2;
-                game.killer.name = strcpy(game.killer.name, "committed suicide");
-                done(DIED);
-                pline("An energized cloud of dust begins to coalesce.");
-                Your("body rematerializes%s.", game.invent ? ", and you gather up all your possessions" : "");
+                /* TODO Phase 5+: goto random_levtport (label not in scope of break) */
+            }
+            if (yn_function("Go to Nowhere.  Are you sure?", ynqchars, 113, (1)) != 121) {
                 return;
             }
+            You("%s in agony as your body begins to warp...", ((game.youmonst.data).msound == MS_SILENT) ? "writhe" : "scream");
+            (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+            You("cease to exist.");
+            if (game.invent) {
+                Your("possessions land on the %s with a thud.", surface(game.u.ux, game.u.uy));
+            }
+            game.killer.format = 2;
+            game.killer.name = strcpy(game.killer.name, "committed suicide");
+            done(DIED);
+            pline("An energized cloud of dust begins to coalesce.");
+            Your("body rematerializes%s.", game.invent ? ", and you gather up all your possessions" : "");
+            return;
         }
-        if (!__do_random_levtport) {
-            if (single_level_branch(game.u.uz) && newlev > 0 && !force_dest) {
-                You("%s", c_common_strings.c_shudder_for_moment);
-                return;
-            }
-            /* if in Quest, the player sees "Home 1", etc., on the status
+        if (single_level_branch(game.u.uz) && newlev > 0 && !force_dest) {
+            You("%s", c_common_strings.c_shudder_for_moment);
+            return;
+        }
+        /* if in Quest, the player sees "Home 1", etc., on the status
          * line, instead of the logical depth of the level.  controlled
          * level teleport request is likely to be relativized to the
          * status line, and consequently it should be incremented to
@@ -1146,12 +1145,12 @@ export function level_tele() {
          *
          * we let negative values requests fall into the "heaven" handling.
          */
-            if (In_quest(game.u.uz) && newlev > 0) {
-                newlev = newlev + game.dungeons[game.u.uz.dnum].depth_start - 1;
-            }
+        if (In_quest(game.u.uz) && newlev > 0) {
+            newlev = newlev + game.dungeons[game.u.uz.dnum].depth_start - 1;
         }
-    }
-    if (__do_random_levtport || !__controllable_taken) {
+    } else {
+        random_levtport: {
+        }
         newlev = random_teleport_level();
         if (newlev == depth(game.u.uz)) {
             You("%s", c_common_strings.c_shudder_for_moment);
@@ -1366,7 +1365,7 @@ export function tele_trap(trap) {
     __tele_trap_in_tele_trap = (0);
 }
 export function level_tele_trap(trap, trflags) {
-    let verbbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let verbbuf = '';
     let intentional = (0);
     if ((trflags & (32 | 1)) != 0) {
         verbbuf = strcpy(verbbuf, "trigger");
@@ -1677,7 +1676,7 @@ export function rloc(mtmp, rlocflags) {
 /* let wizard-mode player choose a teleporting monster's destination */
 /* input: default spot; output: player selected spot */
 export function control_mon_tele(mon, cc_p, rlocflags, via_rloc) {
-    let tcbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tcbuf = '';
     if (!isok(cc_p.x, cc_p.y)) {
         cc_p.x = mon.mx , cc_p.y = mon.my;
         if (!isok(cc_p.x, cc_p.y)) {
@@ -2063,5 +2062,4 @@ export function u_teleport_mon(mtmp, give_feedback) {
      */
 /* and become exempt from further shuffling */
 /* can't both be non-NOOP so addition will yield the non-NOOP one */
-/* no dungeon escape via this route */
 /* you're now effectively out of the shop */

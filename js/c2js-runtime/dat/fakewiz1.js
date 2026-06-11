@@ -25,5 +25,5 @@ export default async function({ __lua_bor, des, selection }) {
       await des.trap("board", 5, 4);
     }) });
   let protected_ = __lua_bor(bounds2.negate(), fakewiz1);
-  globalThis.hell_tweaks(protected_);
+  await globalThis.hell_tweaks(protected_);
 }

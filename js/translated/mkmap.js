@@ -6,6 +6,7 @@ import { game } from '../gstate.js';
 import { abs } from '../c2js-runtime/math.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
+import { __nh_advance_str } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { depth } from './dungeon.js';
 import { add_room } from './mklev.js';
@@ -106,7 +107,7 @@ export function pass_two(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            game.level.locations[x][y].typ = game.new_locations[y * 79 + x];
+            game.level.locations[x][y].typ = (__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x));
         }
     }
 }
@@ -131,7 +132,7 @@ export function pass_three(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            game.level.locations[x][y].typ = game.new_locations[y * 79 + x];
+            game.level.locations[x][y].typ = (__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x));
         }
     }
 }

@@ -32,8 +32,8 @@ import { game } from '../gstate.js';
 import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You_cant, pline, raw_printf } from '../c2js-runtime/pline.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, atol, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
 import { sanitize_name } from './bones.js';
 import { all_options_statushilites, bot, check_gold_symbol, clear_status_hilites, cond_menu, condopt, count_status_hilites, opt_next_cond, parse_cond_option, parse_status_hl1, reset_status_hilites, status_hilite_menu, status_initialize } from './botl.js';
 import { yyyymmddhhmmss } from './calendar.js';
@@ -218,14 +218,15 @@ export function ask_do_tutorial() {
         let win = 0;
         let sel = null;
         let any = 0;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        /* see also: add_menu_coloring() */
+        let buf = '';
         let rc = null;
         let norc = 0;
         let n = 0;
         let pass = 0;
         rc = nh_basename(get_configfile(), (1));
         norc = !strcmp(get_configfile(), "/dev/null");
-        nh_snprintf("ask_do_tutorial", 447, buf, 256 /* sizeof(char [256]) */, "Put \"OPTIONS=!tutorial\" in %s to skip this query.", (rc && rc && !norc) ? rc : "your configuration file");
+        buf = nh_snprintf("ask_do_tutorial", 447, buf, 256 /* sizeof(char [256]) */, "Put \"OPTIONS=!tutorial\" in %s to skip this query.", (rc && __nh_char_at0(rc) && !norc) ? rc : "your configuration file");
         do {
             win = (game.windowprocs.win_create_nhwindow)(4);
             (game.windowprocs.win_start_menu)(win, 0);
@@ -313,20 +314,20 @@ export function parseoptions(opts, tinitial, tfrom_file) {
         return (0);
     }
     /* strip leading and trailing white space */
-    while (((__ctype_b_loc())[((opts.value))] & _ISspace)) {
-        opts++;
+    while (((__ctype_b_loc())[((__nh_char_at0(opts)))] & _ISspace)) {
+        (opts = __nh_advance_str(opts, 1));
     }
     op = eos(opts);
-    while (--op >= opts && ((__ctype_b_loc())[((op))] & _ISspace)) {
+    while ((op = __nh_advance_str(op, -1)) >= opts && ((__ctype_b_loc())[((__nh_char_at0(op)))] & _ISspace)) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     }
-    if (!opts.value) {
+    if (!__nh_char_at0(opts)) {
         config_error_add("Empty statement");
         return (0);
     }
     negated = (0);
-    while ((opts.value == 33) || !strncmpi(opts, "no", 2)) {
-        opts += (opts.value == 33) ? 1 : (opts[2] != 45) ? 2 : 3;
+    while ((__nh_char_at0(opts) == 33) || !strncmpi(opts, "no", 2)) {
+        opts = __nh_advance_str(opts, (__nh_char_at0(opts) == 33) ? 1 : (__nh_char_at0(__nh_advance_str(opts, 2)) != 45) ? 2 : 3);
         negated = !negated;
     }
     optlen = strlen(opts);
@@ -450,9 +451,9 @@ export function parseoptions(opts, tinitial, tfrom_file) {
         return (0);
     }
     if (pfx_match && optresult == optn_err) {
-        let pfxbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let pfxbuf = '';
         let pfxp = null;
-        nh_snprintf("parseoptions", 677, pfxbuf, 256 /* sizeof(char [256]) */, "%s", opts);
+        pfxbuf = nh_snprintf("parseoptions", 677, pfxbuf, 256 /* sizeof(char [256]) */, "%s", opts);
         if ((pfxp = strchr(pfxbuf, 58)) != null) {
             pfxbuf = nh_strchr_truncate(pfxbuf, 58, 'chr');
         }
@@ -527,7 +528,7 @@ export function saveoptstr(optidx, optstr) {
         p = q;
     }
     if (p) {
-        optstr = p + 1;
+        optstr = __nh_advance_str(p, 1);
     }
     if (game.roleoptvals[roleoptindx][phase]) {
         free(game.roleoptvals[roleoptindx][phase]);
@@ -563,7 +564,7 @@ export function freeroleoptvals() {
 /* 0 */
 /* common to optfn_catname(), optfn_dogname(), optfn_horsename() */
 export function petname_optfn(optidx, req, negated, opts, op) {
-    let failsafe = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let failsafe = '';
     let petname = (optidx == opt_catname) ? game.catname : (optidx == opt_dogname) ? game.dogname : (optidx == opt_horsename) ? game.horsename : failsafe;
     if (req == do_init) {
         ;
@@ -577,8 +578,8 @@ export function petname_optfn(optidx, req, negated, opts, op) {
         nmcpy(petname, op, 63);
         sanitize_name(petname);
     } else if (req == get_val || req == get_cnf_val) {
-        failsafe[0] = 0;
-        opts = sprintf(opts, "%s", petname ? petname : (req == get_cnf_val) ? "none" : none);
+        failsafe = '';
+        opts = sprintf(opts, "%s", __nh_char_at0(petname) ? petname : (req == get_cnf_val) ? "none" : none);
     }
     /* context.botlx = TRUE ought to suffice
                                     * but doesn't for X11 fancy status */
@@ -628,7 +629,7 @@ export function optfn_alignment(optidx, req, negated, opts, op) {
         if (!parse_role_opt(optidx, negated, game.allopt[optidx].name, opts, { get value() { return op; }, set value(_v) { op = _v; } })) {
             return optn_silenterr;
         }
-        if (op.value != 33) {
+        if (__nh_char_at0(op) != 33) {
             if ((game.flags.initalign = str2align(op)) == (-1)) {
                 config_error_add("Unknown %s '%s'", game.allopt[optidx].name, op);
                 return optn_err;
@@ -750,7 +751,7 @@ export function optfn_altkeyhandling(optidx, req, negated, opts, op) {
     if (req == get_val || req == get_cnf_val) {
         /* note: always leaves enough room for caller to tack on '\n' */
         /* TODO: wide 'get_val' may need to be wrapped in the menu display */
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -800,7 +801,7 @@ export function optfn_autounlock(optidx, req, negated, opts, op) {
                        this allows "apply_key" and "applykey" to match
                        "apply-key"; "apply key" too if part of foo+bar */
                     matched = (1);
-                    switch (op.value) {
+                    switch (__nh_char_at0(op)) {
                         /* maximum burden picked up before prompt (Warren Cheung) */
                         case 117:
                             newflags |= 1;
@@ -842,16 +843,16 @@ export function optfn_autounlock(optidx, req, negated, opts, op) {
             let p = "";
             opts.value = 0;
             if (game.flags.autounlock & 1) {
-                opts = (opts || '') + sprintf('', "%s%s", p, unlocktypes[0][0]) , p = __optfn_autounlock_plus;
+                opts = __nh_buf_append(opts, sprintf('', "%s%s", p, unlocktypes[0][0])) , p = __optfn_autounlock_plus;
             }
             if (game.flags.autounlock & 2) {
-                opts = (opts || '') + sprintf('', "%s%s", p, unlocktypes[1][0]) , p = __optfn_autounlock_plus;
+                opts = __nh_buf_append(opts, sprintf('', "%s%s", p, unlocktypes[1][0])) , p = __optfn_autounlock_plus;
             }
             if (game.flags.autounlock & 4) {
-                opts = (opts || '') + sprintf('', "%s%s", p, unlocktypes[2][0]) , p = __optfn_autounlock_plus;
+                opts = __nh_buf_append(opts, sprintf('', "%s%s", p, unlocktypes[2][0])) , p = __optfn_autounlock_plus;
             }
             if (game.flags.autounlock & 8) {
-                opts = (opts || '') + sprintf('', "%s%s", p, unlocktypes[3][0]);
+                opts = __nh_buf_append(opts, sprintf('', "%s%s", p, unlocktypes[3][0]));
             }
         }
         return optn_ok;
@@ -876,24 +877,24 @@ export function optfn_boulder(optidx, req, negated, opts, op) {
         escapes(opts, opts);
         /* note: dummy monclass #0 has symbol value '\0'; we allow that--
            attempting to set bouldersym to '^@'/'\0' will reset to default */
-        if (def_char_to_monclass(opts[0]) != MAXMCLASSES) {
-            clash = opts[0] ? 1 : 0;
-        } else if (opts[0] >= 49 && opts[0] < 6 + 48) {
+        if (def_char_to_monclass(__nh_char_at0(opts)) != MAXMCLASSES) {
+            clash = __nh_char_at0(opts) ? 1 : 0;
+        } else if (__nh_char_at0(opts) >= 49 && __nh_char_at0(opts) < 6 + 48) {
             clash = 2;
         }
-        if (opts[0] < 32) {
+        if (__nh_char_at0(opts) < 32) {
             config_error_add("boulder symbol cannot be a control character");
             return optn_ok;
         } else if (clash) {
             /* symbol chosen matches a used monster or warning
                symbol which is not good - reject it */
-            config_error_add("Badoption - boulder symbol '%s' would conflict with a %s symbol", visctrl(opts[0]), (clash == 1) ? "monster" : "warning");
+            config_error_add("Badoption - boulder symbol '%s' would conflict with a %s symbol", visctrl(__nh_char_at0(opts)), (clash == 1) ? "monster" : "warning");
         } else {
             /*
              * Override the default boulder symbol.
              */
-            game.ov_primary_syms[SYM_BOULDER + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)] = opts[0];
-            game.ov_rogue_syms[SYM_BOULDER + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)] = opts[0];
+            game.ov_primary_syms[SYM_BOULDER + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)] = __nh_char_at0(opts);
+            game.ov_rogue_syms[SYM_BOULDER + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)] = __nh_char_at0(opts);
             if (!game.opt_initial) {
                 /* for 'initial', update of BOULDER symbol is done in
                initoptions_finish(), after all symset options
@@ -912,7 +913,7 @@ export function optfn_boulder(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         opts = sprintf(opts, "%c", game.ov_primary_syms[SYM_BOULDER + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)] ? game.ov_primary_syms[SYM_BOULDER + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)] : game.showsyms[game.objects[BOULDER].oc_class + ((0) + MAXPCHARS)]);
         return optn_ok;
     }
@@ -1030,7 +1031,7 @@ export function optfn_DECgraphics(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1063,10 +1064,10 @@ export function optfn_disclose(optidx, req, negated, opts, op) {
         }
         num = 0;
         prefix_val = -1;
-        while (op.value && num < 7 /* sizeof(char [7]) */ - 1) {
+        while (__nh_char_at0(op) && num < 7 /* sizeof(char [7]) */ - 1) {
             let c = 0;
             let dop = null;
-            c = lowc(op.value);
+            c = lowc(__nh_char_at0(op));
             if (c == 107) {
                 c = 118;
             }
@@ -1075,14 +1076,14 @@ export function optfn_disclose(optidx, req, negated, opts, op) {
             }
             dop = strchr(disclosure_options, c);
             if (dop) {
-                idx = (dop - disclosure_options);
+                idx = ((disclosure_options.length - dop.length));
                 if (idx < 0 || idx > 6 - 1) {
                     impossible("bad disclosure index %d %c", idx, c);
                     /* just handled '?'; there might be more picks */
                     continue;
                 }
                 if (prefix_val != -1) {
-                    if (dop != 118 && dop != 103) {
+                    if (__nh_char_at0(dop) != 118 && __nh_char_at0(dop) != 103) {
                         if (prefix_val == 63) {
                             prefix_val = 121;
                         }
@@ -1100,15 +1101,15 @@ export function optfn_disclose(optidx, req, negated, opts, op) {
             } else if (c == 32) {
                 ;
             } else {
-                config_error_add("Unknown %s parameter '%c'", game.allopt[optidx].name, op.value);
+                config_error_add("Unknown %s parameter '%c'", game.allopt[optidx].name, __nh_char_at0(op));
                 return optn_err;
             }
-            op++;
+            (op = __nh_advance_str(op, 1));
         }
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         for (i = 0; i < 6; i++) {
             if (i) {
                 opts = strkitten(opts, 32);
@@ -1138,7 +1139,7 @@ export function optfn_dungeon(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1155,7 +1156,7 @@ export function optfn_effects(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1292,7 +1293,7 @@ export function optfn_gender(optidx, req, negated, opts, op) {
         if (!parse_role_opt(optidx, negated, game.allopt[optidx].name, opts, { get value() { return op; }, set value(_v) { op = _v; } })) {
             return optn_silenterr;
         }
-        if (op.value != 33) {
+        if (__nh_char_at0(op) != 33) {
             if ((game.flags.initgend = str2gend(op)) == (-1)) {
                 config_error_add("Unknown %s '%s'", game.allopt[optidx].name, op);
                 return optn_err;
@@ -1340,7 +1341,7 @@ export function optfn_glyph(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1364,7 +1365,7 @@ export function optfn_hilite_status(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         if (req == get_val) {
             opts = strcpy(opts, count_status_hilites() ? "(see \"status highlight rules\" below)" : "(none)");
         }
@@ -1412,7 +1413,7 @@ export function optfn_IBMgraphics(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1492,7 +1493,7 @@ export function shared_menu_optfn(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1560,7 +1561,7 @@ export function optfn_menu_headings(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        let ca_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let ca_buf = '';
         ca_buf = strcpy(ca_buf, color_attr_to_str(game.iflags.menu_headings));
         /* change "no color" to "no-color" or "light blue" to "light-blue" */
         strNsubst(ca_buf, " ", "-", 0);
@@ -1595,7 +1596,7 @@ export function optfn_menu_objsyms(optidx, req, negated, opts, op) {
                accept obsolete boolean 'use_menu_glyphs' as a synonym
                for 'menu_objsyms:entries' (2) */
             osyms = !strncmp(opts, "use_menu_glyphs", 15) ? 2 : 1;
-        } else if (digit(op.value)) {
+        } else if (digit(__nh_char_at0(op))) {
             i = atoi(op);
             if (i >= (Math.trunc(6 /* sizeof(const struct objsymopt [6]) */ / 1 /* sizeof(const struct objsymopt) */))) {
                 config_error_add("Illegal %s parameter '%s'", game.allopt[optidx].name, op);
@@ -1670,7 +1671,7 @@ export function optfn_menustyle(optidx, req, negated, opts, op) {
             /* string_for_opt gave feedback */
             tmp = negated ? 110 : 102;
         } else {
-            tmp = lowc(op.value);
+            tmp = lowc(__nh_char_at0(op));
         }
         switch (tmp) {
             case 110:
@@ -1714,7 +1715,7 @@ export function optfn_monsters(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1736,7 +1737,7 @@ export function optfn_mouse_support(optidx, req, negated, opts, op) {
             }
         } else {
             let mode = atoi(op);
-            if (mode < 0 || mode > 2 || (mode == 0 && op.value != 48)) {
+            if (mode < 0 || mode > 2 || (mode == 0 && __nh_char_at0(op) != 48)) {
                 config_error_add("Illegal %s parameter '%s'", game.allopt[optidx].name, op);
                 return optn_err;
             } else {
@@ -1774,7 +1775,7 @@ export function optfn_msg_window(optidx, req, negated, opts, op) {
                 bad_negation(game.allopt[optidx].name, (1));
                 return optn_err;
             }
-            tmp = lowc(op.value);
+            tmp = lowc(__nh_char_at0(op));
         }
         switch (tmp) {
             /* single message history cycle (default if negated) */
@@ -1791,7 +1792,7 @@ export function optfn_msg_window(optidx, req, negated, opts, op) {
         return retval;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         tmp = game.iflags.prevmsg_window;
         if ((game.windowprocs.wp_id == wp_curses)) {
             if (tmp == 115 || tmp == 99) {
@@ -1865,7 +1866,7 @@ export function optfn_number_pad(optidx, req, negated, opts, op) {
             return optn_err;
         } else {
             let mode = atoi(op);
-            if (mode < -1 || mode > 4 || (mode == 0 && op.value != 48)) {
+            if (mode < -1 || mode > 4 || (mode == 0 && __nh_char_at0(op) != 48)) {
                 config_error_add("Illegal %s parameter '%s'", game.allopt[optidx].name, op);
                 return optn_err;
             } else if (mode <= 0) {
@@ -1914,7 +1915,7 @@ export function optfn_objects(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -1933,7 +1934,7 @@ export function optfn_packorder(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        let ocl = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let ocl = '';
         oc_to_str(game.flags.inv_order, ocl);
         opts = sprintf(opts, "%s", ocl);
         return optn_ok;
@@ -1959,11 +1960,11 @@ export function optfn_paranoid_confirmation(optidx, req, opt_negated, opts, op) 
         return optn_ok;
     }
     if (req == do_set) {
-        let prayconfirm = [0, 0, 0, 0, 0, 0];
+        let prayconfirm = '';
         let pp = null;
         let plus_or_minus = (0);
         if (!strncmpi(opts, "prayconfirm", 4)) {
-            if (op.value) {
+            if (__nh_char_at0(op)) {
                 /*
          * "prayconfirm" used to be a separate boolean option,
          * now it is a synonym for paranoid_confirm:+pray and
@@ -1993,7 +1994,7 @@ export function optfn_paranoid_confirmation(optidx, req, opt_negated, opts, op) 
          */
             opt_negated = (0);
         } else if (opt_negated) {
-            if (!op.value) {
+            if (!__nh_char_at0(op)) {
                 /* "!paranoid_confirm" w/o args is same as paranoid_confirm:none;
                "!paranoid_confirm:anything" is disallowed */
                 /* new value; first clear all old bits */
@@ -2006,26 +2007,26 @@ export function optfn_paranoid_confirmation(optidx, req, opt_negated, opts, op) 
                 config_error_add("!%s does not accept a value", game.allopt[optidx].name);
                 return optn_silenterr;
             }
-        } else if (!op.value) {
+        } else if (!__nh_char_at0(op)) {
             /* "paranoid_confirm" without any arguments is disallowed */
             config_error_add("%s requires a value; use 'none' to cancel all", game.allopt[optidx].name);
             return optn_silenterr;
         }
         op = mungspaces(op);
-        if (op.value != 43 && op.value != 45) {
+        if (__nh_char_at0(op) != 43 && __nh_char_at0(op) != 45) {
             game.flags.paranoia_bits = 0;
         } else {
             /* augmenting existing value; keep old bits */
             /* only used for "+none" and "-none" */
             plus_or_minus = (1);
-            opt_negated = (op.value == 45);
+            opt_negated = (__nh_char_at0(op) == 45);
             /* skip '+' or '-', maybe whitespace */
-            if (++op == 32) {
-                ++op;
+            if ((op = __nh_advance_str(op, 1)) == 32) {
+                (op = __nh_advance_str(op, 1));
             }
         }
         for (; ; ) {
-            fld_negated = (op.value == 33);
+            fld_negated = (__nh_char_at0(op) == 33);
             if (fld_negated) {
                 /* there shouldn't be a space after '!' because then
                    "! foo bar" looks like it might be intended to mean
@@ -2034,17 +2035,17 @@ export function optfn_paranoid_confirmation(optidx, req, opt_negated, opts, op) 
                    an unhelpful error message; accepting the space is
                    simpler than another special case error message */
                 /* skip '!', maybe whitespace */
-                if (++op == 32) {
-                    ++op;
+                if ((op = __nh_advance_str(op, 1)) == 32) {
+                    (op = __nh_advance_str(op, 1));
                 }
             } else {
-                if (lowc(op[0]) == 110 && lowc(op[1]) == 111 && lowc(op[2] != 110 && lowc(op[2]) != 0)) {
+                if (lowc(__nh_char_at0(op)) == 110 && lowc(__nh_char_at0(__nh_advance_str(op, 1))) == 111 && lowc(__nh_char_at0(__nh_advance_str(op, 2)) != 110 && lowc(__nh_char_at0(__nh_advance_str(op, 2))) != 0)) {
                     /* accept "nofoo" to be same as "!foo", unless "no" is
                    followed by a space or 'foo' begins with "n" (to avoid
                    confusion for "none" */
                     fld_negated = (1);
                     /* skip "no"; we know next char isn't space  */
-                    op += 2;
+                    op = __nh_advance_str(op, 2);
                 }
             }
             /* We're looking to parse
@@ -2079,7 +2080,7 @@ export function optfn_paranoid_confirmation(optidx, req, opt_negated, opts, op) 
                 return optn_silenterr;
             }
             if (pp) {
-                op = pp + 1;
+                op = __nh_advance_str(pp, 1);
             } else {
                 break;
             }
@@ -2087,8 +2088,8 @@ export function optfn_paranoid_confirmation(optidx, req, opt_negated, opts, op) 
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        tmpbuf[0] = 0;
+        let tmpbuf = '';
+        tmpbuf = '';
         for (i = 0; paranoia[i].flagmask != 0; ++i) {
             /* hide paranoid_confirm:bones during play except for wizard
                    mode; keep it for any mode if rewriting the config file */
@@ -2096,7 +2097,7 @@ export function optfn_paranoid_confirmation(optidx, req, opt_negated, opts, op) 
                 nh_snprintf("optfn_paranoid_confirmation", 3032, eos(tmpbuf), 256 /* sizeof(char [256]) */ - strlen(tmpbuf), " %s", paranoia[i].argname);
             }
         }
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         opts = strncat(opts, tmpbuf[0] ? tmpbuf[1] : "none", 256 - 1);
         return optn_ok;
     }
@@ -2130,7 +2131,7 @@ export function optfn_perminv_mode(optidx, req, negated, opts, op) {
                     continue;
                 }
                 pi1 = perminv_modes[i][1];
-                if (!strncmpi(op, pi0, ln) || !strncmpi(op, pi1, ln) || op[0] == i + 48) {
+                if (!strncmpi(op, pi0, ln) || !strncmpi(op, pi1, ln) || __nh_char_at0(op) == i + 48) {
                     if (strstri(pi0, "+grid") && !(game.windowprocs.wp_id == wp_tty)) {
                         i &= ~InvSparse;
                         config_error_add("%s: unavailable perm_invent mode '%s', using '%s'", game.allopt[optidx].name, pi0, perminv_modes[i][0]);
@@ -2215,7 +2216,7 @@ export function optfn_petattr(optidx, req, negated, opts, op) {
         } else if (game.iflags.wc2_petattr != 0) {
             opts = sprintf(opts, "0x%08x", game.iflags.wc2_petattr);
         } else if (req == get_cnf_val) {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         } else {
             opts = strcpy(opts, defopt);
         }
@@ -2231,7 +2232,7 @@ export function optfn_pettype(optidx, req, negated, opts, op) {
     }
     if (req == do_set) {
         if ((op = string_for_env_opt(game.allopt[optidx].name, opts, negated)) != game.empty_optstr) {
-            switch (lowc(op.value)) {
+            switch (lowc(__nh_char_at0(op))) {
                 case 100:
                     game.preferred_pet = 100;
                     break;
@@ -2269,7 +2270,7 @@ export function optfn_pettype(optidx, req, negated, opts, op) {
         if (game.preferred_pet) {
             opts = sprintf(opts, "%c", game.preferred_pet);
         } else {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         }
         return optn_ok;
     }
@@ -2281,7 +2282,7 @@ export function optfn_pickup_burden(optidx, req, negated, opts, op) {
     }
     if (req == do_set) {
         if ((op = string_for_env_opt(game.allopt[optidx].name, opts, (0))) != game.empty_optstr) {
-            switch (lowc(op.value)) {
+            switch (lowc(__nh_char_at0(op))) {
                 case 117:
                     game.flags.pickup_burden = UNENCUMBERED;
                     break;
@@ -2323,10 +2324,10 @@ export function optfn_pickup_burden(optidx, req, negated, opts, op) {
     return optn_ok;
 }
 export function optfn_pickup_types(optidx, req, negated, opts, op) {
-    let ocl = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let tbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let abuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let ocl = '';
+    let tbuf = '';
+    let qbuf = '';
+    let abuf = '';
     let oc_sym = 0;
     let num = 0;
     let badopt = (0);
@@ -2354,7 +2355,7 @@ export function optfn_pickup_types(optidx, req, negated, opts, op) {
                 let wasspace = 0;
                 use_menu = (0);
                 qbuf = sprintf(qbuf, "New %s: [%s am] (%s)", game.allopt[optidx].name, ocl, tbuf ? tbuf : "all");
-                abuf[0] = 0;
+                abuf = '';
                 getlin(qbuf, abuf);
                 wasspace = (abuf[0] == 32);
                 op = mungspaces(abuf);
@@ -2381,13 +2382,13 @@ export function optfn_pickup_types(optidx, req, negated, opts, op) {
             bad_negation(game.allopt[optidx].name, (1));
             return optn_err;
         }
-        while (op.value == 32) {
-            op++;
+        while (__nh_char_at0(op) == 32) {
+            (op = __nh_advance_str(op, 1));
         }
-        if (op.value != 97 && op.value != 65) {
+        if (__nh_char_at0(op) != 97 && __nh_char_at0(op) != 65) {
             num = 0;
-            while (op.value) {
-                oc_sym = def_char_to_objclass(op.value);
+            while (__nh_char_at0(op)) {
+                oc_sym = def_char_to_objclass(__nh_char_at0(op));
                 if (oc_sym != MAXOCLASSES && !strchr(game.flags.pickup_types, oc_sym)) {
                     /* make sure all are valid obj symbols occurring once */
                     game.flags.pickup_types[num] = oc_sym;
@@ -2395,7 +2396,7 @@ export function optfn_pickup_types(optidx, req, negated, opts, op) {
                 } else {
                     badopt = (1);
                 }
-                op++;
+                (op = __nh_advance_str(op, 1));
             }
             if (badopt) {
                 config_error_add("Unknown %s parameter '%s'", game.allopt[optidx].name, op);
@@ -2501,12 +2502,12 @@ export function optfn_race(optidx, req, negated, opts, op) {
         if (!parse_role_opt(optidx, negated, game.allopt[optidx].name, opts, { get value() { return op; }, set value(_v) { op = _v; } })) {
             return optn_silenterr;
         }
-        if (op.value != 33) {
+        if (__nh_char_at0(op) != 33) {
             if ((game.flags.initrace = str2race(op)) == (-1)) {
                 config_error_add("Unknown %s '%s'", game.allopt[optidx].name, op);
                 return optn_err;
             }
-            game.pl_race = op.value;
+            game.pl_race = __nh_char_at0(op);
             saveoptstr(optidx, ((game.flags.initrace >= 0) ? races[game.flags.initrace].noun : (game.flags.initrace == (-2)) ? randomrole : none));
         }
         return optn_ok;
@@ -2568,7 +2569,7 @@ export function optfn_role(optidx, req, negated, opts, op) {
         if (!parse_role_opt(optidx, negated, game.allopt[optidx].name, opts, { get value() { return op; }, set value(_v) { op = _v; } })) {
             return optn_silenterr;
         }
-        if (op.value != 33) {
+        if (__nh_char_at0(op) != 33) {
             if ((game.flags.initrole = str2role(op)) == (-1)) {
                 config_error_add("Unknown %s '%s'", game.allopt[optidx].name, op);
                 return optn_err;
@@ -2640,23 +2641,23 @@ export function optfn_scores(optidx, req, negated, opts, op) {
         if (negated) {
             op = eos(op);
         }
-        while (op.value) {
+        while (__nh_char_at0(op)) {
             let inum = 1;
-            negated = (op.value == 33) || !strncmpi(op, "no", 2);
+            negated = (__nh_char_at0(op) == 33) || !strncmpi(op, "no", 2);
             if (negated) {
-                op += (op.value == 33) ? 1 : (op[2] != 45) ? 2 : 3;
+                op = __nh_advance_str(op, (__nh_char_at0(op) == 33) ? 1 : (__nh_char_at0(__nh_advance_str(op, 2)) != 45) ? 2 : 3);
             }
-            if (digit(op.value)) {
+            if (digit(__nh_char_at0(op))) {
                 inum = atoi(op);
-                while (digit(op.value)) {
-                    op++;
+                while (digit(__nh_char_at0(op))) {
+                    (op = __nh_advance_str(op, 1));
                 }
             }
             /* t, a, and o can be separated by space(s) or slash or both */
-            while (op.value == 32) {
-                op++;
+            while (__nh_char_at0(op) == 32) {
+                (op = __nh_advance_str(op, 1));
             }
-            switch (lowc(op.value)) {
+            switch (lowc(__nh_char_at0(op))) {
                 case 116:
                     game.flags.end_top = negated ? 0 : inum;
                     break;
@@ -2670,7 +2671,7 @@ export function optfn_scores(optidx, req, negated, opts, op) {
                     game.flags.end_top = game.flags.end_around = 0 , game.flags.end_own = (0);
                     break;
                 case 45:
-                    if (digit((op + 1))) {
+                    if (digit(__nh_char_at0((__nh_advance_str(op, 1))))) {
                         config_error_add("Values for %s:top and %s:around must not be negative", game.allopt[optidx].name, game.allopt[optidx].name);
                         return optn_silenterr;
                     }
@@ -2680,14 +2681,14 @@ export function optfn_scores(optidx, req, negated, opts, op) {
                     return optn_silenterr;
             }
             /* "3a" is sufficient but accept "3around" (or "3abracadabra") */
-            while (letter(op.value)) {
-                op++;
+            while (letter(__nh_char_at0(op))) {
+                (op = __nh_advance_str(op, 1));
             }
-            while (op.value == 32) {
-                op++;
+            while (__nh_char_at0(op) == 32) {
+                (op = __nh_advance_str(op, 1));
             }
-            if (op.value == 47) {
-                op++;
+            if (__nh_char_at0(op) == 47) {
+                (op = __nh_advance_str(op, 1));
             }
         }
         return optn_ok;
@@ -2698,10 +2699,10 @@ export function optfn_scores(optidx, req, negated, opts, op) {
             opts = sprintf(opts, "%d top", game.flags.end_top);
         }
         if (game.flags.end_around > 0) {
-            opts = (opts || '') + sprintf('', "%s%d around", (game.flags.end_top > 0) ? "/" : "", game.flags.end_around);
+            opts = __nh_buf_append(opts, sprintf('', "%s%d around", (game.flags.end_top > 0) ? "/" : "", game.flags.end_around));
         }
         if (game.flags.end_own) {
-            opts = (opts || '') + sprintf('', "%sown", (game.flags.end_top > 0 || game.flags.end_around > 0) ? "/" : "");
+            opts = __nh_buf_append(opts, sprintf('', "%sown", (game.flags.end_top > 0 || game.flags.end_around > 0) ? "/" : ""));
         }
         if (!opts.value) {
             opts = strcpy(opts, "none");
@@ -2759,7 +2760,7 @@ export function optfn_scroll_margin(optidx, req, negated, opts, op) {
     return optn_ok;
 }
 export function optfn_soundlib(optidx, req, negated, opts, op) {
-    let soundlibbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let soundlibbuf = '';
     if (req == do_init) {
         return optn_ok;
     }
@@ -2800,7 +2801,7 @@ export function optfn_sortdiscoveries(optidx, req, negated, opts, op) {
         if (negated) {
             game.flags.discosort = 111;
         } else if (op != game.empty_optstr) {
-            switch (lowc(op.value)) {
+            switch (lowc(__nh_char_at0(op))) {
                 case 48:
                 case 111:
                     game.flags.discosort = 111;
@@ -2844,7 +2845,7 @@ export function optfn_sortloot(optidx, req, negated, opts, op) {
     if (req == do_set) {
         op = string_for_env_opt(game.allopt[optidx].name, opts, (0));
         if (op != game.empty_optstr) {
-            let c = lowc(op.value);
+            let c = lowc(__nh_char_at0(op));
             switch (c) {
                 case 110:
                 case 108:
@@ -2876,7 +2877,6 @@ export function optfn_sortloot(optidx, req, negated, opts, op) {
 }
 const __optfn_sortvanquished_vanqmodes = "tdaACcnz";
 export function optfn_sortvanquished(optidx, req, negated, opts, op) {
-    let vanqorders = null;
     let optname = game.allopt[optidx].name;
     if (req == do_init) {
         game.flags.vanq_sortmode = VANQ_MLVL_MNDX;
@@ -2889,10 +2889,10 @@ export function optfn_sortvanquished(optidx, req, negated, opts, op) {
         } else if (op != game.empty_optstr) {
             let p = null;
             let vndx = 0;
-            if ((p = strchr(__optfn_sortvanquished_vanqmodes, op.value)) != null) {
-                vndx = (p - __optfn_sortvanquished_vanqmodes);
-            } else if (strchr("01234567", op.value)) {
-                vndx = op.value - 48;
+            if ((p = strchr(__optfn_sortvanquished_vanqmodes, __nh_char_at0(op))) != null) {
+                vndx = ((__optfn_sortvanquished_vanqmodes.length - p.length));
+            } else if (strchr("01234567", __nh_char_at0(op))) {
+                vndx = __nh_char_at0(op) - 48;
             } else {
                 config_error_add("Unknown %s parameter '%s'", optname, op);
                 return optn_silenterr;
@@ -2906,7 +2906,7 @@ export function optfn_sortvanquished(optidx, req, negated, opts, op) {
     if (req == get_val || req == get_cnf_val) {
         opts = strcpy(opts, vanqorders[game.flags.vanq_sortmode][0]);
         if (req == get_val) {
-            opts = (opts || '') + sprintf('', ": %s", vanqorders[game.flags.vanq_sortmode][1]);
+            opts = __nh_buf_append(opts, sprintf('', ": %s", vanqorders[game.flags.vanq_sortmode][1]));
         }
         return optn_ok;
     }
@@ -2929,7 +2929,7 @@ export function optfn_statushilites(optidx, req, negated, opts, op) {
             game.iflags.hilite_delta = 0;
         } else {
             op = string_for_opt(opts, (1));
-            game.iflags.hilite_delta = (op == game.empty_optstr || !op.value) ? 3 : atol(op);
+            game.iflags.hilite_delta = (op == game.empty_optstr || !__nh_char_at0(op)) ? 3 : atol(op);
             if (game.iflags.hilite_delta < 0) {
                 game.iflags.hilite_delta = 1;
             }
@@ -3004,7 +3004,7 @@ export function optfn_suppress_alert(optidx, req, negated, opts, op) {
     }
     if (req == get_val || req == get_cnf_val) {
         if (req == get_cnf_val && game.flags.suppress_alert == 0) {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         } else if (game.flags.suppress_alert == 0) {
             opts = strcpy(opts, none);
         } else {
@@ -3047,7 +3047,7 @@ export function optfn_symset(optidx, req, negated, opts, op) {
             opts = strcat(opts, ", active");
         }
         if (game.symset[PRIMARYSET].handling) {
-            opts = (opts || '') + sprintf('', ", handler=%s", known_handling[game.symset[PRIMARYSET].handling]);
+            opts = __nh_buf_append(opts, sprintf('', ", handler=%s", known_handling[game.symset[PRIMARYSET].handling]));
         }
         return optn_ok;
     }
@@ -3098,7 +3098,7 @@ export function optfn_term_cols(optidx, req, negated, opts, op) {
         if (game.iflags.wc2_term_cols) {
             opts = sprintf(opts, "%d", game.iflags.wc2_term_cols);
         } else if (req == get_cnf_val) {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         } else {
             opts = strcpy(opts, defopt);
         }
@@ -3128,7 +3128,7 @@ export function optfn_term_rows(optidx, req, negated, opts, op) {
         if (game.iflags.wc2_term_rows) {
             opts = sprintf(opts, "%d", game.iflags.wc2_term_rows);
         } else if (req == get_cnf_val) {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         } else {
             opts = strcpy(opts, defopt);
         }
@@ -3159,7 +3159,7 @@ export function optfn_tile_file(optidx, req, negated, opts, op) {
         if (game.iflags.wc_tile_file) {
             opts = sprintf(opts, "%s", game.iflags.wc_tile_file);
         } else {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         }
         return optn_ok;
     }
@@ -3183,7 +3183,7 @@ export function optfn_tile_height(optidx, req, negated, opts, op) {
         if (game.iflags.wc_tile_height) {
             opts = sprintf(opts, "%d", game.iflags.wc_tile_height);
         } else if (req == get_cnf_val) {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         } else {
             opts = strcpy(opts, defopt);
         }
@@ -3209,7 +3209,7 @@ export function optfn_tile_width(optidx, req, negated, opts, op) {
         if (game.iflags.wc_tile_width) {
             opts = sprintf(opts, "%d", game.iflags.wc_tile_width);
         } else if (req == get_cnf_val) {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         } else {
             opts = strcpy(opts, defopt);
         }
@@ -3229,7 +3229,7 @@ export function optfn_traps(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -3252,7 +3252,7 @@ export function optfn_vary_msgcount(optidx, req, negated, opts, op) {
         if (game.iflags.wc_vary_msgcount) {
             opts = sprintf(opts, "%d", game.iflags.wc_vary_msgcount);
         } else if (req == get_cnf_val) {
-            opts[0] = 0;
+            opts = __nh_char_write(opts, 0, 0);
         } else {
             opts = strcpy(opts, defopt);
         }
@@ -3273,7 +3273,7 @@ export function optfn_versinfo(optidx, req, negated, opts, op) {
            If branch is requested but unavailable, status_version will
            treat 4 as 1.
          */
-        let have_branch = (game.nomakedefs.git_branch && game.nomakedefs.git_branch);
+        let have_branch = (game.nomakedefs.git_branch && __nh_char_at0(game.nomakedefs.git_branch));
         let val = 0;
         let dflt = have_branch ? 4 : 1;
         if (negated) {
@@ -3296,7 +3296,7 @@ export function optfn_versinfo(optidx, req, negated, opts, op) {
         handler_versinfo();
         pline("'%s' %s %u.", optname, (game.flags.versinfo == vi) ? "not changed, still" : "changed to", game.flags.versinfo);
     } else if (req == get_val) {
-        let vbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let vbuf = '';
         let g = (vi & 2) != 0;
         let b = (vi & 4) != 0;
         let n = (vi & 1) != 0;
@@ -3325,7 +3325,7 @@ export function optfn_warnings(optidx, req, negated, opts, op) {
         return reslt ? optn_ok : optn_err;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -3340,7 +3340,7 @@ export function optfn_whatis_coord(optidx, req, negated, opts, op) {
             game.iflags.getpos_coords = 110;
             return optn_ok;
         } else if ((op = string_for_env_opt(game.allopt[optidx].name, opts, (0))) != game.empty_optstr) {
-            let c = lowc(op.value);
+            let c = lowc(__nh_char_at0(op));
             if (c && strchr(__optfn_whatis_coord_gpcoords, c)) {
                 game.iflags.getpos_coords = c;
             } else {
@@ -3370,7 +3370,7 @@ export function optfn_whatis_filter(optidx, req, negated, opts, op) {
             game.iflags.getloc_filter = GFILTER_NONE;
             return optn_ok;
         } else if ((op = string_for_env_opt(game.allopt[optidx].name, opts, (0))) != game.empty_optstr) {
-            let c = lowc(op.value);
+            let c = lowc(__nh_char_at0(op));
             switch (c) {
                 case 110:
                     game.iflags.getloc_filter = GFILTER_NONE;
@@ -3473,17 +3473,17 @@ export function optfn_windowcolors(optidx, req, negated, opts, op) {
     if (req == get_val || req == get_cnf_val) {
         let fg = null;
         let bg = null;
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         for (wccount = 0; wccount < WC_COUNT; ++wccount) {
             fg = game.iflags.wcolors[wccount].fg;
             bg = game.iflags.wcolors[wccount].bg;
-            if (fg && (!fg || !strcmp(fg, defbrief))) {
+            if (fg && (!__nh_char_at0(fg) || !strcmp(fg, defbrief))) {
                 fg = null;
             }
-            if (bg && (!bg || !strcmp(bg, defbrief))) {
+            if (bg && (!__nh_char_at0(bg) || !strcmp(bg, defbrief))) {
                 bg = null;
             }
-            opts = (opts || '') + sprintf('', "%s%s %s/%s", !wccount ? "" : " ", (fg || bg) ? wcnames[wccount] : wcshortnames[wccount], fg ? fg : defbrief, bg ? bg : defbrief);
+            opts = __nh_buf_append(opts, sprintf('', "%s%s %s/%s", !wccount ? "" : " ", (fg || bg) ? wcnames[wccount] : wcshortnames[wccount], fg ? fg : defbrief, bg ? bg : defbrief));
         }
         return optn_ok;
     }
@@ -3560,7 +3560,7 @@ export function pfxfn_cond_(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     if (req == do_handler) {
@@ -3712,9 +3712,9 @@ export function optfn_boolean(optidx, req, negated, opts, op) {
             }
             /* length is greater than 0 or we wouldn't have gotten here */
             ln = strlen(op);
-            if (!strncmpi(op, "true", ln) || !strncmpi(op, "yes", ln) || !strncmpi((op), ("on"), -1) || (digit(op.value) && atoi(op) == 1)) {
+            if (!strncmpi(op, "true", ln) || !strncmpi(op, "yes", ln) || !strncmpi((op), ("on"), -1) || (digit(__nh_char_at0(op)) && atoi(op) == 1)) {
                 negated = (0);
-            } else if (!strncmpi(op, "false", ln) || !strncmpi(op, "no", ln) || !strncmpi((op), ("off"), -1) || (digit(op.value) && atoi(op) == 0)) {
+            } else if (!strncmpi(op, "false", ln) || !strncmpi(op, "no", ln) || !strncmpi((op), ("off"), -1) || (digit(__nh_char_at0(op)) && atoi(op) == 0)) {
                 negated = (1);
             } else if (!game.allopt[optidx].valok) {
                 config_error_add("'%s' is not valid for a boolean", opts);
@@ -3905,7 +3905,7 @@ export function optfn_boolean(optidx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -3928,7 +3928,7 @@ export function spcfn_misc_menu_cmd(midx, req, negated, opts, op) {
         return optn_ok;
     }
     if (req == get_val || req == get_cnf_val) {
-        opts[0] = 0;
+        opts = __nh_char_write(opts, 0, 0);
         return optn_ok;
     }
     return optn_ok;
@@ -3963,7 +3963,7 @@ export function handler_menustyle() {
     let i = 0;
     let n = 0;
     let old_menu_style = game.flags.menu_style;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let sep = game.iflags.menu_tab_sep ? 9 : 32;
     let style_pick = null;
     let clr = 8;
@@ -4001,7 +4001,7 @@ export function handler_align_misc(optidx) {
     let tmpwin = 0;
     let any = 0;
     let window_pick = null;
-    let abuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let abuf = '';
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
@@ -4033,7 +4033,7 @@ export function handler_autounlock(optidx) {
     let chngd = 0;
     let oldflags = game.flags.autounlock;
     let optname = game.allopt[optidx].name;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let sep = game.iflags.menu_tab_sep ? 9 : 32;
     let window_pick = null;
     let i = 0;
@@ -4081,7 +4081,7 @@ export function handler_disclose() {
     let any = 0;
     let i = 0;
     let n = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     /* order of disclose_names[] must correspond to
        disclosure_options in decl.c */
     let disc_cat = [0, 0, 0, 0, 0, 0];
@@ -4164,7 +4164,7 @@ export function handler_menu_headings() {
 export function handler_menu_objsyms() {
     let tmpwin = 0;
     let any = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let picklist = null;
     let sep = game.iflags.menu_tab_sep ? 9 : 32;
     let i = 0;
@@ -4175,7 +4175,7 @@ export function handler_menu_objsyms() {
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     any = cg.zeroany;
     for (i = 0; i < (Math.trunc(6 /* sizeof(const struct objsymopt [6]) */ / 1 /* sizeof(const struct objsymopt) */)); ++i) {
-        nh_snprintf("handler_menu_objsyms", 5809, buf, 256 /* sizeof(char [256]) */, "%-12.12s%c%.60s", objsymvals[i].nam, sep, objsymvals[i].descr);
+        buf = nh_snprintf("handler_menu_objsyms", 5809, buf, 256 /* sizeof(char [256]) */, "%-12.12s%c%.60s", objsymvals[i].nam, sep, objsymvals[i].descr);
         any.a_int = i + 1;
         j = objsymvals[i].num;
         add_menu(tmpwin, nul_glyphinfo, any, 48 + i, buf, 0, clr, buf, (j == game.iflags.menuobjsyms) ? 1 : 0);
@@ -4203,7 +4203,7 @@ export function handler_msg_window() {
         let chngd = 0;
         let i = 0;
         let n = 0;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let c = 0;
         let sep = game.iflags.menu_tab_sep ? 9 : 32;
         let old_prevmsg_window = game.iflags.prevmsg_window;
@@ -4298,9 +4298,9 @@ export function handler_paranoid_confirmation() {
     let any = 0;
     let i = 0;
     let mkey = 0;
-    let mbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let ebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let cbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mbuf = '';
+    let ebuf = '';
+    let cbuf = '';
     let explain = null;
     let cmdnm = null;
     let paranoia_picks = null;
@@ -4325,7 +4325,7 @@ export function handler_paranoid_confirmation() {
                 if (!cmdnm) {
                     cmdnm = "reqmenu";
                 }
-                mbuf = sprintf(mbuf, "'%s%.31s'", (cmdnm != 35) ? "#" : "", cmdnm);
+                mbuf = sprintf(mbuf, "'%s%.31s'", (__nh_char_at0(cmdnm) != 35) ? "#" : "", cmdnm);
             }
             explain = strsubst(strcpy(ebuf, explain), "'m'", mbuf);
         }
@@ -4351,8 +4351,8 @@ export function handler_perminv_mode() {
     let tmpwin = 0;
     let any = 0;
     let let_ = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let sepbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let sepbuf = '';
     let pi0 = null;
     let pi1 = null;
     let pi_pick = null;
@@ -4377,7 +4377,7 @@ export function handler_perminv_mode() {
             sepbuf = strcpy(sepbuf, "\t");
         }
         buf = sprintf(buf, "%s%s%s", pi0, sepbuf, perminv_modes[i][2]);
-        let_ = ((i & InvSparse) != 0) ? highc(pi1[0]) : pi0[0];
+        let_ = ((i & InvSparse) != 0) ? highc(__nh_char_at0(pi1)) : __nh_char_at0(pi0);
         any.a_int = i + 1;
         add_menu(tmpwin, nul_glyphinfo, any, let_, 48 + i, 0, 8, buf, (i == old_pi) ? 1 : 0);
     }
@@ -4397,7 +4397,7 @@ export function handler_perminv_mode() {
      * processing the config file.  That should get fixed one day.
      * For now just return.
      */
-        buf[0] = 0;
+        buf = '';
         optfn_perminv_mode(opt_perm_invent, get_val, (0), buf, null);
         pline("'perminv_mode' %s '%s' (%s).", (new_pi != old_pi) ? "changed to" : "is still", perminv_modes[new_pi][0], buf);
         if (new_pi != InvOptNone && !old_perm_invent) {
@@ -4425,7 +4425,7 @@ export function handler_pickup_burden() {
     for (i = 0; i < (Math.trunc(48 /* sizeof(const char *[6]) */ / 8 /* sizeof(const char *) */)); i++) {
         burden_name = burdentype[i];
         any.a_int = i + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, burden_letters[i], 0, 0, clr, burden_name, 0);
+        add_menu(tmpwin, nul_glyphinfo, any, __nh_char_at0(__nh_advance_str(burden_letters, i)), 0, 0, clr, burden_name, 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Select encumbrance level:");
     if (select_menu(tmpwin, 1, burden_pick) > 0) {
@@ -4436,7 +4436,7 @@ export function handler_pickup_burden() {
     return optn_ok;
 }
 export function handler_pickup_types() {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     /* parseoptions will prompt for the list of types */
     parseoptions(strcpy(buf, "pickup_types"), (0), (0));
     return optn_ok;
@@ -4454,7 +4454,7 @@ export function handler_runmode() {
     for (i = 0; i < (Math.trunc(32 /* sizeof(const char *[4]) */ / 8 /* sizeof(const char *) */)); i++) {
         mode_name = runmodes[i];
         any.a_int = i + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, mode_name, 0, 0, clr, mode_name, 0);
+        add_menu(tmpwin, nul_glyphinfo, any, __nh_char_at0(mode_name), 0, 0, clr, mode_name, 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Select run/travel display mode:");
     if (select_menu(tmpwin, 1, mode_pick) > 0) {
@@ -4488,8 +4488,8 @@ export function handler_sortloot() {
     any = cg.zeroany;
     for (i = 0; i < (Math.trunc(24 /* sizeof(const char *[3]) */ / 8 /* sizeof(const char *) */)); i++) {
         sortl_name = sortltype[i];
-        any.a_char = sortl_name;
-        add_menu(tmpwin, nul_glyphinfo, any, sortl_name, 0, 0, clr, sortl_name, (game.flags.sortloot == sortl_name) ? 1 : 0);
+        any.a_char = __nh_char_at0(sortl_name);
+        add_menu(tmpwin, nul_glyphinfo, any, __nh_char_at0(sortl_name), 0, 0, clr, sortl_name, (game.flags.sortloot == __nh_char_at0(sortl_name)) ? 1 : 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Select loot sorting type:");
     n = select_menu(tmpwin, 1, sortl_pick);
@@ -4510,7 +4510,7 @@ export function handler_sortloot() {
 export function handler_whatis_coord() {
     let tmpwin = 0;
     let any = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let window_pick = null;
     let pick_cnt = 0;
     let gpc = game.iflags.getpos_coords;
@@ -4590,7 +4590,7 @@ export function handler_autopickup_exception() {
     let opt_idx = 0;
     let numapes = 0;
     /* so &apebuf[1] is BUFSZ long for getlin() */
-    let apebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let apebuf = '';
     let ape = null;
     let clr = 8;
     ape_again: while (true) {
@@ -4601,9 +4601,9 @@ export function handler_autopickup_exception() {
         } else if (opt_idx == 0) {
             /* EDIT_GETLIN:  assume user doesn't user want previous
            exception used as default input string for this one... */
-            apebuf[0] = apebuf[1] = 0;
+            (apebuf[1] = 0, apebuf = '');
             getlin("What new autopickup exception pattern?", { get value() { return apebuf[1]; }, set value(_v) { apebuf[1] = _v; } });
-            mungspaces({ get value() { return apebuf[1]; }, set value(_v) { apebuf[1] = _v; } });
+            mungspaces(apebuf[1]);
             if (apebuf[1] == 27) {
                 return (1);
             }
@@ -4657,12 +4657,12 @@ export function handler_autopickup_exception() {
 export function handler_menu_colors() {
     let tmpwin = 0;
     let any = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let opt_idx = 0;
     let nmc = 0;
     let mcclr = 0;
     let mcattr = 0;
-    let mcbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mcbuf = '';
     let clr = 8;
     menucolors_again: while (true) {
         nmc = count_menucolors();
@@ -4679,7 +4679,7 @@ export function handler_menu_colors() {
             }
             return optn_ok;
         } else if (opt_idx == 0) {
-            mcbuf[0] = 0;
+            mcbuf = '';
             getlin("What new menucolor pattern?", mcbuf);
             if (mcbuf == 27) {
                 if (game.iflags.use_menu_color) {
@@ -4703,7 +4703,7 @@ export function handler_menu_colors() {
             let sclr = null;
             let pick_list = null;
             let tmp = game.menu_colorings;
-            let clrbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let clrbuf = '';
             tmpwin = (game.windowprocs.win_create_nhwindow)(4);
             (game.windowprocs.win_start_menu)(tmpwin, 0);
             any = cg.zeroany;
@@ -4721,7 +4721,7 @@ export function handler_menu_colors() {
                 } else {
                     mcbuf = strcat(mcbuf, tmp.origstr);
                 }
-                mcbuf = strcat(mcbuf, { get value() { return buf[1]; }, set value(_v) { buf[1] = _v; } });
+                mcbuf = strcat(mcbuf, buf[1]);
                 /* combine main string and suffix */
                 /* skip buf[]'s initial quote */
                 add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, mcbuf, 0);
@@ -4751,14 +4751,14 @@ export function handler_msgtype() {
     let opt_idx = 0;
     let nmt = 0;
     let mttyp = 0;
-    let mtbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mtbuf = '';
     msgtypes_again: while (true) {
         nmt = msgtype_count();
         opt_idx = handle_add_list_remove("message type", nmt);
         if (opt_idx == 3) {
             return (1);
         } else if (opt_idx == 0) {
-            mtbuf[0] = 0;
+            mtbuf = '';
             getlin("What new message pattern?", mtbuf);
             if (mtbuf == 27) {
                 return (1);
@@ -4816,7 +4816,7 @@ export function handler_versinfo() {
     let tmpwin = 0;
     let any = 0;
     let vi_pick = null;
-    let have_branch = (game.nomakedefs.git_branch && game.nomakedefs.git_branch);
+    let have_branch = (game.nomakedefs.git_branch && __nh_char_at0(game.nomakedefs.git_branch));
     let n = 0;
     let vi = game.flags.versinfo;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
@@ -4886,7 +4886,7 @@ export function string_for_opt(opts, val_optional) {
     if (!colon || (equals && equals < colon)) {
         colon = equals;
     }
-    if (!colon || !++colon) {
+    if (!colon || !(colon = __nh_advance_str(colon, 1))) {
         if (!val_optional) {
             config_error_add("Missing parameter for '%s'", opts);
         }
@@ -4926,10 +4926,10 @@ export function determine_ambiguities() {
             p1 = game.allopt[i].name;
             p2 = game.allopt[j].name;
             tmpneeded = 1;
-            while (p1 && p2 && lowc(p1) == lowc(p2)) {
+            while (__nh_char_at0(p1) && __nh_char_at0(p2) && lowc(__nh_char_at0(p1)) == lowc(__nh_char_at0(p2))) {
                 ++tmpneeded;
-                ++p1;
-                ++p2;
+                (p1 = __nh_advance_str(p1, 1));
+                (p2 = __nh_advance_str(p2, 1));
             }
             if (tmpneeded > needed[i]) {
                 needed[i] = tmpneeded;
@@ -4953,10 +4953,10 @@ export function length_without_val(user_string, len) {
     if (p) {
         /* 'user_string' hasn't necessarily been through mungspaces()
            so might have tabs or consecutive spaces */
-        while (p > user_string && ((__ctype_b_loc())[(((p - 1)))] & _ISspace)) {
-            p--;
+        while (p > user_string && ((__ctype_b_loc())[((__nh_char_at0((p - 1))))] & _ISspace)) {
+            (p = __nh_advance_str(p, -1));
         }
-        len = (p - user_string);
+        len = ((user_string.length - p.length));
     }
     return len;
 }
@@ -4983,8 +4983,8 @@ export function duplicate_opt_detection(optidx) {
     return (0);
 }
 export function complain_about_duplicate(optidx) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    buf[0] = 0;
+    let buf = '';
+    buf = '';
     if (game.using_alias) {
         buf = sprintf(buf, " (via alias: %s)", game.allopt[optidx].alias);
     }
@@ -5050,13 +5050,12 @@ export function nh_getenv(ev) {
    treat comma as alternate end of 'src' */
 export function nmcpy(dest, src, maxlen) {
     let __nh_dest_idx = 0;
-    let __nh_src_idx = 0;
     let count = 0;
     for (count = 1; count < maxlen; count++) {
-        if (src[__nh_src_idx] == 44 || src[__nh_src_idx] == 0) {
+        if (__nh_char_at0(src) == 44 || __nh_char_at0(src) == 0) {
             break;
         }
-        dest[__nh_dest_idx++] = src[__nh_src_idx++];
+        dest[__nh_dest_idx++] = (src = __nh_advance_str(src, 1));
     }
     dest.value = 0;
 }
@@ -5093,43 +5092,43 @@ export function escapes(cp, tp) {
     let cval = 0;
     let meta = 0;
     let dcount = 0;
-    while (cp.value) {
+    while (__nh_char_at0(cp)) {
         /* \M has to be followed by something to do meta conversion,
            otherwise it will just be \M which ultimately yields 'M' */
-        meta = (cp.value == 92 && (cp[1] == 109 || cp[1] == 77) && cp[2]);
+        meta = (__nh_char_at0(cp) == 92 && (__nh_char_at0(__nh_advance_str(cp, 1)) == 109 || __nh_char_at0(__nh_advance_str(cp, 1)) == 77) && __nh_char_at0(__nh_advance_str(cp, 2)));
         if (meta) {
             /* move past backslash and 'O' */
             /* move past backslash and 'X' */
-            cp += 2;
+            cp = __nh_advance_str(cp, 2);
         }
         /* for decimal, octal, hexadecimal cases */
         cval = dcount = 0;
-        if ((cp.value != 92 && cp.value != 94) || !cp[1]) {
+        if ((__nh_char_at0(cp) != 92 && __nh_char_at0(cp) != 94) || !__nh_char_at0(__nh_advance_str(cp, 1))) {
             /* simple character, or nothing left for \ or ^ to escape */
-            cval = cp++;
-        } else if (cp.value == 94) {
+            cval = (cp = __nh_advance_str(cp, 1));
+        } else if (__nh_char_at0(cp) == 94) {
             /* expand control-character syntax */
-            cval = (++cp & 31);
-            ++cp;
-        } else if (strchr(__escapes_dec, cp[1])) {
-            ++cp;
+            cval = ((cp = __nh_advance_str(cp, 1)) & 31);
             /* remaining cases are all for backslash; we know cp[1] is not \0 */
             /* move past backslash to first digit */
+            (cp = __nh_advance_str(cp, 1));
+        } else if (strchr(__escapes_dec, __nh_char_at0(__nh_advance_str(cp, 1)))) {
+            (cp = __nh_advance_str(cp, 1));
             do {
-                cval = (cval * 10) + (cp.value - 48);
-            } while (++cp && strchr(__escapes_dec, cp.value) && ++dcount < 3);
-        } else if ((cp[1] == 111 || cp[1] == 79) && cp[2] && strchr(__escapes_oct, cp[2])) {
-            cp += 2;
+                cval = (cval * 10) + (__nh_char_at0(cp) - 48);
+            } while ((cp = __nh_advance_str(cp, 1)) && strchr(__escapes_dec, __nh_char_at0(cp)) && ++dcount < 3);
+        } else if ((__nh_char_at0(__nh_advance_str(cp, 1)) == 111 || __nh_char_at0(__nh_advance_str(cp, 1)) == 79) && __nh_char_at0(__nh_advance_str(cp, 2)) && strchr(__escapes_oct, __nh_char_at0(__nh_advance_str(cp, 2)))) {
+            cp = __nh_advance_str(cp, 2);
             do {
-                cval = (cval * 8) + (cp.value - 48);
-            } while (++cp && strchr(__escapes_oct, cp.value) && ++dcount < 3);
-        } else if ((cp[1] == 120 || cp[1] == 88) && cp[2] && (dp = strchr(hexdd, cp[2])) != null) {
-            cp += 2;
+                cval = (cval * 8) + (__nh_char_at0(cp) - 48);
+            } while ((cp = __nh_advance_str(cp, 1)) && strchr(__escapes_oct, __nh_char_at0(cp)) && ++dcount < 3);
+        } else if ((__nh_char_at0(__nh_advance_str(cp, 1)) == 120 || __nh_char_at0(__nh_advance_str(cp, 1)) == 88) && __nh_char_at0(__nh_advance_str(cp, 2)) && (dp = strchr(hexdd, __nh_char_at0(__nh_advance_str(cp, 2)))) != null) {
+            cp = __nh_advance_str(cp, 2);
             do {
-                cval = (cval * 16) + (Math.trunc((dp - hexdd) / 2));
-            } while (++cp && (dp = strchr(hexdd, cp.value)) != null && ++dcount < 2);
+                cval = (cval * 16) + (Math.trunc(((hexdd.length - dp.length)) / 2));
+            } while ((cp = __nh_advance_str(cp, 1)) && (dp = strchr(hexdd, __nh_char_at0(cp))) != null && ++dcount < 2);
         } else {
-            switch (++cp) {
+            switch ((cp = __nh_advance_str(cp, 1))) {
                 /* C-style character escapes */
                 case 92:
                     cval = 92;
@@ -5147,9 +5146,9 @@ export function escapes(cp, tp) {
                     cval = 13;
                     break;
                 default:
-                    cval = cp.value;
+                    cval = __nh_char_at0(cp);
             }
-            ++cp;
+            (cp = __nh_advance_str(cp, 1));
         }
         if (meta) {
             cval |= 128;
@@ -5164,11 +5163,11 @@ export function txt2key(txt) {
     let uc = 0;
     let makemeta = (0);
     txt = trimspaces(txt);
-    if (!txt.value) {
+    if (!__nh_char_at0(txt)) {
         return 0;
     }
-    if (!txt[1]) {
-        return txt[0];
+    if (!__nh_char_at0(__nh_advance_str(txt, 1))) {
+        return __nh_char_at0(txt);
     }
     if (!strcmp(txt, "<enter>")) {
         return 10;
@@ -5179,16 +5178,16 @@ export function txt2key(txt) {
     if (!strcmp(txt, "<esc>")) {
         return 27;
     }
-    if (txt.value == 92) {
+    if (__nh_char_at0(txt) == 92) {
         /* handle things like \b and \7 and \mX */
-        let tbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let tbuf = '';
         if (strlen(txt) >= 128 /* sizeof(char [128]) */) {
-            txt[128 /* sizeof(char [128]) */ - 1] = 0;
+            txt = __nh_char_write(txt, 128 /* sizeof(char [128]) */ - 1, 0);
         }
         escapes(txt, tbuf);
         return tbuf;
     }
-    if (highc(txt.value) == 77) {
+    if (highc(__nh_char_at0(txt)) == 77) {
         /*
          * M <nothing>             return 'M'
          * M - <nothing>           return M-'-'
@@ -5197,23 +5196,23 @@ export function txt2key(txt) {
          * Since trailing spaces are discarded, the only way to
          * specify M-' ' is via "160".
          */
-        if (!txt[1]) {
-            return txt.value;
+        if (!__nh_char_at0(__nh_advance_str(txt, 1))) {
+            return __nh_char_at0(txt);
         }
         /* skip past 'M' or 'm' and maybe '-' */
-        ++txt;
+        (txt = __nh_advance_str(txt, 1));
         /* unlike M-x, lots of values of x are invalid for C-x;
            checking and rejecting them is not worthwhile; GIGO;
            we do accept "^-x" as synonym for "^x" or "C-x" */
-        if (txt.value == 45 && txt[1]) {
-            ++txt;
+        if (__nh_char_at0(txt) == 45 && __nh_char_at0(__nh_advance_str(txt, 1))) {
+            (txt = __nh_advance_str(txt, 1));
         }
-        if (!txt[1]) {
-            return ((txt.value) - 128);
+        if (!__nh_char_at0(__nh_advance_str(txt, 1))) {
+            return ((__nh_char_at0(txt)) - 128);
         }
         makemeta = (1);
     }
-    if (txt.value == 94 || highc(txt.value) == 67) {
+    if (__nh_char_at0(txt) == 94 || highc(__nh_char_at0(txt)) == 67) {
         /*
          * C <nothing>             return 'C' or M-'C'
          * C - <nothing>           return '-' or M-'-'
@@ -5221,25 +5220,25 @@ export function txt2key(txt) {
          * C [-] ?                 return <rubout>
          * otherwise return C-<other> or M-C-<other>
          */
-        uc = txt.value;
-        if (!txt[1]) {
+        uc = __nh_char_at0(txt);
+        if (!__nh_char_at0(__nh_advance_str(txt, 1))) {
             return makemeta ? ((uc) - 128) : uc;
         }
-        ++txt;
-        if (txt.value == 45 && txt[1]) {
-            ++txt;
+        (txt = __nh_advance_str(txt, 1));
+        if (__nh_char_at0(txt) == 45 && __nh_char_at0(__nh_advance_str(txt, 1))) {
+            (txt = __nh_advance_str(txt, 1));
         }
         /* and accept ^?, which gets used despite not being a control char */
-        if (txt.value == 63) {
+        if (__nh_char_at0(txt) == 63) {
             return (makemeta ? 4294967295 : 127);
         }
-        uc = (31 & (txt.value));
+        uc = (31 & (__nh_char_at0(txt)));
         return makemeta ? ((uc) - 128) : uc;
     }
-    if (makemeta && txt.value) {
-        return ((txt.value) - 128);
+    if (makemeta && __nh_char_at0(txt)) {
+        return ((__nh_char_at0(txt)) - 128);
     }
-    if (txt.value >= 48 && txt.value <= 57) {
+    if (__nh_char_at0(txt) >= 48 && __nh_char_at0(txt) <= 57) {
         /* FIXME: should accept single-quote single-character single-quote
        and probably single-quote backslash octal-digits single-quote;
        if we do that, the M- and C- results should be pending until
@@ -5248,10 +5247,10 @@ export function txt2key(txt) {
         let key = 0;
         let i = 0;
         for (i = 0; i < 3; i++) {
-            if (txt[i] < 48 || txt[i] > 57) {
+            if (__nh_char_at0(__nh_advance_str(txt, i)) < 48 || __nh_char_at0(__nh_advance_str(txt, i)) > 57) {
                 return 0;
             }
-            key = 10 * key + txt[i] - 48;
+            key = 10 * key + __nh_char_at0(__nh_advance_str(txt, i)) - 48;
         }
         return key;
     }
@@ -5301,7 +5300,7 @@ export function initoptions() {
 export function initoptions_init() {
     let opts = null;
     let i = 0;
-    let have_branch = (game.nomakedefs.git_branch && game.nomakedefs.git_branch);
+    let have_branch = (game.nomakedefs.git_branch && __nh_char_at0(game.nomakedefs.git_branch));
     /* Did I need to move this here? */
     game.opt_phase = builtin_opt;
     /* initialize the function pointers for saving the game */
@@ -5565,31 +5564,30 @@ export function change_inv_order(op) {
     let oc_sym = 0;
     let num = 0;
     let sp = null;
-    /* to hold truncated copy of 'strval' */
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let retval = 1;
     num = 0;
     if (!strchr(op, GOLD_SYM)) {
         buf[num++] = COIN_CLASS;
     }
-    for (sp = op; sp; sp++) {
+    for (sp = op; __nh_char_at0(sp); (sp = __nh_advance_str(sp, 1))) {
         let fail = (0);
-        oc_sym = def_char_to_objclass(sp);
+        oc_sym = def_char_to_objclass(__nh_char_at0(sp));
         if (oc_sym == MAXOCLASSES) {
             /* reject bad or duplicate entries */
             /* not an object class char */
-            config_error_add("Not an object class '%c'", sp);
+            config_error_add("Not an object class '%c'", __nh_char_at0(sp));
             retval = 0;
             fail = (1);
         } else if (!strchr(game.flags.inv_order, oc_sym)) {
             /* VENOM_CLASS, RANDOM_CLASS, and ILLOBJ_CLASS are excluded
                because they aren't in def_inv_order[] so don't make it
                into flags.inv_order, hence always fail this strchr() test */
-            config_error_add("Object class '%c' not allowed", sp);
+            config_error_add("Object class '%c' not allowed", __nh_char_at0(sp));
             retval = 0;
             fail = (1);
-        } else if (strchr(sp + 1, sp)) {
-            config_error_add("Duplicate object class '%c'", sp);
+        } else if (strchr(__nh_advance_str(sp, 1), __nh_char_at0(sp))) {
+            config_error_add("Duplicate object class '%c'", __nh_char_at0(sp));
             retval = 0;
             fail = (1);
         }
@@ -5599,9 +5597,9 @@ export function change_inv_order(op) {
     }
     buf[num] = 0;
     /* fill in any omitted classes, using previous ordering */
-    for (sp = game.flags.inv_order; sp; sp++) {
-        if (!strchr(buf, sp)) {
-            strkitten({ get value() { return buf[num++]; }, set value(_v) { buf[num++] = _v; } }, sp);
+    for (sp = game.flags.inv_order; __nh_char_at0(sp); (sp = __nh_advance_str(sp, 1))) {
+        if (!strchr(buf, __nh_char_at0(sp))) {
+            strkitten(buf[num++], __nh_char_at0(sp));
         }
     }
     buf[MAXOCLASSES - 1] = 0;
@@ -5625,7 +5623,7 @@ export function warning_opts(opts, optype) {
     length = strlen(opts);
     /* match the form obtained from PC configuration files */
     for (i = 0; i < 6; i++) {
-        translate[i] = (i >= length) ? 0 : opts[i] ? opts[i] : def_warnsyms[i].sym;
+        translate[i] = (i >= length) ? 0 : __nh_char_at0(__nh_advance_str(opts, i)) ? __nh_char_at0(__nh_advance_str(opts, i)) : def_warnsyms[i].sym;
     }
     assign_warnings(translate);
     return (1);
@@ -5645,7 +5643,7 @@ export function assign_warnings(graph_chars) {
  *
  */
 export function feature_alert_opts(op, optn) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let fnv = get_feature_notice_ver(op);
     if (fnv == 0) {
         return 0;
@@ -5683,9 +5681,9 @@ export function parsebindings(bindings) {
        or a list element separator; if it's a key, find separator beyond it */
         /* at start so it represents a key */
         if (bind == bindings) {
-            bind = strchr(bind + 1, 44);
-        } else if (bind[-1] == 92 || (bind[-1] == 39 && bind[1] == 39)) {
-            bind = strchr(bind + 2, 44);
+            bind = strchr(__nh_advance_str(bind, 1), 44);
+        } else if (__nh_char_at0(__nh_advance_str(bind, -1)) == 92 || (__nh_char_at0(__nh_advance_str(bind, -1)) == 39 && __nh_char_at0(__nh_advance_str(bind, 1)) == 39)) {
+            bind = strchr(__nh_advance_str(bind, 2), 44);
         }
     }
     if (bind) {
@@ -5779,7 +5777,7 @@ export function msgtype_add(typ, pattern) {
     if (!regex_compile(pattern, tmp.regex)) {
         /* test_regex_pattern() has already validated this regexp but parsing
        it again could conceivably run out of memory */
-        let errbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let errbuf = '';
         let re_error_desc = regex_error_desc(tmp.regex, errbuf);
         /* free first in case reason for failure was insufficient memory */
         regex_free(tmp.regex);
@@ -5866,8 +5864,8 @@ export function msgtype_count() {
     return c;
 }
 export function msgtype_parse_add(str) {
-    let pattern = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let msgtype = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pattern = '';
+    let msgtype = '';
     if (sscanf(str, "%10s \"%255[^\"]\"", msgtype, pattern) == 2) {
         let typ = -1;
         let i = 0;
@@ -5893,7 +5891,7 @@ const __test_regex_pattern_def_errmsg = "NHregex error";
 export function test_regex_pattern(str, errmsg) {
     let match = null;
     let re_error_desc = null;
-    let errbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let errbuf = '';
     let retval = 0;
     if (!str) {
         return (0);
@@ -5947,16 +5945,16 @@ export function parse_role_opt(optidx, negated, fullname, opts, opp) {
         let prev_negated = (0);
         let first = (1);
         op = mungspaces(op);
-        while (op) {
-            if (op == 32) {
-                ++op;
+        while (__nh_char_at0(op)) {
+            if (__nh_char_at0(op) == 32) {
+                (op = __nh_advance_str(op, 1));
             }
             val_negated = (0);
-            while (op == 33 || !strncmpi(op, "no", 2)) {
+            while (__nh_char_at0(op) == 33 || !strncmpi(op, "no", 2)) {
                 val_negated = !val_negated;
-                op += (op == 33) ? 1 : (op[2] != 45) ? 2 : 3;
+                op = __nh_advance_str(op, (__nh_char_at0(op) == 33) ? 1 : (__nh_char_at0(__nh_advance_str(op, 2)) != 45) ? 2 : 3);
             }
-            if (!op || op == 32) {
+            if (!__nh_char_at0(op) || __nh_char_at0(op) == 32) {
                 config_error_add("Negated nothing for '%s'", fullname);
                 return (0);
             }
@@ -5978,11 +5976,11 @@ export function parse_role_opt(optidx, negated, fullname, opts, opp) {
             }
             preval = getoptstr(optidx, game.opt_phase);
             if (val_negated || negated) {
-                let negbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let negbuf = '';
                 /* for negative value, clear filter if there is a prior
                    value from a different phase; for same phase, duplicates
                    are allowed and setrolefilter() merges them */
-                if (!preval || preval != 33) {
+                if (!preval || __nh_char_at0(preval) != 33) {
                     clearrolefilter(which);
                 }
                 if (!setrolefilter(op)) {
@@ -5993,7 +5991,7 @@ export function parse_role_opt(optidx, negated, fullname, opts, opp) {
                 opp.value = __parse_role_opt_neg_opt;
             } else {
                 if (game.duplicate) {
-                    if (preval && preval == 33) {
+                    if (preval && __nh_char_at0(preval) == 33) {
                         /* for positive value, allow duplicate if prior value
                    was a negative one or came from a different phase;
                    reject if prior value was positive and from same phase */
@@ -6010,9 +6008,9 @@ export function parse_role_opt(optidx, negated, fullname, opts, opp) {
             }
             if (sp) {
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
-                op = sp + 1;
+                op = __nh_advance_str(sp, 1);
             } else {
-                op += strlen(op);
+                op = __nh_advance_str(op, strlen(op));
             }
         }
         /* '!ok' without config_error_add() implies a valid negation */
@@ -6055,10 +6053,9 @@ export function illegal_menu_cmd_key(c) {
  * symbols.
  */
 export function oc_to_str(src, dest) {
-    let __nh_src_idx = 0;
     let __nh_dest_idx = 0;
     let i = 0;
-    while ((i = src[__nh_src_idx++]) != 0) {
+    while ((i = (src = __nh_advance_str(src, 1))) != 0) {
         if (i < 0 || i >= MAXOCLASSES) {
             impossible("oc_to_str:  illegal object class %d", i);
         } else {
@@ -6085,7 +6082,7 @@ export function add_menu_cmd_alias(from_ch, to_ch) {
 export function get_menu_cmd_key(ch) {
     let found = strchr(game.mapped_menu_op, ch);
     if (found) {
-        let idx = (found - game.mapped_menu_op);
+        let idx = ((game.mapped_menu_op.length - found.length));
         ch = game.mapped_menu_cmds[idx];
     }
     return ch;
@@ -6097,7 +6094,7 @@ export function get_menu_cmd_key(ch) {
 export function map_menu_cmd(ch) {
     let found = strchr(game.mapped_menu_cmds, ch);
     if (found) {
-        let idx = (found - game.mapped_menu_cmds);
+        let idx = ((game.mapped_menu_cmds.length - found.length));
         ch = game.mapped_menu_op[idx];
     }
     return ch;
@@ -6114,7 +6111,7 @@ export function map_menu_cmd(ch) {
 const __collect_menu_keys_scroll_keys = [{ cmdkey: 94, maskindx: 1 }, { cmdkey: 60, maskindx: 1 }, { cmdkey: 62, maskindx: 2 }, { cmdkey: 124, maskindx: 2 }, { cmdkey: 123, maskindx: 4 }, { cmdkey: 125, maskindx: 8 }];
 export function collect_menu_keys(outbuf, scrollmask, printable) {
     let i = 0;
-    outbuf[0] = 0;
+    outbuf = __nh_char_write(outbuf, 0, 0);
     for (i = 0; i < (Math.trunc(6 /* sizeof(const struct menuscrollinfo [6]) */ / 1 /* sizeof(const struct menuscrollinfo) */)); ++i) {
         if (scrollmask & __collect_menu_keys_scroll_keys[i].maskindx) {
             let c = get_menu_cmd_key(__collect_menu_keys_scroll_keys[i].cmdkey);
@@ -6138,8 +6135,8 @@ export function fruitadd(str, replace_fruit) {
     let f = null;
     let highest_fruit_id = 0;
     let globpfx = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let altname = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let altname = '';
     let user_specified = 0;
     nonew: {
         highest_fruit_id = 0;
@@ -6165,21 +6162,21 @@ export function fruitadd(str, replace_fruit) {
          */
             globpfx = (!strncmp(game.pl_fruit, "small ", 6) || !strncmp(game.pl_fruit, "large ", 6)) ? 6 : (!strncmp(game.pl_fruit, "medium ", 7)) ? 7 : (!strncmp(game.pl_fruit, "very large ", 11)) ? 11 : 0;
             for (i = game.bases[FOOD_CLASS]; game.objects[i].oc_class == FOOD_CLASS; i++) {
-                if (!strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), game.pl_fruit) || (globpfx > 0 && !strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), { get value() { return game.pl_fruit[globpfx]; }, set value(_v) { game.pl_fruit[globpfx] = _v; } }))) {
+                if (!strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), game.pl_fruit) || (globpfx > 0 && !strcmp((game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), game.pl_fruit[globpfx]))) {
                     found = (1);
                     break;
                 }
             }
             if (!found) {
                 let c = null;
-                for (c = game.pl_fruit; c >= 48 && c <= 57; c++) {
+                for (c = game.pl_fruit; __nh_char_at0(c) >= 48 && __nh_char_at0(c) <= 57; (c = __nh_advance_str(c, 1))) {
                     continue;
                 }
-                if (!c || ((__ctype_b_loc())[((c))] & _ISspace)) {
+                if (!__nh_char_at0(c) || ((__ctype_b_loc())[((__nh_char_at0(c)))] & _ISspace)) {
                     numeric = (1);
                 }
             }
-            if (found || numeric || !strncmp(game.pl_fruit, "cursed ", 7) || !strncmp(game.pl_fruit, "uncursed ", 9) || !strncmp(game.pl_fruit, "blessed ", 8) || !strncmp(game.pl_fruit, "partly eaten ", 13) || (!strncmp(game.pl_fruit, "tin of ", 7) && (!strcmp(game.pl_fruit + 7, "spinach") || ((name_to_mon(game.pl_fruit + 7, null)) >= LOW_PM && (name_to_mon(game.pl_fruit + 7, null)) < NUMMONS))) || !strcmp(game.pl_fruit, "empty tin") || (!strcmp(game.pl_fruit, "glob") || (globpfx > 0 && !strcmp("glob", { get value() { return game.pl_fruit[globpfx]; }, set value(_v) { game.pl_fruit[globpfx] = _v; } }))) || ((str_end_is(game.pl_fruit, " corpse") || str_end_is(game.pl_fruit, " egg")) && ((name_to_mon(game.pl_fruit, null)) >= LOW_PM && (name_to_mon(game.pl_fruit, null)) < NUMMONS))) {
+            if (found || numeric || !strncmp(game.pl_fruit, "cursed ", 7) || !strncmp(game.pl_fruit, "uncursed ", 9) || !strncmp(game.pl_fruit, "blessed ", 8) || !strncmp(game.pl_fruit, "partly eaten ", 13) || (!strncmp(game.pl_fruit, "tin of ", 7) && (!strcmp(game.pl_fruit + 7, "spinach") || ((name_to_mon(game.pl_fruit + 7, null)) >= LOW_PM && (name_to_mon(game.pl_fruit + 7, null)) < NUMMONS))) || !strcmp(game.pl_fruit, "empty tin") || (!strcmp(game.pl_fruit, "glob") || (globpfx > 0 && !strcmp("glob", game.pl_fruit[globpfx]))) || ((str_end_is(game.pl_fruit, " corpse") || str_end_is(game.pl_fruit, " egg")) && ((name_to_mon(game.pl_fruit, null)) >= LOW_PM && (name_to_mon(game.pl_fruit, null)) < NUMMONS))) {
                 buf = strcpy(buf, game.pl_fruit);
                 game.pl_fruit = strcpy(game.pl_fruit, "candied ");
                 /* these checks for applying food attributes to actual items
@@ -6384,7 +6381,7 @@ export function optfn_o_status_hilites(optidx, req, negated, opts, op) {
 /* Get string value of configuration option.
  * Currently handles only boolean and compound options.
  */
-let __get_option_value_retbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __get_option_value_retbuf = '';
 export function get_option_value(optname, cnfvalid) {
     let bool_p = null;
     let i = 0;
@@ -6436,14 +6433,14 @@ export function longest_option_name(startpass, endpass) {
 const __doset_simple_menu_fmtstr_tab_doset_simple = "%s\t[%s]";
 export function doset_simple_menu() {
     /* unlike doset()'s fmtstr, there is no leading %s for indentation */
-    let fmtstr_doset_simple = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let fmtstr_doset_simple = '';
     let pick_list = null;
     let bool_p = null;
     let name = null;
     let fmtstr = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let abuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
+    let abuf = '';
     let tmpwin = 0;
     let any = 0;
     let section = 0;
@@ -6505,7 +6502,7 @@ export function doset_simple_menu() {
                             any.a_int = k + 1;
                         }
                         /* per opt functs may not guarantee this, so do it */
-                        buf2[0] = 0;
+                        buf2 = '';
                         reslt = optn_err;
                         if (game.allopt[k].optfn) {
                             reslt = (game.allopt[k].optfn)(game.allopt[k].idx, get_val, (0), buf2, game.empty_optstr);
@@ -6540,7 +6537,7 @@ export function doset_simple_menu() {
             /* note:  without the complication of a preselected entry, a PICK_ONE
        menu returning pick_cnt > 0 implies exactly 1 */
             k = pick_list[0].item.a_int - 1;
-            abuf[0] = 0;
+            abuf = '';
             if (k == -2) {
                 game.simple_options_help = !game.simple_options_help;
                 toggled_help = (1);
@@ -6627,8 +6624,8 @@ const __doset_fmtstr_tab_doset = "%s%s\t[%s]";
 /* actual '?' menu entry gets inserted here */
 const __doset_helptext = ["For a brief explanation of how this works, type '?' to select", "the next menu choice, then press <enter> or <return>.", null, ("[To suppress this menu help, toggle off the 'cmdassist' option.]"), ""];
 export function doset() {
-    let fmtstr_doset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let fmtstr_doset = '';
+    let buf = '';
     let name = null;
     let indent = null;
     let i = 0;
@@ -6775,9 +6772,9 @@ export function doset() {
                             game.opt_set_in_config[k] = (1);
                         }
                     } else {
-                        let abuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                        let abuf = '';
                         buf = sprintf(buf, "Set %s to what?", game.allopt[opt_indx].name);
-                        abuf[0] = 0;
+                        abuf = '';
                         getlin(buf, abuf);
                         if (abuf[0] == 27) {
                             continue;
@@ -6849,13 +6846,13 @@ export function reset_needed_visuals() {
 export function doset_add_menu(win, option, fmtstr, idx, indexoffset) {
     let value = "unknown";
     let indent = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let any = 0;
     let i = idx;
     let reslt = optn_err;
     let clr = 8;
-    buf2[0] = 0;
+    buf2 = '';
     any = cg.zeroany;
     if (i >= 0 && i < OPTCOUNT && game.allopt[i].name && game.allopt[i].optfn) {
         any.a_int = (indexoffset == 0) ? 0 : i + 1 + indexoffset;
@@ -6882,7 +6879,7 @@ const __show_menu_controls_hardcoded = [{ key: "Return", desc: "Accept current c
 const __show_menu_controls_mc_fmt = "%8s     %-6s %s";
 const __show_menu_controls_mc_altfmt = "%9s  %-6s %s";
 export function show_menu_controls(win, dolist) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let fmt = null;
     let arg = null;
     let xcp = null;
@@ -6981,7 +6978,7 @@ export function handle_add_list_remove(optname, numtotal) {
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     any = cg.zeroany;
     for (i = 0; i < (Math.trunc(4 /* sizeof(const struct action [4]) */ / 1 /* sizeof(const struct action) */)); i++) {
-        let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let tmpbuf = '';
         any.a_int++;
         /* omit list and remove if there aren't any yet */
         if (!numtotal && (i == 1 || i == 2)) {
@@ -7005,8 +7002,8 @@ export function handle_add_list_remove(optname, numtotal) {
     return opt_idx;
 }
 export function dotogglepickup() {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let ocl = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let ocl = '';
     game.flags.pickup = !game.flags.pickup;
     if (game.flags.pickup) {
         oc_to_str(game.flags.pickup_types, ocl);
@@ -7023,7 +7020,7 @@ export function toggle_bool_option(p) {
     let ret = 4;
     for (i = 0; i < OPTCOUNT; i++) {
         if (!strncmpi(game.allopt[i].name, p, strlen(p)) && game.allopt[i].opttyp == BoolOpt && game.allopt[i].setwhere == set_in_game && game.allopt[i].addr != null) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             buf = sprintf(buf, "%s%s", game.allopt[i].addr.value ? "!" : "", game.allopt[i].name);
             if (parseoptions(buf, (0), (0))) {
                 ret = 0;
@@ -7037,7 +7034,7 @@ const __add_autopickup_exception_APE_regex_error = "regex error in AUTOPICKUP_EX
 const __add_autopickup_exception_APE_syntax_error = "syntax error in AUTOPICKUP_EXCEPTION";
 export function add_autopickup_exception(mapping) {
     let ape = null;
-    let text = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let text = '';
     let end = 0;
     let n = 0;
     let grab = (0);
@@ -7058,7 +7055,7 @@ export function add_autopickup_exception(mapping) {
     ape = alloc(1 /* sizeof(struct autopickup_exception) */);
     ape.regex = regex_init();
     if (!regex_compile(text, ape.regex)) {
-        let errbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let errbuf = '';
         let re_error_desc = regex_error_desc(ape.regex, errbuf);
         regex_free(ape.regex);
         free(ape);
@@ -7105,29 +7102,30 @@ export function free_autopickup_exceptions() {
 /* up to 4*BUFSZ-1 long; only first few
                                chars matter */
 export function sym_val(strval) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let tmp = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    buf[0] = 0;
-    if (!strval[0] || !strval[1]) {
+    /* to hold truncated copy of 'strval' */
+    let buf = '';
+    let tmp = '';
+    buf = '';
+    if (!__nh_char_at0(strval) || !__nh_char_at0(__nh_advance_str(strval, 1))) {
         /* empty, or single character */
         /* if single char is space or tab, leave buf[0]=='\0' */
-        if (!((__ctype_b_loc())[((strval[0]))] & _ISspace)) {
-            buf[0] = strval[0];
+        if (!((__ctype_b_loc())[((__nh_char_at0(strval)))] & _ISspace)) {
+            buf[0] = __nh_char_at0(strval);
         }
-    } else if (strval[0] == 39) {
-        if (strval[2] == 39 && !strval[3]) {
+    } else if (__nh_char_at0(strval) == 39) {
+        if (__nh_char_at0(__nh_advance_str(strval, 2)) == 39 && !__nh_char_at0(__nh_advance_str(strval, 3))) {
             /* simple matching single quote; we know strval[1] isn't '\0' */
             /* accepts '\' as backslash and ''' as single quote */
             /* if backslash, handle single or double quote or second backslash */
-            buf[0] = strval[1];
-        } else if (strval[1] == 92 && strval[2] && strval[3] == 39 && strchr("'\"\\", strval[2]) && !strval[4]) {
+            buf[0] = __nh_char_at0(__nh_advance_str(strval, 1));
+        } else if (__nh_char_at0(__nh_advance_str(strval, 1)) == 92 && __nh_char_at0(__nh_advance_str(strval, 2)) && __nh_char_at0(__nh_advance_str(strval, 3)) == 39 && strchr("'\"\\", __nh_char_at0(__nh_advance_str(strval, 2))) && !__nh_char_at0(__nh_advance_str(strval, 4))) {
             /* not simple quote or basic backslash;
            strip closing quote and let escapes() deal with it */
-            buf[0] = strval[2];
+            buf[0] = __nh_char_at0(__nh_advance_str(strval, 2));
         } else {
             let p = null;
             /* +1: skip opening single quote */
-            tmp = strncpy(tmp, strval + 1, 128 /* sizeof(char [128]) */ - 1);
+            tmp = strncpy(tmp, __nh_advance_str(strval, 1), 128 /* sizeof(char [128]) */ - 1);
             tmp[128 /* sizeof(char [128]) */ - 1] = 0;
             if ((p = strrchr(tmp, 39)) != null) {
                 tmp = nh_strchr_truncate(tmp, 39, 'rchr');
@@ -7147,13 +7145,13 @@ const opt_intro = ["", "                 NetHack Options Help:", "", null, "or u
 /* fill in next value at run-time */
 const opt_epilog = ["", "Some of the options can only be set before the game is started;", "those items will not be selectable in the 'O' command's menu.", "Some options are stored in a game's save file, and will keep saved", "values when restoring that game even if you have updated your config-", "uration file to change them.  Such changes will matter for new games.", "The \"other settings\" can be set with 'O', but when set within the", "configuration file they use their own directives rather than OPTIONS.", "See NetHack's \"Guidebook\" for details.", null];
 export function option_help() {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let optname = null;
     let i = 0;
     let datawin = 0;
     datawin = (game.windowprocs.win_create_nhwindow)(5);
-    nh_snprintf("option_help", 9471, buf, 256 /* sizeof(char [256]) */, "Set options as OPTIONS=<options> in %s", get_configfile());
+    buf = nh_snprintf("option_help", 9471, buf, 256 /* sizeof(char [256]) */, "Set options as OPTIONS=<options> in %s", get_configfile());
     opt_intro[3] = buf;
     for (i = 0; opt_intro[i]; i++) {
         (game.windowprocs.win_putstr)(datawin, 0, opt_intro[i]);
@@ -7185,7 +7183,7 @@ export function option_help() {
             continue;
         }
         buf2 = sprintf(buf2, "`%s'", optname);
-        nh_snprintf("option_help", 9507, buf, 256 /* sizeof(char [256]) */, "%-20s - %s%c", buf2, game.allopt[i].descr, game.allopt[i + 1].name ? 44 : 46);
+        buf = nh_snprintf("option_help", 9507, buf, 256 /* sizeof(char [256]) */, "%-20s - %s%c", buf2, game.allopt[i].descr, game.allopt[i + 1].name ? 44 : 46);
         (game.windowprocs.win_putstr)(datawin, 0, buf);
     }
     (game.windowprocs.win_putstr)(datawin, 0, "");
@@ -7210,11 +7208,11 @@ export function option_help() {
    conditions with their default settings (cond_blind, !cond_glowhands, &c)
    are excluded */
 export function all_options_conds(sbuf) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let nextcond = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let nextcond = '';
     let idx = 0;
     let gotone = (0);
-    buf[0] = 0;
+    buf = '';
     while (opt_next_cond(idx, nextcond)) {
         if (idx == 0) {
             buf = strcpy(buf, "OPTIONS=");
@@ -7250,8 +7248,7 @@ export function all_options_menucolors(sbuf) {
     let i = 0;
     let ncolors = count_menucolors();
     let tmp = game.menu_colorings;
-    /* see also: add_menu_coloring() */
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let arr = null;
     if (!ncolors) {
         return;
@@ -7272,7 +7269,7 @@ export function all_options_menucolors(sbuf) {
 }
 export function all_options_msgtypes(sbuf) {
     let tmp = game.plinemsg_types;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     while (tmp) {
         let mtype = msgtype2name(tmp.msgtype);
         buf = sprintf(buf, "MSGTYPE=%s \"%s\"\n", mtype, tmp.pattern);
@@ -7282,7 +7279,7 @@ export function all_options_msgtypes(sbuf) {
 }
 export function all_options_apes(sbuf) {
     let tmp = game.apelist;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     while (tmp) {
         buf = sprintf(buf, "autopickup_exception=\"%c%s\"\n", tmp.grab ? 60 : 62, tmp.pattern);
         strbuf_append(sbuf, buf);
@@ -7293,7 +7290,7 @@ export function all_options_apes(sbuf) {
 /* return strbuf of all options, to write to file */
 export function all_options_strbuf(sbuf) {
     let name = null;
-    let tmp = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tmp = '';
     let buf2 = null;
     let bool_p = null;
     let i = 0;
@@ -7324,7 +7321,7 @@ export function all_options_strbuf(sbuf) {
                - term_cols, term_rows */
                 buf2 = get_option_value(name, (1));
                 if (buf2) {
-                    nh_snprintf("all_options_strbuf", 9714, tmp, 256 /* sizeof(char [256]) */ - 1, "OPTIONS=%s:%s", name, buf2);
+                    tmp = nh_snprintf("all_options_strbuf", 9714, tmp, 256 /* sizeof(char [256]) */ - 1, "OPTIONS=%s:%s", name, buf2);
                     tmp = strcat(tmp, "\n");
                     strbuf_append(sbuf, tmp);
                 }
@@ -7363,10 +7360,10 @@ export function next_opt(datawin, str) {
     if (!__next_opt_buf) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     }
-    if (!str.value) {
+    if (!__nh_char_at0(str)) {
         s = eos(__next_opt_buf);
-        if (s > __next_opt_buf[1] && s[-2] == 44) {
-            s[-2] = 46 , s[-1] = 0;
+        if (s > __nh_advance_str(__next_opt_buf, 1) && __nh_char_at0(__nh_advance_str(s, -2)) == 44) {
+            s = __nh_char_write(s, -2, 46) , s = __nh_char_write(s, -1, 0);
         }
         /* replace ending ", " with "." */
         /* (greater than COLNO - 2) */
@@ -7376,9 +7373,9 @@ export function next_opt(datawin, str) {
     }
     if (i > 80 - 2) {
         (game.windowprocs.win_putstr)(datawin, 0, __next_opt_buf);
-        __next_opt_buf[0] = 0;
+        __next_opt_buf = __nh_char_write(__next_opt_buf, 0, 0);
     }
-    if (str.value) {
+    if (__nh_char_at0(str)) {
         __next_opt_buf = strcat(__next_opt_buf, str);
         __next_opt_buf = strcat(__next_opt_buf, ", ");
     } else {
@@ -7533,62 +7530,62 @@ game.options_set_window_colors_flag = 0;
 export function wc_set_window_colors(op) {
     let j = 0;
     let clr = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let wn = null;
     let tfg = null;
     let tbg = null;
     let newop = null;
     buf = strcpy(buf, op);
     newop = mungspaces(buf);
-    while (newop) {
+    while (__nh_char_at0(newop)) {
         wn = tfg = tbg = null;
         /* until first non-space in case there's leading spaces - before
            colorname*/
         /* until first non-space - before foreground*/
         /* until first non-space (in case there's leading space after slash) -
          * before background */
-        if (newop == 32) {
-            newop++;
+        if (__nh_char_at0(newop) == 32) {
+            (newop = __nh_advance_str(newop, 1));
         }
-        if (!newop) {
+        if (!__nh_char_at0(newop)) {
             return 0;
         }
         wn = newop;
         /* until first space - colorname*/
         /* until first space - background */
-        while (newop && newop != 32) {
-            newop++;
+        while (__nh_char_at0(newop) && __nh_char_at0(newop) != 32) {
+            (newop = __nh_advance_str(newop, 1));
         }
-        if (!newop) {
+        if (!__nh_char_at0(newop)) {
             return 0;
         }
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        if (newop == 32) {
-            newop++;
+        if (__nh_char_at0(newop) == 32) {
+            (newop = __nh_advance_str(newop, 1));
         }
-        if (!newop) {
+        if (!__nh_char_at0(newop)) {
             return 0;
         }
         tfg = newop;
         /* until slash - foreground */
-        while (newop && newop != 47) {
-            newop++;
+        while (__nh_char_at0(newop) && __nh_char_at0(newop) != 47) {
+            (newop = __nh_advance_str(newop, 1));
         }
-        if (!newop) {
+        if (!__nh_char_at0(newop)) {
             return 0;
         }
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        if (newop == 32) {
-            newop++;
+        if (__nh_char_at0(newop) == 32) {
+            (newop = __nh_advance_str(newop, 1));
         }
-        if (!newop) {
+        if (!__nh_char_at0(newop)) {
             return 0;
         }
         tbg = newop;
-        while (newop && newop != 32) {
-            newop++;
+        while (__nh_char_at0(newop) && __nh_char_at0(newop) != 32) {
+            (newop = __nh_advance_str(newop, 1));
         }
-        if (newop) {
+        if (__nh_char_at0(newop)) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
         }
         for (j = 0; j < WC_COUNT; ++j) {

@@ -8,7 +8,7 @@ import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcmp, strcpy, strncpy } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcmp, strcpy, strncpy } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { cvt_sdoor_to_door } from './detect.js';
 import { newsym } from './display.js';
@@ -17,7 +17,7 @@ import { In_mines, Is_special, assign_level, depth, ledger_no, on_level } from '
 import { set_tin_variety } from './eat.js';
 import { make_engr_at } from './engrave.js';
 import { in_rooms, in_town } from './hack.js';
-import { distmin, highc, letter } from './hacklib.js';
+import { distmin, letter } from './hacklib.js';
 import { makemon, mkclass, mkmonmoney, mongets, newmextra, set_malign } from './makemon.js';
 import { mkobj_at, mksobj_at } from './mkobj.js';
 import { mongone } from './mon.js';
@@ -238,9 +238,9 @@ export function nameshk(shk, nlp) {
             } else {
                 shname = shk.female ? "-Lucrezia" : "+Dirk";
             }
-            if (shname == 95 || shname == 45) {
+            if (__nh_char_at0(shname) == 95 || __nh_char_at0(shname) == 45) {
                 shk.female = 1;
-            } else if (shname == 124 || shname == 43) {
+            } else if (__nh_char_at0(shname) == 124 || __nh_char_at0(shname) == 43) {
                 shk.female = 0;
             }
             for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
@@ -408,7 +408,7 @@ export function stock_room(shp_indx, sroom) {
     let sh = 0;
     let stockcount = 0;
     let specialspot = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let rmno = ((game.rooms.indexOf(sroom)) + 3);
     let shp = shtypes[shp_indx];
     /* first, try to place a shopkeeper in the room */
@@ -518,7 +518,7 @@ export function get_shop_item(type) {
 export function Shknam(mtmp) {
     let nam = shkname(mtmp);
     /* 'nam[]' is almost certainly already capitalized, but be sure */
-    nam[0] = highc(nam[0]);
+    nam = (() => { const __s = nam; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return nam;
 }
 /* shopkeeper's name, without any visibility constraint; if hallucinating,
@@ -558,8 +558,8 @@ export function shkname(mtmp) {
                 }
             }
         }
-        if (!letter(shknm)) {
-            ++shknm;
+        if (!letter(__nh_char_at0(shknm))) {
+            (shknm = __nh_advance_str(shknm, 1));
         }
         nam = strcpy(nam, shknm);
     }
@@ -567,7 +567,7 @@ export function shkname(mtmp) {
 }
 export function shkname_is_pname(mtmp) {
     let shknm = ((mtmp).mextra.eshk).shknam;
-    return (shknm == 45 || shknm == 43 || shknm == 61);
+    return (__nh_char_at0(shknm) == 45 || __nh_char_at0(shknm) == 43 || __nh_char_at0(shknm) == 61);
 }
 export function is_izchak(shkp, override_hallucination) {
     let shknm = null;
@@ -582,8 +582,8 @@ export function is_izchak(shkp, override_hallucination) {
         return (0);
     }
     shknm = ((shkp).mextra.eshk).shknam;
-    if (!letter(shknm)) {
-        ++shknm;
+    if (!letter(__nh_char_at0(shknm))) {
+        (shknm = __nh_advance_str(shknm, 1));
     }
     return !strcmp(shknm, "Izchak");
 }

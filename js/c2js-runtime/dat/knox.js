@@ -34,7 +34,7 @@ export default async function({ des, math, percent, selection }) {
     };
   await des.region({ region: [21, 8, 35, 11], lit: 1, type: "ordinary" });
   let treasury = selection.area(21, 8, 35, 11);
-  treasury.iterate(treasure_spot);
+  await treasury.iterate(treasure_spot);
   if (percent(50)) {
       await des.terrain(36, 9, "|");
       await des.terrain(36, 10, "S");

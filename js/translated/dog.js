@@ -7,6 +7,7 @@ import { game } from '../gstate.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, pline, pline_The } from '../c2js-runtime/pline.js';
+import { __nh_char_at0 } from '../c2js-runtime/string.js';
 import { m_unleash } from './apply.js';
 import { acurr } from './attrib.js';
 import { night } from './calendar.js';
@@ -255,18 +256,7 @@ export function makedog() {
     }
     pettype = game.context.startingpet_typ = pet_type();
     petname = (pettype == PM_LITTLE_DOG) ? game.dogname : (pettype == PM_KITTEN) ? game.catname : (pettype == PM_PONY) ? game.horsename : "";
-    /* JS-faithful empty check: C tests `*petname` (first char != NUL);
-       game.dogname/catname/horsename are 63-byte zero arrays by default,
-       which JS treats as truthy.  Without this, the role-specific
-       fallback ("Hachi"/"Slasher"/"Idefix"/"Sirius") is skipped, and
-       pets render as "your little dog" instead of the canonical name. */
-    const __petnameEmpty = (() => {
-        if (petname == null) return true;
-        if (typeof petname === 'string') return petname.length === 0;
-        if (Array.isArray(petname)) return !petname[0];
-        return !petname.value;
-    })();
-    if (__petnameEmpty && pettype == PM_LITTLE_DOG) {
+    if (!__nh_char_at0(petname) && pettype == PM_LITTLE_DOG) {
         /* All of these names were for dogs. */
         if ((game.urole.mnum == (PM_CAVE_DWELLER))) {
             petname = "Slasher";
@@ -309,7 +299,7 @@ export function makedog() {
     } else {
         impossible("makedog() when startingpet_mid is already non-zero?");
     }
-    if (!game.petname_used++ && petname) {
+    if (!game.petname_used++ && __nh_char_at0(petname)) {
         mtmp = christen_monst(mtmp, petname);
     }
     initedog(mtmp, (1));
@@ -602,9 +592,9 @@ export function mon_arrive(mtmp, when) {
         /* monster moved a bit; pick a nearby location */
         /* mnearto() deals w/stone, et al */
         let r = in_rooms(xlocale, ylocale, 0);
-        if (r && r) {
+        if (r && __nh_char_at0(r)) {
             let c = { x: 0, y: 0 };
-            if (somexy(game.rooms[r - 3], c)) {
+            if (somexy(game.rooms[__nh_char_at0(r) - 3], c)) {
                 xlocale = c.x , ylocale = c.y;
             /* somexy() handles irregular rooms */
             } else {

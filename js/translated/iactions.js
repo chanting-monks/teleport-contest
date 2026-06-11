@@ -5,8 +5,8 @@
 import { game } from '../gstate.js';
 import { free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcpy } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_char_at0, __nh_char_write, strcpy } from '../c2js-runtime/string.js';
 import { doapply, dorub } from './apply.js';
 import { doinvoke, undiscovered_artifact } from './artifact.js';
 import { cmdq_add_ec, cmdq_add_key, do_reqmenu } from './cmd.js';
@@ -85,9 +85,9 @@ const __item_naming_classification_Call = "Call";
            "rename" don't fit for changing a type name */
 const __item_naming_classification_Recall = "Re-call or un-call";
 export function item_naming_classification(obj, onamebuf, ocallbuf) {
-    onamebuf[0] = ocallbuf[0] = 0;
+    (ocallbuf = __nh_char_write(ocallbuf, 0, 0), onamebuf = __nh_char_write(onamebuf, 0, 0));
     if (name_ok(obj) == GETOBJ_SUGGEST) {
-        onamebuf = sprintf(onamebuf, "%s %s %s", (!((obj).oextra && ((obj).oextra.oname)) || !((obj).oextra.oname)) ? __item_naming_classification_Name : __item_naming_classification_Rename, the_unique_obj(obj) ? "the" : !((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "this specific" : "this stack of", simpleonames(obj));
+        onamebuf = sprintf(onamebuf, "%s %s %s", (!((obj).oextra && ((obj).oextra.oname)) || !__nh_char_at0(((obj).oextra.oname))) ? __item_naming_classification_Name : __item_naming_classification_Rename, the_unique_obj(obj) ? "the" : !((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "this specific" : "this stack of", simpleonames(obj));
     }
     if (call_ok(obj) == GETOBJ_SUGGEST) {
         let callname = simpleonames(obj);
@@ -98,9 +98,9 @@ export function item_naming_classification(obj, onamebuf, ocallbuf) {
         } else if (!((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD)))) {
             callname = makeplural(callname);
         }
-        ocallbuf = sprintf(ocallbuf, "%s the type for %s", (!game.objects[obj.otyp].oc_uname || !game.objects[obj.otyp].oc_uname) ? __item_naming_classification_Call : __item_naming_classification_Recall, callname);
+        ocallbuf = sprintf(ocallbuf, "%s the type for %s", (!game.objects[obj.otyp].oc_uname || !__nh_char_at0(game.objects[obj.otyp].oc_uname)) ? __item_naming_classification_Call : __item_naming_classification_Recall, callname);
     }
-    return (onamebuf.value || ocallbuf.value) ? (1) : (0);
+    return (__nh_char_at0(onamebuf) || __nh_char_at0(ocallbuf)) ? (1) : (0);
 }
 /* construct text for the menu entries for IA_READ_OBJ */
 export function item_reading_classification(obj, outbuf) {
@@ -258,8 +258,8 @@ export function itemactions(otmp) {
     let n = 0;
     let act = IA_NONE;
     let win = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let selected = null;
     let mtmp = null;
     let light = otmp.lamplit ? "Extinguish" : "Light";
@@ -392,7 +392,7 @@ export function itemactions(otmp) {
         buf = sprintf(buf, "%s %s", shoot ? "Shoot" : "Throw", (otmp.quan > 1) ? "one of these" : "this");
         if (shoot) {
             (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-            buf = (buf || '') + sprintf('', " with your wielded %s", simpleonames(game.uwep));
+            buf = __nh_buf_append(buf, sprintf('', " with your wielded %s", simpleonames(game.uwep)));
         }
         ia_addmenu(win, IA_FIRE_OBJ, 102, buf);
     }

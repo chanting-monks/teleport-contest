@@ -6,6 +6,7 @@ import { abs } from '../c2js-runtime/math.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { cg } from './decl.js';
 import { newsym_force } from './display.js';
@@ -24,7 +25,7 @@ export function selection_new() {
     tmps.bounds.hx = tmps.bounds.hy = 0;
     tmps.map = alloc((80 * 21) + 1);
     memset(tmps.map, 1, (80 * 21));
-    tmps.map[(80 * 21)] = 0;
+    tmps.map = __nh_char_write(tmps.map, (80 * 21), 0);
     return tmps;
 }
 export function selection_free(sel, freesel) {
@@ -147,7 +148,7 @@ export function selection_getpoint(x, y, sel) {
     if (x < 0 || y < 0 || x >= sel.wid || y >= sel.hei) {
         return 0;
     }
-    return (sel.map[sel.wid * y + x] - 1);
+    return (__nh_char_at0(__nh_advance_str(sel.map, sel.wid * y + x)) - 1);
 }
 export function selection_setpoint(x, y, sel, c) {
     if (!sel || !sel.map) {
@@ -171,10 +172,10 @@ export function selection_setpoint(x, y, sel, c) {
         if (sel.bounds.hy < y) {
             sel.bounds.hy = y;
         }
-    } else if (sel.map[sel.wid * y + x] != 0) {
+    } else if (__nh_char_at0(__nh_advance_str(sel.map, sel.wid * y + x)) != 0) {
         sel.bounds_dirty = (1);
     }
-    sel.map[sel.wid * y + x] = (c + 1);
+    sel.map = __nh_char_write(sel.map, sel.wid * y + x, (c + 1));
 }
 export function selection_not(s) {
     let x = 0;

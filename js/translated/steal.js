@@ -5,7 +5,7 @@
 import { game } from '../gstate.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, Your, pline } from '../c2js-runtime/pline.js';
-import { strchr, strcpy, strncmp, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, strchr, strcpy, strncmp, strstri } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
 import { o_unleash } from './apply.js';
 import { touch_artifact } from './artifact.js';
@@ -107,7 +107,7 @@ export function stealgold(mtmp) {
         }
         /* reduce "rear hooves/claws" to "hooves/claws" */
         if (!strncmp(what, "rear ", 5)) {
-            what += 5;
+            what = __nh_advance_str(what, 5);
         }
         pline("%s quickly snatches some gold from %s %s %s!", Monnam(mtmp), (((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) || ((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked)) ? "beneath" : "between", whose, what);
         if (!ygold || !rn2(5)) {
@@ -308,8 +308,8 @@ export function remove_worn_item(obj, unchain_ball) {
 }
 /* during theft of a worn item: remove_worn_item(), prefaced by a message */
 export function worn_item_removal(mon, obj) {
-    let objbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let article = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let objbuf = '';
+    let article = '';
     let p = null;
     let verb = null;
     let strip_art = 0;
@@ -328,8 +328,8 @@ export function worn_item_removal(mon, obj) {
     objbuf = strsubst(objbuf, " (being worn)", "");
     objbuf = strsubst(objbuf, " (alternate weapon; not wielded)", "");
     /* convert "ring (on left hand)" to "ring (from left hand)" */
-    if ((p = strstri(objbuf, " (on ")) && (!strncmp(p + 5, "left ", 5) || !strncmp(p + 5, "right ", 6))) {
-        strsubst(p + 2, "on", "from");
+    if ((p = strstri(objbuf, " (on ")) && (!strncmp(__nh_advance_str(p, 5), "left ", 5) || !strncmp(__nh_advance_str(p, 5), "right ", 6))) {
+        strsubst(__nh_advance_str(p, 2), "on", "from");
     }
     /* slightly iffy for alternate weapon that isn't actively dual-wielded,
        but it's better to alert the player to the change in equipment than
@@ -350,7 +350,7 @@ export function worn_item_removal(mon, obj) {
 const __steal_how = ["steal", "snatch", "grab", "take"];
 export function steal(mtmp, objnambuf) {
     let otmp = null;
-    let Monnambuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let Monnambuf = '';
     let tmp = 0;
     let could_petrify = 0;
     let armordelay = 0;
@@ -704,7 +704,7 @@ export function mpickobj(mtmp, otmp) {
 }
 /* called for AD_SAMU (the Wizard and quest nemeses) */
 export function stealamulet(mtmp) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let otmp = null;
     let obj = null;
     let real = 0;

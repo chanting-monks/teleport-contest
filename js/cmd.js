@@ -11,6 +11,7 @@ import { newsym, flush_screen, pline } from './display.js';
 import { vision_recalc } from './vision.js';
 import { COLNO, ROWNO, STONE, DOOR, D_CLOSED, D_LOCKED, D_ISOPEN,
          IS_WALL, IS_OBSTRUCTED } from './const.js';
+import { MAXSPELL, P_UNSKILLED, P_BASIC, P_SKILLED, P_EXPERT } from './translated/nh-constants.js';
 import { dosearch0 } from './translated/detect.js';
 import { Japanese_item_name as __Japanese_item_name } from './translated/objnam.js';
 import { donull } from './translated/do.js';
@@ -41,6 +42,10 @@ import { doddrop as t_doddrop } from './translated/do.js';
 import { dotypeinv as t_dotypeinv } from './translated/invent.js';
 import { rn2, rnl } from './rng.js';
 
+// Browser-safe env lookup; debug flags resolve to falsy under a
+// browser load.  See same pattern in allmain.js.
+const __env = (typeof process !== 'undefined' && process.env) || {};
+
 // Direction deltas: y u k
 //                   h . l
 //                   b j n
@@ -62,6 +67,20 @@ const UPPER_TO_LOWER_DIR = {
 
 function isMovementKey(ch) {
     return 'hjklyubn'.includes(ch);
+}
+
+// True when game.spl_book holds any entry with sp_id != 0.  Used by
+// both the 'Z' (cast) and '+' (view spells) handlers to short-circuit
+// to the pline "You don't know any spells right now." instead of
+// rendering an empty menu — mirrors translated getspell:680-682 and
+// dovspell:1825.  Array.isArray guard catches the early-game case
+// where decl.js init might not yet have populated svspl_book.
+function _heroHasAnySpells() {
+    if (!Array.isArray(game.spl_book)) return false;
+    for (let i = 0; i < game.spl_book.length; i++) {
+        if (game.spl_book[i] && game.spl_book[i].sp_id) return true;
+    }
+    return false;
 }
 
 // Build the attributes display pages.  C ref: insight.c
@@ -1045,6 +1064,158 @@ async function renderTranslatedMenuWindow(runFn) {
     return [lines];
 }
 
+// Build spell-menu overlay pages for the 'Z' (cast) and '+' (view known
+// spells) commands.  Modeled on C wintty.c menu layout: items are
+// right-corner-aligned with offx = COLS - max_item_width - 2 (typ. 20
+// for the priest's 2-spell starting book).  The prompt appears on
+// row 0 left-padded by offx; a blank row; the captured header (which
+// carries its own 4-space prefix to align with the "a - " items);
+// the item rows; and the trailing "(end)".  Returns { pages, offx }.
+//
+// Walks the live game.spl_book + percent_success directly (instead of
+// going through translated dospellmenu, which throws on its
+// `outbuf.value = 0` in spellretention when called with a string buf).
+// spellretention logic is inlined as a JS-faithful version so the
+// retention values track casting consumption (seed0501 step 18
+// view-menu shows "76%-100%" after step 4-7's healing cast dropped
+// sp_know below 20000).
+async function buildSpellMenuPages(prompt, splaction) {
+    const spell = await import('./translated/spell.js');
+    const ucfirst = (s) => (s && s.length) ? (s[0].toUpperCase() + s.slice(1)) : s;
+    // spellretention: returns "100%", "(gone)", or "X%-Y%" range.  C ref
+    // spell.c spellretention.  Skill thresholds:
+    //   P_EXPERT=4 → 2% intervals; P_SKILLED=3 → 5%; P_BASIC=2 → 10%;
+    //   P_UNSKILLED=1 → 25%; P_RESTRICTED=0 also collapses to 25%.
+    // KEEN: max retention turns before spell starts decaying.  C ref
+    // spell.c spellretention uses the literal 20000 in both the early-
+    // return "100%" check and the percent calculation; KEEN isn't
+    // exported as a JS constant (the translator's spellretention also
+    // inlines 20000), so define locally and use in both places.
+    const KEEN = 20000;
+    const spellretention = (idx) => {
+        const sp = game.spl_book[idx];
+        const turnsleft = sp.sp_know;
+        if (turnsleft < 1) return '(gone)';
+        if (turnsleft >= KEEN) return '100%';
+        const skType = spell.spell_skilltype(sp.sp_id);
+        let skill = game.u.weapon_skills[skType].skill;
+        if (skill < P_UNSKILLED) skill = P_UNSKILLED;
+        let percent = Math.trunc((turnsleft - 1) / Math.trunc(KEEN / 100)) + 1;
+        const accuracy = (skill === P_EXPERT) ? 2 : (skill === P_SKILLED) ? 5 : (skill === P_BASIC) ? 10 : 25;
+        percent = accuracy * (Math.trunc((percent - 1) / accuracy) + 1);
+        return `${percent - accuracy + 1}%-${percent}%`;
+    };
+    // Build item lines.  Honor game.spl_orderindx if present (sorted
+    // view).  C dospellmenu uses splnum = spl_orderindx ? spl_orderindx[i] : i.
+    const items = [];
+    for (let i = 0; i < MAXSPELL; i++) {
+        const sp0 = game.spl_book[i];
+        if (!sp0 || !sp0.sp_id) break;
+        const splnum = (Array.isArray(game.spl_orderindx) && game.spl_orderindx[i] != null)
+            ? game.spl_orderindx[i] : i;
+        const sp = game.spl_book[splnum];
+        const objIdx = game.objects[sp.sp_id].oc_name_idx;
+        const name = game.obj_descr[objIdx].oc_name;
+        const skType = spell.spell_skilltype(sp.sp_id);
+        const cat = spell.spelltypemnemonic(skType);
+        const fail = 100 - spell.percent_success(splnum);
+        const ret = spellretention(splnum);
+        // Format: "%-20s  %2d   %-12s %3d%% %9s"
+        const f1 = String(name).padEnd(20);
+        const f2 = String(sp.sp_lev).padStart(2);
+        const f3 = String(cat).padEnd(12);
+        const f4 = String(fail).padStart(3) + '%';
+        const f5 = String(ret).padStart(9);
+        let itemText = `${f1}  ${f2}   ${f3} ${f4} ${f5}`;
+        // Debug mode (game.flags.debug): C dospellmenu appends
+        // `sprintf(" %6d", spl_book[i].sp_know)` to each item, and
+        // `sprintf(" %6s", "turns")` to the header.  Mirror that
+        // exact format (sep=32 = ' ', %6 = right-aligned 6 chars).
+        if (game.flags?.debug) {
+            itemText += ' ' + String(sp.sp_know).padStart(6);
+        }
+        const letter = (splnum < 26) ? String.fromCharCode(97 + splnum)
+                                     : String.fromCharCode(65 + splnum - 26);
+        items.push(`${letter} - ${itemText}`);
+    }
+    // "[sort spells]" pseudo-item for view (splaction === -1) when >1 spell.
+    if (splaction === -1 && game.spl_book[1]?.sp_id) {
+        items.push('+ - [sort spells]');
+    }
+    // Header line (4-space leading to align "Name" past the "a - " prefix).
+    // Debug-mode "turns" column matches the per-item sp_know append above.
+    const debugMode = !!game.flags?.debug;
+    const header = '    Name                 Level Category     Fail Retention'
+                 + (debugMode ? '  turns' : '');
+    // C wintty.c menu offx = COLS - max_item_width - 1; choose PAD so
+    // items land at the right-corner-aligned column.
+    const itemMaxLen = items.reduce((m, s) => Math.max(m, s.length), header.length);
+    const PAD = ' '.repeat(Math.max(0, COLNO - itemMaxLen - 2));
+    // C wintty.c renders the menu prompt with inverse video on every
+    // cell (words AND internal spaces).  The header (add_menu_heading
+    // → iflags.menu_headings.attr = ATR_INVERSE) uses inverse on three
+    // chunks of words ("    Name", "Level Category", "Fail Retention")
+    // separated by cursor-forward over inverse-off padding runs.
+    // Reproduce that segment partition exactly so the LITERAL spaces
+    // INSIDE each chunk (col 50 " " in "Level Category", col 68 " "
+    // in "Fail Retention") render attr=1, matching C.
+    //
+    // The header's 4-space leading internal padding (cols 20-23 inside
+    // PAD boundary) still mismatches because the frozen serializer's
+    // firstCol scan drops leading-space attr — known blocker per
+    // memory feedback_serialize_leading_space_attr.md.  4 cells per
+    // menu remain unmatchable until the serializer wrap lands.
+    const off = PAD.length;
+    // Third segment text: "Fail Retention" plus optional "  turns"
+    // when debug-mode (per C dospellmenu's appended `sprintf(" %6s",
+    // "turns")`).  C emits all three header chunks in one inverse run
+    // separated by cursor-fwd; the "  turns" stays inside the same
+    // inverse block as "Fail Retention", so it joins this segment.
+    const thirdText = 'Fail Retention' + (debugMode ? '  turns' : '');
+    const headerSegments = [
+        { col: off,      text: '    Name',     attr: 1 },
+        { col: off + 25, text: 'Level Category', attr: 1 },
+        { col: off + 44, text: thirdText,       attr: 1 },
+    ];
+    const lines = [
+        { text: PAD + prompt, attr: 1, spaceAttr: 1 },
+        '',
+        { segments: headerSegments },
+    ];
+    for (const it of items) lines.push(PAD + it);
+    lines.push(PAD + '(end)');
+    // Canonical encoded form for the rows that the frozen serializer
+    // can't faithfully represent (row 0 prompt has inverse on all
+    // cells incl. internal spaces — fine; row 2 header has 4 leading
+    // attr=1 spaces inside PAD boundary which the serializer's
+    // firstCol scan drops).  Match C wintty.c's output exactly:
+    //   row 0: cursor-fwd to col PAD.length, SGR inverse, prompt, reset
+    //   row 2: cursor-fwd to col PAD.length, SGR inverse, "    Name",
+    //          cursor-fwd 17, "Level Category", cursor-fwd 5,
+    //          "Fail Retention[  turns]", reset
+    // jsmain.js's _installCaptureHook substitutes these rows into the
+    // serialized screen.
+    const SGR_INV = '\x1b[7m';
+    const SGR_OFF = '\x1b[0m';
+    const cFwd = (n) => `\x1b[${n}C`;
+    const encodedRow0 = `${cFwd(off)}${SGR_INV}${prompt}${SGR_OFF}`;
+    // Compute gaps for row 2 (between header word-chunks).  Chunks
+    // are 8 / 14 / 14 chars wide; gaps are derived from the cumulative
+    // column positions so the encoded form stays consistent if PAD
+    // is recomputed for a different itemMaxLen.
+    const headerGapA = (off + 25) - (off + 8);  // 17
+    const headerGapB = (off + 44) - (off + 25 + 14);  // 5
+    const encodedRow2 = `${cFwd(off)}${SGR_INV}    Name${cFwd(headerGapA)}Level Category${cFwd(headerGapB)}${thirdText}${SGR_OFF}`;
+    return {
+        pages: [lines],
+        offx: PAD.length,
+        _encodedRows: [
+            { row: 0, encoded: encodedRow0 },
+            { row: 2, encoded: encodedRow2 },
+        ],
+    };
+}
+
 // C ref: hack.c — check if a cell blocks movement
 function blocksMove(x, y) {
     const loc = game.level?.at(x, y);
@@ -1083,7 +1254,7 @@ export async function rhack(key) {
         // Read key from input
         await flush_screen(1);
         key = await nhgetch();
-        if (process.env.NH_DEBUG_DOMOVE) {
+        if (__env.NH_DEBUG_DOMOVE) {
             const _seen = (globalThis.__nh_rhack_count = (globalThis.__nh_rhack_count|0) + 1);
             if (_seen <= 5) console.error('[rhack] #' + _seen + ' key=' + key + ' ch=' + JSON.stringify(String.fromCharCode(key)));
         }
@@ -1176,7 +1347,7 @@ export async function rhack(key) {
         // when a turn was consumed.
         let res = 0;
         try { res = (await t_pickup(0)) || 0; } catch (e) {
-            if (process.env.NH_DEBUG_PICKUP) console.error('pickup:', e.message);
+            if (__env.NH_DEBUG_PICKUP) console.error('pickup:', e.message);
         }
         game._run_dx = null;
         game._run_dy = null;
@@ -1185,7 +1356,7 @@ export async function rhack(key) {
         // Descend stairs.  C ref: do.c dodown.
         let res = 0;
         try { res = (await t_dodown()) || 0; } catch (e) {
-            if (process.env.NH_DEBUG_STAIRS) console.error('dodown:', e.message);
+            if (__env.NH_DEBUG_STAIRS) console.error('dodown:', e.message);
         }
         game._run_dx = null;
         game._run_dy = null;
@@ -1194,7 +1365,7 @@ export async function rhack(key) {
         // Ascend stairs.  C ref: do.c doup.
         let res = 0;
         try { res = (await t_doup()) || 0; } catch (e) {
-            if (process.env.NH_DEBUG_STAIRS) console.error('doup:', e.message);
+            if (__env.NH_DEBUG_STAIRS) console.error('doup:', e.message);
         }
         game._run_dx = null;
         game._run_dy = null;
@@ -1345,7 +1516,7 @@ export async function rhack(key) {
                 t_cmdq_add_key(0 /* CQ_CANNED */, pickedK);
                 let res = 0;
                 try { res = (await t_doapply()) || 0; } catch (_e) {
-                    if (process.env.NH_DEBUG_EXTCMD) console.error('[a doapply]', _e.message);
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[a doapply]', _e.message);
                 }
                 game.context.move = (res & 1) ? 1 : 0;
             }
@@ -1418,8 +1589,8 @@ export async function rhack(key) {
                     // or sets up the eat-occupation for multi-turn food.
                     t_cmdq_add_key(0 /* CQ_CANNED */, k);
                     let res = 0;
-                    try { res = t_doeat() || 0; } catch (_e) {
-                        if (process.env.NH_DEBUG_EXTCMD) console.error('[e doeat]', _e.message);
+                    try { res = (await t_doeat()) || 0; } catch (_e) {
+                        if (__env.NH_DEBUG_EXTCMD) console.error('[e doeat]', _e.message);
                     }
                     game._cursor_override = null;
                     game.context.move = (res & 1) ? 1 : 0;
@@ -1667,8 +1838,8 @@ export async function rhack(key) {
                     // effect runs synchronously, firing its PRNG.
                     t_cmdq_add_key(0 /* CQ_CANNED */, k);
                     let res = 0;
-                    try { res = t_doread() || 0; } catch (_e) {
-                        if (process.env.NH_DEBUG_EXTCMD) console.error('[r doread]', _e.message);
+                    try { res = (await t_doread()) || 0; } catch (_e) {
+                        if (__env.NH_DEBUG_EXTCMD) console.error('[r doread]', _e.message);
                     }
                     game._cursor_override = null;
                     game.context.move = (res & 1) ? 1 : 0;
@@ -1760,8 +1931,8 @@ export async function rhack(key) {
                 t_cmdq_add_key(0 /* CQ_CANNED */, itemKey);
                 t_cmdq_add_key(0 /* CQ_CANNED */, dirKey);
                 let res = 0;
-                try { res = t_dothrow() || 0; } catch (_e) {
-                    if (process.env.NH_DEBUG_EXTCMD) console.error('[t dothrow]', _e.message);
+                try { res = (await t_dothrow()) || 0; } catch (_e) {
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[t dothrow]', _e.message);
                 }
                 // C ref cmd.c getdir clears WIN_MESSAGE after dirsym
                 // (cmd.c:3053).  Our cmdq-fed path skips that clear
@@ -1782,8 +1953,8 @@ export async function rhack(key) {
         // wield_ok, GETOBJ_PROMPT|GETOBJ_ALLOWCNT).  Gated on
         // in_moveloop=1 ('w' is in chargen role-menu — wizard).
         let res = 0;
-        try { res = t_dowield() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[w dowield]', _e.message);
+        try { res = (await t_dowield()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[w dowield]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'p' && game.program_state?.in_moveloop === 1) {
@@ -1791,31 +1962,31 @@ export async function rhack(key) {
         // selection.  Gated on in_moveloop=1 ('p' is in role-menu
         // letter set for priest).
         let res = 0;
-        try { res = t_dopay() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[p dopay]', _e.message);
+        try { res = (await t_dopay()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[p dopay]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'A') {
         // 'A' takeoffall — C ref do_wear.c doddoremarm.
         let res = 0;
-        try { res = t_doddoremarm() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[A doddoremarm]', _e.message);
+        try { res = (await t_doddoremarm()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[A doddoremarm]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'I') {
         // 'I' inventtype — C ref invent.c dotypeinv (category-
         // filtered inventory display).  No time cost.
         let res = 0;
-        try { res = t_dotypeinv() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[I dotypeinv]', _e.message);
+        try { res = (await t_dotypeinv()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[I dotypeinv]', _e.message);
         }
         game.context.move = 0;
     } else if (ch === 'G') {
         // 'G' run prefix — C ref cmd.c do_run: sets context.run=3
         // and domove_attempting |= DOMOVE_RUSH.  Next direction
         // key dispatches with run mode.  Uppercase, no chargen risk.
-        try { t_do_run(); } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[G do_run]', _e.message);
+        try { await t_do_run(); } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[G do_run]', _e.message);
         }
         game.context.move = 0;
     } else if (ch === 'F') {
@@ -1828,24 +1999,24 @@ export async function rhack(key) {
         // but for canonical sessions the next direction key
         // immediately fires t_domove which the translator-emitted
         // path may handle.  Uppercase, no chargen risk.
-        try { t_do_fight(); } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[F do_fight]', _e.message);
+        try { await t_do_fight(); } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[F do_fight]', _e.message);
         }
         game.context.move = 0;
     } else if (ch === 'D') {
         // 'D' droptype — C ref do.c doddrop → category-based drop.
         // Uppercase, no chargen risk.
         let res = 0;
-        try { res = t_doddrop() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[D doddrop]', _e.message);
+        try { res = (await t_doddrop()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[D doddrop]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'X') {
         // 'X' twoweapon — C ref wield.c dotwoweapon → toggles
         // two-weapon mode.  Uppercase, no chargen risk.
         let res = 0;
-        try { res = t_dotwoweapon() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[X dotwoweapon]', _e.message);
+        try { res = (await t_dotwoweapon()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[X dotwoweapon]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'E') {
@@ -1853,8 +2024,8 @@ export async function rhack(key) {
         // getobj("write with", stylus_ok, 2) + interactive text.
         // Uppercase, no chargen risk.
         let res = 0;
-        try { res = t_doengrave() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[E doengrave]', _e.message);
+        try { res = (await t_doengrave()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[E doengrave]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'Q') {
@@ -1862,8 +2033,8 @@ export async function rhack(key) {
         // doquiver_core("ready") → getobj for missile.
         // Uppercase, no chargen risk.
         let res = 0;
-        try { res = t_dowieldquiver() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[Q dowieldquiver]', _e.message);
+        try { res = (await t_dowieldquiver()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[Q dowieldquiver]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'T') {
@@ -1878,8 +2049,8 @@ export async function rhack(key) {
         // getobj reads from input.js _inputQueue via readKeySync
         // for the pre-buffered armor letter key.
         let res = 0;
-        try { res = t_dotakeoff() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[T dotakeoff]', _e.message);
+        try { res = (await t_dotakeoff()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[T dotakeoff]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'W') {
@@ -1887,23 +2058,23 @@ export async function rhack(key) {
         // wear_ok, 0).  If nothing wearable, fires its own
         // "Don't even bother." pline.  Uppercase, no chargen risk.
         let res = 0;
-        try { res = t_dowear() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[W dowear]', _e.message);
+        try { res = (await t_dowear()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[W dowear]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'P') {
         // 'P' puton — C ref do_wear.c doputon → getobj("put on",
         // puton_ok, 0).  Accessories (rings, amulet, blindfold).
         let res = 0;
-        try { res = t_doputon() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[P doputon]', _e.message);
+        try { res = (await t_doputon()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[P doputon]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'R') {
         // 'R' remove ring/accessory — C ref do_wear.c doremring.
         let res = 0;
-        try { res = t_doremring() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[R doremring]', _e.message);
+        try { res = (await t_doremring()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[R doremring]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'o' && game.program_state?.in_moveloop === 1) {
@@ -1914,8 +2085,8 @@ export async function rhack(key) {
         // Gated on in_moveloop=1 because 'o' is in the chargen
         // race-menu letter set (orc=o).
         let res = 0;
-        try { res = t_doopen() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[o doopen]', _e.message);
+        try { res = (await t_doopen()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[o doopen]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'c' && game.program_state?.in_moveloop === 1) {
@@ -1932,8 +2103,8 @@ export async function rhack(key) {
         // prompt "Close door in what direction?" appears in the
         // canonical at the dir-key capture point.
         let res = 0;
-        try { res = t_doclose() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[c doclose]', _e.message);
+        try { res = (await t_doclose()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[c doclose]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'z') {
@@ -1976,8 +2147,8 @@ export async function rhack(key) {
             } else {
                 t_cmdq_add_key(0 /* CQ_CANNED */, itemKey);
                 let res = 0;
-                try { res = t_dozap() || 0; } catch (_e) {
-                    if (process.env.NH_DEBUG_EXTCMD) console.error('[z dozap]', _e.message);
+                try { res = (await t_dozap()) || 0; } catch (_e) {
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[z dozap]', _e.message);
                 }
                 game.context.move = (res & 1) ? 1 : 0;
             }
@@ -2000,7 +2171,7 @@ export async function rhack(key) {
         // fires no PRNG of its own; feel_cockatrice can but only when
         // standing on a cockatrice corpse — rare and acceptable.
         try { await t_dolook(); } catch (_e) {
-            if (process.env.NH_DEBUG_LOOK) console.error('[dolook]', _e.message);
+            if (__env.NH_DEBUG_LOOK) console.error('[dolook]', _e.message);
         }
         game.context.move = 0;
     } else if (ch === '@') {
@@ -2011,8 +2182,8 @@ export async function rhack(key) {
         // turn.  Requires oc_to_str to be correct (hand-ported in
         // options.js — the translator left it as an infinite-loop
         // pointer-arith stub that would hang here).
-        try { t_dotogglepickup(); } catch (_e) {
-            if (process.env.NH_DEBUG_PICKUP) console.error('[dotogglepickup]', _e.message);
+        try { await t_dotogglepickup(); } catch (_e) {
+            if (__env.NH_DEBUG_PICKUP) console.error('[dotogglepickup]', _e.message);
         }
         game.context.move = 0;
     } else if (ch === '+') {
@@ -2026,21 +2197,23 @@ export async function rhack(key) {
         // don't fire the wrong pline for spellcasters.
         // game.spells is unrelated (potion state, not spells).
         // game.spl_book is the array set up by translated u_init.
-        let __hasSpells = false;
-        if (Array.isArray(game.spl_book)) {
-            for (let i = 0; i < game.spl_book.length; i++) {
-                if (game.spl_book[i] && game.spl_book[i].sp_id) {
-                    __hasSpells = true;
-                    break;
-                }
-            }
-        }
-        if (!__hasSpells) {
+        if (!_heroHasAnySpells()) {
             await pline("You don't know any spells right now.");
+        } else {
+            // Render the spell-list menu as a screen overlay.  C ref
+            // spell.c:1820 dovspell → dospellmenu("Currently known
+            // spells", -1, ...) — splaction=-1 (VIEW) adds a "[sort
+            // spells]" pseudo-item when there's more than one spell.
+            // The user dismisses via ESC/space at the next rhack iter
+            // (handled by the existing _menu_overlay clear paths).
+            const { pages, offx, _encodedRows } = await buildSpellMenuPages(
+                "Currently known spells", -1);
+            game._menu_overlay = {
+                kind: 'menu', pages, page: 0,
+                cType: 'NHW_MENU', offx,
+                _encodedRows,
+            };
         }
-        // TODO: when __hasSpells is true, render the spell list menu
-        // (seed0501 step 18 currently shows blank where canonical has
-        // the menu — at least no longer shows the wrong pline).
         game.context.move = 0;
     } else if (key === 0x16) {
         // Ctrl-V: wizlevelport — C ref cmd.c maps (31 & 118) = ^V
@@ -2058,8 +2231,8 @@ export async function rhack(key) {
         // getlin can't read async input.js _inputQueue properly).
         // Score-neutral pending layers 2+3.
         let res = 0;
-        try { res = t_wiz_level_tele() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message);
+        try { res = (await t_wiz_level_tele()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (key === 0x14) {
@@ -2068,8 +2241,8 @@ export async function rhack(key) {
         // dotele which requires hero to have TELEPORT ability;
         // otherwise emits "You don't know how to teleport."  Sync.
         let res = 0;
-        try { res = t_dotelecmd() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[^T dotelecmd]', _e.message);
+        try { res = (await t_dotelecmd()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[^T dotelecmd]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (key === 0x04) {
@@ -2078,8 +2251,8 @@ export async function rhack(key) {
         // getdir which reads from input.js _inputQueue.  If hero
         // is mounted, prompts "Kick your steed?" yn first.
         let res = 0;
-        try { res = t_dokick() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_EXTCMD) console.error('[^D dokick]', _e.message);
+        try { res = (await t_dokick()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[^D dokick]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (key === 0x17) {
@@ -2125,8 +2298,8 @@ export async function rhack(key) {
                 }
                 t_cmdq_add_key(0 /* CQ_CANNED */, 10);
             }
-            try { t_wiz_wish(); } catch (_e) {
-                if (process.env.NH_DEBUG_EXTCMD) console.error('[^W wizwish]', _e.message);
+            try { await t_wiz_wish(); } catch (_e) {
+                if (__env.NH_DEBUG_EXTCMD) console.error('[^W wizwish]', _e.message);
             }
             game.context.move = 0;
         }
@@ -2144,7 +2317,32 @@ export async function rhack(key) {
         // getspell's readKeySync will then pop the letter and
         // proceed into spelleffects → rnd(100) success check.
         // Used by seed0501 (priest cast: Z a .).
+        // Render the spell menu BEFORE awaiting nhgetch so the
+        // captured screen at this input boundary shows the menu
+        // (matching canonical C wintty.c which draws the menu
+        // before reading the spell letter).  splaction=-2 (CAST).
+        //
+        // No-spells short-circuit: C getspell (spell.js:680-682) fires
+        // pline "You don't know any spells right now." and returns 0
+        // when num_spells()==0.  Mirror that so non-spellcasters
+        // (Knight/Ranger/etc.) don't render an empty cast menu.
+        if (!_heroHasAnySpells()) {
+            await pline("You don't know any spells right now.");
+            game.context.move = 0;
+            return;
+        }
+        {
+            const { pages, offx, _encodedRows } = await buildSpellMenuPages(
+                "Choose which spell to cast", -2);
+            game._menu_overlay = {
+                kind: 'menu', pages, page: 0,
+                cType: 'NHW_MENU', offx,
+                _encodedRows,
+            };
+            await flush_screen(1);
+        }
         const spellKey = await nhgetch();
+        game._menu_overlay = null;
         // Determine spell directionality up-front so we can pre-push
         // BOTH the spell letter AND a self-direction key ('.') into
         // cmdq before t_docast runs.  Without the dir push, translated
@@ -2176,8 +2374,8 @@ export async function rhack(key) {
             t_cmdq_add_key(0 /* CQ_CANNED */, 0x2e /* '.' */);
         }
         let res = 0;
-        try { res = t_docast() || 0; } catch (_e) {
-            if (process.env.NH_DEBUG_CAST) console.error('[docast]', _e.message);
+        try { res = (await t_docast()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_CAST) console.error('[docast]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
         // For directional spells, the canonical user's NEXT key is the
@@ -2448,14 +2646,14 @@ export async function rhack(key) {
                     // empty queue and treat as no.
                     inputPushKey(yn);
                     if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = entry.ef_funct() || 0; } catch (_e) {}
+                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {}
                     }
                 } else {
                     // 'y' or anything else — push it, dopray sees it.
                     inputPushKey(yn);
                     if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = entry.ef_funct() || 0; } catch (_e) {
-                            if (process.env.NH_DEBUG_EXTCMD) console.error('[#pray]', _e.message);
+                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                            if (__env.NH_DEBUG_EXTCMD) console.error('[#pray]', _e.message);
                         }
                     }
                 }
@@ -2470,7 +2668,7 @@ export async function rhack(key) {
                 // C ref wizcmds.c:446 wiz_level_change.
                 if (!game.flags?.debug) {
                     if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = entry.ef_funct() || 0; } catch (_e) {}
+                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {}
                     }
                 } else {
                     const promptStr = 'To what experience level do you want to be set?';
@@ -2509,7 +2707,7 @@ export async function rhack(key) {
                             } else {
                                 if (newlev > 30) newlev = 30;
                                 while ((game.u.ulevel | 0) < newlev) {
-                                    t_pluslvl(0);
+                                    await t_pluslvl(0);
                                 }
                                 game.u.ulevelmax = game.u.ulevel;
                             }
@@ -2529,7 +2727,7 @@ export async function rhack(key) {
                 // C ref: wizcmds.c:32 wiz_wish.
                 if (!game.flags?.debug) {
                     if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = entry.ef_funct() || 0; } catch (_e) {}
+                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {}
                     }
                 } else {
                     const promptStr = 'For what do you wish?';
@@ -2560,8 +2758,8 @@ export async function rhack(key) {
                         t_cmdq_add_key(0 /* CQ_CANNED */, 10);
                     }
                     if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = entry.ef_funct() || 0; } catch (_e) {
-                            if (process.env.NH_DEBUG_EXTCMD) console.error('[#wizwish]', _e.message);
+                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                            if (__env.NH_DEBUG_EXTCMD) console.error('[#wizwish]', _e.message);
                         }
                     }
                 }
@@ -2618,7 +2816,7 @@ export async function rhack(key) {
                     };
                     game._pending_message = '';
                 } catch (_e) {
-                    if (process.env.NH_DEBUG_EXTCMD) console.error('[#conduct]', _e.message);
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[#conduct]', _e.message);
                 }
                 game.context.move = 0;
             } else if (!cancelled && (name === 'name' || name === 'call')) {
@@ -2678,8 +2876,8 @@ export async function rhack(key) {
                 } else {
                     inputPushKey(dirKey);
                     if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = entry.ef_funct() || 0; } catch (_e) {
-                            if (process.env.NH_DEBUG_EXTCMD) console.error('[#' + name + ']', _e.message);
+                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                            if (__env.NH_DEBUG_EXTCMD) console.error('[#' + name + ']', _e.message);
                         }
                     }
                     // Translated dojump / dountrap → getdir →
@@ -2707,8 +2905,8 @@ export async function rhack(key) {
                 game._cursor_override = null;
                 inputPushKey(yn);
                 if (entry && typeof entry.ef_funct === 'function') {
-                    try { res = entry.ef_funct() || 0; } catch (_e) {
-                        if (process.env.NH_DEBUG_EXTCMD) console.error('[#quit]', _e.message);
+                    try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                        if (__env.NH_DEBUG_EXTCMD) console.error('[#quit]', _e.message);
                     }
                 }
             } else if (!cancelled && name === 'ride') {
@@ -2731,8 +2929,8 @@ export async function rhack(key) {
                 } else {
                     inputPushKey(dirKey);
                     if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = entry.ef_funct() || 0; } catch (_e) {
-                            if (process.env.NH_DEBUG_EXTCMD) console.error('[#ride]', _e.message);
+                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                            if (__env.NH_DEBUG_EXTCMD) console.error('[#ride]', _e.message);
                         }
                     }
                     // Translated doride → getdir → win_yn_function sets
@@ -2752,8 +2950,8 @@ export async function rhack(key) {
                     await flush_screen(1);
                 }
             } else if (entry && typeof entry.ef_funct === 'function') {
-                try { res = entry.ef_funct() || 0; } catch (_e) {
-                    if (process.env.NH_DEBUG_EXTCMD) console.error('[#' + name + ']', _e.message, process.env.NH_DEBUG_EXTCMD === 'stack' ? _e.stack : '');
+                try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[#' + name + ']', _e.message, __env.NH_DEBUG_EXTCMD === 'stack' ? _e.stack : '');
                 }
             }
         }
@@ -2794,7 +2992,7 @@ async function domove(dx, dy) {
     const u = game.u;
     u.dx = dx;
     u.dy = dy;
-    if (process.env.NH_DEBUG_DOMOVE) {
+    if (__env.NH_DEBUG_DOMOVE) {
         const newx0 = u.ux + dx, newy0 = u.uy + dy;
         const m = game.level?.monsters?.[newx0]?.[newy0];
         console.error('[domove] from=('+u.ux+','+u.uy+') d=('+dx+','+dy+') to=('+newx0+','+newy0+
@@ -2832,7 +3030,7 @@ async function domove(dx, dy) {
         }
         return;
     } catch (_e) {
-        if (process.env.NH_DEBUG_DOMOVE) console.error('[t_domove]', _e.message, process.env.NH_DEBUG_DOMOVE === 'stack' ? _e.stack : '');
+        if (__env.NH_DEBUG_DOMOVE) console.error('[t_domove]', _e.message, __env.NH_DEBUG_DOMOVE === 'stack' ? _e.stack : '');
         // NH_DEBUG_DOMOVE=stack also prints the .stack for diagnosis.
         // Restore position to pre-t_domove snapshot so the manual
         // fallback applies the delta exactly once.

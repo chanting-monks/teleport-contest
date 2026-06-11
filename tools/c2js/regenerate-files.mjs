@@ -53,10 +53,11 @@ function usage(code = 2) {
 }
 
 function parseArgs() {
-    const opts = { dryRun: false, keepTmp: false, files: [] };
+    const opts = { dryRun: false, keepTmp: false, forcePatched: false, files: [] };
     for (const a of process.argv.slice(2)) {
         if (a === '--dry-run') opts.dryRun = true;
         else if (a === '--keep-tmp') opts.keepTmp = true;
+        else if (a === '--force-patched') opts.forcePatched = true;
         else if (a === '--help' || a === '-h') usage(0);
         else if (a.startsWith('--')) { console.error('unknown flag:', a); usage(); }
         else opts.files.push(a);
@@ -245,10 +246,12 @@ function main() {
             process.exit(2);
         }
         const base = basename(f);
-        if (patched.has(base)) {
+        if (patched.has(base) && !opts.forcePatched) {
             console.error(`WARNING: ${base} has patchFile entries in build-engine.mjs.`);
             console.error('  This script does NOT reapply patches.  Production will lose');
             console.error('  the patch and may regress.  Aborting.');
+            console.error('  (use --force-patched to bypass; patches will be re-applied');
+            console.error('   from build-engine.mjs after regen)');
             process.exit(2);
         }
         const handPortCount = hasHandPortMarkers(join(ROOT, 'js', f));
@@ -314,6 +317,77 @@ function main() {
     for (const f of opts.files) {
         const base = basename(f);
         copyFileSync(join(tmpDir, base), join(ROOT, 'js', f));
+    }
+    // §23.230c — With --force-patched: also run build-engine to apply
+    // patches over the regenerated content.  build-engine reads from
+    // outputDir (which we redirect to a sandbox), so it sees the
+    // freshly-translated content + applies all patchFile() entries.
+    // We then copy the post-patch versions of the requested files
+    // back to production.  The conformance + seed8000 checks below
+    // catch any regression.
+    if (opts.forcePatched) {
+        const patchTmpDir = join(ROOT, 'js', `translated__patch_${stamp}`);
+        spawnSync('mkdir', ['-p', patchTmpDir]);
+        // Copy the full translator output (all files) to patchTmpDir
+        // so build-engine sees a fresh-translation baseline.
+        const fullTmpFiles = readdirSync(tmpDir);
+        for (const fname of fullTmpFiles) {
+            try { copyFileSync(join(tmpDir, fname), join(patchTmpDir, fname)); }
+            catch {}
+        }
+        // §23.232m — Closure freeze: overwrite the recomputed
+        // __async_closure.json with production's frozen version so
+        // build-engine's NH_EMIT_ASYNC injection uses the EXACT set
+        // production was built with.  Single-TU migrations that
+        // would otherwise cause closure cascade (e.g. enexto becoming
+        // async due to pline closure) won't shift the injection set.
+        // Opt out with FREEZE_CLOSURE=0 if needed.
+        if (process.env.FREEZE_CLOSURE !== '0') {
+            const frozenManifest = join(TRANSLATED_DIR, '__async_closure.json');
+            const sandboxManifest = join(patchTmpDir, '__async_closure.json');
+            if (existsSync(frozenManifest)) {
+                copyFileSync(frozenManifest, sandboxManifest);
+                console.error(`regenerate-files: frozen closure from ${frozenManifest}`);
+            }
+        }
+        console.error(`regenerate-files: running build-engine patches in ${patchTmpDir}...`);
+        // Forward NH_EMIT_ASYNC so the build-engine's async-keyword
+        // injection runs, matching production for TUs that contain
+        // async-call sites (sp_lev, mklev, questpgr, etc.).  Without
+        // this, the conformance check fails with "call to async
+        // nhl_pcall_handle() without await" because production has
+        // the await keywords sprinkled in.
+        // §23.232j: explicitly accept NH_EMIT_ASYNC=0 / NH_EMIT_ASYNC=
+        // (empty) to OPT OUT of injection — needed when the target TU
+        // matches production's sync emit style (e.g. teleport.c whose
+        // production file has no async/await despite pline being in
+        // the closure).  Default still injects.
+        const env = { ...process.env, BUILD_ENGINE_OUT: patchTmpDir };
+        if (env.NH_EMIT_ASYNC === undefined) env.NH_EMIT_ASYNC = '1';
+        else if (env.NH_EMIT_ASYNC === '0' || env.NH_EMIT_ASYNC === '')
+            delete env.NH_EMIT_ASYNC;
+        const beResult = spawnSync(
+            'node', [BUILD_ENGINE],
+            { env, stdio: 'inherit' }
+        );
+        if (beResult.status !== 0) {
+            console.error('build-engine failed during --force-patched');
+            for (const f of opts.files) {
+                copyFileSync(join(backupDir, basename(f)), join(ROOT, 'js', f));
+            }
+            rmSync(patchTmpDir, { recursive: true, force: true });
+            if (!opts.keepTmp) rmSync(tmpDir, { recursive: true, force: true });
+            rmSync(backupDir, { recursive: true, force: true });
+            process.exit(1);
+        }
+        // Copy the post-patch versions of the requested files back
+        // to production.
+        for (const f of opts.files) {
+            const base = basename(f);
+            copyFileSync(join(patchTmpDir, base), join(ROOT, 'js', f));
+        }
+        if (!opts.keepTmp) rmSync(patchTmpDir, { recursive: true, force: true });
+        else console.error(`patch tmpdir kept at ${patchTmpDir}`);
     }
     // Verify conformance + seed8000 in that order (AGENTS.md hard
     // rule: "Every output module must pass the conformance pass

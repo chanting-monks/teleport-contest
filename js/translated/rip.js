@@ -7,7 +7,7 @@
 import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { strlen } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strlen } from '../c2js-runtime/string.js';
 import { yyyymmdd } from './calendar.js';
 import { formatkiller } from './topten.js';
 
@@ -43,7 +43,7 @@ export function center(line, text) {
 export function genl_outrip(tmpwin, how, when) {
     let dp = null;
     let dpx = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let x = 0;
     let line = 0;
     let year = 0;
@@ -70,7 +70,7 @@ export function genl_outrip(tmpwin, how, when) {
         let i0 = strlen(dpx);
         if (i0 > 16) {
             for (i = 16; (i > 0) && (i0 > 16); --i) {
-                if (dpx[i] == 32) {
+                if (__nh_char_at0(__nh_advance_str(dpx, i)) == 32) {
                     i0 = i;
                 }
             }
@@ -78,14 +78,14 @@ export function genl_outrip(tmpwin, how, when) {
                 i0 = 16;
             }
         }
-        tmpchar = dpx[i0];
-        dpx[i0] = 0;
+        tmpchar = __nh_char_at0(__nh_advance_str(dpx, i0));
+        dpx = __nh_char_write(dpx, i0, 0);
         center(line, dpx);
         if (tmpchar != 32) {
-            dpx[i0] = tmpchar;
-            dpx = dpx[i0];
+            dpx = __nh_char_write(dpx, i0, tmpchar);
+            dpx = __nh_advance_str(dpx, i0);
         } else {
-            dpx = dpx[i0 + 1];
+            dpx = __nh_advance_str(dpx, i0 + 1);
         }
     }
     year = ((Math.trunc(yyyymmdd(when) / 10000)) % 10000);

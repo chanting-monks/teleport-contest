@@ -209,10 +209,18 @@ export class Selection {
         selection_filter_mapchar(this.sv, typ, lit);
         return this;
     }
-    iterate(fn) {
-        // C ref selection.c selection_iterate.  Walks set points
-        // (any order), calls fn(x, y) for each.
-        selection_iterate(this.sv, (x, y) => fn(x, y));
+    async iterate(fn) {
+        // C ref selection.c selection_iterate.  Walks set points,
+        // calls fn(x, y) for each.  fn is typically an ASYNC arrow
+        // (transpiled lua callbacks fire des.* / nh.* calls): collect
+        // the points via the translated walker (exact C order), then
+        // await fn per point — firing them sync-detached interleaves
+        // their PRNG arbitrarily and the per-point chains run after
+        // the coder frame has moved on (Q9 iteration 22, seed0015's
+        // Storeroom).
+        const pts = [];
+        selection_iterate(this.sv, (x, y) => { pts.push([x, y]); });
+        for (const [x, y] of pts) await fn(x, y);
         return this;
     }
     numpoints() {

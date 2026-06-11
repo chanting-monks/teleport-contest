@@ -10,8 +10,8 @@ import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { panic } from '../c2js-runtime/panic.js';
 import { pline, raw_printf } from '../c2js-runtime/pline.js';
-import { fprintf, puts, sprintf } from '../c2js-runtime/stdio.js';
-import { strchr, strcmp, strcpy, strlen, strncmpi, strncpy, strstr } from '../c2js-runtime/string.js';
+import { __nh_buf_append, fprintf, puts, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strchr, strcmp, strcpy, strlen, strncmpi, strncpy, strstr } from '../c2js-runtime/string.js';
 import { tty_procs, win_tty_init } from '../c2js-runtime/wintty.js';
 import { cmdq_pop } from './cmd.js';
 import { cg, hexdd } from './decl.js';
@@ -38,7 +38,7 @@ export function genl_can_suspend_yes() {
 }
 export function def_raw_print(s) {
     puts(s);
-    if (s.value) {
+    if (__nh_char_at0(s)) {
         game.iflags.raw_printed++;
     }
 }
@@ -97,10 +97,10 @@ export function choose_windows(s) {
     let i = 0;
     let tmps = null;
     for (i = 0; game.winchoices[i].procs; i++) {
-        if (43 == game.winchoices[i].procs.name[0]) {
+        if (43 == __nh_char_at0(game.winchoices[i].procs.name)) {
             continue;
         }
-        if (45 == game.winchoices[i].procs.name[0]) {
+        if (45 == __nh_char_at0(game.winchoices[i].procs.name)) {
             continue;
         }
         if (!strncmpi((s), (game.winchoices[i].procs.name), -1)) {
@@ -135,23 +135,23 @@ export function choose_windows(s) {
        (config file options can't get that big; they're truncated at 1023) */
         tmps = alloc(50);
         tmps = strncpy(tmps, s, 50 - 1);
-        tmps[50 - 1] = 0;
+        tmps = __nh_char_write(tmps, 50 - 1, 0);
         s = tmps;
     }
     if (!game.winchoices[1].procs) {
         config_error_add("Window type %s not recognized.  The only choice is: %s", s, game.winchoices[0].procs.name);
     } else {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let first = 1;
-        buf[0] = 0;
+        buf = '';
         for (i = 0; game.winchoices[i].procs; i++) {
-            if (43 == game.winchoices[i].procs.name[0]) {
+            if (43 == __nh_char_at0(game.winchoices[i].procs.name)) {
                 continue;
             }
-            if (45 == game.winchoices[i].procs.name[0]) {
+            if (45 == __nh_char_at0(game.winchoices[i].procs.name)) {
                 continue;
             }
-            buf = (buf || '') + sprintf('', "%s%s", first ? "" : ", ", game.winchoices[i].procs.name);
+            buf = __nh_buf_append(buf, sprintf('', "%s%s", first ? "" : ", ", game.winchoices[i].procs.name));
             first = 0;
         }
         config_error_add("Window type %s not recognized.  Choices are:  %s", s, buf);
@@ -424,8 +424,8 @@ export function genl_status_enablefield(fieldidx, nm, fmt, enable) {
 /* move level description plus gold and experience and time to end */
 let __genl_status_update_fieldorder = [[BL_TITLE, BL_STR, BL_DX, BL_CO, BL_IN, BL_WI, BL_CH, BL_ALIGN, BL_SCORE, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_HUNGER, BL_CAP, BL_CONDITION, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_XP, BL_EXP, BL_HD, BL_HUNGER, BL_CAP, BL_CONDITION, BL_TIME, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_HUNGER, BL_CAP, BL_CONDITION, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_FLUSH], [BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_HUNGER, BL_CAP, BL_CONDITION, BL_LEVELDESC, BL_GOLD, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_FLUSH]];
 export function genl_status_update(idx, ptr, chg, percent, color, colormasks) {
-    let newbot1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let newbot2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let newbot1 = '';
+    let newbot2 = '';
     let cond = 0;
     let condptr = ptr;
     let i = 0;
@@ -556,7 +556,7 @@ export function genl_status_update(idx, ptr, chg, percent, color, colormasks) {
                         break;
                     case BL_CAP:
                         if (!strcmp(val, " ")) {
-                            ++val;
+                            (val = __nh_advance_str(val, 1));
                         }
                         break;
                     default:
@@ -713,7 +713,7 @@ export function glyph2symidx(glyph) {
     map_glyphinfo(0, 0, glyph, 0, glyphinfo);
     return glyphinfo.gm.sym.symidx;
 }
-let __encglyph_encbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __encglyph_encbuf = '';
 export function encglyph(glyph) {
     __encglyph_encbuf = sprintf(__encglyph_encbuf, "\\G%04X%04X", game.context.rndencode, glyph);
     return __encglyph_encbuf;
@@ -724,20 +724,20 @@ export function decode_glyph(str, glyph_ptr) {
     let dcount = 0;
     let retval = 0;
     let dp = null;
-    for (; str.value && ++dcount <= 4; ++str) {
-        if ((dp = strchr(hexdd, str.value)) != null) {
+    for (; __nh_char_at0(str) && ++dcount <= 4; (str = __nh_advance_str(str, 1))) {
+        if ((dp = strchr(hexdd, __nh_char_at0(str))) != null) {
             retval++;
-            rndchk = (rndchk * 16) + (Math.trunc((dp - hexdd) / 2));
+            rndchk = (rndchk * 16) + (Math.trunc(((hexdd.length - dp.length)) / 2));
         } else {
             break;
         }
     }
     if (rndchk == game.context.rndencode) {
         glyph_ptr.value = dcount = 0;
-        for (; str.value && ++dcount <= 4; ++str) {
-            if ((dp = strchr(hexdd, str.value)) != null) {
+        for (; __nh_char_at0(str) && ++dcount <= 4; (str = __nh_advance_str(str, 1))) {
+            if ((dp = strchr(hexdd, __nh_char_at0(str))) != null) {
                 retval++;
-                glyph_ptr.value = (glyph_ptr.value * 16) + (Math.trunc((dp - hexdd) / 2));
+                glyph_ptr.value = (glyph_ptr.value * 16) + (Math.trunc(((hexdd.length - dp.length)) / 2));
             } else {
                 break;
             }
@@ -752,17 +752,17 @@ export function decode_mixed(buf, str) {
     if (!str) {
         return strcpy(buf, "");
     }
-    while (str.value) {
-        if (str.value == 92) {
+    while (__nh_char_at0(str)) {
+        if (__nh_char_at0(str) == 92) {
             let dcount = 0;
             let so = 0;
             let ggv = 0;
             let save_str = null;
-            save_str = str++;
-            switch (str.value) {
+            save_str = (str = __nh_advance_str(str, 1));
+            switch (__nh_char_at0(str)) {
                 case 71:
-                    if ((dcount = decode_glyph(str + 1, { get value() { return ggv; }, set value(_v) { ggv = _v; } }))) {
-                        str += (dcount + 1);
+                    if ((dcount = decode_glyph(__nh_advance_str(str, 1), { get value() { return ggv; }, set value(_v) { ggv = _v; } }))) {
+                        str = __nh_advance_str(str, (dcount + 1));
                         map_glyphinfo(0, 0, ggv, 0, glyphinfo);
                         so = glyphinfo.gm.sym.symidx;
                         buf[__nh_put_idx++] = game.showsyms[so];
@@ -781,7 +781,7 @@ export function decode_mixed(buf, str) {
                     break;
             }
         }
-        buf[__nh_put_idx++] = str++;
+        buf[__nh_put_idx++] = (str = __nh_advance_str(str, 1));
     }
     buf[__nh_put_idx] = 0;
     return buf;
@@ -798,14 +798,14 @@ export function decode_mixed(buf, str) {
  * putstr().
  */
 export function genl_putmixed(window, attr, str) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     /* now send it to the normal putstr */
     (game.windowprocs.win_putstr)(window, attr, decode_mixed(buf, str));
 }
 /* possibly called to show usage info during command line processing when
    an interface hasn't yet been chosen and set up */
 export function genl_display_file(fname, complain) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let f = fopen(fname, "r");
     if (!f) {
         /* send complaint to stdout rather than to stderr */
@@ -869,13 +869,13 @@ export function mixed_to_glyphinfo(str, gip) {
         return " ";
     }
     void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = nul_glyphinfo) */;
-    if (str.value == 92 && (str + 1) == 71) {
-        if ((dcount = decode_glyph(str + 2, { get value() { return ggv; }, set value(_v) { ggv = _v; } }))) {
+    if (__nh_char_at0(str) == 92 && __nh_char_at0((__nh_advance_str(str, 1))) == 71) {
+        if ((dcount = decode_glyph(__nh_advance_str(str, 2), { get value() { return ggv; }, set value(_v) { ggv = _v; } }))) {
             map_glyphinfo(0, 0, ggv, 0, gip);
             /* 'str' is ready for the next loop iteration and
                 '*str' should not be copied at the end of this
                 iteration */
-            str += (dcount + 2);
+            str = __nh_advance_str(str, (dcount + 2));
         }
     }
     return str;
@@ -907,7 +907,7 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
     let pick_list = null;
     let win = 0;
     let any = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let text = null;
     let selected = 0;
     let ret = 0;
@@ -923,39 +923,39 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
     any = cg.zeroany;
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    while (class_list.value) {
+    while (__nh_char_at0(class_list)) {
         let idx = 0;
         selected = 0;
         switch (category) {
             case 0:
-                idx = def_char_to_monclass(class_list.value);
+                idx = def_char_to_monclass(__nh_char_at0(class_list));
                 if (!((idx) >= 0 && (idx) < (Math.trunc(61 /* sizeof(const struct class_sym [61]) */ / 1 /* sizeof(const struct class_sym) */)))) {
-                    panic("choose_classes_menu: invalid monclass '%c'", class_list.value);
+                    panic("choose_classes_menu: invalid monclass '%c'", __nh_char_at0(class_list));
                 }
                 text = def_monsyms[idx].explain;
-                accelerator = class_list.value;
+                accelerator = __nh_char_at0(class_list);
                 buf = sprintf(buf, "%s", text);
                 break;
             case 1:
-                idx = def_char_to_objclass(class_list.value);
+                idx = def_char_to_objclass(__nh_char_at0(class_list));
                 if (!((idx) >= 0 && (idx) < (Math.trunc(18 /* sizeof(const struct class_sym [18]) */ / 1 /* sizeof(const struct class_sym) */)))) {
-                    panic("choose_classes_menu: invalid objclass '%c'", class_list.value);
+                    panic("choose_classes_menu: invalid objclass '%c'", __nh_char_at0(class_list));
                 }
                 text = def_oc_syms[idx].explain;
                 accelerator = next_accelerator;
-                buf = sprintf(buf, "%c  %s", class_list.value, text);
+                buf = sprintf(buf, "%c  %s", __nh_char_at0(class_list), text);
                 break;
             default:
                 panic("choose_classes_menu: invalid category %d", category);
         }
         if (way && class_select.value) {
-            if (strchr(class_select, class_list.value)) {
+            if (strchr(class_select, __nh_char_at0(class_list))) {
                 /* Selections there already */
                 selected = 1;
             }
         }
-        any.a_int = class_list.value;
-        add_menu(win, nul_glyphinfo, any, accelerator, category ? class_list.value : 0, 0, clr, buf, selected ? 1 : 0);
+        any.a_int = __nh_char_at0(class_list);
+        add_menu(win, nul_glyphinfo, any, accelerator, category ? __nh_char_at0(class_list) : 0, 0, clr, buf, selected ? 1 : 0);
         if (category > 0) {
             if (next_accelerator == 90) {
                 break;
@@ -965,7 +965,7 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
                 ++next_accelerator;
             }
         }
-        ++class_list;
+        (class_list = __nh_advance_str(class_list, 1));
     }
     if (category == 1 && next_accelerator <= 122) {
         /* for objects, add "A - ' '  all classes", after a separator */
@@ -1100,23 +1100,11 @@ export function getlin(query, bufp) {
     let obufp = bufp;
     let got_cmdq = 0;
     let cmdq = null;
-    /* Translator gap: C `*bufp = key; bufp++;` emitted as
-       `bufp.value = key; bufp++;` is a no-op for the JS array
-       buf passed by callers (the .value write sets a property
-       nobody reads; the ++ increments a number that doesn't
-       index the array).  Use bufp[i++] indexed access matching
-       C's pointer-walk semantics: each char into buf[0..i],
-       then a 0 terminator.  Downstream callers (mungspaces,
-       readobjnam, sscanf) consume buf as a NetHack char array
-       via __nh_toJsStr / buf[0] reads.
-       Without this fix, every getlin caller that reads cmdq
-       (#wizwish, #wizlevelport, #levelchange, any "type the
-       wish/name/level" prompt) silently sees an empty buffer. */
-    let bufIdx = 0;
     while ((cmdq = cmdq_pop()) != null) {
         if (cmdq.typ == CMDQ_KEY) {
             got_cmdq = 1;
-            bufp[bufIdx++] = (cmdq.key != 10) ? cmdq.key : 0;
+            bufp.value = (cmdq.key != 10) ? cmdq.key : 0;
+            (bufp = __nh_advance_str(bufp, 1));
             if (cmdq.key == 10) {
                 break;
             }
@@ -1130,7 +1118,7 @@ export function getlin(query, bufp) {
         free(cmdq);
     }
     if (got_cmdq) {
-        bufp[bufIdx] = 0;
+        bufp.value = 0;
         pline("%s %s", query, obufp);
         return;
     }
@@ -1144,7 +1132,7 @@ export function getlin(query, bufp) {
 
 // Install hup_procs no-op defaults for null windowprocs fields.
 // Gated: enable with NH_WINPROCS_DEFAULTS=1.  See LEARNINGS §23.29.
-if (process.env.NH_WINPROCS_DEFAULTS) {
+if (typeof process !== 'undefined' && process.env?.NH_WINPROCS_DEFAULTS) {
     for (const __wp_k of Object.keys(game.windowprocs)) {
         if (game.windowprocs[__wp_k] === null && typeof game.hup_procs[__wp_k] === 'function') {
             game.windowprocs[__wp_k] = game.hup_procs[__wp_k];

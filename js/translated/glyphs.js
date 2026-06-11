@@ -5,7 +5,7 @@ import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { panic } from '../c2js-runtime/panic.js';
 import { fprintf, nh_snprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { rgbstr_to_int32, set_map_customcolor } from './coloratt.js';
 import { unicodeval_to_utf8str } from './hacklib.js';
 import { CORPSE, FIRST_OBJECT, GLYPH_ALTAR_OFF, GLYPH_BODY_OFF, GLYPH_BODY_PILETOP_OFF, GLYPH_CMAP_A_OFF, GLYPH_CMAP_B_OFF, GLYPH_CMAP_C_OFF, GLYPH_CMAP_GEH_OFF, GLYPH_CMAP_KNOX_OFF, GLYPH_CMAP_MAIN_OFF, GLYPH_CMAP_MINES_OFF, GLYPH_CMAP_OFF, GLYPH_CMAP_SOKO_OFF, GLYPH_CMAP_STONE_OFF, GLYPH_DETECT_FEM_OFF, GLYPH_DETECT_MALE_OFF, GLYPH_EXPLODE_FROSTY_OFF, GLYPH_EXPLODE_OFF, GLYPH_INVIS_OFF, GLYPH_MON_FEM_OFF, GLYPH_MON_MALE_OFF, GLYPH_NOTHING_OFF, GLYPH_OBJ_OFF, GLYPH_OBJ_PILETOP_OFF, GLYPH_PET_FEM_OFF, GLYPH_PET_MALE_OFF, GLYPH_RIDDEN_FEM_OFF, GLYPH_RIDDEN_MALE_OFF, GLYPH_STATUE_FEM_OFF, GLYPH_STATUE_FEM_PILETOP_OFF, GLYPH_STATUE_MALE_OFF, GLYPH_STATUE_MALE_PILETOP_OFF, GLYPH_SWALLOW_OFF, GLYPH_UNEXPLORED_OFF, GLYPH_WARNING_OFF, GLYPH_ZAP_OFF, GOLD_PIECE, H_UTF8, LAND_MINE, MAXPCHARS, MAX_GLYPH, NUMMONS, NUM_GRAPHICS, NUM_OBJECTS, POT_GAIN_ABILITY, POT_WATER, RIN_ADORNMENT, RIN_PROTECTION_FROM_SHAPE_CHAN, SCR_BLANK_PAPER, SCR_ENCHANT_ARMOR, SCR_MAIL, SCR_STINKING_CLOUD, SLIME_MOLD, SPE_BLANK_PAPER, SPE_DIG, STATUE, SYM_MON, SYM_OC, SYM_PCHAR, S_altar, S_arrow_trap, S_brdnladder, S_digbeam, S_expl_br, S_expl_tl, S_goodpos, S_grave, S_ndoor, S_stone, S_sw_br, S_sw_tl, S_trwall, S_vbeam, S_vwall, TRAPNUM, WAN_LIGHT, WAN_LIGHTNING, altar_other, custom_count, custom_nhcolor, custom_none, custom_symbols, custom_ureps, do_custom_colors, do_custom_symbols } from './nh-constants.js';
@@ -80,7 +80,7 @@ export function to_custom_symset_entry_callback(glyph, findwhat) {
  */
 export function glyphrep_to_custom_map_entries(op, glyphptr) {
     Object.assign(game.to_custom_symbol_find, zero_find);
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let c_glyphid = null;
     let c_unicode = null;
     let c_colorval = null;
@@ -93,22 +93,22 @@ export function glyphrep_to_custom_map_entries(op, glyphptr) {
         reslt = 1;
     }
     ((reslt));
-    nh_snprintf("glyphrep_to_custom_map_entries", 126, buf, 256 /* sizeof(char [256]) */, "%s", op);
+    buf = nh_snprintf("glyphrep_to_custom_map_entries", 126, buf, 256 /* sizeof(char [256]) */, "%s", op);
     /* for debugger use only; no cache available */
     c_unicode = c_colorval = null;
     c_glyphid = cp = buf;
-    while (cp) {
-        if (cp == 58 || cp == 47) {
-            if (cp == 58) {
+    while (__nh_char_at0(cp)) {
+        if (__nh_char_at0(cp) == 58 || __nh_char_at0(cp) == 47) {
+            if (__nh_char_at0(cp) == 58) {
                 colon = (1);
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             }
-            if (cp == 47) {
+            if (__nh_char_at0(cp) == 47) {
                 slash = (1);
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             }
         }
-        cp++;
+        (cp = __nh_advance_str(cp, 1));
         if (colon) {
             c_unicode = cp;
             colon = (0);
@@ -118,18 +118,18 @@ export function glyphrep_to_custom_map_entries(op, glyphptr) {
             slash = (0);
         }
     }
-    if (c_glyphid && c_glyphid == 32) {
-        c_glyphid++;
+    if (c_glyphid && __nh_char_at0(c_glyphid) == 32) {
+        (c_glyphid = __nh_advance_str(c_glyphid, 1));
     }
-    if (c_colorval && c_colorval == 32) {
-        c_colorval++;
+    if (c_colorval && __nh_char_at0(c_colorval) == 32) {
+        (c_colorval = __nh_advance_str(c_colorval, 1));
     }
-    if (c_unicode && c_unicode == 32) {
-        while (c_unicode == 32) {
-            c_unicode++;
+    if (c_unicode && __nh_char_at0(c_unicode) == 32) {
+        while (__nh_char_at0(c_unicode) == 32) {
+            (c_unicode = __nh_advance_str(c_unicode, 1));
         }
     }
-    if (c_unicode && !c_unicode) {
+    if (c_unicode && !__nh_char_at0(c_unicode)) {
         c_unicode = null;
     }
     if ((c_colorval && (rgb = rgbstr_to_int32(c_colorval)) != -1) || !c_colorval) {
@@ -150,14 +150,14 @@ export function glyphrep_to_custom_map_entries(op, glyphptr) {
     return reslt;
 }
 export function fix_glyphname(str) {
-    let c = null;
-    for (c = str; c; c++) {
-        if (c >= 65 && c <= 90) {
-            c += (97 - 65);
-        } else if (c >= 48 && c <= 57) {
+    let __nh_c_idx = 0;
+    for (__nh_c_idx = 0; str[__nh_c_idx]; __nh_c_idx++) {
+        if (str[__nh_c_idx] >= 65 && str[__nh_c_idx] <= 90) {
+            str[__nh_c_idx] += (97 - 65);
+        } else if (str[__nh_c_idx] >= 48 && str[__nh_c_idx] <= 57) {
             ;
-        } else if (c < 97 || c > 122) {
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 95) */;
+        } else if (str[__nh_c_idx] < 97 || str[__nh_c_idx] > 122) {
+            str[__nh_c_idx] = 95;
         }
     }
     return str;
@@ -362,8 +362,8 @@ export function find_glyphid_in_cache_by_glyphnum(glyphnum) {
 export function glyph_hash(id) {
     let hash = 0;
     let i = 0;
-    for (i = 0; id[i] != 0; ++i) {
-        let ch = id[i];
+    for (i = 0; __nh_char_at0(__nh_advance_str(id, i)) != 0; ++i) {
+        let ch = __nh_char_at0(__nh_advance_str(id, i));
         if (65 <= ch && ch <= 90) {
             ch += 97 - 65;
         }
@@ -376,8 +376,8 @@ export function glyphid_cache_status() {
     return (game.glyphid_cache != null);
 }
 export function match_glyph(buf) {
-    let workbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    nh_snprintf("match_glyph", 465, workbuf, 256 /* sizeof(char [256]) */, "%s", buf);
+    let workbuf = '';
+    workbuf = nh_snprintf("match_glyph", 465, workbuf, 256 /* sizeof(char [256]) */, "%s", buf);
     /* buf contains a G_ glyph reference, not an S_ symbol.
         There could be an R-G-B color attached too.
         Let's get a copy to work with. */
@@ -644,8 +644,8 @@ export function parse_id(id, findwhat) {
             }
         }
     }
-    is_G = (id && id[0] == 71 && id[1] == 95);
-    is_S = (id && id[0] == 83 && id[1] == 95);
+    is_G = (id && __nh_char_at0(id) == 71 && __nh_char_at0(__nh_advance_str(id, 1)) == 95);
+    is_S = (id && __nh_char_at0(id) == 83 && __nh_char_at0(__nh_advance_str(id, 1)) == 95);
     if ((is_G && !game.glyphid_cache) || filling_cache || dump_ids || is_S) {
         while (loadsyms[i].range) {
             if (!pm_offset && loadsyms[i].range == SYM_MON) {
@@ -688,7 +688,7 @@ export function parse_id(id, findwhat) {
                 /* individual matching glyph entries */
                 skip_base = (0);
                 skip_this_one = (0);
-                buf[0][0] = buf[1][0] = buf[2][0] = buf[3][0] = 0;
+                (((buf[3][0] = 0, buf[2][0] = 0), buf[1][0] = 0), buf[0][0] = 0);
                 if (((((glyph) >= GLYPH_MON_MALE_OFF && (glyph) < (GLYPH_MON_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_MON_FEM_OFF && (glyph) < (GLYPH_MON_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_PET_MALE_OFF && (glyph) < (GLYPH_PET_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_PET_FEM_OFF && (glyph) < (GLYPH_PET_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_RIDDEN_MALE_OFF && (glyph) < (GLYPH_RIDDEN_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_RIDDEN_FEM_OFF && (glyph) < (GLYPH_RIDDEN_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_DETECT_MALE_OFF && (glyph) < (GLYPH_DETECT_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_DETECT_FEM_OFF && (glyph) < (GLYPH_DETECT_FEM_OFF + NUMMONS))))) {
                     /* buf2 will hold the distinguishing prefix */
                     /* buf3 will hold the base name */
@@ -786,7 +786,7 @@ export function parse_id(id, findwhat) {
                         j = (glyph - GLYPH_ALTAR_OFF);
                         cmap = S_altar;
                         if (j != altar_other) {
-                            nh_snprintf("parse_id", 1025, buf[2], 128 /* sizeof(char [128]) */, "%s_", __parse_id_altar_text[j]);
+                            buf[2] = nh_snprintf("parse_id", 1025, buf[2], 128 /* sizeof(char [128]) */, "%s_", __parse_id_altar_text[j]);
                             buf2 = buf[2];
                         } else {
                             buf3 = "altar other";
@@ -797,8 +797,8 @@ export function parse_id(id, findwhat) {
                     } else if (((glyph) >= GLYPH_ZAP_OFF && (glyph) < ((8 << 2) + GLYPH_ZAP_OFF))) {
                         j = (glyph - GLYPH_ZAP_OFF);
                         cmap = (j % 4) + S_vbeam;
-                        nh_snprintf("parse_id", 1042, buf[2], 128 /* sizeof(char [128]) */, "%s", loadsyms[cmap + cmap_offset].name + 2);
-                        nh_snprintf("parse_id", 1044, buf[3], 128 /* sizeof(char [128]) */, "%s zap %s", __parse_id_zap_texts[Math.trunc(j / 4)], fix_glyphname(buf[2]));
+                        buf[2] = nh_snprintf("parse_id", 1042, buf[2], 128 /* sizeof(char [128]) */, "%s", loadsyms[cmap + cmap_offset].name + 2);
+                        buf[3] = nh_snprintf("parse_id", 1044, buf[3], 128 /* sizeof(char [128]) */, "%s zap %s", __parse_id_zap_texts[Math.trunc(j / 4)], fix_glyphname(buf[2]));
                         buf3 = buf[3];
                         buf2 = "";
                         skip_base = (1);
@@ -820,9 +820,9 @@ export function parse_id(id, findwhat) {
                         expl = Math.trunc(j / ((S_expl_br - S_expl_tl) + 1));
                         cmap = (((glyph) >= GLYPH_EXPLODE_OFF && (glyph) < (9 + GLYPH_EXPLODE_FROSTY_OFF)) ? (((glyph) - GLYPH_EXPLODE_OFF) % (S_expl_br - S_expl_tl + 1)) : 0) + S_expl_tl;
                         i = cmap - S_expl_tl;
-                        nh_snprintf("parse_id", 1082, buf[2], 128 /* sizeof(char [128]) */, "%s ", __parse_id_expl_type_texts[expl]);
+                        buf[2] = nh_snprintf("parse_id", 1082, buf[2], 128 /* sizeof(char [128]) */, "%s ", __parse_id_expl_type_texts[expl]);
                         buf2 = buf[2];
-                        nh_snprintf("parse_id", 1085, buf[3], 128 /* sizeof(char [128]) */, "%s%s", "expl_", __parse_id_expl_texts[i]);
+                        buf[3] = nh_snprintf("parse_id", 1085, buf[3], 128 /* sizeof(char [128]) */, "%s%s", "expl_", __parse_id_expl_texts[i]);
                         buf3 = buf[3];
                         skip_base = (1);
                     }
@@ -843,7 +843,7 @@ export function parse_id(id, findwhat) {
                     buf[0] = strcpy(buf[0], "G_unexplored");
                 } else if (((glyph) >= GLYPH_WARNING_OFF && (glyph) < (GLYPH_WARNING_OFF + 6))) {
                     j = glyph - GLYPH_WARNING_OFF;
-                    nh_snprintf("parse_id", 1106, buf[0], 128 /* sizeof(char [128]) */, "G_%s%d", "warning", j);
+                    buf[0] = nh_snprintf("parse_id", 1106, buf[0], 128 /* sizeof(char [128]) */, "G_%s%d", "warning", j);
                 }
                 if (memchr(buf[0], 0, 128 /* sizeof(char [128]) */) == (null)) {
                     panic("parse_id: buf[0] overflowed");
@@ -867,7 +867,7 @@ export function parse_id(id, findwhat) {
         }
     } else if (is_S) {
         for (i = 0; i < cmap_count; ++i) {
-            if (!strncmpi((loadsyms[i + cmap_offset].name + 2), (id + 2), -1)) {
+            if (!strncmpi((loadsyms[i + cmap_offset].name + 2), (__nh_advance_str(id, 2)), -1)) {
                 findwhat.findtype = find_cmap;
                 findwhat.val = i;
                 findwhat.loadsyms_offset = i + cmap_offset;
@@ -875,7 +875,7 @@ export function parse_id(id, findwhat) {
             }
         }
         for (i = 0; i < oc_count; ++i) {
-            if (!strncmpi((loadsyms[i + oc_offset].name + 2), (id + 2), -1)) {
+            if (!strncmpi((loadsyms[i + oc_offset].name + 2), (__nh_advance_str(id, 2)), -1)) {
                 findwhat.findtype = find_oc;
                 findwhat.val = i;
                 findwhat.loadsyms_offset = i + oc_offset;
@@ -883,7 +883,7 @@ export function parse_id(id, findwhat) {
             }
         }
         for (i = 0; i <= pm_count; ++i) {
-            if (!strncmpi((loadsyms[i + pm_offset].name + 2), (id + 2), -1)) {
+            if (!strncmpi((loadsyms[i + pm_offset].name + 2), (__nh_advance_str(id, 2)), -1)) {
                 findwhat.findtype = find_pm;
                 findwhat.val = i + 1;
                 findwhat.loadsyms_offset = i + pm_offset;

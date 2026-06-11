@@ -3,7 +3,7 @@
 /* NetHack may be freely redistributed.  See license for details. */
 import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
-import { strchr, strcpy } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strchr, strcpy } from '../c2js-runtime/string.js';
 import { hexdd } from './decl.js';
 import { map_glyphinfo, nul_glyphinfo } from './display.js';
 import { apply_customizations, find_matching_customization } from './glyphs.js';
@@ -16,14 +16,14 @@ export function unicode_val(cp) {
     let dp = null;
     let cval = 0;
     let dcount = 0;
-    if (cp && cp.value) {
+    if (cp && __nh_char_at0(cp)) {
         cval = dcount = 0;
-        if ((cp.value == 85 || cp.value == 117) && cp[1] == 43 && cp[2] && (dp = strchr(hexdd, cp[2])) != null) {
+        if ((__nh_char_at0(cp) == 85 || __nh_char_at0(cp) == 117) && __nh_char_at0(__nh_advance_str(cp, 1)) == 43 && __nh_char_at0(__nh_advance_str(cp, 2)) && (dp = strchr(hexdd, __nh_char_at0(__nh_advance_str(cp, 2)))) != null) {
             /* move past the 'U' and '+' */
-            cp += 2;
+            cp = __nh_advance_str(cp, 2);
             do {
-                cval = (cval * 16) + (Math.trunc((dp - hexdd) / 2));
-            } while (++cp && (dp = strchr(hexdd, cp.value)) != null && ++dcount < 7);
+                cval = (cval * 16) + (Math.trunc(((hexdd.length - dp.length)) / 2));
+            } while ((cp = __nh_advance_str(cp, 1)) && (dp = strchr(hexdd, __nh_char_at0(cp))) != null && ++dcount < 7);
         }
     }
     return cval;
@@ -75,21 +75,21 @@ export function mixed_to_utf8(buf, bufsz, str, retflags) {
     if (!str) {
         return strcpy(buf, "");
     }
-    while (str.value && put < (buf + bufsz) - 1) {
-        if (str.value == 92) {
+    while (__nh_char_at0(str) && put < (__nh_advance_str(buf, bufsz)) - 1) {
+        if (__nh_char_at0(str) == 92) {
             let dcount = 0;
             let so = 0;
             let ggv = 0;
             let save_str = null;
-            save_str = str++;
-            switch (str.value) {
+            save_str = (str = __nh_advance_str(str, 1));
+            switch (__nh_char_at0(str)) {
                 case 71:
-                    if ((dcount = decode_glyph(str + 1, { get value() { return ggv; }, set value(_v) { ggv = _v; } }))) {
-                        str += (dcount + 1);
+                    if ((dcount = decode_glyph(__nh_advance_str(str, 1), { get value() { return ggv; }, set value(_v) { ggv = _v; } }))) {
+                        str = __nh_advance_str(str, (dcount + 1));
                         map_glyphinfo(0, 0, ggv, 0, glyphinfo);
                         if (glyphinfo.gm.u && glyphinfo.gm.u.utf8str) {
                             let ucp = glyphinfo.gm.u.utf8str;
-                            while (ucp && put < (buf + bufsz) - 1) {
+                            while (ucp && put < (__nh_advance_str(buf, bufsz)) - 1) {
                                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = ucp++) */;
                             }
                             if (retflags) {
@@ -118,8 +118,8 @@ export function mixed_to_utf8(buf, bufsz, str, retflags) {
                     break;
             }
         }
-        if (put < (buf + bufsz) - 1) {
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = str++) */;
+        if (put < (__nh_advance_str(buf, bufsz)) - 1) {
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = (str = __nh_advance_str(str, 1))) */;
         }
     }
     put.value = 0;
@@ -157,7 +157,7 @@ export function add_custom_urep_entry(customization_name, glyphidx, utf32ch, utf
     /* create new details entry */
     newdetails = alloc(1 /* sizeof(struct customization_detail) */);
     newdetails.content.urep.glyphidx = glyphidx;
-    if (utf8str && utf8str.value) {
+    if (utf8str && utf8str) {
         newdetails.content.urep.u.utf8str = dupstr(utf8str);
     } else {
         newdetails.content.urep.u.utf8str = null;

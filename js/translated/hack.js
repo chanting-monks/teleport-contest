@@ -12,7 +12,7 @@ import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, You_hear, Your, pline, pline_The, pline_dir, raw_printf, verbalize } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strchr, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strchr, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { check_leash } from './apply.js';
 import { attacks, is_art } from './artifact.js';
 import { acurr, acurrstr, adjalign, exercise } from './attrib.js';
@@ -424,7 +424,7 @@ export function moverock_core(sx, sy) {
                     map_invisible(rx, ry);
                 }
                 if (game.flags.verbose) {
-                    let you_or_steed = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let you_or_steed = '';
                     you_or_steed = strcpy(you_or_steed, game.u.usteed ? y_monnam(game.u.usteed) : "you");
                     pline("%s%s cannot move %s.", deliver_part1 ? "Perhaps that's why " : "", deliver_part1 ? you_or_steed : upstart(you_or_steed), deliver_part1 ? "it" : the(xname(otmp)));
                 }
@@ -910,7 +910,7 @@ export function test_move(ux, uy, dx, dy, mode) {
                     pline_The("Sokoban walls resist your ability.");
                 } else if (game.flags.mention_walls) {
                     /* a special clue-msg when on the Invocation position */
-                    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let buf = '';
                     let glyph = back_to_glyph(x, y);
                     let sym = ((glyph) >= GLYPH_CMAP_STONE_OFF && (glyph) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) ? glyph_to_cmap(glyph) : -1;
                     if (sym == S_stone) {
@@ -1570,7 +1570,7 @@ export function disturb_buried_zombies(x, y) {
 }
 /* return an appropriate locomotion word for hero */
 export function u_locomotion(def) {
-    let capitalize = (def.value == highc(def.value));
+    let capitalize = (__nh_char_at0(def) == highc(__nh_char_at0(def)));
     /* regular locomotion() takes a monster type rather than a specific
        monster, so can't tell whether it is operating on hero;
        its is_flyer() and is_floater() tests wouldn't work on hero except
@@ -1742,8 +1742,8 @@ export function domove_fight_web(x, y) {
         } else if (game.uwep && !(game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_DAGGER && game.objects[game.uwep.otyp].oc_subtyp <= P_SABER) && (!game.u.twoweap || !(game.uswapwep.oclass == WEAPON_CLASS && game.objects[game.uswapwep.otyp].oc_subtyp >= P_DAGGER && game.objects[game.uswapwep.otyp].oc_subtyp <= P_SABER))) {
             let uwepstr = null;
             let scndstr = null;
-            let uwepbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let scndbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let uwepbuf = '';
+            let scndbuf = '';
             let onewep = 0;
             uwepbuf = strcpy(uwepbuf, weapon_descr(game.uwep));
             scndbuf = strcpy(scndbuf, game.u.twoweap ? weapon_descr(game.uswapwep) : "");
@@ -1822,7 +1822,7 @@ export function domove_swap_with_pet(mtmp, x, y) {
         /* all mtame are also mpeaceful, so this affects pets too */
         let what = trapname(trap.ttyp, (0));
         let which = "that ";
-        let anbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let anbuf = '';
         if (!trap.tseen) {
             /* show on map once mtmp is out of the way */
             feeltrap(trap);
@@ -1905,7 +1905,7 @@ export function domove_fight_empty(x, y) {
         let boulder = null;
         let explo = 0;
         let solid = 0;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         futile: {
             /* for forcefight against the edge of the map; make
                        * sure 'bad' coordinates are within array bounds in
@@ -2116,12 +2116,12 @@ export function avoid_running_into_trap_or_liquid(x, y) {
    needs player confirmation due to visible region or discovered trap;
    result: True => stop moving, False => proceed */
 export function avoid_trap_andor_region(x, y) {
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let newreg = null;
     let oldreg = null;
     let trap = null;
     if (((game.flags.paranoia_bits & 2048) != 0) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !game.u.uprops[STUNNED].intrinsic && !game.u.uprops[CONFUSION].intrinsic && !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && (!game.context.nopick || game.context.run) && (newreg = visible_region_at(x, y)) != null && ((oldreg = visible_region_at(game.u.ux, game.u.uy)) == null || (reg_damg(newreg) > 0 && reg_damg(oldreg) == 0)) && test_move(game.u.ux, game.u.uy, game.u.dx, game.u.dy, 1)) {
-        nh_snprintf("avoid_trap_andor_region", 2544, qbuf, 128 /* sizeof(char [128]) */, "%s into that %s cloud?", u_locomotion("step"), (reg_damg(newreg) > 0) ? "poison gas" : "vapor");
+        qbuf = nh_snprintf("avoid_trap_andor_region", 2544, qbuf, 128 /* sizeof(char [128]) */, "%s into that %s cloud?", u_locomotion("step"), (reg_damg(newreg) > 0) ? "poison gas" : "vapor");
         if (!paranoid_query(((game.flags.paranoia_bits & 1) != 0), upstart(qbuf))) {
             nomul(0);
             game.context.move = 0;
@@ -2136,7 +2136,7 @@ export function avoid_trap_andor_region(x, y) {
                hero can't tell what they are, so treat as dangerous */
         let traptype = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? rnd(TRAPNUM - 1) : trap.ttyp);
         let into = into_vs_onto(traptype);
-        nh_snprintf("avoid_trap_andor_region", 2570, qbuf, 128 /* sizeof(char [128]) */, "Really %s %s that %s?", u_locomotion("step"), into ? "into" : "onto", defsyms[(S_arrow_trap + (traptype) - 1)].explanation);
+        qbuf = nh_snprintf("avoid_trap_andor_region", 2570, qbuf, 128 /* sizeof(char [128]) */, "Really %s %s that %s?", u_locomotion("step"), into ? "into" : "onto", defsyms[(S_arrow_trap + (traptype) - 1)].explanation);
         if (!paranoid_query(((game.flags.paranoia_bits & 1) != 0), qbuf)) {
             nomul(0);
             game.context.move = 0;
@@ -2565,7 +2565,7 @@ export function overexertion() {
 }
 export function invocation_message() {
     if (invocation_pos(game.u.ux, game.u.uy) && !On_stairs(game.u.ux, game.u.uy)) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let otmp = carrying(CANDELABRUM_OF_INVOCATION);
         nomul(0);
         if (game.u.usteed) {
@@ -2953,7 +2953,7 @@ export function furniture_present(furniture, roomno) {
     }
     return (0);
 }
-let __in_rooms_buf = [0, 0, 0, 0, 0];
+let __in_rooms_buf = '';
 export function in_rooms(x, y, typewanted) {
     fnEnter("in_rooms", "hack.c", 0);
     let result = "";
@@ -3027,34 +3027,26 @@ export function move_update(newlev) {
         return;
     }
     strcpy(game.u.urooms, in_rooms(game.u.ux, game.u.uy, 0));
-    // Indexed iteration: walk u.urooms (room number array, terminated
-    // by 0 byte); for each entry, mirror to u.uentered if not in
-    // u.urooms0, and to u.ushops + u.ushops_entered if it's a shop.
-    let __p2 = 0, __p3 = 0, __p4 = 0;
-    for (let __p1 = 0; __p1 < game.u.urooms.length && game.u.urooms[__p1]; __p1++) {
-        const c = game.u.urooms[__p1];
+    for (ptr1 = game.u.urooms , ptr2 = game.u.uentered , ptr3 = game.u.ushops , ptr4 = game.u.ushops_entered; __nh_char_at0(ptr1); (ptr1 = __nh_advance_str(ptr1, 1))) {
+        c = __nh_char_at0(ptr1);
         if (!strchr(game.u.urooms0, c)) {
-            game.u.uentered[__p2++] = c;
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = c) */;
         }
-        const __rno = c - 3;
-        if (__rno >= 0 && game.rooms[__rno] && (game.rooms[__rno].rtype >= SHOPBASE)) {
-            game.u.ushops[__p3++] = c;
+        if ((game.rooms[c - 3].rtype >= SHOPBASE)) {
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = c) */;
             if (!strchr(game.u.ushops0, c)) {
-                game.u.ushops_entered[__p4++] = c;
+                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = c) */;
             }
         }
     }
-    if (__p2 < game.u.uentered.length) game.u.uentered[__p2] = 0;
-    if (__p3 < game.u.ushops.length) game.u.ushops[__p3] = 0;
-    if (__p4 < game.u.ushops_entered.length) game.u.ushops_entered[__p4] = 0;
-    let __pl2 = 0;
-    for (let __pl1 = 0; __pl1 < game.u.ushops0.length && game.u.ushops0[__pl1]; __pl1++) {
-        const __c2 = game.u.ushops0[__pl1];
-        if (!strchr(game.u.ushops, __c2)) {
-            game.u.ushops_left[__pl2++] = __c2;
+    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */ , void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */ , void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+    /* filter u.ushops0 -> u.ushops_left */
+    for (ptr1 = game.u.ushops0 , ptr2 = game.u.ushops_left; __nh_char_at0(ptr1); (ptr1 = __nh_advance_str(ptr1, 1))) {
+        if (!strchr(game.u.ushops, __nh_char_at0(ptr1))) {
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0(ptr1)) */;
         }
     }
-    if (__pl2 < game.u.ushops_left.length) game.u.ushops_left[__pl2] = 0;
+    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
 }
 /* possibly deliver a one-time room entry message */
 export function check_special_room(newlev) {
@@ -3088,10 +3080,8 @@ export function check_special_room(newlev) {
     if (game.u.ushops_entered) {
         u_entered_shop(game.u.ushops_entered);
     }
-    for (let __ue_i = 0; __ue_i < game.u.uentered.length && game.u.uentered[__ue_i]; __ue_i++) {
-        const ptr = game.u.uentered[__ue_i];
-        let roomno = ptr - 3;
-        if (roomno < 0 || !game.rooms[roomno]) continue;
+    for (ptr = game.u.uentered[0]; __nh_char_at0(ptr); (ptr = __nh_advance_str(ptr, 1))) {
+        let roomno = __nh_char_at0(ptr) - 3;
         let rt = game.rooms[roomno].rtype;
         let msg_given = (1);
         switch (rt) {
@@ -3618,7 +3608,7 @@ export function unmul(msg_override) {
     } else if (!game.nomovemsg) {
         game.nomovemsg = c_common_strings.c_You_can_move_again;
     }
-    if (game.nomovemsg) {
+    if (__nh_char_at0(game.nomovemsg)) {
         pline("%s", game.nomovemsg);
         /* follow "you survived that attempt on your life" with a message
            about current form if it's not the default; primarily for
@@ -3810,8 +3800,8 @@ export function dump_weights() {
     let nmwidth = 49;
     let mcount = NUMMONS;
     let ocount = NUM_OBJECTS;
-    let nmbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let nmbufbase = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let nmbuf = '';
+    let nmbufbase = '';
     let num_entries = (mcount + ocount);
     game.weightlist = alloc(1 /* sizeof(struct weight_table_entry) */ * num_entries);
     decl_globals_init();
@@ -3823,9 +3813,9 @@ export function dump_weights() {
             game.weightlist[cnt].idx = i;
             game.weightlist[cnt].wtyp = 1;
             game.weightlist[cnt].unique = ((game.mons[i].geno & 4096) != 0);
-            nh_snprintf("dump_weights", 4439, nmbuf, 256 /* sizeof(char [256]) */, "%07u", game.weightlist[cnt].wt);
+            nmbuf = nh_snprintf("dump_weights", 4439, nmbuf, 256 /* sizeof(char [256]) */, "%07u", game.weightlist[cnt].wt);
             cm = CapitalMon(game.mons[i].pmnames[NEUTRAL]);
-            nh_snprintf("dump_weights", 4444, { get value() { return nmbuf[7]; }, set value(_v) { nmbuf[7] = _v; } }, 256 /* sizeof(char [256]) */ - 7, "%s%s", "the body of ", (cm) ? the(game.mons[i].pmnames[NEUTRAL]) : game.weightlist[cnt].unique ? game.mons[i].pmnames[NEUTRAL] : an(game.mons[i].pmnames[NEUTRAL]));
+            nh_snprintf("dump_weights", 4444, nmbuf[7], 256 /* sizeof(char [256]) */ - 7, "%s%s", "the body of ", (cm) ? the(game.mons[i].pmnames[NEUTRAL]) : game.weightlist[cnt].unique ? game.mons[i].pmnames[NEUTRAL] : an(game.mons[i].pmnames[NEUTRAL]));
             game.weightlist[cnt].nm = dupstr(nmbuf);
             cnt++;
         }
@@ -3840,7 +3830,7 @@ export function dump_weights() {
             game.weightlist[cnt].unique = (game.objects[i].oc_unique != 0);
             game.objects[i].oc_name_known = 1;
             nmbufbase = strcpy(nmbufbase, simple_typename(i));
-            nh_snprintf("dump_weights", 4463, nmbuf, 256 /* sizeof(char [256]) */, "%07u%s", wt, (game.weightlist[cnt].unique) ? the(nmbufbase) : an(nmbufbase));
+            nmbuf = nh_snprintf("dump_weights", 4463, nmbuf, 256 /* sizeof(char [256]) */, "%07u%s", wt, (game.weightlist[cnt].unique) ? the(nmbufbase) : an(nmbufbase));
             game.weightlist[cnt].nm = dupstr(nmbuf);
             cnt++;
         }
@@ -3849,7 +3839,7 @@ export function dump_weights() {
     raw_printf("int all_weights[] = {");
     for (i = 0; i < cnt; ++i) {
         if (game.weightlist[i].nm) {
-            raw_printf("    %7u%s /* %*s */", game.weightlist[i].wt, (i == cnt - 1) ? " " : ",", -nmwidth, game.weightlist[i].nm[7]);
+            raw_printf("    %7u%s /* %*s */", game.weightlist[i].wt, (i == cnt - 1) ? " " : ",", -nmwidth, __nh_advance_str(game.weightlist[i].nm, 7));
             free(game.weightlist[i].nm) , game.weightlist[i].nm = null;
         }
     }
@@ -3936,7 +3926,6 @@ export function rounddiv(x, y) {
 /* defaults to "doorway" (door-less or broken) */
 /* ICE, MOAT, LAVA, or 'STONE' (which ought to be 'room') */
 /* moat and swamp handling match waterbody_name()'s result */
-/* filter u.ushops0 -> u.ushops_left */
 /* stop for traps, sometimes */
 /* orthogonal to a closed door, consider it a corridor */
 /* e.g. objects or trap or stairs */

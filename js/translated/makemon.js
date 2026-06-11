@@ -1505,7 +1505,7 @@ export function makemon(ptr, x, y, mmflags) {
     if (!game.in_mklev) {
         newsym(mtmp.mx, mtmp.my);
         if (!(mmflags & 131072)) {
-            let mbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let mbuf = '';
             let what = null;
             /* MM_NOEXCLAM is used for #wizgenesis (^G) */
             let exclaim = !(mmflags & 262144);
@@ -1800,7 +1800,7 @@ export function dump_mongen() {
     let i = 0;
     let nmwidth = 27;
     let special = 0;
-    let nmbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let nmbuf = '';
     monst_globals_init();
     init_mongen_order();
     raw_printf("int mongen_order[] = {");
@@ -1810,7 +1810,7 @@ export function dump_mongen() {
         if (prev_mlet && prev_mlet != mlet) {
             (game.windowprocs.win_raw_print)("");
         }
-        nh_snprintf("dump_mongen", 1851, nmbuf, 80 /* sizeof(char [80]) */, "PM_%s%s", monsdump[(game.mongen_order[i])].nm, (i == SPECIAL_PM - 1) ? "" : ",");
+        nmbuf = nh_snprintf("dump_mongen", 1851, nmbuf, 80 /* sizeof(char [80]) */, "PM_%s%s", monsdump[(game.mongen_order[i])].nm, (i == SPECIAL_PM - 1) ? "" : ",");
         raw_printf("    %*s /* %c seq=%3d, idx=%3d, sym='%c', diff=%2d, freq=%2d[%d] %s */", -nmwidth, nmbuf, (i == (game.mongen_order[i])) ? 32 : 46, i, (game.mongen_order[i]), mlet, game.mons[(game.mongen_order[i])].difficulty, (game.mons[(game.mongen_order[i])].geno & 7), game.mclass_maxf[game.mons[(game.mongen_order[i])].mlet], (special == (512 | 4096)) ? "(G_NOGEN | G_UNIQ)" : (special == 512) ? "(G_NOGEN)" : (special == 4096) ? "(G_UNIQ)" : "");
         prev_mlet = mlet;
     }
@@ -2081,7 +2081,7 @@ export function grow_up(mtmp, victim) {
             mondied(mtmp);
             return null;
         } else if ((canseemon(mtmp) || sensemon(mtmp))) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             buf = sprintf(buf, "%s%s", (mtmp.female && !fem) ? "male " : (fem && !mtmp.female) ? "female " : "", pmname(ptr, fem));
             pline_mon(mtmp, "%s %s %s.", YMonnam(mtmp), (fem != mtmp.female) ? "changes into" : (((ptr).mflags1 & 131072) != 0) ? "becomes" : "grows up into", an(buf));
         }

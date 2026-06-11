@@ -9,7 +9,7 @@ import { free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, You_hear, You_see, Your, pline, pline_The } from '../c2js-runtime/pline.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strchr, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_char_at0, strchr, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { next_to_u, reset_trapset } from './apply.js';
 import { artifact_has_invprop, finesse_ahriman, undiscovered_artifact } from './artifact.js';
 import { ballfall, ballrelease, drag_down, drop_ball, placebc, unplacebc } from './ball.js';
@@ -221,7 +221,7 @@ export function flooreffects(obj, x, y, verb) {
             ttyp = t.ttyp;
             tseen = t.tseen ? (1) : (0);
             if (((mtmp = (game.level.monsters[x][y])) && mtmp.mtrapped) || (game.u.utrap && ((x) == game.u.ux && (y) == game.u.uy))) {
-                if (verb.value && (((game.viz_array[y][x] & 2) != 0) || dist2((x), (y), game.u.ux, game.u.uy) == 0)) {
+                if (__nh_char_at0(verb) && (((game.viz_array[y][x] & 2) != 0) || dist2((x), (y), game.u.ux, game.u.uy) == 0)) {
                     pline("%s boulder %s into the pit%s.", ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "A" : "The", vtense(null, verb), mtmp ? "" : " with you");
                 }
                 if (mtmp) {
@@ -265,7 +265,7 @@ export function flooreffects(obj, x, y, verb) {
                     }
                 }
             }
-            if (verb.value) {
+            if (__nh_char_at0(verb)) {
                 if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && ((x) == game.u.ux && (y) == game.u.uy)) {
                     ;
                     You_hear("a CRASH! beneath you.");
@@ -652,13 +652,13 @@ export function dosinkring(obj) {
 /* some common tests when trying to drop or throw items */
 export function canletgo(obj, word) {
     if (obj.owornmask & ((1 | 2 | 4 | 8 | 16 | 32 | 64) | ((131072 | 262144) | 65536 | 524288))) {
-        if (word.value) {
+        if (__nh_char_at0(word)) {
             Norep("You cannot %s %s you are wearing.", word, c_common_strings.c_something);
         }
         return (0);
     }
     if (obj == game.uwep && welded(game.uwep)) {
-        if (word.value) {
+        if (__nh_char_at0(word)) {
             /* no weldmsg(), so uwep->bknown might become set silently
            if word is "" */
             let hand = body_part(HAND);
@@ -670,7 +670,7 @@ export function canletgo(obj, word) {
         return (0);
     }
     if (obj.otyp == LOADSTONE && obj.cursed) {
-        if (word.value) {
+        if (__nh_char_at0(word)) {
             /* getobj() kludge sets corpsenm to user's specified count
            when refusing to split a stack of cursed loadstones */
             /* getobj() ignores a count for throwing since that is
@@ -685,13 +685,13 @@ export function canletgo(obj, word) {
         return (0);
     }
     if (obj.otyp == LEASH && obj.corpsenm != 0) {
-        if (word.value) {
+        if (__nh_char_at0(word)) {
             pline_The("leash is tied around your %s.", body_part(HAND));
         }
         return (0);
     }
     if (obj.owornmask & 1048576) {
-        if (word.value) {
+        if (__nh_char_at0(word)) {
             You("cannot %s %s you are sitting on.", word, c_common_strings.c_something);
         }
         return (0);

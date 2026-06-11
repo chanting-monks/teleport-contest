@@ -31,9 +31,9 @@ export default async function({ des, math, nh, percent, selection, shuffle }) {
   await des.region(selection.area(1, 1, 73, 16), "lit");
   await des.non_diggable();
   await des.teleport_region({ region: [9, 3, 9, 3] });
-  nh.parse_config("OPTIONS=mention_walls");
-  nh.parse_config("OPTIONS=mention_decor");
-  nh.parse_config("OPTIONS=lit_corridor");
+  await nh.parse_config("OPTIONS=mention_walls");
+  await nh.parse_config("OPTIONS=mention_decor");
+  await nh.parse_config("OPTIONS=lit_corridor");
   let movekeys = tut_key("movewest") + " " + tut_key("movesouth") + " " + tut_key("movenorth") + " " + tut_key("moveeast");
   let diagmovekeys = tut_key("movesouthwest") + " " + tut_key("movenortheast") + " " + tut_key("movesoutheast") + " " + tut_key("movenorthwest");
   await des.engraving({ coord: [9, 3], type: "engrave", text: "Move around with " + movekeys, degrade: false });
@@ -49,7 +49,7 @@ export default async function({ des, math, nh, percent, selection, shuffle }) {
   await des.trap({ type: "magic portal", coord: [4, 4], seen: true });
   await des.engraving({ coord: [5, 9], type: "engrave", text: "This door is locked. Kick it with '" + tut_key("kick") + "'", degrade: false });
   await des.door({ coord: [5, 10], state: "locked" });
-  tut_key_help(6, 8);
+  await tut_key_help(6, 8);
   await des.engraving({ coord: [5, 12], type: "engrave", text: "Look around the map with '" + tut_key("glance") + "', press ESC when you're done", degrade: false });
   await des.engraving({ coord: [10, 13], type: "engrave", text: "Use '" + tut_key("search") + "' to search for secret doors", degrade: false });
   await des.engraving({ coord: [10, 15], type: "engrave", text: "Wrong secret", degrade: false });
@@ -60,7 +60,7 @@ export default async function({ des, math, nh, percent, selection, shuffle }) {
   await des.door({ coord: [15, 10], state: percent(50) && "locked" || "closed" });
   await des.engraving({ coord: [15, 11], type: "engrave", text: "There are four traps next to you! Search for them.", degrade: false });
   let locs = [[14, 11], [14, 12], [15, 12], [16, 12], [16, 11]];
-  shuffle(locs);
+  await shuffle(locs);
   {
       const __hi = 4;
       const __step = 1;
@@ -138,7 +138,7 @@ export default async function({ des, math, nh, percent, selection, shuffle }) {
   await des.door({ coord: [50, 16], state: "closed" });
   await des.engraving({ coord: [58, 9], type: "burn", text: "Use '" + tut_key("down") + "' to go down the stairs", degrade: false });
   await des.stair({ dir: "down", coord: [58, 10] });
-  tut_key_help(64, 4);
+  await tut_key_help(64, 4);
   await des.engraving({ coord: [65, 3], type: "burn", text: "UNDER CONSTRUCTION", degrade: false });
   await des.trap({ type: "magic portal", coord: [66, 2], seen: true });
   await des.engraving({ coord: [69, 12], type: "burn", text: "Can't get through?  You're carrying too much.", degrade: false });

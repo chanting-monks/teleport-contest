@@ -17,8 +17,8 @@ import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, You_hear, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
 import { o_unleash, um_dist, unleash_all } from './apply.js';
 import { arti_cost } from './artifact.js';
@@ -219,7 +219,10 @@ export function shkgone(mtmp) {
            dead shk is the resident shk. */
             setpaid(mtmp);
             eshk.bill_p = null;
-            game.u.ushops = game.u.ushops.replace(String.fromCharCode(eshk.shoproom), '');
+            /* remove eshk->shoproom from u.ushops */
+            do {
+                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0((__nh_advance_str(p, 1)))) */;
+            } while ((p = __nh_advance_str(p, 1)));
         }
     }
 }
@@ -386,7 +389,7 @@ export function record_price_quote(otyp, price, buyprice) {
    given end of string position. *eos mut be buf + strlen(buf). If the
    update would make bug longer than BUFSZ, instead does nothing. */
 export function append_price_quote(buf, eos, otyp) {
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf2 = '';
     let eos2 = buf2;
     let sep = "";
     let len = eos - buf;
@@ -394,21 +397,21 @@ export function append_price_quote(buf, eos, otyp) {
     if (game.objects[otyp].oc_sell_minseen > game.objects[otyp].oc_sell_maxseen && game.objects[otyp].oc_buy_minseen > game.objects[otyp].oc_buy_maxseen) {
         return;
     }
-    eos2 += sprintf(eos2, " {");
+    eos2 = __nh_advance_str(eos2, sprintf(eos2, " {"));
     if (game.objects[otyp].oc_buy_minseen < game.objects[otyp].oc_buy_maxseen) {
-        eos2 += sprintf(eos2, "buy %lu-%lu", game.objects[otyp].oc_buy_minseen, game.objects[otyp].oc_buy_maxseen);
+        eos2 = __nh_advance_str(eos2, sprintf(eos2, "buy %lu-%lu", game.objects[otyp].oc_buy_minseen, game.objects[otyp].oc_buy_maxseen));
         sep = " ";
     } else if (game.objects[otyp].oc_buy_minseen == game.objects[otyp].oc_buy_maxseen) {
-        eos2 += sprintf(eos2, "buy %lu", game.objects[otyp].oc_buy_minseen);
+        eos2 = __nh_advance_str(eos2, sprintf(eos2, "buy %lu", game.objects[otyp].oc_buy_minseen));
         sep = " ";
     }
     if (game.objects[otyp].oc_sell_minseen < game.objects[otyp].oc_sell_maxseen) {
-        eos2 += sprintf(eos2, "%ssell %lu-%lu", sep, game.objects[otyp].oc_sell_minseen, game.objects[otyp].oc_sell_maxseen);
+        eos2 = __nh_advance_str(eos2, sprintf(eos2, "%ssell %lu-%lu", sep, game.objects[otyp].oc_sell_minseen, game.objects[otyp].oc_sell_maxseen));
     } else if (game.objects[otyp].oc_sell_minseen == game.objects[otyp].oc_sell_maxseen) {
-        eos2 += sprintf(eos2, "%ssell %lu", sep, game.objects[otyp].oc_sell_minseen);
+        eos2 = __nh_advance_str(eos2, sprintf(eos2, "%ssell %lu", sep, game.objects[otyp].oc_sell_minseen));
     }
-    eos2 += sprintf(eos2, "}");
-    len2 = eos2 - buf2;
+    eos2 = __nh_advance_str(eos2, sprintf(eos2, "}"));
+    len2 = (buf2.length - eos2.length);
     if (len2 < 256 - len - 1) {
         strcpy(eos, buf2);
         eos += len2;
@@ -492,10 +495,10 @@ export function u_left_shop(leavestring, newlev) {
      *   (he wasn't strictly-inside last turn anyway)))
      * THEN (there's nothing to do, so just return)
      */
-    if (!leavestring.value && (!game.level.locations[game.u.ux][game.u.uy].edge || game.level.locations[game.u.ux0][game.u.uy0].edge)) {
+    if (!__nh_char_at0(leavestring) && (!game.level.locations[game.u.ux][game.u.uy].edge || game.level.locations[game.u.ux0][game.u.uy0].edge)) {
         return;
     }
-    shkp = shop_keeper(leavestring.value ? leavestring.value : game.u.ushops0);
+    shkp = shop_keeper(__nh_char_at0(leavestring) ? __nh_char_at0(leavestring) : game.u.ushops0);
     /* caller has verified that there is a shopkeeper, but the static
        analyzer doesn't realize it */
     if (!shkp || !inhishop(shkp)) {
@@ -506,7 +509,7 @@ export function u_left_shop(leavestring, newlev) {
     if (!eshkp.billct && !eshkp.debit) {
         return;
     }
-    if (!leavestring.value && !(((shkp).msleeping || !(shkp).mcanmove) || (shkp).data.msound <= MS_ANIMAL)) {
+    if (!__nh_char_at0(leavestring) && !(((shkp).msleeping || !(shkp).mcanmove) || (shkp).data.msound <= MS_ANIMAL)) {
         /*
          * Player just stepped onto shop-boundary (known from above logic).
          * Try to intimidate him into paying his bill
@@ -528,9 +531,9 @@ let __credit_report_credit_snap = [[0, 0, 0], [0, 0, 0]];
 export function credit_report(shkp, idx, silent) {
     let eshkp = ((shkp).mextra.eshk);
     if (!idx) {
-        __credit_report_credit_snap[0][0] = __credit_report_credit_snap[1][0] = 0;
-        __credit_report_credit_snap[0][1] = __credit_report_credit_snap[1][1] = 0;
-        __credit_report_credit_snap[0][2] = __credit_report_credit_snap[1][2] = 0;
+        (__credit_report_credit_snap[1][0] = 0, __credit_report_credit_snap[0][0] = 0);
+        (__credit_report_credit_snap[1][1] = 0, __credit_report_credit_snap[0][1] = 0);
+        (__credit_report_credit_snap[1][2] = 0, __credit_report_credit_snap[0][2] = 0);
     } else {
         idx = 1;
     }
@@ -609,7 +612,7 @@ export function rob_shop(shkp) {
 /*const*/
 export function deserted_shop(enterstring) {
     let mtmp = null;
-    let r = game.rooms[enterstring.value - 3];
+    let r = game.rooms[__nh_char_at0(enterstring) - 3];
     let x = 0;
     let y = 0;
     let m = 0;
@@ -634,17 +637,17 @@ export function deserted_shop(enterstring) {
     pline("This shop %s %s.", (m < n) ? "seems to be" : "is", !n ? "deserted" : "untended");
 }
 /* called from check_special_room(hack.c) */
-let __u_entered_shop_empty_shops = [0, 0, 0, 0, 0];
+let __u_entered_shop_empty_shops = '';
 export function u_entered_shop(enterstring) {
     let shkp = null;
     let eshkp = null;
     let rt = 0;
-    if (!enterstring.value) {
+    if (!__nh_char_at0(enterstring)) {
         return;
     }
-    shkp = shop_keeper(enterstring.value);
+    shkp = shop_keeper(__nh_char_at0(enterstring));
     if (!shkp) {
-        if (!strchr(__u_entered_shop_empty_shops, enterstring.value) && (in_rooms(game.u.ux, game.u.uy, SHOPBASE) != in_rooms(game.u.ux0, game.u.uy0, SHOPBASE))) {
+        if (!strchr(__u_entered_shop_empty_shops, __nh_char_at0(enterstring)) && (in_rooms(game.u.ux, game.u.uy, SHOPBASE) != in_rooms(game.u.ux0, game.u.uy0, SHOPBASE))) {
             deserted_shop(enterstring);
         }
         __u_entered_shop_empty_shops = strcpy(__u_entered_shop_empty_shops, game.u.ushops);
@@ -655,7 +658,7 @@ export function u_entered_shop(enterstring) {
     if (!inhishop(shkp)) {
         /* dump core when referenced */
         eshkp.bill_p = -1000;
-        if (!strchr(__u_entered_shop_empty_shops, enterstring.value)) {
+        if (!strchr(__u_entered_shop_empty_shops, __nh_char_at0(enterstring))) {
             deserted_shop(enterstring);
         }
         __u_entered_shop_empty_shops = strcpy(__u_entered_shop_empty_shops, game.u.ushops);
@@ -683,7 +686,7 @@ export function u_entered_shop(enterstring) {
         }
         return;
     }
-    rt = game.rooms[enterstring.value - 3].rtype;
+    rt = game.rooms[__nh_char_at0(enterstring) - 3].rtype;
     if ((!((shkp).mpeaceful))) {
         if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !(((shkp).msleeping || !(shkp).mcanmove) || (shkp).data.msound <= MS_ANIMAL)) {
             ;
@@ -928,10 +931,10 @@ export function find_objowner(obj, x, y) {
             }
         }
     } else {
-        let roomindx = null;
+        let __nh_roomindx_idx = 0;
         let where = in_rooms(x, y, SHOPBASE);
-        for (roomindx = where; roomindx; ++roomindx) {
-            if ((shkp = shop_keeper(roomindx)) != null) {
+        for (__nh_roomindx_idx = 0; where[__nh_roomindx_idx]; ++__nh_roomindx_idx) {
+            if ((shkp = shop_keeper(where[__nh_roomindx_idx])) != null) {
                 /* conceptually object could be inside up to 4 rooms simultaneously;
            in practice it will usually be one room but can sometimes be two;
            check shk and bill for each room rather than just the first;
@@ -1188,7 +1191,7 @@ export function make_happy_shk(shkp, silentkops) {
         adjalign(sgn(game.u.ualign.type));
     }
     if (!inhishop(shkp)) {
-        let shk_nam = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let shk_nam = '';
         let vanished = canseemon(shkp);
         shk_nam = strcpy(shk_nam, shkname(shkp));
         if (on_level(eshkp.shoplevel, game.u.uz)) {
@@ -1448,7 +1451,7 @@ export function menu_pick_pay_items(ibillct, ibill) {
     let any = 0;
     let pick_list = null;
     let p = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let amt = 0;
     let largest_amt = 0;
     let save_quan = 0;
@@ -1490,7 +1493,7 @@ export function menu_pick_pay_items(ibillct, ibill) {
         p = paydoname(otmp);
         otmp.quan = save_quan;
         amt = ibill[i].cost;
-        nh_snprintf("menu_pick_pay_items", 1717, buf, 256 /* sizeof(char [256]) */, "%*ld Zm, %s", amt_width, amt, p);
+        buf = nh_snprintf("menu_pick_pay_items", 1717, buf, 256 /* sizeof(char [256]) */, "%*ld Zm, %s", amt_width, amt, p);
         /* this doesn't support hallucinatory currency because shopkeeper
            isn't hallucinating; also, that would mess up the alignment */
         any.a_int = i + 1;
@@ -1732,7 +1735,7 @@ export function dopay() {
     if (eshkp.debit) {
         let dtmp = eshkp.debit;
         let loan = eshkp.loan;
-        let sbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let sbuf = '';
         umoney = money_cnt(game.invent);
         sbuf = sprintf(sbuf, "You owe %s %ld %s ", shkname(shkp), dtmp, currency(dtmp));
         if (loan) {
@@ -2009,8 +2012,8 @@ export function dopayobj(shkp, bp, obj, which, itemize, unseen) {
     game.iflags.suppress_price++;
     buy = 1;
     if (itemize) {
-        let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let qsfx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let qbuf = '';
+        let qsfx = '';
         qsfx = sprintf(qsfx, " for %ld %s.  Pay?", ltmp, currency(ltmp));
         /*
          * TODO:
@@ -2155,9 +2158,9 @@ export function reject_purchase(shkp, obj, billed_quan) {
     /* temporarily change obj to refer to the used up portion */
     obj.quan = billed_quan - intact_quan;
     if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !(((shkp).msleeping || !(shkp).mcanmove) || (shkp).data.msound <= MS_ANIMAL)) {
-        let which = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let which = '';
         if (obj.where == 2) {
-            nh_snprintf("reject_purchase", 2434, which, 256 /* sizeof(char [256]) */, "the one%s in %s", (((intact_quan) == 1) ? "" : "s"), thesimpleoname(obj.v.v_ocontainer));
+            which = nh_snprintf("reject_purchase", 2434, which, 256 /* sizeof(char [256]) */, "the one%s in %s", (((intact_quan) == 1) ? "" : "s"), thesimpleoname(obj.v.v_ocontainer));
         } else {
             which = sprintf(which, "%s", (intact_quan > 1) ? "these" : "this one");
         }
@@ -2286,7 +2289,7 @@ export function inherits(shkp, numsk, croaked, silently) {
     let take = 0;
     let taken = 0;
     let uinshop = 0;
-    let takes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let takes = '';
     clear: {
         loss = 0;
         eshkp = ((shkp).mextra.eshk);
@@ -2301,7 +2304,7 @@ export function inherits(shkp, numsk, croaked, silently) {
             if (((game.viz_array[shkp.my][shkp.mx] & 2) != 0) && croaked && !silently) {
                 /* The simplifying principle is that first-come
        already took everything you had. */
-                takes[0] = 0;
+                takes = '';
                 if ((((shkp.data).mflags1 & 32768) == 0) && !rn2(2)) {
                     takes = sprintf(takes, ", shakes %s %s,", (genders[pronoun_gender(shkp, (1 | 2))].his), mbodypart(shkp, HEAD));
                 }
@@ -2338,7 +2341,7 @@ export function inherits(shkp, numsk, croaked, silently) {
                     break skip;
                 }
                 umoney = money_cnt(game.invent);
-                takes[0] = 0;
+                takes = '';
                 if (((shkp).msleeping || !(shkp).mcanmove)) {
                     takes = strcat(takes, "wakes up and ");
                 }
@@ -2887,8 +2890,8 @@ export function unpaid_cost(unp_obj, cost_type) {
     let shkp = null;
     let shop = null;
     let amt = 0;
-    for (shop = game.u.ushops; shop; shop++) {
-        if ((shkp = shop_keeper(shop)) != null) {
+    for (shop = game.u.ushops; __nh_char_at0(shop); (shop = __nh_advance_str(shop, 1))) {
+        if ((shkp = shop_keeper(__nh_char_at0(shop))) != null) {
             if ((bp = onbill(unp_obj, shkp, (1)))) {
                 /* if two shops share a wall, this might find wrong shk */
                 /* didn't find shk?  try searching bills */
@@ -3005,7 +3008,7 @@ export function bill_box_content(obj, ininv, dummy, shkp) {
 /* "%s %ld %s %s", doname(obj), amt, plur(amt), arg */
 export function shk_names_obj(shkp, obj, fmt, amt, arg) {
     let obj_name = null;
-    let fmtbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let fmtbuf = '';
     let was_unknown = !obj.dknown;
     observe_object(obj);
     if (!game.objects[obj.otyp].oc_magic && saleable(shkp, obj) && (obj.oclass == WEAPON_CLASS || obj.oclass == ARMOR_CLASS || obj.oclass == SCROLL_CLASS || obj.oclass == SPBOOK_CLASS || obj.otyp == MIRROR)) {
@@ -3020,7 +3023,7 @@ export function shk_names_obj(shkp, obj, fmt, amt, arg) {
     if (was_unknown) {
         fmtbuf = sprintf(fmtbuf, "%%s; you %s", fmt);
         /* Use an alternate message when extra information is being provided */
-        obj_name[0] = highc(obj_name[0]);
+        obj_name = (() => { const __s = obj_name; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
         pline(fmtbuf, obj_name, (obj.quan > 1) ? "them" : "it", amt, (((amt) == 1) ? "" : "s"), arg);
     } else {
         You(fmt, obj_name, amt, (((amt) == 1) ? "" : "s"), arg);
@@ -3119,7 +3122,7 @@ export function addtobill(obj, ininv, dummy, silent) {
         contentscount = 0;
     }
     if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !(((shkp).msleeping || !(shkp).mcanmove) || (shkp).data.msound <= MS_ANIMAL) && !silent) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         if (!ltmp) {
             /* no need to update price quotes here; it was done by
            add_one_tobill above */
@@ -3344,7 +3347,7 @@ export function stolen_value(obj, x, y, peaceful, silent) {
             ((shkp).mextra.eshk).debit += value;
         }
         if (!silent) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             let still = "";
             if (credit_use) {
                 if (((shkp).mextra.eshk).credit) {
@@ -3359,9 +3362,9 @@ export function stolen_value(obj, x, y, peaceful, silent) {
             buf = sprintf(buf, "%sowe %s %ld %s", still, shkname(shkp), value, currency(value));
             /* u_count > 0 implies Has_contents(obj) */
             if (u_count) {
-                buf = (buf || '') + sprintf('', " for %s%sits contents", was_unpaid ? "it and " : "", (c_count > u_count) ? "some of " : "");
+                buf = __nh_buf_append(buf, sprintf('', " for %s%sits contents", was_unpaid ? "it and " : "", (c_count > u_count) ? "some of " : ""));
             } else if (obj.oclass != COIN_CLASS) {
-                buf = (buf || '') + sprintf('', " for %s", (obj.quan > 1) ? "them" : "it");
+                buf = __nh_buf_append(buf, sprintf('', " for %s", (obj.quan > 1) ? "them" : "it"));
             }
             /* "You owe <shk> N zorkmids for it!" */
             You("%s!", buf);
@@ -3540,7 +3543,7 @@ export function sellobj(obj, x, y) {
     shkmoney = money_cnt(shkp.minvent);
     if (!shkmoney) {
         let c = 0;
-        let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let qbuf = '';
         let tmpcr = (Math.trunc((offer * 9) / 10)) + (offer <= 1);
         if (game.sell_how == (0) || game.auto_credit) {
             c = game.sell_response = 121;
@@ -3577,8 +3580,8 @@ export function sellobj(obj, x, y) {
             subfrombill(obj, shkp);
         }
     } else {
-        let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let qsfx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let qbuf = '';
+        let qsfx = '';
         let short_funds = (offer > shkmoney);
         let one = 0;
         if (short_funds) {
@@ -3600,7 +3603,7 @@ export function sellobj(obj, x, y) {
             record_price_quote(obj.otyp, Math.trunc(offer / obj.quan), (0));
             safe_qbuf(qbuf, qbuf, qsfx, obj, xname, simpleonames, one ? "that" : "those");
         } else {
-            qbuf[0] = 0;
+            qbuf = '';
         }
         switch (game.sell_response ? game.sell_response : yn_function(qbuf, ynaqchars, 110, (1))) {
             case 113:
@@ -3811,12 +3814,12 @@ export function add_damage(x, y, cost) {
     if (((game.level.locations[x][y].typ) == DOOR)) {
         let mtmp = null;
         /* Don't schedule for repair unless it's a real shop entrance */
-        for (shops = in_rooms(x, y, SHOPBASE); shops; shops++) {
-            if ((mtmp = shop_keeper(shops)) != null && x == ((mtmp).mextra.eshk).shd.x && y == ((mtmp).mextra.eshk).shd.y) {
+        for (shops = in_rooms(x, y, SHOPBASE); __nh_char_at0(shops); (shops = __nh_advance_str(shops, 1))) {
+            if ((mtmp = shop_keeper(__nh_char_at0(shops))) != null && x == ((mtmp).mextra.eshk).shd.x && y == ((mtmp).mextra.eshk).shd.y) {
                 break;
             }
         }
-        if (!shops) {
+        if (!__nh_char_at0(shops)) {
             return;
         }
     }
@@ -4480,9 +4483,9 @@ export function getcad(shkp, dmgstr, x, y, uinshp, animal, pursue) {
 }
 export function pay_for_damage(dmgstr, cant_mollify) {
     let shkp = null;
-    let shops_affected = [0, 0, 0, 0, 0];
+    let shops_affected = '';
     let uinshp = (game.u.ushops != 0);
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let x = 0;
     let y = 0;
     let animal = 0;
@@ -4494,16 +4497,16 @@ export function pay_for_damage(dmgstr, cant_mollify) {
     let nearest_damage = nearest_shk;
     let picks = 0;
     for (tmp_dam = game.level.damagelist; tmp_dam; tmp_dam = tmp_dam.next) {
-        let shp = null;
+        let __nh_shp_idx = 0;
         if (tmp_dam.when != game.moves || !tmp_dam.cost) {
             continue;
         }
         cost_of_damage += tmp_dam.cost;
         shops_affected = strcpy(shops_affected, in_rooms(tmp_dam.place.x, tmp_dam.place.y, SHOPBASE));
-        for (shp = shops_affected; shp; shp++) {
+        for (__nh_shp_idx = 0; shops_affected[__nh_shp_idx]; __nh_shp_idx++) {
             let tmp_shk = null;
             let shk_distance = 0;
-            if (!(tmp_shk = shop_keeper(shp))) {
+            if (!(tmp_shk = shop_keeper(shops_affected[__nh_shp_idx]))) {
                 continue;
             }
             if (tmp_shk == shkp) {
@@ -4680,8 +4683,8 @@ export function shop_object(x, y) {
 /* give price quotes for all objects linked to this one (ie, on this spot) */
 export function price_quote(first_obj) {
     let otmp = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let price = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let price = '';
     let cost = 0;
     let cnt = 0;
     let contentsonly = (0);
@@ -4894,7 +4897,7 @@ export function check_unpaid_usage(otmp, altusage) {
     let fmt = null;
     let arg1 = null;
     let arg2 = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let tmp = 0;
     if (!otmp.unpaid || !game.u.ushops || (otmp.spe <= 0 && game.objects[otmp.otyp].oc_charged)) {
         return;
@@ -5046,7 +5049,7 @@ export function block_entry(x, y) {
 /* "your " or "Foobar's " (note the trailing space) */
 export function shk_your(buf, obj) {
     let chk_pm = obj.otyp == CORPSE && ((obj.corpsenm) >= LOW_PM && (obj.corpsenm) < NUMMONS);
-    buf[0] = 0;
+    buf = __nh_char_write(buf, 0, 0);
     if (chk_pm && (((game.mons[obj.corpsenm]).mflags2 & 524288) != 0)) {
         return buf;
     } else if (chk_pm && the_unique_pm(game.mons[obj.corpsenm])) {
@@ -5103,7 +5106,7 @@ export function cad(altusage) {
         cadbuf = sprintf(cadbuf, "\"%s!  ", res);
         /* alternate usage adds a leading double quote and trailing
            exclamation point plus sentence separating spaces */
-        cadbuf[1] = highc(cadbuf[1]);
+        cadbuf = __nh_char_write(cadbuf, 1, highc(__nh_char_at0(__nh_advance_str(cadbuf, 1))));
         res = cadbuf;
     }
     return res;
@@ -5250,7 +5253,6 @@ export function use_unpaid_trapobj(otmp, x, y) {
     }
 }
 /*shk.c*/
-/* remove eshk->shoproom from u.ushops */
 /* [real shopkeeper name is kept in ESHK,
                           not MGIVENNAME] */
 /* sort such that FullyUsedUp and PartlyUsedUp come before

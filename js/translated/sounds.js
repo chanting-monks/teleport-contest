@@ -5,7 +5,7 @@ import { game } from '../gstate.js';
 import { panic } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_hear, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strchr, strcmp, strcpy, strlen, strncmpi } from '../c2js-runtime/string.js';
 import { midnight, night } from './calendar.js';
 import { getdir, isok } from './cmd.js';
 import { c_common_strings } from './decl.js';
@@ -146,8 +146,8 @@ export function temple_priest_sound(mtmp) {
             }
             break;
         } while (++trycount < 50);
-        while (!letter(msg)) {
-            ++msg;
+        while (!letter(__nh_char_at0(msg))) {
+            (msg = __nh_advance_str(msg, 1));
         }
         if (strchr(msg, 37)) {
             You_hear(msg, halu_gname(((mtmp).mextra.epri).shralign));
@@ -608,7 +608,7 @@ const __domonnoise_arrest_msg = ["Anything you say can be used against you.", "Y
 const __domonnoise_soldier_foe_msg = ["Resistance is useless!", "You're dog meat!", "Surrender!"];
 const __domonnoise_soldier_pax_msg = ["What lousy pay we're getting here!", "The food's not fit for Orcs!", "My feet hurt, I've been on them all day!"];
 export function domonnoise(mtmp) {
-    let verbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let verbuf = '';
     /* Monnam(mtmp) will be prepended */
     let pline_msg = null;
     let verbl_msg = null;
@@ -1079,7 +1079,7 @@ export function domonnoise(mtmp) {
         if (ptr == game.mons[PM_DEATH]) {
             /* Death talks in CAPITAL LETTERS
                and without quotation marks */
-            let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let tmpbuf = '';
             pline("%s", ucase(strcpy(tmpbuf, verbl_msg)));
             ;
             sound_speak(tmpbuf);
@@ -1407,10 +1407,10 @@ export function get_soundlib_name(dest, maxlen) {
     }
     src = game.soundlib_choices[idx].sndprocs.soundname;
     for (count = 1; count < maxlen; count++) {
-        if (src == 44 || src == 0) {
+        if (__nh_char_at0(src) == 44 || __nh_char_at0(src) == 0) {
             break;
         }
-        dest[__nh_dest_idx++] = src++;
+        dest[__nh_dest_idx++] = (src = __nh_advance_str(src, 1));
     }
     dest.value = 0;
 }
@@ -1461,12 +1461,12 @@ export function base_soundname_to_filename(basename, buf, bufsz, approach) {
     if (approach == sff_havedir_append_rest) {
         existinglen = strlen(buf);
         if (existinglen > 0) {
-            cp = buf + existinglen;
-            cp--;
+            cp = __nh_advance_str(buf, existinglen);
+            (cp = __nh_advance_str(cp, -1));
             if (cp.value == 47 || cp.value == 92) {
                 needslash = (0);
             }
-            cp++;
+            (cp = __nh_advance_str(cp, 1));
         }
         if (needslash) {
             consumes++;
@@ -1481,13 +1481,13 @@ export function base_soundname_to_filename(basename, buf, bufsz, approach) {
     if (approach == sff_havedir_append_rest) {
         if (needslash) {
             cp.value = 47;
-            cp++;
+            (cp = __nh_advance_str(cp, 1));
             cp.value = 0;
             existinglen++;
         }
-        nh_snprintf("base_soundname_to_filename", 2144, cp, bufsz - (existinglen + 1), "%s%s", basename, __base_soundname_to_filename_suffix);
+        cp = nh_snprintf("base_soundname_to_filename", 2144, cp, bufsz - (existinglen + 1), "%s%s", basename, __base_soundname_to_filename_suffix);
     } else if (approach == sff_base_only) {
-        nh_snprintf("base_soundname_to_filename", 2146, buf, bufsz, "%s", basename);
+        buf = nh_snprintf("base_soundname_to_filename", 2146, buf, bufsz, "%s", basename);
     } else {
         return null;
     }

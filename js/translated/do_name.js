@@ -7,8 +7,8 @@ import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, pline, verbalize } from '../c2js-runtime/pline.js';
 import { get_rnd_text } from '../c2js-runtime/rumors.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
 import { beautiful } from './apply.js';
 import { artifact_exists, artifact_name, exist_artifact, restrict_name, set_artifact_intrinsic, undiscovered_artifact } from './artifact.js';
 import { rank_of } from './botl.js';
@@ -114,17 +114,17 @@ export function safe_oname(obj) {
 /* only used if EDIT_GETLIN is enabled; only useful
                          * if windowport xxx's xxx_getlin() supports that */
 export function name_from_player(outbuf, prompt, defres) {
-    outbuf[0] = 0;
+    outbuf = __nh_char_write(outbuf, 0, 0);
     ((defres));
     /* default response from getlin() */
     getlin(prompt, outbuf);
-    if (!outbuf.value || outbuf.value == 27) {
+    if (!__nh_char_at0(outbuf) || __nh_char_at0(outbuf) == 27) {
         return null;
     }
     /* strip leading and trailing spaces, condense internal sequences */
     outbuf = mungspaces(outbuf);
     if (strlen(outbuf) >= 63) {
-        outbuf[63 - 1] = 0;
+        outbuf = __nh_char_write(outbuf, 63 - 1, 0);
     }
     return outbuf;
 }
@@ -132,25 +132,13 @@ export function name_from_player(outbuf, prompt, defres) {
    allocate a new bigger block of memory to hold the monster and its name */
 export function christen_monst(mtmp, name) {
     let lth = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     /* dogname & catname are PL_PSIZ arrays; object names have same limit */
-    /* JS-faithful length check: C tests `*name` (non-NUL first char);
-       translator emitted `name.value` which is undefined for JS strings
-       — without this, pet/object names passed as JS strings (like
-       "Hachi"/"Slasher"/"Idefix"/"Sirius" from makedog) yielded lth=0
-       and the mgivenname assignment was skipped. */
-    if (name != null) {
-        if (typeof name === 'string') lth = name.length > 0 ? name.length + 1 : 0;
-        else if (Array.isArray(name)) {
-            let n = 0;
-            while (n < name.length && name[n]) n++;
-            lth = n > 0 ? n + 1 : 0;
-        } else if (name.value) lth = strlen(name) + 1;
-    }
+    lth = (name && __nh_char_at0(name)) ? (strlen(name) + 1) : 0;
     if (lth > 63) {
         lth = 63;
         name = strncpy(buf, name, 63 - 1);
-        buf[63 - 1] = 0;
+        buf = __nh_char_write(buf, 63 - 1, 0);
     }
     /* removes old name if one is present */
     new_mgivenname(mtmp, lth);
@@ -168,14 +156,14 @@ export function christen_monst(mtmp, name) {
    monster's name, or is an attempt to delete the monster's name; if so, give
    alternate reject message for do_mgivenname() */
 export function alreadynamed(mtmp, monnambuf, usrbuf) {
-    let pronounbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pronounbuf = '';
     let p = null;
-    if (!usrbuf.value) {
+    if (!__nh_char_at0(usrbuf)) {
         /* attempt to erase existing name */
         let name_not_title = (((mtmp).mextra && ((mtmp).mextra.mgivenname)) || (((mtmp.data).mflags2 & 524288) != 0) || mtmp.isshk);
         pline("%s would rather keep %s existing %s.", upstart(monnambuf), ((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE]) ? "its" : (genders[pronoun_gender(mtmp, 2)].his), name_not_title ? "name" : "title");
         return (1);
-    } else if (fuzzymatch(usrbuf, monnambuf, " -_", (1)) || (!strncmpi(monnambuf, "the ", 4) && fuzzymatch(usrbuf, monnambuf + 4, " -_", (1))) || ((p = strstri(monnambuf, "invisible ")) != null && fuzzymatch(usrbuf, p + 10, " -_", (1))) || ((p = strstri(monnambuf, " of ")) != null && fuzzymatch(usrbuf, p + 4, " -_", (1)))) {
+    } else if (fuzzymatch(usrbuf, monnambuf, " -_", (1)) || (!strncmpi(monnambuf, "the ", 4) && fuzzymatch(usrbuf, __nh_advance_str(monnambuf, 4), " -_", (1))) || ((p = strstri(monnambuf, "invisible ")) != null && fuzzymatch(usrbuf, __nh_advance_str(p, 10), " -_", (1))) || ((p = strstri(monnambuf, " of ")) != null && fuzzymatch(usrbuf, __nh_advance_str(p, 4), " -_", (1)))) {
         if (((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE])) {
             /* catch trying to name "the Oracle" as "Oracle" */
             /* catch trying to name "invisible Orcus" as "Orcus" */
@@ -194,9 +182,9 @@ export function alreadynamed(mtmp, monnambuf, usrbuf) {
 }
 /* allow player to assign a name to some chosen monster */
 export function do_mgivenname() {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let monnambuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let monnambuf = '';
+    let qbuf = '';
     let cc = { x: 0, y: 0 };
     let cx = 0;
     let cy = 0;
@@ -272,9 +260,9 @@ export function do_mgivenname() {
  */
 export function do_oname(obj) {
     let bufp = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let bufcpy = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let bufcpy = '';
+    let qbuf = '';
     let aname = null;
     let objtyp = STRANGE_OBJECT;
     if (obj.otyp == SPE_NOVEL) {
@@ -343,14 +331,14 @@ export function do_oname(obj) {
 /* flags, mostly for artifact creation */
 export function oname(obj, name, oflgs) {
     let lth = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let via_naming = (oflgs & 2) != 0;
     let skip_inv_update = (oflgs & 512) != 0;
-    lth = name.value ? (strlen(name) + 1) : 0;
+    lth = __nh_char_at0(name) ? (strlen(name) + 1) : 0;
     if (lth > 63) {
         lth = 63;
         name = strncpy(buf, name, 63 - 1);
-        buf[63 - 1] = 0;
+        buf = __nh_char_write(buf, 63 - 1, 0);
     }
     /* If named artifact exists in the game, do not create another.
        Also trying to create an artifact shouldn't de-artifact
@@ -576,8 +564,8 @@ export function docall_xname(obj) {
     return an(xname(otemp));
 }
 export function docall(obj) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let qbuf = '';
     let uname_p = null;
     let had_name = (0);
     if (!obj.dknown) {
@@ -598,12 +586,7 @@ export function docall(obj) {
     if (uname_p) {
         /* fromsink: kludge, meaning it's sink water */
         had_name = (1);
-        /* Hand-port: C `free(*uname_p), *uname_p = NULL` clears the
-           object class's oc_uname slot via the pointer-to-pointer
-           `uname_p = &objects[obj->otyp].oc_uname`.  In JS we hold
-           the slot reference indirectly via game.objects[obj.otyp];
-           assign null directly to that slot. */
-        free(uname_p);
+        free(uname_p); /* §23.232u oc_uname — null-clear via direct slot */
         game.objects[obj.otyp].oc_uname = null;
     }
     /* strip leading and trailing spaces; uncalls item if all spaces */
@@ -614,8 +597,7 @@ export function docall(obj) {
             undiscover_object(obj.otyp);
         }
     } else {
-        /* Hand-port: C `*uname_p = dupstr(buf)` sets the obj class's
-           oc_uname to a fresh copy of the player's input. */
+        /* §23.232u oc_uname — set via direct slot from buf */
         const __bufStr = (typeof buf === 'string') ? buf
             : (Array.isArray(buf) ? ((() => { let r=''; for (let i=0; i<buf.length && buf[i]; i++) r += String.fromCharCode(buf[i]); return r; })()) : String(buf));
         game.objects[obj.otyp].oc_uname = __bufStr;
@@ -628,7 +610,7 @@ export function docall(obj) {
 export function namefloorobj() {
     let cc = { x: 0, y: 0 };
     let glyph = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let obj = null;
     let fakeobj = (0);
     let use_plural = 0;
@@ -662,7 +644,7 @@ export function namefloorobj() {
        always fail the Hallucination test and pass the !callable test,
        resulting in the "can't be assigned a type name" message */
         let unames = [null, null, null, null, null, null];
-        let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let tmpbuf = '';
         unames[0] = (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) && game.urole.name.f) ? game.urole.name.f : game.urole.name.m;
         /* random rank title for hero's role
 
@@ -759,7 +741,7 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
     let insertbuf2 = 0;
     let mappear_as_mon = (((mtmp).m_ap_type & 7) == M_AP_MONSTER);
     let bp = null;
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf2 = '';
     if (mtmp == game.youmonst) {
         return strcpy(buf, "you");
     }
@@ -788,7 +770,7 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
     do_exact = (suppress & 31) == 31;
     do_name = !(suppress & 32) || (((mdat).mflags2 & 524288) != 0);
     augment_it = (suppress & 64) != 0;
-    buf[0] = 0;
+    buf = __nh_char_write(buf, 0, 0);
     if (do_it) {
         /* unseen monsters, etc.; usually "it" but sometimes more specific;
        when hallucinating, the more specific values might be inverted */
@@ -814,8 +796,7 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
         game.u.uprops[HALLUC_RES].extrinsic = save_prop;
         mtmp.minvis = save_invis;
         if (article == 0 && !strncmp(name, "the ", 4)) {
-            /* Hand-port: C `name += 4` skips "the " prefix.  Slice in JS. */
-            name = (typeof name === 'string') ? name.slice(4) : name;
+            name = __nh_advance_str(name, 4);
         }
         return strcpy(buf, name);
     }
@@ -860,7 +841,7 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
     if (do_saddle && (mtmp.misc_worn_check & 1048576) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
         buf = strcat(buf, "saddled ");
     }
-    has_adjectives = (buf[0] != 0);
+    has_adjectives = (__nh_char_at0(buf) != 0);
     if (do_hallu) {
         /* Put the actual monster name or type into the buffer now.
        Remember whether the buffer starts with a personal name. */
@@ -871,21 +852,21 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
     } else if (do_name && ((mtmp).mextra && ((mtmp).mextra.mgivenname))) {
         let name = ((mtmp).mextra.mgivenname);
         if (mdat == game.mons[PM_GHOST]) {
-            buf = (buf || '') + sprintf('', "%s ghost", s_suffix(name));
+            buf = __nh_buf_append(buf, sprintf('', "%s ghost", s_suffix(name)));
             name_at_start = (1);
         } else if (called) {
-            buf = (buf || '') + sprintf('', "%s called %s", pm_name, name);
+            buf = __nh_buf_append(buf, sprintf('', "%s called %s", pm_name, name));
             name_at_start = (((mdat).mflags2 & 524288) != 0);
-        } else if (((mdat).pmidx >= PM_ARCHEOLOGIST && (mdat).pmidx <= PM_WIZARD) && (bp = strstri(name, " the ")) != null) {
+        } else if ((((mdat).pmidx >= PM_ARCHEOLOGIST) && ((mdat).pmidx <= PM_WIZARD)) && (bp = strstri(name, " the ")) != null) {
             /* <name> the <adjective> <invisible> <saddled> <rank> */
-            let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let pbuf = '';
             pbuf = strcpy(pbuf, name);
             /* adjectives right after " the " */
-            pbuf[bp - name + 5] = 0;
+            pbuf = __nh_char_write(pbuf, (name.length - bp.length) + 5, 0);
             if (has_adjectives) {
                 pbuf = strcat(pbuf, buf);
             }
-            pbuf = strcat(pbuf, bp + 5);
+            pbuf = strcat(pbuf, __nh_advance_str(bp, 5));
             buf = strcpy(buf, pbuf);
             /* append the rest of the name */
             article = 0;
@@ -894,8 +875,8 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
             buf = strcat(buf, name);
             name_at_start = (1);
         }
-    } else if (((mdat).pmidx >= PM_ARCHEOLOGIST && (mdat).pmidx <= PM_WIZARD) && !((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
-        let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    } else if ((((mdat).pmidx >= PM_ARCHEOLOGIST) && ((mdat).pmidx <= PM_WIZARD)) && !((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
+        let pbuf = '';
         pbuf = strcpy(pbuf, rank_of(mtmp.m_lev, ((mdat).pmidx), mtmp.female));
         buf = strcat(buf, lcase(pbuf));
         name_at_start = (0);
@@ -913,7 +894,7 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
         article = 1;
     }
     insertbuf2 = (1);
-    buf2[0] = 0;
+    buf2 = '';
     switch (article) {
         case 3:
             buf2 = strcpy(buf2, "your ");
@@ -1053,7 +1034,7 @@ export function mon_nam_too(mon, other_mon) {
 export function monverbself(mon, monnamtext, verb, othertext) {
     /* sizeof "themselves" suffices */
     let verbs = null;
-    let selfbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let selfbuf = '';
     selfbuf = strcpy(selfbuf, mon_nam_too(mon, mon));
     /* "himself"/"herself"/"itself", maybe "themselves" if hallucinating */
     /* verb starts plural; this will yield singular except for "themselves" */
@@ -1063,15 +1044,15 @@ export function monverbself(mon, monnamtext, verb, othertext) {
         monnamtext = makeplural(monnamtext);
         if (!strncmpi((monnamtext), (genders[3].he), -1)) {
             /* for "it", makeplural() produces "them" but we want "they" */
-            let capitaliz = (monnamtext[0] == highc(monnamtext[0]));
+            let capitaliz = (__nh_char_at0(monnamtext) == highc(__nh_char_at0(monnamtext)));
             monnamtext = strcpy(monnamtext, genders[3].him);
             if (capitaliz) {
-                monnamtext[0] = highc(monnamtext[0]);
+                monnamtext = (() => { const __s = monnamtext; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
             }
         }
     }
     strcat(strcat(monnamtext, " "), verbs);
-    if (othertext && othertext.value) {
+    if (othertext && __nh_char_at0(othertext)) {
         strcat(strcat(monnamtext, " "), othertext);
     }
     strcat(strcat(monnamtext, " "), selfbuf);
@@ -1086,16 +1067,16 @@ export function minimal_monnam(mon, ckloc) {
         outbuf = strcpy(outbuf, "[Null monster]");
     } else if ((ptr = mon.data) == null) {
         outbuf = strcpy(outbuf, "[Null mon->data]");
-    } else if (ptr < game.mons[0]) {
+    } else if (ptr.pmidx < 0) {
         outbuf = sprintf(outbuf, "[Invalid mon->data %s < %s]", fmt_ptr(mon.data), fmt_ptr(game.mons[0]));
-    } else if (ptr >= game.mons[NUMMONS]) {
+    } else if (ptr.pmidx >= NUMMONS) {
         outbuf = sprintf(outbuf, "[Invalid mon->data %s >= %s]", fmt_ptr(mon.data), fmt_ptr(game.mons[NUMMONS]));
     } else if (ckloc && ptr == game.mons[PM_LONG_WORM] && mon.mx && game.level.monsters[mon.mx][mon.my] != mon) {
         outbuf = sprintf(outbuf, "%s <%d,%d>", pmname(game.mons[PM_LONG_WORM_TAIL], Mgender(mon)), mon.mx, mon.my);
     } else {
         outbuf = sprintf(outbuf, "%s%s <%d,%d>", mon.mtame ? "tame " : mon.mpeaceful ? "peaceful " : "", mon_pmname(mon), mon.mx, mon.my);
         if (mon.cham != NON_PM) {
-            outbuf = (outbuf || '') + sprintf('', "{%s}", pmname(game.mons[mon.cham], Mgender(mon)));
+            outbuf = __nh_buf_append(outbuf, sprintf('', "{%s}", pmname(game.mons[mon.cham], Mgender(mon))));
         }
     }
     return outbuf;
@@ -1171,12 +1152,12 @@ export function bogusmon(buf, code) {
         if (code) {
             code.value = mnam.value;
         }
-        ++mnam;
+        (mnam = __nh_advance_str(mnam, 1));
     }
     return mnam;
 }
 /* return a random monster name, for hallucination */
-let __rndmonnam_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __rndmonnam_buf = '';
 export function rndmonnam(code) {
     let mnam = null;
     let name = 0;
@@ -1202,21 +1183,17 @@ export function bogon_is_pname(code) {
 }
 /* name of a Rogue player */
 export function roguename() {
-    /* Hand-port: C walks opts char-by-char looking for "name=" prefix.
-       When found, truncates the substring at the next ',' via `*j = '\0'`
-       and returns the pointer past "name=".  Translator emitted the
-       walk as broken `i++` string-concat, and the truncate as a void 0
-       TODO.
-
-       JS rewrite uses native indexOf to find "name=" and the comma
-       delimiter, returning the slice between them. */
-    const opts = nh_getenv("ROGUEOPTS");
-    if (typeof opts === 'string') {
-        const nameIdx = opts.indexOf("name=");
-        if (nameIdx >= 0) {
-            const after = opts.slice(nameIdx + 5);
-            const commaIdx = after.indexOf(',');
-            return (commaIdx >= 0) ? after.slice(0, commaIdx) : after;
+    let i = null;
+    let opts = null;
+    if ((opts = nh_getenv("ROGUEOPTS")) != null) {
+        for (i = opts; __nh_char_at0(i); (i = __nh_advance_str(i, 1))) {
+            if (!strncmp("name=", i, 5)) {
+                let j = null;
+                if ((j = strchr(__nh_advance_str(i, 5), 44)) != null) {
+                    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+                }
+                return __nh_advance_str(i, 5);
+            }
         }
     }
     return rn2(3) ? (rn2(2) ? "Michael Toy" : "Kenneth Arnold") : "Glenn Wichman";
@@ -1238,19 +1215,12 @@ const hliquids = ["yoghurt", "oobleck", "clotted blood", "diluted water", "purif
 /* use as-is when not hallucintg (unless empty) */
 export function hliquid(liquidpref) {
     let hallucinate = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !game.program_state.gameover;
-    /* Translator-bug fix: C tests `!*liquidpref` (empty C-string).
-       Translator emitted `!liquidpref.value` which is always true
-       for JS strings.  Use proper empty-check. */
-    const _pref_empty = !liquidpref
-        || (typeof liquidpref === 'string' ? liquidpref.length === 0
-            : Array.isArray(liquidpref) ? !liquidpref[0]
-            : !liquidpref.value);
-    if (hallucinate || _pref_empty) {
+    if (hallucinate || !liquidpref || !__nh_char_at0(liquidpref)) {
         let indx = 0;
         let count = (Math.trunc(40 /* sizeof(const char *const [40]) */ / 1 /* sizeof(const char *const) */));
         /* if we have a non-hallucinatory default value, include it
            among the choices */
-        if (!_pref_empty) {
+        if (liquidpref && __nh_char_at0(liquidpref)) {
             ++count;
         }
         indx = rn2_on_display_rng(count);
@@ -1279,15 +1249,15 @@ export function rndorcname(s) {
         s.value = 0;
         for (i = 0; i < iend; ++i) {
             vstart = 1 - vstart;
-            s = (s || '') + sprintf('', "%s%s", (i > 0 && !rn2(30)) ? "-" : "", vstart ? __rndorcname_v[rn2((Math.trunc(4 /* sizeof(const char *const [4]) */ / 1 /* sizeof(const char *const) */)))] : __rndorcname_snd[rn2((Math.trunc(11 /* sizeof(const char *const [11]) */ / 1 /* sizeof(const char *const) */)))]);
+            s = __nh_buf_append(s, sprintf('', "%s%s", (i > 0 && !rn2(30)) ? "-" : "", vstart ? __rndorcname_v[rn2((Math.trunc(4 /* sizeof(const char *const [4]) */ / 1 /* sizeof(const char *const) */)))] : __rndorcname_snd[rn2((Math.trunc(11 /* sizeof(const char *const [11]) */ / 1 /* sizeof(const char *const) */)))]));
         }
     }
     return s;
 }
 export function christen_orc(mtmp, gang, other) {
     let sz = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let orcname = null;
     orcname = rndorcname(buf2);
     /* rndorcname() won't return NULL */
@@ -1298,7 +1268,7 @@ export function christen_orc(mtmp, gang, other) {
         sz += strlen(other);
     }
     if (sz < 256) {
-        let gbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let gbuf = '';
         let nameit = (0);
         if (gang) {
             buf = sprintf(buf, "%s of %s", upstart(orcname), upstart(strcpy(gbuf, gang)));

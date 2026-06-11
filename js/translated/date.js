@@ -5,7 +5,7 @@
 import { game } from '../gstate.js';
 import { free } from '../c2js-runtime/memory.js';
 import { nh_snprintf } from '../c2js-runtime/stdio.js';
-import { strlen } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, strlen } from '../c2js-runtime/string.js';
 import { case_insensitive_comp } from './hacklib.js';
 
 /* nomakedefs_populated: flag for whether 'nomakedefs' should be freed */
@@ -18,19 +18,19 @@ game.nomakedefs = { build_date: "Tue, 28-Jul-87 13:18:57 EDT", copyright_banner_
 /* git_prefix */
 export function populate_nomakedefs(version) {
     let i = 0;
-    let tmpbuf1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let tmpbuf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tmpbuf1 = '';
+    let tmpbuf2 = '';
     let strp = null;
     let mth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     let t = { tm_sec: 0, tm_min: 0, tm_hour: 0, tm_mday: 0, tm_mon: 0, tm_year: 0, tm_wday: 0, tm_yday: 0, tm_isdst: 0, tm_gmtoff: 0, tm_zone: null };
     let timeresult = 0;
-    nh_snprintf("populate_nomakedefs", 82, tmpbuf1, 256 /* sizeof(char [256]) */, "%s %s", "May 31 2026", "04:42:54");
+    tmpbuf1 = nh_snprintf("populate_nomakedefs", 82, tmpbuf1, 256 /* sizeof(char [256]) */, "%s %s", "Jun  2 2026", "19:59:31");
     if (strlen(tmpbuf1) == 20) {
         do {
             for (i = 0; i < 4; ++i) {
-                tmpbuf2[i] = tmpbuf1[i + 7];
+                tmpbuf2 = __nh_char_write(tmpbuf2, i, __nh_char_at0(__nh_advance_str(tmpbuf1, i + 7)));
             }
-            tmpbuf2[i] = 0;
+            tmpbuf2 = __nh_char_write(tmpbuf2, i, 0);
         } while (0);
         /*
      * In a cross-compiled environment, you can't execute
@@ -56,9 +56,9 @@ export function populate_nomakedefs(version) {
         t.tm_year = atoi(tmpbuf2) - 1900;
         do {
             for (i = 0; i < 3; ++i) {
-                tmpbuf2[i] = tmpbuf1[i + 0];
+                tmpbuf2 = __nh_char_write(tmpbuf2, i, __nh_char_at0(__nh_advance_str(tmpbuf1, i + 0)));
             }
-            tmpbuf2[i] = 0;
+            tmpbuf2 = __nh_char_write(tmpbuf2, i, 0);
         } while (0);
         for (i = 0; i < (Math.trunc(96 /* sizeof(const char *[12]) */ / 8 /* sizeof(const char *) */)); ++i) {
             if (!case_insensitive_comp(tmpbuf2, mth[i])) {
@@ -68,34 +68,34 @@ export function populate_nomakedefs(version) {
         }
         do {
             for (i = 0; i < 2; ++i) {
-                tmpbuf2[i] = tmpbuf1[i + 4];
+                tmpbuf2 = __nh_char_write(tmpbuf2, i, __nh_char_at0(__nh_advance_str(tmpbuf1, i + 4)));
             }
-            tmpbuf2[i] = 0;
+            tmpbuf2 = __nh_char_write(tmpbuf2, i, 0);
         } while (0);
         strp = tmpbuf2;
-        if (strp == 32) {
-            strp++;
+        if (__nh_char_at0(strp) == 32) {
+            (strp = __nh_advance_str(strp, 1));
         }
         t.tm_mday = atoi(strp);
         do {
             for (i = 0; i < 2; ++i) {
-                tmpbuf2[i] = tmpbuf1[i + 12];
+                tmpbuf2 = __nh_char_write(tmpbuf2, i, __nh_char_at0(__nh_advance_str(tmpbuf1, i + 12)));
             }
-            tmpbuf2[i] = 0;
+            tmpbuf2 = __nh_char_write(tmpbuf2, i, 0);
         } while (0);
         t.tm_hour = atoi(tmpbuf2);
         do {
             for (i = 0; i < 2; ++i) {
-                tmpbuf2[i] = tmpbuf1[i + 15];
+                tmpbuf2 = __nh_char_write(tmpbuf2, i, __nh_char_at0(__nh_advance_str(tmpbuf1, i + 15)));
             }
-            tmpbuf2[i] = 0;
+            tmpbuf2 = __nh_char_write(tmpbuf2, i, 0);
         } while (0);
         t.tm_min = atoi(tmpbuf2);
         do {
             for (i = 0; i < 2; ++i) {
-                tmpbuf2[i] = tmpbuf1[i + 18];
+                tmpbuf2 = __nh_char_write(tmpbuf2, i, __nh_char_at0(__nh_advance_str(tmpbuf1, i + 18)));
             }
-            tmpbuf2[i] = 0;
+            tmpbuf2 = __nh_char_write(tmpbuf2, i, 0);
         } while (0);
         t.tm_sec = atoi(tmpbuf2);
         timeresult = mktime(t);

@@ -9,7 +9,7 @@ import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_see, Your, pline, pline_The } from '../c2js-runtime/pline.js';
 import { get_rnd_text, getrumor } from '../c2js-runtime/rumors.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncat, strncmpi, strncpy, strstri, xcrypt } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmpi, strncpy, strstri, xcrypt } from '../c2js-runtime/string.js';
 import { is_art } from './artifact.js';
 import { exercise } from './attrib.js';
 import { sanitize_name } from './bones.js';
@@ -75,7 +75,7 @@ export function random_engraving(outbuf, pristine_copy) {
     let rumor = null;
     /* a random engraving may come from the "rumors" file,
        or from the "engrave" file (formerly in an array here) */
-    if (!rn2(4) || !(rumor = getrumor(0, pristine_copy, (1))) || !rumor) {
+    if (!rn2(4) || !(rumor = getrumor(0, pristine_copy, (1))) || !__nh_char_at0(rumor)) {
         get_rnd_text("engrave", pristine_copy, rn2, 60);
     }
     outbuf = strcpy(outbuf, pristine_copy);
@@ -114,11 +114,11 @@ export function wipeout_text(engr, cnt, seed) {
                 seed *= 31 , seed %= (256 - 1);
                 use_rubout = seed & 3;
             }
-            s = engr[nxt];
-            if (s == 32) {
+            s = __nh_advance_str(engr, nxt);
+            if (__nh_char_at0(s) == 32) {
                 continue;
             }
-            if (strchr("?.,'`-|_", s)) {
+            if (strchr("?.,'`-|_", __nh_char_at0(s))) {
                 engr[nxt] = 32;
                 continue;
             }
@@ -126,7 +126,7 @@ export function wipeout_text(engr, cnt, seed) {
                 i = (Math.trunc(48 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/engrave.c:66:14) [48]) */ / 1 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/engrave.c:66:14)) */));
             } else {
                 for (i = 0; i < (Math.trunc(48 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/engrave.c:66:14) [48]) */ / 1 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/engrave.c:66:14)) */)); i++) {
-                    if (s == rubouts[i].wipefrom) {
+                    if (__nh_char_at0(s) == rubouts[i].wipefrom) {
                         let ln = strlen(rubouts[i].wipeto);
                         if (!seed) {
                             /*
@@ -148,8 +148,8 @@ export function wipeout_text(engr, cnt, seed) {
             }
         }
     }
-    while (lth && engr[lth - 1] == 32) {
-        engr[--lth] = 0;
+    while (lth && __nh_char_at0(__nh_advance_str(engr, lth - 1)) == 32) {
+        engr = __nh_char_write(engr, --lth, 0);
     }
 }
 /* check whether hero can reach something at ground level */
@@ -320,7 +320,7 @@ export function read_engr_at(x, y) {
             let et = null;
             /* holds the post-this-action engr text, including
                       * anything already there */
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             let endpunct = null;
             let maxelen = (256 /* sizeof(char [256]) */ - 24 /* sizeof(char [24]) */);
             let elen = strlen(ep.engr_txt[actual_text]);
@@ -335,7 +335,7 @@ export function read_engr_at(x, y) {
                 et = ep.engr_txt[actual_text];
             }
             endpunct = "";
-            if (elen < 2 || !((ep.engr_txt[pristine_text][off + elen - 1] == et[elen - 1]) && strchr(".!?", et[elen - 1]))) {
+            if (elen < 2 || !((ep.engr_txt[pristine_text][off + elen - 1] == __nh_char_at0(__nh_advance_str(et, elen - 1))) && strchr(".!?", __nh_char_at0(__nh_advance_str(et, elen - 1))))) {
                 /* only skip if punctuation is original, not degraded char */
                 endpunct = ".";
             }
@@ -1055,7 +1055,11 @@ export function doengrave() {
         de.ebuf = mungspaces(de.ebuf);
         /* Count the actual # of chars engraved not including spaces */
         de.len = strlen(de.ebuf);
-        de.len -= (typeof de.ebuf === 'string' ? (de.ebuf.match(/ /g) || []).length : 0);
+        for (sp = de.ebuf; __nh_char_at0(sp); (sp = __nh_advance_str(sp, 1))) {
+            if (__nh_char_at0(sp) == 32) {
+                de.len -= 1;
+            }
+        }
         if (de.len == 0 || strchr(de.ebuf, 27)) {
             if (de.zapwand) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
@@ -1074,18 +1078,15 @@ export function doengrave() {
                 livelog_printf(32, "became literate by engraving \"%s\"", de.ebuf);
             }
         }
-        if (typeof de.ebuf === 'string') {
-            const __ebuf_arr = [...de.ebuf].map(c => c.charCodeAt(0));
-            for (let __sp_idx = 0; __sp_idx < __ebuf_arr.length; __sp_idx++) {
-                let sp_char = __ebuf_arr[__sp_idx];
-                if (sp_char === 32) {
-                    continue;
-                }
-                if (((de.type == 1 || de.type == 5) && !rn2(25)) || (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !rn2(11)) || (game.u.uprops[CONFUSION].intrinsic && !rn2(7)) || (game.u.uprops[STUNNED].intrinsic && !rn2(4)) || ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !rn2(2))) {
-                    __ebuf_arr[__sp_idx] = 32 + rnd(96 - 2);
-                }
+        for (sp = de.ebuf; __nh_char_at0(sp); (sp = __nh_advance_str(sp, 1))) {
+            /* Mix up engraving if surface or state of mind is unsound.
+       Note: this won't add or remove any spaces. */
+            if (__nh_char_at0(sp) == 32) {
+                continue;
             }
-            de.ebuf = __ebuf_arr.map(c => String.fromCharCode(c)).join('');
+            if (((de.type == 1 || de.type == 5) && !rn2(25)) || (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !rn2(11)) || (game.u.uprops[CONFUSION].intrinsic && !rn2(7)) || (game.u.uprops[STUNNED].intrinsic && !rn2(4)) || ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !rn2(2))) {
+                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32 + rnd(96 - 2)) */;
+            }
         }
         if (de.eow) {
             del_engr(de.oep);
@@ -1123,7 +1124,7 @@ export function doengrave() {
 /* occupation callback for engraving some text */
 export function engrave() {
     let oep = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let finishverb = null;
     /* shorthand for svc.context.engraving.stylus */
     let stylus = null;
@@ -1174,8 +1175,8 @@ export function engrave() {
     }
     /* Step 2: Compute last character that can be engraved this action. */
     i = rate;
-    for (endc = game.context.engraving.nextc; endc && i > 0; endc++) {
-        if (endc != 32) {
+    for (endc = game.context.engraving.nextc; __nh_char_at0(endc) && i > 0; (endc = __nh_advance_str(endc, 1))) {
+        if (__nh_char_at0(endc) != 32) {
             i--;
         }
     }
@@ -1220,7 +1221,7 @@ export function engrave() {
                     impossible("<= -3 weapon valid for engraving");
                 }
                 truncate = (1);
-            } else if (endc || game.context.engraving.actionct == 1) {
+            } else if (__nh_char_at0(endc) || game.context.engraving.actionct == 1) {
                 stylus.spe -= 1;
                 dulled = (1);
             }
@@ -1272,19 +1273,19 @@ export function engrave() {
             finishverb = "scrawling";
     }
     /* actions that happen at the end of every engraving action go here */
-    buf[0] = 0;
+    buf = '';
     oep = engr_at(game.u.ux, game.u.uy);
     /* add to existing engraving */
     if (oep) {
         buf = strcpy(buf, oep.engr_txt[actual_text]);
     }
     space_left = (256 /* sizeof(char [256]) */ - strlen(buf) - 1);
-    if (endc - game.context.engraving.nextc > space_left) {
+    if ((game.context.engraving.nextc.length - endc.length) > space_left) {
         You("run out of room to write.");
-        endc = game.context.engraving.nextc + space_left;
+        endc = __nh_advance_str(game.context.engraving.nextc, space_left);
         truncate = (1);
     }
-    if (truncate && endc != 0) {
+    if (truncate && __nh_char_at0(endc) != 0) {
         /* If the stylus did wear out mid-engraving, truncate the input so that we
      * can't go any further. */
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
@@ -1294,14 +1295,14 @@ export function engrave() {
          * character, though */
         truncate = (0);
     }
-    buf = strncat(buf, game.context.engraving.nextc, ((space_left) < (endc - game.context.engraving.nextc) ? (space_left) : (endc - game.context.engraving.nextc)));
+    buf = strncat(buf, game.context.engraving.nextc, ((space_left) < ((game.context.engraving.nextc.length - endc.length)) ? (space_left) : ((game.context.engraving.nextc.length - endc.length))));
     make_engr_at(game.u.ux, game.u.uy, buf, null, game.moves - game.multi, game.context.engraving.type);
     oep = engr_at(game.u.ux, game.u.uy);
     if (oep) {
         oep.eread = 1;
         oep.erevealed = 1;
     }
-    if (endc) {
+    if (__nh_char_at0(endc)) {
         game.context.engraving.nextc = endc;
         if (neweng) {
             newsym(game.context.engraving.pos.x, game.context.engraving.pos.y);
@@ -1482,7 +1483,7 @@ export function rloc_engr(ep) {
  * The caller is responsible for newsym(x, y).
  */
 export function make_grave(x, y, str) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     /* Can we put a grave here? */
     if ((game.level.locations[x][y].typ != ROOM && game.level.locations[x][y].typ != GRAVE) || t_at(x, y)) {
         return;
@@ -1535,5 +1536,3 @@ export function blengr() {
 /* this used to be ``if (wizard)'' and fall through to ILLOBJ_CLASS
            for normal play, but splash of venom isn't "illegal" because it
            could occur in normal play via wizard mode bones */
-/* Mix up engraving if surface or state of mind is unsound.
-       Note: this won't add or remove any spaces. */

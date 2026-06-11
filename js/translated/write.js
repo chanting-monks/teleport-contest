@@ -5,7 +5,7 @@ import { memcpy } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, Your, pline, pline_The } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcpy, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, strcpy, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { exercise } from './attrib.js';
 import { dropx } from './do.js';
 import { fingers_or_gloves } from './do_wear.js';
@@ -79,14 +79,14 @@ export function write_ok(obj) {
 /* write -- applying a magic marker */
 export function dowrite(pen) {
     let paper = null;
-    let namebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let nm = null;
+    let namebuf = '';
+    let __nh_nm_idx = 0;
     let bp = null;
     let new_obj = null;
     let basecost = 0;
     let actualcost = 0;
     let curseval = 0;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let first = 0;
     let last = 0;
     let i = 0;
@@ -150,7 +150,7 @@ export function dowrite(pen) {
         }
         if ((bp = strstri(namebuf.slice(__nh_nm_idx), " armour")) != null) {
             memcpy(bp, " armor ", 7);
-            mungspaces(bp + 1);
+            mungspaces(__nh_advance_str(bp, 1));
         }
         deferred = real = 0;
         /* incremented for each oc_uname match */
@@ -372,14 +372,14 @@ export function new_book_description(booktype, outbuf) {
     /* subset of description strings from objects.c; if it grows
        much, we may need to add a new flag field to objects[] instead */
     let descr = null;
-    let comp_p = null;
+    let __nh_comp_p_idx = 0;
     descr = (game.obj_descr[(game.objects[booktype]).oc_descr_idx].oc_descr);
-    for (comp_p = __new_book_description_compositions; comp_p; ++comp_p) {
-        if (!strncmpi((descr), (comp_p), -1)) {
+    for (__nh_comp_p_idx = 0; __new_book_description_compositions[__nh_comp_p_idx]; ++__nh_comp_p_idx) {
+        if (!strncmpi((descr), (__new_book_description_compositions[__nh_comp_p_idx]), -1)) {
             break;
         }
     }
-    outbuf = sprintf(outbuf, "%s%s", comp_p ? "into " : "", descr);
+    outbuf = sprintf(outbuf, "%s%s", __new_book_description_compositions[__nh_comp_p_idx] ? "into " : "", descr);
     return outbuf;
 }
 /*write.c*/

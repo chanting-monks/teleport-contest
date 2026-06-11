@@ -7,7 +7,7 @@ import { close_nhfile } from '../c2js-runtime/levelfile.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { You, pline } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strcmp, strcpy, strlen, strncmp } from '../c2js-runtime/string.js';
+import { __nh_char_at0, strcat, strcmp, strcpy, strlen, strncmp } from '../c2js-runtime/string.js';
 import { unleash_all } from './apply.js';
 import { artifact_exists, artifact_light, exist_artifact } from './artifact.js';
 import { yyyymmddhhmmss } from './calendar.js';
@@ -111,7 +111,7 @@ export function resetobjs(ochain, restore) {
                 for (top = otmp; top.where == 2; top = top.v.v_ocontainer) {
                     continue;
                 }
-                otmp.no_charge = (top.where == 1 && get_obj_location(top, { get value() { return ox; }, set value(_v) { ox = _v; } }, { get value() { return oy; }, set value(_v) { oy = _v; } }, 0) && inside_shop(ox, oy) && (p = in_rooms(ox, oy, SHOPBASE)) && tended_shop(game.rooms[p - 3]));
+                otmp.no_charge = (top.where == 1 && get_obj_location(top, { get value() { return ox; }, set value(_v) { ox = _v; } }, { get value() { return oy; }, set value(_v) { oy = _v; } }, 0) && inside_shop(ox, oy) && (p = in_rooms(ox, oy, SHOPBASE)) && tended_shop(game.rooms[__nh_char_at0(p) - 3]));
             }
         } else {
             /* do not zero out o_ids for ghost levels anymore */
@@ -196,24 +196,25 @@ export function resetobjs(ochain, restore) {
 /* while loading bones, strip out text possibly supplied by old player
    that might accidentally or maliciously disrupt new player's display */
 export function sanitize_name(namebuf) {
+    let __nh_namebuf_idx = 0;
     let c = 0;
     let strip_8th_bit = ((game.windowprocs.wp_id == wp_tty) && !game.iflags.wc_eight_bit_input);
-    while (namebuf.value) {
+    while (namebuf[__nh_namebuf_idx]) {
         /* it's tempting to skip this for single-user platforms, since
        only the current player could have left these bones--except
        things like "hearse" and other bones exchange schemes make
        that assumption false */
-        c = namebuf.value & 127;
+        c = namebuf[__nh_namebuf_idx] & 127;
         if (c < 32 || c == 127) {
             /* non-printable or undesirable */
             namebuf.value = 46;
-        } else if (c != namebuf.value) {
+        } else if (c != namebuf[__nh_namebuf_idx]) {
             /* expected to be printable if user wants such things */
             if (strip_8th_bit) {
                 namebuf.value = 95;
             }
         }
-        ++namebuf;
+        ++__nh_namebuf_idx;
     }
 }
 /* Give object to a random object-liking monster on or adjacent to x,y
@@ -400,7 +401,7 @@ export function savebones(how, when, corpse) {
     let newbones = null;
     let c = 0;
     let bonesid = null;
-    let whynot = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let whynot = '';
     let nhfp = null;
     make_bones: {
         /* caller has already checked `can_make_bones()' */
@@ -624,7 +625,7 @@ export function getbones() {
     let bonesid = null;
     let oldbonesid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     /* was [10]; more should be safer */
-    let ancestor_nhuuid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let ancestor_nhuuid = '';
     /* save bones files for real games */
     if (game.flags.explore) {
         /* When N games try to simultaneously restore the same
@@ -697,7 +698,7 @@ export function getbones() {
             return 0;
         }
         if (strcmp(bonesid, oldbonesid) != 0) {
-            let errbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let errbuf = '';
             errbuf = sprintf(errbuf, "This is bones level '%s', not '%s'!", oldbonesid, bonesid);
             if (game.flags.debug) {
                 pline("%s", errbuf);
@@ -759,7 +760,7 @@ export function getbones() {
 export function bones_include_name(name) {
     let bp = null;
     let len = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     buf = strcpy(buf, name);
     buf = strcat(buf, "-");
     /* prepare buffer by appending terminal hyphen to name, to avoid partial

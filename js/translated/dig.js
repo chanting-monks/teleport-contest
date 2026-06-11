@@ -300,7 +300,7 @@ export function digcheck_fail_message(digresult, madeby, x, y) {
     }
 }
 const __dig_d_target = ["", "rock", "statue", "boulder", "door", "tree"];
-export async function dig() {
+export function dig() {
     let lev = null;
     let dpx = game.context.digging.pos.x;
     let dpy = game.context.digging.pos.y;
@@ -363,7 +363,7 @@ export async function dig() {
     if (game.context.digging.down) {
         let ttmp = t_at(dpx, dpy);
         if (game.context.digging.effort > 250 || (ttmp && ttmp.ttyp == HOLE)) {
-            await dighole((0), (0), null);
+            dighole((0), (0), null);
             /* restart completely from scratch if we resume digging */
             memset(game.context.digging, 0, 1 /* sizeof(struct dig_info) */);
             return 0;
@@ -378,7 +378,7 @@ export async function dig() {
             return 0;
         } else if (ttmp && ttmp.ttyp == BEAR_TRAP && game.u.utrap) {
             if (rnl(7) > ((game.u.uprops[FUMBLING].intrinsic || game.u.uprops[FUMBLING].extrinsic) ? 1 : 4)) {
-                let kbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let kbuf = '';
                 let dmg = dmgval(game.uwep, game.youmonst) + dbon();
                 if (dmg < 1) {
                     dmg = 1;
@@ -410,14 +410,14 @@ export async function dig() {
             altar_wrath(dpx, dpy);
             angry_priest();
         }
-        if (await dighole((1), (0), null)) {
+        if (dighole((1), (0), null)) {
             game.context.digging.level.dnum = 0;
             game.context.digging.level.dlevel = -1;
         }
         return 0;
     }
     if (game.context.digging.effort > 100) {
-        let digbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let digbuf = '';
         let digtxt = null;
         let dmgtxt = null;
         let obj = null;
@@ -619,14 +619,14 @@ export function fillholetyp(x, y, fill_if_any) {
         return ROOM;
     }
 }
-export async function digactualhole(x, y, madeby, ttyp) {
+export function digactualhole(x, y, madeby, ttyp) {
     let oldobjs = null;
     let newobjs = null;
     let ttmp = null;
     let surface_type = null;
     let tname = null;
     let in_thru = null;
-    let furniture = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let furniture = '';
     let lev = game.level.locations[x][y];
     let mtmp = (game.level.monsters[x][y]);
     let madeby_u = (madeby == (game.youmonst));
@@ -655,7 +655,7 @@ export async function digactualhole(x, y, madeby, ttyp) {
     /* maketrap() might change terrain type but we deliver messages after
        that, so prepare in advance */
     old_typ = lev.typ;
-    furniture[0] = 0;
+    furniture = '';
     if (((lev.typ) >= STAIRS && (lev.typ) <= ALTAR)) {
         /* should mirror the word used by surface() for normal floor */
         surface_type = (((lev.typ) >= ROOM) && !(((((game.dungeon_topology.d_earth_level)).dlevel || ((game.dungeon_topology.d_earth_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_earth_level)))) ? "floor" : "ground");
@@ -782,7 +782,7 @@ export async function digactualhole(x, y, madeby, ttyp) {
                  */
                 newlevel.dnum = game.u.uz.dnum;
                 newlevel.dlevel = game.u.uz.dlevel + 1;
-                await goto_level(newlevel, (0), (1), (0));
+                goto_level(newlevel, (0), (1), (0));
                 /* messages for arriving in special rooms */
                 spoteffects((0));
             }
@@ -862,7 +862,7 @@ export function liquid_flow(x, y, typ, ttmp, fillmsg) {
     }
 }
 /* return TRUE if digging succeeded, FALSE otherwise */
-export async function dighole(pit_only, by_magic, cc) {
+export function dighole(pit_only, by_magic, cc) {
     let ttmp = null;
     let lev = null;
     let boulder_here = null;
@@ -927,7 +927,7 @@ export async function dighole(pit_only, by_magic, cc) {
         }
         delobj(boulder_here);
     } else if (((old_typ) == GRAVE)) {
-        await digactualhole(dig_x, dig_y, (game.youmonst), PIT);
+        digactualhole(dig_x, dig_y, (game.youmonst), PIT);
         dig_up_grave(cc);
         retval = (1);
     } else if (old_typ == DRAWBRIDGE_UP) {
@@ -967,10 +967,10 @@ export async function dighole(pit_only, by_magic, cc) {
                 cnv_trap_obj(otyp, 1, ttmp, (1));
             }
             if (nohole || pit_only || dig_check_result == DIGCHECK_PASSED_DESTROY_TRAP || dig_check_result == DIGCHECK_PASSED_PITONLY) {
-                await digactualhole(dig_x, dig_y, (game.youmonst), PIT);
+                digactualhole(dig_x, dig_y, (game.youmonst), PIT);
             /* finally we get to make a hole */
             } else {
-                await digactualhole(dig_x, dig_y, (game.youmonst), HOLE);
+                digactualhole(dig_x, dig_y, (game.youmonst), HOLE);
             }
             retval = (1);
         }
@@ -1042,9 +1042,9 @@ export function dig_up_grave(cc) {
 }
 export function use_pick_axe(obj) {
     let verb = null;
-    let dsp = null;
-    let dirsyms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let __nh_dsp_idx = 0;
+    let dirsyms = '';
+    let qbuf = '';
     let ispick = 0;
     let rx = 0;
     let ry = 0;
@@ -1068,8 +1068,7 @@ export function use_pick_axe(obj) {
     }
     /* construct list of directions to show player for likely choices */
     downok = !!can_reach_floor((0));
-    dsp = dirsyms;
-    let __dsp_idx = 0;
+    __nh_dsp_idx = 0;
     for (dir = 0; dir < N_DIRS_Z; dir++) {
         /* res==0 => no prior message;
                  res==1 => just got "You now wield a pick-axe." message */
@@ -1098,9 +1097,9 @@ export function use_pick_axe(obj) {
                 continue;
             }
         }
-        dirsyms[__dsp_idx++] = dirch;
+        dirsyms[__nh_dsp_idx++] = dirch;
     }
-    dirsyms[__dsp_idx] = 0;
+    dirsyms[__nh_dsp_idx] = 0;
     qbuf = sprintf(qbuf, "In what direction do you want to %s? [%s]", verb, dirsyms);
     if (!getdir(qbuf)) {
         return (res | 2);
@@ -1131,7 +1130,7 @@ export function use_pick_axe2(obj) {
             You_cant("reach the %s.", ceiling(game.u.ux, game.u.uy));
         }
     } else if (!game.u.dx && !game.u.dy && !game.u.dz) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let dam = 0;
         dam = rnd(2) + dbon() + obj.spe;
         if (dam <= 0) {
@@ -1442,7 +1441,7 @@ export function draft_message(unexpected) {
     }
 }
 /* digging via wand zap or spell cast */
-export async function zap_dig() {
+export function zap_dig() {
     let room = null;
     let mtmp = null;
     let otmp = null;
@@ -1503,7 +1502,7 @@ export async function zap_dig() {
                 newsym(game.u.ux, game.u.uy);
             } else {
                 watch_dig(null, game.u.ux, game.u.uy, (1));
-                await dighole((0), (1), null);
+                dighole((0), (1), null);
             }
         }
         return;
@@ -1535,7 +1534,7 @@ export async function zap_dig() {
                 digdepth = 0;
                 ((digdepth));
                 if (!(adjpit && ((adjpit.ttyp) == PIT || (adjpit.ttyp) == SPIKED_PIT))) {
-                    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let buf = '';
                     cc.x = zx;
                     cc.y = zy;
                     if (!adj_pit_checks(cc, buf)) {
@@ -1544,7 +1543,7 @@ export async function zap_dig() {
                         }
                     } else {
                         /* this can also result in a pool at zx,zy */
-                        await dighole((1), (1), cc);
+                        dighole((1), (1), cc);
                         adjpit = t_at(zx, zy);
                     }
                 }

@@ -65,10 +65,15 @@ import { objects_globals_init } from './translated/objects.js';
 import { monst_globals_init } from './translated/monst.js';
 import { program_state_init, decl_globals_init } from './translated/decl.js';
 import { installAutoStubs } from './c2js-runtime/autostub.js';
+import { tripwireWrapWindowprocs } from './c2js-runtime/tripwire.js';
 import { dupstr as __nh_dupstr } from './c2js-runtime/string.js';
 import { installLuaData } from './c2js-runtime/lua-bootstrap.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+
+// Browser-safe env lookup.  Returns the env value when running under
+// Node (where process.env exists); returns undefined under a browser
+// load.  All in-file gating via `__env.NH_X` resolves to falsy on a
+// browser, suppressing debug output paths without errors.
+const __env = (typeof process !== 'undefined' && process.env) || {};
 
 // Install real implementations of libc helpers that translator
 // output uses as free identifiers BEFORE autostub overlays no-op
@@ -146,11 +151,12 @@ if (typeof globalThis.atoi === 'undefined') {
     const __libcShims = await import('./c2js-runtime/string.js');
     if (typeof globalThis.atoi === 'undefined') globalThis.atoi = __libcShims.atoi;
     if (typeof globalThis.atol === 'undefined') globalThis.atol = __libcShims.atol;
+    if (typeof globalThis.__nh_char_at0 === 'undefined') globalThis.__nh_char_at0 = __libcShims.__nh_char_at0;
 }
-{
-    const __thisDir = dirname(fileURLToPath(import.meta.url));
-    installAutoStubs(join(__thisDir, 'translated'));
-}
+// Install no-op stubs for free identifiers in translator output.
+// Manifest-first (works in node AND browser — see autostub.js /
+// UNWEDGE_PLAN Q2); legacy node-only source scan as warned fallback.
+await installAutoStubs();
 
 // Wire the Lua bridge's rn2/random hooks to the engine's rn2.  This
 // is what nhlib.lua's `math.random` override falls through to (via
@@ -467,6 +473,46 @@ export async function newgame() {
                 return __ynKey;
             };
         }
+        if (!g.windowprocs.win_getlin && g.__getlin_returns_buffer === 1) {
+            // C ref win/tty/getline.c tty_getlin — prompt on the top
+            // line, echo typed chars, read until <return>.  Return-
+            // the-buffer convention (§23.239): the proc RETURNS the
+            // line; translated getlin rebinds bufp from it.  Reads go
+            // through the ASYNC nhgetch path — session keys live in
+            // the display queue, and each typed char is its own
+            // recorded step with a screen capture, exactly like C.
+            // (readKeySync's separate queue is always empty here, so
+            // the previous sync read aborted every getlin with ESC —
+            // half the wizlevelport x7 cluster, Q9 iteration 25.)
+            // Echo format matches tty: query + space + typed text,
+            // cursor at qs.length + 1 + line.length.  Empty queue =>
+            // nhgetch throws (session over), which propagates per the
+            // runner's termination contract.
+            g.windowprocs.win_getlin = async (query, _preload) => {
+                const qs = (typeof query === 'string') ? query : '';
+                let line = '';
+                for (;;) {
+                    if (qs) {
+                        g._pending_message = qs + (line ? ' ' + line : '');
+                        g._cursor_override = {
+                            x: qs.length + 1 + line.length,
+                            y: 0,
+                        };
+                        g._cursor_override_oneshot = true;
+                        await flush_screen(1);
+                    }
+                    const c = await nhgetch();
+                    if (c === 0x1b) return '\x1b';
+                    if (c === 10 || c === 13 || c === 0) break;
+                    if (c === 8 || c === 127) {
+                        line = line.slice(0, -1);
+                        continue;
+                    }
+                    line += String.fromCharCode(c);
+                }
+                return line;
+            };
+        }
         // Translated functions that take direction input (doride,
         // dozap, etc.) call windowprocs.win_clear_nhwindow before
         // prompting — without a no-op default this throws and the
@@ -546,6 +592,94 @@ export async function newgame() {
         if (!g.windowprocs.win_curs) {
             g.windowprocs.win_curs = (_win, _x, _y) => {};
         }
+        // C ref win/tty/wintty.c tty menus — the generic menu
+        // windowproc family (print_dungeon's wizard level menu,
+        // dooptions, etc.).  Items accumulate per winid; select
+        // reads the choice letter(s) through the async nhgetch path
+        // (each key is its own captured step).  The selection
+        // out-param flows as a {value} box installed by the
+        // build-engine call-site patch (menu_item** can't write back
+        // through a null JS arg — same class as §23.239).  Q9
+        // iteration 26: without these, print_dungeon threw
+        // "win_start_menu is not a function" into the ^V dispatch
+        // catch and the `?` level-menu teleports silently no-op'd.
+        // Menu family marker-gated to REGEN builds (like win_getlin):
+        // ungated, the select proc consumed production session keys
+        // whose selection the frozen un-boxed callers discard —
+        // sessions died early (P total shrank 792838 → 684563).
+        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_start_menu) {
+            g.windowprocs.win_start_menu = (win, _mbehavior) => {
+                g._wp_menus = g._wp_menus || {};
+                g._wp_menus[win] = { items: [], prompt: null };
+            };
+        }
+        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_add_menu) {
+            g.windowprocs.win_add_menu = (win, _glyphinfo, identifier, ch,
+                gch, _attr, _color, str, _itemflags) => {
+                const m = g._wp_menus?.[win];
+                if (m) m.items.push({ identifier, ch, gch, str });
+            };
+        }
+        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_end_menu) {
+            g.windowprocs.win_end_menu = (win, prompt) => {
+                const m = g._wp_menus?.[win];
+                if (m) m.prompt = (typeof prompt === 'string') ? prompt : null;
+            };
+        }
+        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_select_menu) {
+            g.windowprocs.win_select_menu = async (win, how, box) => {
+                const m = g._wp_menus?.[win];
+                if (!m) return 0;
+                // Selectable letters: explicit ch, else auto a-z like
+                // tty (only for selectable items — identifier != 0).
+                let auto = 97; // 'a'
+                for (const it of m.items) {
+                    const selectable = it.identifier
+                        && (typeof it.identifier !== 'object'
+                            || Object.values(it.identifier).some((v) => v));
+                    if (selectable && !it.ch) it.ch = auto++;
+                    else if (selectable && it.ch) auto = it.ch + 1;
+                }
+                if (m.prompt) {
+                    g._pending_message = m.prompt;
+                    g._cursor_override = { x: m.prompt.length + 1, y: 0 };
+                    g._cursor_override_oneshot = true;
+                    await flush_screen(1);
+                }
+                for (;;) {
+                    const c = await nhgetch();
+                    if (c === 0x1b) return 0;          // cancelled
+                    if (c === 10 || c === 13) return 0; // PICK_ONE: \n with nothing picked
+                    const hit = m.items.find((it) => it.ch === c && it.identifier);
+                    if (hit) {
+                        if (box && typeof box === 'object') {
+                            box.value = [{ item: hit.identifier, count: -1 }];
+                        }
+                        return 1;
+                    }
+                    // unknown key: ignore (tty beeps), keep reading
+                }
+            };
+        }
+        if (g.__getlin_returns_buffer === 1
+            && !g.windowprocs.win_destroy_nhwindow) {
+            g.windowprocs.win_destroy_nhwindow = (win) => {
+                if (g._wp_menus) delete g._wp_menus[win];
+            };
+        }
+        // C ref: tty_print_glyph — paint one map cell (char+color)
+        // at (x,y).  Headless keeps the serialized grid in
+        // display.js from game state at capture time, so the
+        // translated flush_screen's per-cell glyph writes are
+        // redundant here; a no-op matches the hand pipeline.
+        // Without this, the regen build's vpline → flush_screen
+        // path THREW from inside movemon (dog stepping on a dart
+        // trap → thitm pline), and the movemon watchdog silently
+        // swallowed the throw — losing the monster's whole turn
+        // (part of the distfleeck x7 cluster, Q9 iteration 16).
+        if (!g.windowprocs.win_print_glyph) {
+            g.windowprocs.win_print_glyph = (_win, _x, _y, _glyphinfo) => {};
+        }
         // C ref: tty_putstr / tty_putmixed — write a line to a window.
         // bot() (botl.js:271-273) calls these to paint the status
         // bar.  In headless we build the status line via display.js's
@@ -592,6 +726,37 @@ export async function newgame() {
         // but the position-input downstream is unfinished — the
         // captured screen ends up at S 57 (-1 from the narrow stub
         // alone), so the throw path is preferable here.
+
+        // win_raw_print: translated vpline's fallback output for
+        // early/reentrant messages (pline.js raw-print path).  In the
+        // async build that path goes live; unwired it crashed with
+        // "win_raw_print is not a function" (Q9 iteration-2 finding).
+        // Route to the pending-message queue like a plain pline.
+        if (!g.windowprocs.win_raw_print) {
+            g.windowprocs.win_raw_print = (line) => {
+                if (line) g._pending_message = String(line);
+            };
+        }
+        if (!g.windowprocs.win_raw_print_bold) {
+            g.windowprocs.win_raw_print_bold = g.windowprocs.win_raw_print;
+        }
+        // C ref windows.js:304 (init_nhwindows tail): window
+        // initialization sets iflags.window_inited = 1.  The harness
+        // assembles windowprocs right here, so this is the JS
+        // equivalent of that moment.  Without it, translated vpline
+        // takes the raw-print fallback for EVERY message (it thinks
+        // windows aren't up yet).
+        g.iflags.window_inited = 1;
+
+        // Tripwire (UNWEDGE_PLAN Q4): sync-contract windowprocs must
+        // never return Promises.  Input-reading procs (whose Promise
+        // returns are awaited by design) are exempt.  No-op unless
+        // NH_DEBUG_TRIPWIRE=1.
+        tripwireWrapWindowprocs(g.windowprocs, new Set([
+            'win_nhgetch', 'win_yn_function', 'win_getlin',
+            'win_get_ext_cmd', 'win_select_menu', 'win_poskey',
+            'win_nh_poskey', 'win_display_nhwindow',
+        ]));
     }
 
     // Initialize game.Cmd struct.  C ref: cmd.c reset_commands(TRUE)
@@ -1275,6 +1440,15 @@ export async function newgame() {
     if (g.urace && races.indexOf(g.urace) >= 0) {
         g.flags.initrace = races.indexOf(g.urace);
     }
+    // De-alias urole/urace from the shared roles[]/races[] module
+    // tables BEFORE role_init writes into them (C copies the struct;
+    // aliasing let the priest pantheon-god write mutate the table —
+    // Q9.5(b) cross-session leak, div=199 cluster).  Must run AFTER
+    // the indexOf blocks above, which need table identity.  Shallow
+    // copy suffices: the role_init writes (lgod/ngod/cgod) are
+    // top-level fields.
+    if (g.urole && typeof g.urole === 'object') g.urole = { ...g.urole };
+    if (g.urace && typeof g.urace === 'object') g.urace = { ...g.urace };
     g.flags.pantheon = -1;
     // role_init's validgend(initrole, initrace, female) does
     // `genders[female]` — bracket index needs an int 0/1.  C treats
@@ -1360,7 +1534,7 @@ export async function newgame() {
         g.vault_x = -1;
         init_vision_globals();
         try { await t_mklev(); } catch (e) {
-            if (process.env.PHASE_TRACE) console.error('[t_mklev]', e.stack?.split('\n').slice(0,8).join('\n'));
+            if (__env.PHASE_TRACE) console.error('[t_mklev]', e.stack?.split('\n').slice(0,8).join('\n'));
         }
     }
 
@@ -1375,7 +1549,7 @@ export async function newgame() {
     // mklev writes rooms directly to game.rooms / game.nroom, so the
     // unconditional `g.nroom = g.level.nroom || 0` below would zero
     // out the rooms translated mklev just placed.
-    if (process.env.NH_HANDWRITTEN_MKLEV && g.level?.rooms) {
+    if (__env.NH_HANDWRITTEN_MKLEV && g.level?.rooms) {
         for (let i = 0; i < (g.level.nroom || 0); i++) {
             if (g.level.rooms[i]) g.rooms[i] = g.level.rooms[i];
         }
@@ -1416,7 +1590,7 @@ export async function newgame() {
     // + mineralize + makedog.  Runs only on the hand-written-mklev
     // fallback path (NH_HANDWRITTEN_MKLEV=1) because translated
     // mklev() above already runs them inside makelevel().
-    if (process.env.NH_HANDWRITTEN_MKLEV) {
+    if (__env.NH_HANDWRITTEN_MKLEV) {
         g.in_mklev = true;
         {
             let bonus_countdown = g._bonus_item_countdown ?? -1;
@@ -1427,7 +1601,7 @@ export async function newgame() {
                 try {
                     await t_fill_ordinary_room(r, fillable && bonus_countdown === 0);
                 } catch (e) {
-                    if (process.env.PHASE_TRACE) console.error(`[ff] fill_ord room ${i}:`, e.message);
+                    if (__env.PHASE_TRACE) console.error(`[ff] fill_ord room ${i}:`, e.message);
                 }
                 if (fillable) bonus_countdown--;
             }
@@ -1435,7 +1609,7 @@ export async function newgame() {
                 const r = g.rooms[i];
                 if (!r) continue;
                 try { await t_fill_special_room(r); } catch (e) {
-                    if (process.env.PHASE_TRACE) console.error(`[ff] fill_spec room ${i}:`, e.message);
+                    if (__env.PHASE_TRACE) console.error(`[ff] fill_spec room ${i}:`, e.message);
                 }
             }
         }
@@ -1443,7 +1617,7 @@ export async function newgame() {
         try {
             await t_mineralize(-1, -1, -1, -1, false);
         } catch (e) {
-            if (process.env.PHASE_TRACE) console.error('[ff] mineralize:', e.message);
+            if (__env.PHASE_TRACE) console.error('[ff] mineralize:', e.message);
         }
         g.in_mklev = false;
 
@@ -1454,14 +1628,14 @@ export async function newgame() {
         try {
             await t_makedog();
         } catch (e) {
-            if (process.env.PHASE_TRACE) console.error('[ff] makedog:', e.message);
+            if (__env.PHASE_TRACE) console.error('[ff] makedog:', e.message);
         }
     } else {
         // Translated mklev path (default): makedog still needs to run
         // because it's in allmain.c after mklev() (line 814), not
         // inside mklev().
         try { await t_makedog(); } catch (e) {
-            if (process.env.PHASE_TRACE) console.error('[ff] makedog (translated mklev):', e.message);
+            if (__env.PHASE_TRACE) console.error('[ff] makedog (translated mklev):', e.message);
         }
     }
 
@@ -1851,7 +2025,7 @@ export async function newgame() {
                 }
             }
         } catch (_e) {}
-        if (process.env.NH_DEBUG_DOMOVE) console.error('[moveloop.first] ux='+g.u?.ux+' uy='+g.u?.uy+' petx='+__petx+' pety='+__pety+' traceEnabled='+globalThis.__nh_traceEnabled);
+        if (__env.NH_DEBUG_DOMOVE) console.error('[moveloop.first] ux='+g.u?.ux+' uy='+g.u?.uy+' petx='+__petx+' pety='+__pety+' traceEnabled='+globalThis.__nh_traceEnabled);
         traceCheckpoint('moveloop.first', { ux: g.u?.ux ?? -1, uy: g.u?.uy ?? -1, petx: __petx, pety: __pety });
     }
     try {
@@ -1917,7 +2091,7 @@ async function per_iter_setup() {
     // (possibly fires rn2 for partial heal), decide_to_shapeshift
     // (chameleon-only), were_change (werecreature-only), and
     // decrements mblinded/mfrozen/mfleetim.
-    try { mcalcdistress(); } catch (_e) {}
+    try { await mcalcdistress(); } catch (_e) {}
 
     // C ref allmain.c:233-234 — `mtmp->movement += mcalcmove(mtmp, TRUE)`.
     // Must apply the return value, else movement stays at 0 and movemon's
@@ -1974,7 +2148,7 @@ async function per_iter_setup() {
     if ((game.multi || 0) < 0 && __mtf_allow) {
         game.multi++;
         if (game.multi === 0) {
-            try { unmul(null); } catch (_e) {}
+            try { await unmul(null); } catch (_e) {}
         }
     }
     return wtcap;
@@ -2353,7 +2527,7 @@ export async function moveloop_core() {
     // rhack hook.  Layer 2 of project_wizlevelport_blocked.
     if (game.u?.utotype) {
         try { await t_deferred_goto(); } catch (_e) {
-            if (process.env.NH_DEBUG_DEFERRED_GOTO) console.error('[deferred_goto]', _e.message);
+            if (__env.NH_DEBUG_DEFERRED_GOTO) console.error('[deferred_goto]', _e.message);
         }
     }
 

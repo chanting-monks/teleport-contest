@@ -16,7 +16,7 @@ import { free, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, pline } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { timet_delta } from './allmain.js';
 import { is_art } from './artifact.js';
@@ -116,7 +116,7 @@ export function enlght_out(buf) {
 const __enlght_line_contra = [{ twowords: " are not ", contrctn: " aren't " }, { twowords: " were not ", contrctn: " weren't " }, { twowords: " have not ", contrctn: " haven't " }, { twowords: " had not ", contrctn: " hadn't " }, { twowords: " can not ", contrctn: " can't " }, { twowords: " could not ", contrctn: " couldn't " }];
 export function enlght_line(start, middle, end, ps) {
     let i = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     buf = sprintf(buf, " %s%s%s%s.", start, middle, end, ps);
     if (strstri(buf, " not ")) {
         /* TODO: switch to libc strstr() */
@@ -161,14 +161,14 @@ export function enlght_combatinc(inctyp, incamt, final, outbuf) {
     invrt = strcmp(inctyp, "to hit") ? (1) : (0);
     outbuf = sprintf(outbuf, "%s %s %s", modif, invrt ? inctyp : bonus, invrt ? bonus : inctyp);
     if (final || game.flags.debug) {
-        outbuf = (outbuf || '') + sprintf('', " (%s%d)", (incamt > 0) ? "+" : "", incamt);
+        outbuf = __nh_buf_append(outbuf, sprintf('', " (%s%d)", (incamt > 0) ? "+" : "", incamt));
     }
     return outbuf;
 }
 /* report half physical or half spell damage */
 export function enlght_halfdmg(category, final) {
     let category_name = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     switch (category) {
         case HALF_PHDAM:
             category_name = "physical";
@@ -209,13 +209,13 @@ export function trap_predicament(outbuf, final, wizxtra) {
         default:
             outbuf = strcpy(outbuf, "trapped");
             if ((t = t_at(game.u.ux, game.u.uy)) != null) {
-                outbuf = (outbuf || '') + sprintf('', " in %s", an(trapname(t.ttyp, (0))));
+                outbuf = __nh_buf_append(outbuf, sprintf('', " in %s", an(trapname(t.ttyp, (0)))));
             }
             break;
     }
     /* give extra information for wizard mode enlightenment */
     if (wizxtra) {
-        outbuf = (outbuf || '') + sprintf('', " {%u}", game.u.utrap);
+        outbuf = __nh_buf_append(outbuf, sprintf('', " {%u}", game.u.utrap));
     }
     return outbuf;
 }
@@ -287,7 +287,7 @@ export function fmt_elapsed_time(outbuf, final) {
     fieldcnt = !!edays + !!ehours + !!eminutes + !!eseconds;
     outbuf = strcpy(outbuf, fieldcnt ? "" : " none");
     if (edays) {
-        outbuf = (outbuf || '') + sprintf('', " %ld day%s", edays, (((edays) == 1) ? "" : "s"));
+        outbuf = __nh_buf_append(outbuf, sprintf('', " %ld day%s", edays, (((edays) == 1) ? "" : "s")));
         /* 'none' should never happen */
         /* hours and/or minutes and/or seconds to follow */
         /* minutes and/or seconds to follow */
@@ -299,21 +299,21 @@ export function fmt_elapsed_time(outbuf, final) {
         --fieldcnt;
     }
     if (ehours) {
-        outbuf = (outbuf || '') + sprintf('', " %ld hour%s", ehours, (((ehours) == 1) ? "" : "s"));
+        outbuf = __nh_buf_append(outbuf, sprintf('', " %ld hour%s", ehours, (((ehours) == 1) ? "" : "s")));
         if (fieldcnt > 1) {
             outbuf = strcat(outbuf, (fieldcnt == 2) ? " and" : ",");
         }
         --fieldcnt;
     }
     if (eminutes) {
-        outbuf = (outbuf || '') + sprintf('', " %ld minute%s", eminutes, (((eminutes) == 1) ? "" : "s"));
+        outbuf = __nh_buf_append(outbuf, sprintf('', " %ld minute%s", eminutes, (((eminutes) == 1) ? "" : "s")));
         /* eminutes has been processed but no need to decrement fieldcnt */
         if (fieldcnt > 1) {
             outbuf = strcat(outbuf, " and");
         }
     }
     if (eseconds) {
-        outbuf = (outbuf || '') + sprintf('', " %ld second%s", eseconds, (((eseconds) == 1) ? "" : "s"));
+        outbuf = __nh_buf_append(outbuf, sprintf('', " %ld second%s", eseconds, (((eseconds) == 1) ? "" : "s")));
     }
     return outbuf;
 }
@@ -339,8 +339,8 @@ export function N_times(n, outbuf) {
 /* BASICENLIGHTENMENT | MAGICENLIGHTENMENT (| both) */
 /* ENL_GAMEINPROGRESS:0, ENL_GAMEOVERALIVE, ENL_GAMEOVERDEAD */
 export function enlightenment(mode, final) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let tmpbuf = '';
     /* Create the conduct window */
     game.en_win = (game.windowprocs.win_create_nhwindow)(4);
     game.en_via_menu = !final;
@@ -350,7 +350,7 @@ export function enlightenment(mode, final) {
     tmpbuf = strcpy(tmpbuf, game.plname);
     /* same adjustment as bottom line */
     tmpbuf = (() => { const __s = tmpbuf; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
-    nh_snprintf("enlightenment", 401, buf, 256 /* sizeof(char [256]) */, "%s the %s's attributes:", tmpbuf, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) && game.urole.name.f) ? game.urole.name.f : game.urole.name.m);
+    buf = nh_snprintf("enlightenment", 401, buf, 256 /* sizeof(char [256]) */, "%s the %s's attributes:", tmpbuf, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) && game.urole.name.f) ? game.urole.name.f : game.urole.name.m);
     enlght_out(buf);
     if (mode & 1) {
         /* background and characteristics; ^X or end-of-game disclosure */
@@ -422,8 +422,8 @@ export function background_enlightenment(unused_mode, final) {
     let innategend = 0;
     let difgend = 0;
     let difalgn = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let tmpbuf = '';
     /* note that if poly'd, we need to use u.mfemale instead of flags.female
        to access hero's saved gender-as-human/elf/&c rather than current */
     innategend = ((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0;
@@ -439,34 +439,34 @@ export function background_enlightenment(unused_mode, final) {
        (with countdown timer appended for wizard mode); we really want
        the player to know he's not a samurai at the moment... */
         /* includes trailing space; [4] suffices */
-        let anbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let anbuf = '';
         let uasmon = game.youmonst.data;
         let altphrasing = ((((game.youmonst)).cham == PM_VAMPIRE || ((game.youmonst)).cham == PM_VAMPIRE_LEADER || ((game.youmonst)).cham == PM_VLAD_THE_IMPALER) && !(((game.youmonst).data).mlet == S_VAMPIRE));
         /* report role; omit gender if it's redundant (eg, "female priestess") */
-        tmpbuf[0] = 0;
+        tmpbuf = '';
         /* here we always use current gender, not saved role gender */
         if (!(((uasmon).mflags2 & 65536) != 0) && !(((uasmon).mflags2 & 131072) != 0) && !(((uasmon).mflags2 & 262144) != 0)) {
             tmpbuf = sprintf(tmpbuf, "%s ", genders[game.flags.female ? 1 : 0].adj);
         }
         if (altphrasing) {
-            tmpbuf = (tmpbuf || '') + sprintf('', "%s in ", pmname(game.mons[game.youmonst.cham], game.flags.female ? FEMALE : MALE));
+            tmpbuf = __nh_buf_append(tmpbuf, sprintf('', "%s in ", pmname(game.mons[game.youmonst.cham], game.flags.female ? FEMALE : MALE)));
         }
-        nh_snprintf("background_enlightenment", 506, buf, 256 /* sizeof(char [256]) */, "%s%s%s%s form", !final ? "currently " : "", altphrasing ? just_an(anbuf, tmpbuf) : "in ", tmpbuf, pmname(uasmon, game.flags.female ? FEMALE : MALE));
+        buf = nh_snprintf("background_enlightenment", 506, buf, 256 /* sizeof(char [256]) */, "%s%s%s%s form", !final ? "currently " : "", altphrasing ? just_an(anbuf, tmpbuf) : "in ", tmpbuf, pmname(uasmon, game.flags.female ? FEMALE : MALE));
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     }
-    tmpbuf[0] = 0;
+    tmpbuf = '';
     if (!game.urole.name.f && ((game.urole.allow & 61440) == (4096 | 8192) || innategend != game.flags.initgend)) {
         tmpbuf = sprintf(tmpbuf, "%s ", genders[innategend].adj);
     }
-    buf[0] = 0;
+    buf = '';
     if ((game.u.umonnum != game.u.umonster)) {
         buf = strcpy(buf, "actually ");
     }
     /* "You are actually a ..." */
     if (!strncmpi((rank_titl), (role_titl), -1)) {
-        buf = (buf || '') + sprintf('', "%s, level %d %s%s", an(rank_titl), game.u.ulevel, tmpbuf, game.urace.noun);
+        buf = __nh_buf_append(buf, sprintf('', "%s, level %d %s%s", an(rank_titl), game.u.ulevel, tmpbuf, game.urace.noun));
     } else {
-        buf = (buf || '') + sprintf('', "%s, a level %d %s%s %s", an(rank_titl), game.u.ulevel, tmpbuf, game.urace.adj, role_titl);
+        buf = __nh_buf_append(buf, sprintf('', "%s, a level %d %s%s %s", an(rank_titl), game.u.ulevel, tmpbuf, game.urace.adj, role_titl));
     }
     enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     buf = sprintf(buf, " %s%s%s, %son a mission for %s", You_, !final ? are : were, align_str(game.u.ualign.type), (game.u.ualign.type != game.u.ualignbase[0]) ? (!final ? "currently " : "temporarily ") : (game.u.ualign.type != game.u.ualignbase[1]) ? (!final ? "now " : "belatedly ") : (!game.u.uconduct.gnostic && game.moves > 1000) ? "nominally " : "", u_gname());
@@ -476,13 +476,13 @@ export function background_enlightenment(unused_mode, final) {
        [appending "also Moloch" at the end would allow for straightforward
        trailing "and" on all three aligned entries but looks too verbose] */
     if (game.u.ualign.type != 1) {
-        buf = (buf || '') + sprintf('', " %s (%s) and", align_gname(1), align_str(1));
+        buf = __nh_buf_append(buf, sprintf('', " %s (%s) and", align_gname(1), align_str(1)));
     }
     if (game.u.ualign.type != 0) {
-        buf = (buf || '') + sprintf('', " %s (%s)%s", align_gname(0), align_str(0), (game.u.ualign.type != (-1)) ? " and" : "");
+        buf = __nh_buf_append(buf, sprintf('', " %s (%s)%s", align_gname(0), align_str(0), (game.u.ualign.type != (-1)) ? " and" : ""));
     }
     if (game.u.ualign.type != (-1)) {
-        buf = (buf || '') + sprintf('', " %s (%s)", align_gname((-1)), align_str((-1)));
+        buf = __nh_buf_append(buf, sprintf('', " %s (%s)", align_gname((-1)), align_str((-1))));
     }
     buf = strcat(buf, ".");
     enlght_out(buf);
@@ -519,11 +519,11 @@ export function background_enlightenment(unused_mode, final) {
        without hands; use "You are normally left-handed." in that situation */
         let egdepth = observable_depth(game.u.uz);
         endgamelevelname(tmpbuf, egdepth);
-        nh_snprintf("background_enlightenment", 609, buf, 256 /* sizeof(char [256]) */, "in the endgame, on the %s%s", !strncmp(tmpbuf, "Plane", 5) ? "Elemental " : "", tmpbuf);
+        buf = nh_snprintf("background_enlightenment", 609, buf, 256 /* sizeof(char [256]) */, "in the endgame, on the %s%s", !strncmp(tmpbuf, "Plane", 5) ? "Elemental " : "", tmpbuf);
     } else if ((((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level))))) {
         buf = sprintf(buf, "on the %s level", game.dungeons[game.u.uz.dnum].dname);
     } else {
-        let dgnbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let dgnbuf = '';
         dgnbuf = strcpy(dgnbuf, game.dungeons[game.u.uz.dnum].dname);
         if (!strncmpi(dgnbuf, "The ", 4)) {
             dgnbuf = (() => { const __s = dgnbuf; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toLowerCase() + __t.slice(1) : __s; })();
@@ -536,7 +536,7 @@ export function background_enlightenment(unused_mode, final) {
         } else if ((((((game.dungeon_topology.d_bigroom_level)).dlevel || ((game.dungeon_topology.d_bigroom_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_bigroom_level)))) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
             tmpbuf = strcat(tmpbuf, ", a very big room");
         }
-        nh_snprintf("background_enlightenment", 629, buf, 256 /* sizeof(char [256]) */, "in %s, on %s", dgnbuf, tmpbuf);
+        buf = nh_snprintf("background_enlightenment", 629, buf, 256 /* sizeof(char [256]) */, "in %s, on %s", dgnbuf, tmpbuf);
     }
     enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     /* this is shown even if the 'time' option is off */
@@ -593,7 +593,7 @@ export function background_enlightenment(unused_mode, final) {
          */
             let nxtlvl = newuexp(ulvl);
             let delta = nxtlvl - game.u.uexp;
-            buf = (buf || '') + sprintf('', ", %ld %s%sneeded %s level %d", delta, (game.u.uexp > 0) ? "more " : "", !final ? "" : (delta == 1) ? "was " : "were ", (ulvl < 18) ? "to attain" : "for", (ulvl + 1));
+            buf = __nh_buf_append(buf, sprintf('', ", %ld %s%sneeded %s level %d", delta, (game.u.uexp > 0) ? "more " : "", !final ? "" : (delta == 1) ? "was " : "were ", (ulvl < 18) ? "to attain" : "for", (ulvl + 1)));
         }
         /* if from_what() ever gets extended from wizard mode to normal
            play, it could be adapted to handle this */
@@ -605,7 +605,7 @@ export function background_enlightenment(unused_mode, final) {
 /*ARGSUSED*/
 let __basics_enlightenment_Power = "energy points (spell power)";
 export function basics_enlightenment(mode, final) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let pw = game.u.uen;
     let hp = ((game.u.umonnum != game.u.umonster) ? game.u.mh : game.u.uhp);
     let pwmax = game.u.uenmax;
@@ -652,7 +652,7 @@ export function basics_enlightenment(mode, final) {
     find_ac();
     buf = sprintf(buf, "%d", game.u.uac);
     if (abs(game.u.uac) == 99) {
-        buf = (buf || '') + sprintf('', ", the %s possible", (game.u.uac < 0) ? "best" : "worst");
+        buf = __nh_buf_append(buf, sprintf('', ", the %s possible", (game.u.uac < 0) ? "best" : "worst"));
     }
     enlght_line(("Your armor class "), final ? ("was ") : ("is "), (buf), (""));
 /* gold; similar to doprgold (#showgold) but without shop billing info;
@@ -675,13 +675,13 @@ export function basics_enlightenment(mode, final) {
         }
     }
     if (game.flags.pickup) {
-        let ocl = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let ocl = '';
         buf = strcpy(buf, "on");
         if (costly_spot(game.u.ux, game.u.uy)) {
             buf = strcat(buf, ", but temporarily disabled while inside the shop");
         } else {
             oc_to_str(game.flags.pickup_types, ocl);
-            buf = (buf || '') + sprintf('', " for %s%s%s", ocl ? "'" : "", ocl ? ocl : "all types", ocl ? "'" : "");
+            buf = __nh_buf_append(buf, sprintf('', " for %s%s%s", ocl ? "'" : "", ocl ? ocl : "all types", ocl ? "'" : ""));
             if (game.flags.pickup_thrown && ocl) {
                 buf = strcat(buf, " plus thrown");
             }
@@ -697,7 +697,7 @@ export function basics_enlightenment(mode, final) {
 }
 /* characteristics: expanded version of bottom line strength, dexterity, &c */
 export function characteristics_enlightenment(mode, final) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     enlght_out("");
     buf = sprintf(buf, "%sCharacteristics:", !final ? "" : "Final ");
     enlght_out(buf);
@@ -710,7 +710,6 @@ export function characteristics_enlightenment(mode, final) {
 }
 /* display one attribute value for characteristics_enlightenment() */
 export function one_characteristic(mode, final, attrindx) {
-    let attrname = null;
     let hide_innate_value = (0);
     let interesting_alimit = 0;
     let acurrent = 0;
@@ -718,9 +717,9 @@ export function one_characteristic(mode, final, attrindx) {
     let apeak = 0;
     let alimit = 0;
     let paren_pfx = null;
-    let subjbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let valubuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let valstring = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let subjbuf = '';
+    let valubuf = '';
+    let valstring = '';
     if ((game.u.umonnum != game.u.umonster)) {
         /* being polymorphed or wearing certain cursed items prevents
        hero from reliably tracking changes to characteristics so
@@ -785,15 +784,15 @@ export function one_characteristic(mode, final, attrindx) {
         interesting_alimit = final ? (1) : (alimit != (attrindx != A_STR ? 18 : (18 + (100))));
         paren_pfx = final ? " (" : " (current; ";
         if (acurrent != abase) {
-            valubuf = (valubuf || '') + sprintf('', "%sbase:%s", paren_pfx, attrval(attrindx, abase, valstring));
+            valubuf = __nh_buf_append(valubuf, sprintf('', "%sbase:%s", paren_pfx, attrval(attrindx, abase, valstring)));
             paren_pfx = ", ";
         }
         if (abase != apeak) {
-            valubuf = (valubuf || '') + sprintf('', "%speak:%s", paren_pfx, attrval(attrindx, apeak, valstring));
+            valubuf = __nh_buf_append(valubuf, sprintf('', "%speak:%s", paren_pfx, attrval(attrindx, apeak, valstring)));
             paren_pfx = ", ";
         }
         if (interesting_alimit) {
-            valubuf = (valubuf || '') + sprintf('', "%s%slimit:%s", paren_pfx, (acurrent > alimit) ? "innate " : "", attrval(attrindx, alimit, valstring));
+            valubuf = __nh_buf_append(valubuf, sprintf('', "%s%slimit:%s", paren_pfx, (acurrent > alimit) ? "innate " : "", attrval(attrindx, alimit, valstring)));
         }
         if (acurrent != abase || abase != apeak || interesting_alimit) {
             valubuf = strcat(valubuf, ")");
@@ -805,9 +804,9 @@ export function one_characteristic(mode, final, attrindx) {
 export function status_enlightenment(mode, final) {
     let magic = (mode & 2) ? (1) : (0);
     let cap = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let youtoo = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let heldmon = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let youtoo = '';
+    let heldmon = '';
     let Riding = (game.u.usteed && !(final == 2 && !strcmp(game.killer.name, "riding accident")));
     let steedname = (!Riding ? null : x_monnam(game.u.usteed, game.u.usteed.mtame ? 3 : 1, null, (8 | 4), (0)));
     enlght_out("");
@@ -820,7 +819,7 @@ export function status_enlightenment(mode, final) {
         /* not a traditional status but inherently obvious to player; more
        detail given below (attributes section) for magic enlightenment */
         if (ugenocided()) {
-            buf = (buf || '') + sprintf('', " and %s %s inside", final ? "felt" : "feel", udeadinside());
+            buf = __nh_buf_append(buf, sprintf('', " and %s %s inside", final ? "felt" : "feel", udeadinside()));
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     }
@@ -829,7 +828,7 @@ export function status_enlightenment(mode, final) {
     if (Riding) {
         buf = sprintf(buf, "riding %s", steedname);
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
-        youtoo = (youtoo || '') + sprintf('', "and %s ", steedname);
+        youtoo = __nh_buf_append(youtoo, sprintf('', "and %s ", steedname));
     }
     if (((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked)) {
         /* other movement situations that hero should always know */
@@ -879,7 +878,7 @@ export function status_enlightenment(mode, final) {
             } else {
                 buf = strcpy(buf, "being strangled");
                 if (game.flags.debug) {
-                    buf = (buf || '') + sprintf('', " (%ld)", (game.u.uprops[STRANGLED].intrinsic & 16777215));
+                    buf = __nh_buf_append(buf, sprintf('', " (%ld)", (game.u.uprops[STRANGLED].intrinsic & 16777215)));
                 }
                 enlght_line((You_), final ? (were) : (are), ((buf)), ((from_what(STRANGLED))));
             }
@@ -919,7 +918,7 @@ export function status_enlightenment(mode, final) {
     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
         buf = sprintf(buf, "%s blind", (game.u.uprops[BLINDED].intrinsic & 67108864) != 0 ? "permanently" : (game.u.uprops[BLINDED].intrinsic & 268435456) ? "innately" : (game.u.uprops[BLINDED].extrinsic && !(game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked)) ? "deliberately" : "temporarily");
         if (game.flags.debug && (game.u.uprops[BLINDED].intrinsic == (game.u.uprops[BLINDED].intrinsic & 16777215) && !game.u.uprops[BLINDED].extrinsic)) {
-            buf = (buf || '') + sprintf('', " (%ld)", (game.u.uprops[BLINDED].intrinsic & 16777215));
+            buf = __nh_buf_append(buf, sprintf('', " (%ld)", (game.u.uprops[BLINDED].intrinsic & 16777215)));
         }
         /* !haseyes: avoid "you are innately blind innately" */
         enlght_line((You_), final ? (were) : (are), ((buf)), ((!(((game.youmonst.data).mflags1 & 4096) == 0) ? "" : from_what(BLINDED))));
@@ -941,7 +940,7 @@ export function status_enlightenment(mode, final) {
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     }
     if (game.u.utrap) {
-        let predicament = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let predicament = '';
         let anchored = (game.u.utraptype == TT_BURIEDBALL);
         trap_predicament(predicament, final, game.flags.debug);
         if (game.u.usteed) {
@@ -952,7 +951,7 @@ export function status_enlightenment(mode, final) {
             enlght_line((You_), final ? (were) : (are), ((predicament)), (("")));
         }
     }
-    heldmon[0] = 0;
+    heldmon = '';
     if (game.u.ustuck) {
         heldmon = strcpy(heldmon, a_monnam(game.u.ustuck));
         if (!strcmp(heldmon, "it") && (!((game.u.ustuck).mextra && ((game.u.ustuck).mextra.mgivenname)) || strcmp(((game.u.ustuck).mextra.mgivenname), "it") != 0)) {
@@ -961,25 +960,25 @@ export function status_enlightenment(mode, final) {
     }
     if (game.u.uswallow) {
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-        nh_snprintf("status_enlightenment", 1111, buf, 256 /* sizeof(char [256]) */, "%s by %s", (dmgtype_fromattack((game.u.ustuck.data), 26, 11) != null) ? "swallowed" : "engulfed", heldmon);
+        buf = nh_snprintf("status_enlightenment", 1111, buf, 256 /* sizeof(char [256]) */, "%s by %s", (dmgtype_fromattack((game.u.ustuck.data), 26, 11) != null) ? "swallowed" : "engulfed", heldmon);
         if (dmgtype(game.u.ustuck.data, 26)) {
             /* if final, death via digestion can be deduced by u.uswallow
                still being True and u.uswldtim having been decremented to 0 */
             if (final && !game.u.uswldtim) {
                 buf = strcat(buf, " and got totally digested");
             } else {
-                buf = (buf || '') + sprintf('', " and %s being digested", final ? "were" : "are");
+                buf = __nh_buf_append(buf, sprintf('', " and %s being digested", final ? "were" : "are"));
             }
         }
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " (%u)", game.u.uswldtim);
+            buf = __nh_buf_append(buf, sprintf('', " (%u)", game.u.uswldtim));
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     } else if (game.u.ustuck) {
         let ustick = ((game.u.umonnum != game.u.umonster) && sticks(game.youmonst.data));
         let dx = game.u.ustuck.mx - game.u.ux;
         let dy = game.u.ustuck.my - game.u.uy;
-        nh_snprintf("status_enlightenment", 1130, buf, 256 /* sizeof(char [256]) */, "%s %s (%s)", ustick ? "holding" : "held by", heldmon, dxdy_to_dist_descr(dx, dy, (1)));
+        buf = nh_snprintf("status_enlightenment", 1130, buf, 256 /* sizeof(char [256]) */, "%s %s (%s)", ustick ? "holding" : "held by", heldmon, dxdy_to_dist_descr(dx, dy, (1)));
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     }
     if (Riding) {
@@ -1008,7 +1007,7 @@ export function status_enlightenment(mode, final) {
             if (game.flags.debug && steedname) {
                 /* when mounted, Wounded_legs applies to steed rather than to
            hero; we only report steed's wounded legs in wizard mode */
-                let steednambuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let steednambuf = '';
                 steednambuf = strcpy(steednambuf, steedname);
                 steednambuf = (() => { const __s = steednambuf; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
                 enlght_line((steednambuf), final ? (" had ") : (" has "), (buf), (""));
@@ -1020,7 +1019,7 @@ export function status_enlightenment(mode, final) {
     if (game.u.uprops[GLIB].intrinsic) {
         buf = sprintf(buf, "slippery %s", fingers_or_gloves((1)));
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " (%ld)", (game.u.uprops[GLIB].intrinsic & 16777215));
+            buf = __nh_buf_append(buf, sprintf('', " (%ld)", (game.u.uprops[GLIB].intrinsic & 16777215)));
         }
         enlght_line((You_), final ? (had) : (have), ((buf)), (("")));
     }
@@ -1033,7 +1032,7 @@ export function status_enlightenment(mode, final) {
         if (magic || cause_known(SLEEPY)) {
             buf = strcpy(buf, from_what(SLEEPY));
             if (game.flags.debug) {
-                buf = (buf || '') + sprintf('', " (%ld)", (game.u.uprops[SLEEPY].intrinsic & 16777215));
+                buf = __nh_buf_append(buf, sprintf('', " (%ld)", (game.u.uprops[SLEEPY].intrinsic & 16777215)));
             }
             enlght_line(("You "), final ? ("fell") : ("fall"), (" asleep uncontrollably"), (buf));
         }
@@ -1060,7 +1059,7 @@ export function status_enlightenment(mode, final) {
             buf = strcat(buf, " due to starvation");
         }
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " <%d>", game.u.uhunger);
+            buf = __nh_buf_append(buf, sprintf('', " <%d>", game.u.uhunger));
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     }
@@ -1090,14 +1089,14 @@ export function status_enlightenment(mode, final) {
            (no longer needed for that purpose since weapon status added;
            still useful though) */
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " <%d>", inv_weight());
+            buf = __nh_buf_append(buf, sprintf('', " <%d>", inv_weight()));
         }
-        buf = (buf || '') + sprintf('', "; movement %s %s%s", !final ? "is" : "was", adj, (cap < OVERLOADED) ? " slowed" : "");
+        buf = __nh_buf_append(buf, sprintf('', "; movement %s %s%s", !final ? "is" : "was", adj, (cap < OVERLOADED) ? " slowed" : ""));
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     } else {
         buf = strcpy(buf, "unencumbered");
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " <%d>", inv_weight());
+            buf = __nh_buf_append(buf, sprintf('', " <%d>", inv_weight()));
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     }
@@ -1107,7 +1106,7 @@ export function status_enlightenment(mode, final) {
         /* unlike ring of increase accuracy's effect, the monk's suit penalty
        is too blatant to be restricted to magical enlightenment */
         enlght_combatinc("to hit", -game.urole.spelarmr, final, buf);
-        buf = (buf || '') + sprintf('', " due to your %s", suit_simple_name(game.uarm));
+        buf = __nh_buf_append(buf, sprintf('', " due to your %s", suit_simple_name(game.uarm)));
         enlght_line((You_), final ? (had) : (have), ((buf)), (("")));
     }
     if (!game.uarm && !game.uarmu && !game.uarmc && !game.uarms && !game.uarmg && !game.uarmf && !game.uarmh) {
@@ -1122,7 +1121,7 @@ export function status_enlightenment(mode, final) {
 const __weapon_insight_also_ = "also ";
 const __weapon_insight_also_wik_ = " and also with ";
 export function weapon_insight(final) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let wtype = 0;
     /* report being weaponless; distinguish whether gloves are worn
        [perhaps mention silver ring(s) when not wearing gloves?] */
@@ -1156,7 +1155,7 @@ export function weapon_insight(final) {
      * Skill with current weapon.  Might help players who've never
      * noticed #enhance or decided that it was pointless.
      */
-        let sklvlbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let sklvlbuf = '';
         let sklvl = (game.u.weapon_skills[wtype].skill);
         let hav = (sklvl != P_UNSKILLED && sklvl != P_SKILLED);
         if (sklvl == P_ISRESTRICTED) {
@@ -1169,7 +1168,7 @@ export function weapon_insight(final) {
             /* "you have no/basic/expert/master/grand-master skill with <skill>"
            or "you are unskilled/skilled in <skill>" */
             if (can_advance(wtype, (0))) {
-                buf = (buf || '') + sprintf('', " and %s that", !final ? "can enhance" : "could have enhanced");
+                buf = __nh_buf_append(buf, sprintf('', " and %s that", !final ? "can enhance" : "could have enhanced"));
             }
             if (hav) {
                 enlght_line((You_), final ? (had) : (have), ((buf)), (("")));
@@ -1177,11 +1176,11 @@ export function weapon_insight(final) {
                 enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
             }
         } else {
-            let pfx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let sfx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let sknambuf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let sklvlbuf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let twobuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let pfx = '';
+            let sfx = '';
+            let sknambuf2 = '';
+            let sklvlbuf2 = '';
+            let twobuf = '';
             let also = "";
             let also2 = "";
             let also3 = null;
@@ -1208,7 +1207,7 @@ export function weapon_insight(final) {
                 lcase(skill_level_name(P_TWO_WEAPON_COMBAT, twobuf));
             }
             /* keep buf[] from above in case skill levels match */
-            pfx[0] = sfx[0] = 0;
+            (sfx = '', pfx = '');
             if (twoskl < sklvl) {
                 pfx = sprintf(pfx, "Your skill in %s ", skill_name(wtype));
                 sfx = sprintf(sfx, " limited by being %s with two weapons", twobuf);
@@ -1219,11 +1218,11 @@ export function weapon_insight(final) {
                 sfx = strcpy(sfx, " limited by ");
                 /* sklvl might be restricted */
                 if (sklvl > P_ISRESTRICTED) {
-                    sfx = (sfx || '') + sprintf('', "being %s", sklvlbuf);
+                    sfx = __nh_buf_append(sfx, sprintf('', "being %s", sklvlbuf));
                 } else {
-                    sfx = (sfx || '') + sprintf('', "having no skill");
+                    sfx = __nh_buf_append(sfx, sprintf('', "having no skill"));
                 }
-                sfx = (sfx || '') + sprintf('', " with %s", skill_name(wtype));
+                sfx = __nh_buf_append(sfx, sprintf('', " with %s", skill_name(wtype)));
                 also2 = __weapon_insight_also_;
             } else {
                 buf = strcat(buf, " and two weapons");
@@ -1242,7 +1241,7 @@ export function weapon_insight(final) {
                identical to the comparison between primary and twoweap */
                 lcase(skill_level_name(wtype2, sklvlbuf2));
                 verb_present = "is" , verb_past = "was";
-                pfx[0] = sfx[0] = buf[0] = 0;
+                ((buf = '', sfx = ''), pfx = '');
                 if (twoskl < sklvl2) {
                     pfx = sprintf(pfx, "Your skill in %s ", sknambuf2);
                     sfx = sprintf(sfx, " %slimited by being %s with two weapons", also, twobuf);
@@ -1252,17 +1251,17 @@ export function weapon_insight(final) {
                     /* twoskil is at least unskilled, sklvl2 at least basic */
                     /* sklvl2 might be restricted */
                     if (sklvl2 > P_ISRESTRICTED) {
-                        sfx = (sfx || '') + sprintf('', "being %s", sklvlbuf2);
+                        sfx = __nh_buf_append(sfx, sprintf('', "being %s", sklvlbuf2));
                     } else {
-                        strcat(eos(sfx), "having no skill");
+                        sfx = __nh_buf_append(sfx, "having no skill");
                     }
-                    sfx = (sfx || '') + sprintf('', " with %s", sknambuf2);
+                    sfx = __nh_buf_append(sfx, sprintf('', " with %s", sknambuf2));
                 } else {
                     buf = sprintf(buf, "%s %s %s", sklvlbuf2, hav2 ? "skill with" : "in", sknambuf2);
                     buf = strcat(buf, " and two weapons");
                     if (also3) {
                         pfx = strcpy(pfx, "You also ");
-                        nh_snprintf("weapon_insight", 1419, sfx, 128 /* sizeof(char [128]) */, " %s", buf) , buf[0] = 0;
+                        nh_snprintf("weapon_insight", 1419, sfx, 128 /* sizeof(char [128]) */, " %s", buf) , buf = '';
                         /* equal; two-weapon is at least unskilled, so sklvl2 is
                        too; "you [also] have basic/expert/master/grand-master
                        skill with <skill>" or "you [also] are unskilled/
@@ -1309,7 +1308,7 @@ export function attributes_enlightenment(unused_mode, final) {
     let ltmp = 0;
     let armpro = 0;
     let warnspecies = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     enlght_out("");
     enlght_out(final ? "Final Attributes:" : "Attributes:");
     if (game.u.uevent.uhand_of_elbereth) {
@@ -1432,7 +1431,7 @@ export function attributes_enlightenment(unused_mode, final) {
         if (game.flags.debug) {
             let detectmon_timeout = (game.u.uprops[DETECT_MONSTERS].intrinsic & 16777215);
             if (detectmon_timeout) {
-                buf = (buf || '') + sprintf('', " (%ld)", detectmon_timeout);
+                buf = __nh_buf_append(buf, sprintf('', " (%ld)", detectmon_timeout));
             }
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
@@ -1444,7 +1443,7 @@ export function attributes_enlightenment(unused_mode, final) {
             if (game.u.umconf == 1) {
                 buf = strcat(buf, " (next hit only)");
             } else {
-                buf = (buf || '') + sprintf('', " (next %u hits)", game.u.umconf);
+                buf = __nh_buf_append(buf, sprintf('', " (next %u hits)", game.u.umconf));
             }
         }
         enlght_line((You_), final ? ("would have confused") : ("will confuse"), (buf), (""));
@@ -1565,7 +1564,7 @@ export function attributes_enlightenment(unused_mode, final) {
     if (game.u.uhitinc) {
         enlght_combatinc("to hit", game.u.uhitinc, final, buf);
         if (game.iflags.tux_penalty && !(game.u.umonnum != game.u.umonster)) {
-            buf = (buf || '') + sprintf('', " %s your suit's penalty", (game.u.uhitinc < 0) ? "increasing" : (game.u.uhitinc < Math.trunc(4 * game.urole.spelarmr / 5)) ? "partly offsetting" : (game.u.uhitinc < game.urole.spelarmr) ? "nearly offsetting" : "overcoming");
+            buf = __nh_buf_append(buf, sprintf('', " %s your suit's penalty", (game.u.uhitinc < 0) ? "increasing" : (game.u.uhitinc < Math.trunc(4 * game.urole.spelarmr / 5)) ? "partly offsetting" : (game.u.uhitinc < game.urole.spelarmr) ? "nearly offsetting" : "overcoming"));
         }
         enlght_line((You_), final ? (had) : (have), ((buf)), (("")));
     }
@@ -1611,7 +1610,7 @@ export function attributes_enlightenment(unused_mode, final) {
         /* skip if no spells are known yet */
         /* greatly simplified edition of percent_success(spell.c)--may need
            to be suppressed if oversimplification leads to player confusion */
-        let cast_adj = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let cast_adj = '';
         let suit = game.uarm && (game.objects[game.uarm.otyp].oc_material >= IRON && game.objects[game.uarm.otyp].oc_material <= MITHRIL);
         let robe = game.uarmc && game.uarmc.otyp == ROBE;
         cast_adj = '';
@@ -1662,7 +1661,7 @@ export function attributes_enlightenment(unused_mode, final) {
             buf = sprintf(buf, "polymorphed into %s in %s form", an(pmname(game.mons[game.youmonst.cham], game.flags.female ? FEMALE : MALE)), pmname(game.youmonst.data, game.flags.female ? FEMALE : MALE));
         }
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " (%d)", game.u.mtimedone);
+            buf = __nh_buf_append(buf, sprintf('', " (%d)", game.u.mtimedone));
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     }
@@ -1675,7 +1674,7 @@ export function attributes_enlightenment(unused_mode, final) {
             buf = strcat(buf, " in beast form");
             /* "you are a werecreature [in beast form]" */
             if (game.flags.debug) {
-                buf = (buf || '') + sprintf('', " (%d)", game.u.mtimedone);
+                buf = __nh_buf_append(buf, sprintf('', " (%d)", game.u.mtimedone));
             }
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
@@ -1706,7 +1705,7 @@ export function attributes_enlightenment(unused_mode, final) {
         ltmp = abs((game.u.uluck + game.u.moreluck));
         buf = sprintf(buf, "%s%slucky", ltmp >= 10 ? "extremely " : ltmp >= 5 ? "very " : "", (game.u.uluck + game.u.moreluck) < 0 ? "un" : "");
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " (%d)", (game.u.uluck + game.u.moreluck));
+            buf = __nh_buf_append(buf, sprintf('', " (%d)", (game.u.uluck + game.u.moreluck)));
         }
         enlght_line((You_), final ? (were) : (are), ((buf)), (("")));
     } else if (game.flags.debug) {
@@ -1729,7 +1728,7 @@ export function attributes_enlightenment(unused_mode, final) {
     if (game.u.ugangr) {
         buf = sprintf(buf, " %sangry with you", game.u.ugangr > 6 ? "extremely " : game.u.ugangr > 3 ? "very " : "");
         if (game.flags.debug) {
-            buf = (buf || '') + sprintf('', " (%d)", game.u.ugangr);
+            buf = __nh_buf_append(buf, sprintf('', " (%d)", game.u.ugangr));
         }
         enlght_line((u_gname()), final ? (" was") : (" is"), (buf), (""));
     } else {
@@ -1742,7 +1741,7 @@ export function attributes_enlightenment(unused_mode, final) {
          */
             /* "can [not] safely pray" vs "could [not] have safely prayed" */
             if (game.flags.debug) {
-                buf = (buf || '') + sprintf('', " (%d)", game.u.ublesscnt);
+                buf = __nh_buf_append(buf, sprintf('', " (%d)", game.u.ublesscnt));
             }
             enlght_line((You_), final ? (could) : (can), ((buf)), (("")));
         }
@@ -1766,7 +1765,7 @@ export function attributes_enlightenment(unused_mode, final) {
     }
 {
         let p = null;
-        buf[0] = 0;
+        buf = '';
         if (final < 2) {
             /* still in progress, or quit/escaped/ascended */
             p = "survived after being killed ";
@@ -1807,7 +1806,7 @@ export function doattributes() {
 /* for variant message phrasing */
 export function youhiding(via_enlghtmt, msgflag) {
     let bp = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     buf = strcpy(buf, "hiding");
     if ((game.youmonst.m_ap_type & 7) != M_AP_NOTHING) {
         /* mimic; hero is only able to mimic a strange object or gold
@@ -1865,8 +1864,8 @@ export function doconduct() {
 }
 /* display conducts; for doconduct(), also disclose() and dump_everything() */
 export function show_conduct(final) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let bufN = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let bufN = '';
     let ngenocided = 0;
     game.en_win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_putstr)(game.en_win, 0, "Voluntary challenges:");
@@ -1965,11 +1964,11 @@ export function show_conduct(final) {
              *  N wishes (M for artifacts)
              */
             if (game.u.uconduct.wisharti == game.u.uconduct.wishes) {
-                buf = (buf || '') + sprintf('', " (%s", (game.u.uconduct.wisharti > 2) ? "all " : (game.u.uconduct.wisharti == 2) ? "both " : "");
+                buf = __nh_buf_append(buf, sprintf('', " (%s", (game.u.uconduct.wisharti > 2) ? "all " : (game.u.uconduct.wisharti == 2) ? "both " : ""));
             } else {
-                buf = (buf || '') + sprintf('', " (%ld ", game.u.uconduct.wisharti);
+                buf = __nh_buf_append(buf, sprintf('', " (%ld ", game.u.uconduct.wisharti));
             }
-            buf = (buf || '') + sprintf('', "for %s)", (game.u.uconduct.wisharti == 1) ? "an artifact" : "artifacts");
+            buf = __nh_buf_append(buf, sprintf('', "for %s)", (game.u.uconduct.wisharti == 1) ? "an artifact" : "artifacts"));
         }
         enlght_line((You_), final ? ("") : (have), ((buf)), (""));
         if (!game.u.uconduct.wisharti) {
@@ -2004,8 +2003,8 @@ export function show_achievements(final) {
     let achidx = 0;
     let absidx = 0;
     let acnt = 0;
-    let title = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let title = '';
+    let buf = '';
     let awin = (-1);
     /* unfortunately we can't show the achievements (at least not all of
        them) while the game is in progress because it would give away the
@@ -2261,7 +2260,7 @@ export function do_gamelog() {
 export function show_gamelog(final) {
     let llmsg = null;
     let win = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let eventcnt = 0;
     win = (game.windowprocs.win_create_nhwindow)(5);
     buf = sprintf(buf, "%s events:", final ? "Major" : "Logged");
@@ -2276,7 +2275,7 @@ export function show_gamelog(final) {
         if (!eventcnt++) {
             (game.windowprocs.win_putstr)(win, 0, " Turn");
         }
-        nh_snprintf("show_gamelog", 2579, buf, 256 /* sizeof(char [256]) */, "%5ld: %s", llmsg.turn, llmsg.text);
+        buf = nh_snprintf("show_gamelog", 2579, buf, 256 /* sizeof(char [256]) */, "%5ld: %s", llmsg.turn, llmsg.text);
         (game.windowprocs.win_putstr)(win, 0, buf);
     }
     /* since start of game is logged as a major event, 'eventcnt' should
@@ -2358,10 +2357,10 @@ export function vanqsort_cmp(vptr1, vptr2) {
                internal order is ok if neither or just one is punctuation
                since letters have lower values so come out before punct */
                 if ((punct = strchr(__vanqsort_cmp_punctclasses, mcls1)) != null) {
-                    mcls1 = (S_ZOMBIE + 1 + (punct - __vanqsort_cmp_punctclasses));
+                    mcls1 = (S_ZOMBIE + 1 + ((__vanqsort_cmp_punctclasses.length - punct.length)));
                 }
                 if ((punct = strchr(__vanqsort_cmp_punctclasses, mcls2)) != null) {
-                    mcls2 = (S_ZOMBIE + 1 + (punct - __vanqsort_cmp_punctclasses));
+                    mcls2 = (S_ZOMBIE + 1 + ((__vanqsort_cmp_punctclasses.length - punct.length)));
                 }
             }
             res = mcls1 - mcls2;
@@ -2405,7 +2404,7 @@ export function set_vanq_order(for_vanq) {
     let tmpwin = 0;
     let selected = null;
     let any = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let desc = null;
     let i = 0;
     let n = 0;
@@ -2465,8 +2464,8 @@ export function list_vanquished(defquery, ask) {
     let klwin = 0;
     let mindx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let c = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buftoo = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buftoo = '';
     /* 'A' is only supplied by 'm #vanquished'; 'd' is only supplied by
        dump_everything() when writing dumplog, so won't happen if built
        without '#define DUMPLOG' but there's no need for conditionals here */
@@ -2508,7 +2507,7 @@ export function list_vanquished(defquery, ask) {
         let was_uniq = (0);
         let special_hdr = (0);
         if (ask) {
-            let allow_yn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let allow_yn = '';
             if (ntypes > 1) {
                 allow_yn = strcpy(allow_yn, ynaqchars);
             } else {
@@ -2573,7 +2572,7 @@ export function list_vanquished(defquery, ask) {
                 if (((game.mons[i].geno & 4096) != 0 && i != PM_HIGH_CLERIC)) {
                     buf = sprintf(buf, "%s%s", !(((game.mons[i]).mflags2 & 524288) != 0) ? "the " : "", game.mons[i].pmnames[NEUTRAL]);
                     if (nkilled > 1) {
-                        buf = (buf || '') + sprintf('', " (%s)", N_times(nkilled, buftoo));
+                        buf = __nh_buf_append(buf, sprintf('', " (%s)", N_times(nkilled, buftoo)));
                     }
                     was_uniq = (1);
                 } else {
@@ -2596,7 +2595,7 @@ export function list_vanquished(defquery, ask) {
                 if (class_header) {
                     ++pfx;
                 }
-                nh_snprintf("list_vanquished", 2916, buftoo, 256 /* sizeof(char [256]) */, "%*s%s", pfx, "", buf);
+                buftoo = nh_snprintf("list_vanquished", 2916, buftoo, 256 /* sizeof(char [256]) */, "%*s%s", pfx, "", buf);
                 (game.windowprocs.win_putstr)(klwin, 0, buftoo);
             }
             if (ntypes > 1) {
@@ -2674,7 +2673,7 @@ export function list_genocided(defquery, ask) {
     let mindx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let c = 0;
     let klwin = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     /* prompting for genocide or class genocide */
     let genoing = 0;
     let dumping = 0;
@@ -2786,7 +2785,7 @@ const __doborn_fmt = "%4i %4i %c %-30s";
 export function doborn() {
     let i = 0;
     let datawin = (game.windowprocs.win_create_nhwindow)(5);
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let nborn = 0;
     let ndied = 0;
     (game.windowprocs.win_putstr)(datawin, 0, "died born");
@@ -2822,7 +2821,7 @@ export function align_str(alignment) {
     }
     return "unknown";
 }
-let __size_str_outbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __size_str_outbuf = '';
 export function size_str(msize) {
     switch (msize) {
         case 0:
@@ -2850,7 +2849,7 @@ export function size_str(msize) {
     return __size_str_outbuf;
 }
 /* used for self-probing */
-let __piousness_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __piousness_buf = '';
 export function piousness(showneg, suffix) {
     /* bigger than "insufficiently neutral" */
     let pio = null;
@@ -2890,15 +2889,15 @@ export function piousness(showneg, suffix) {
 /* stethoscope or probing applied to monster -- one-line feedback */
 export function mstatusline(mtmp) {
     let alignment = mon_aligntyp(mtmp);
-    let info = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let monnambuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    info[0] = 0;
+    let info = '';
+    let monnambuf = '';
+    info = '';
     if (mtmp.mtame) {
         info = strcat(info, ", tame");
         if (game.flags.debug) {
-            info = (info || '') + sprintf('', " (%d", mtmp.mtame);
+            info = __nh_buf_append(info, sprintf('', " (%d", mtmp.mtame));
             if (!mtmp.isminion) {
-                info = (info || '') + sprintf('', "; hungry %ld; apport %d", ((mtmp).mextra.edog).hungrytime, ((mtmp).mextra.edog).apport);
+                info = __nh_buf_append(info, sprintf('', "; hungry %ld; apport %d", ((mtmp).mextra.edog).hungrytime, ((mtmp).mextra.edog).apport));
             }
             info = strcat(info, ")");
         }
@@ -2917,7 +2916,7 @@ export function mstatusline(mtmp) {
             /* include head in the segment count */
             ++nsegs;
             segndx = wseg_at(mtmp, game.bhitpos.x, game.bhitpos.y);
-            info = (info || '') + sprintf('', ", %d%s of %d segments", segndx, ordin(segndx), nsegs);
+            info = __nh_buf_append(info, sprintf('', ", %d%s of %d segments", segndx, ordin(segndx), nsegs));
         }
     }
     if (((mtmp.cham) >= LOW_PM && (mtmp.cham) < NUMMONS) && mtmp.data != game.mons[mtmp.cham]) {
@@ -2993,7 +2992,7 @@ export function mstatusline(mtmp) {
             }
             /* when it's just one leg, ^X reports which, left or right;
            ustatusline() doesn't, in order to keep the output a bit shorter */
-            info = (info || '') + sprintf('', ", injured %s", what);
+            info = __nh_buf_append(info, sprintf('', ", injured %s", what));
         }
     }
     if (mtmp.mleashed) {
@@ -3005,9 +3004,9 @@ export function mstatusline(mtmp) {
 /* stethoscope or probing applied to hero -- one-line feedback */
 export function ustatusline() {
     let reg = null;
-    let info = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let info = '';
     let ln = 0;
-    info[0] = 0;
+    info = '';
     if (game.u.uprops[SICK].intrinsic) {
         info = strcat(info, ", dying from");
         if (game.u.usick_type & 1) {
@@ -3053,10 +3052,10 @@ export function ustatusline() {
         if (legs == (131072 | 262144)) {
             what = makeplural(what);
         }
-        info = (info || '') + sprintf('', ", injured %s", what);
+        info = __nh_buf_append(info, sprintf('', ", injured %s", what));
     }
     if (game.u.uprops[GLIB].intrinsic) {
-        info = (info || '') + sprintf('', ", slippery %s", fingers_or_gloves((1)));
+        info = __nh_buf_append(info, sprintf('', ", slippery %s", fingers_or_gloves((1))));
     }
     if (game.u.utrap) {
         info = strcat(info, ", trapped");

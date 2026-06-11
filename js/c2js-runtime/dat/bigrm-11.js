@@ -15,9 +15,9 @@ export default async function({ __lua_bor, des, nh, percent, selection }) {
       await des.object("boulder", x, y);
     };
   let sel = __lua_bor(selection.match(".w."), selection.match(".\nw\n."));
-  sel.iterate(replace_wall_boulder);
+  await sel.iterate(replace_wall_boulder);
   sel = selection.match(".w.");
-  sel.iterate(replace_wall_boulder);
+  await sel.iterate(replace_wall_boulder);
   await des.stair("up");
   await des.stair("down");
   {

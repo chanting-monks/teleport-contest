@@ -69,6 +69,289 @@ export const JS_RESERVED_RENAMES = [
     'void', 'while', 'with', 'yield',
 ];
 
+// Hand-port stub-anchor table.  For functions where the C source uses
+// libc-style idioms that don't translate cleanly to JS (in-place
+// mutation, char-walker loops, pointer-position arithmetic), the
+// translator emits a THIN STUB that delegates to an idiomatic JS
+// implementation living in js/c2js-runtime/.  This preserves:
+//   - Function-name parity (spec §4) — the function still exports
+//     with the C name.
+//   - Verbatim comment migration (spec §11) — the C-source comment
+//     block above the function is preserved on the stub.
+//   - Signature parity — the stub accepts the same params and
+//     returns the same shape.
+// While replacing the translator's broken body emit with hand-written
+// idiomatic JS (regex, string methods, etc.) that survives JS-string
+// vs char-array shape mismatches.
+//
+// Anchored by `(cFile basename, C function name)`.  Survives variable
+// renames + body reformatting within the function; only breaks if the
+// function itself is renamed at the C level (which is a deliberate
+// signal to revisit the hand-port anyway).
+//
+// Per-tu sub-map: each TU's hand-port file lives at the path under
+// `runtimeDir`.  The translator emits:
+//   import { upwords as __nh_hp_upwords } from '../c2js-runtime/<file>';
+//   /* verbatim C-source comments */
+//   export function upwords(s) { return __nh_hp_upwords(s); }
+//
+// Added 2026-05-31 per architectural conversation (move libc-style
+// hotspots out of translator-emit to keep gameplay-code translation
+// idiomatic and the libc-side JS-faithful).
+export const HAND_PORTED_FUNCTIONS = {
+    'hacklib.c': {
+        runtime: 'hacklib-handports.js',
+        // upwords: regex-based first-letter-of-word uppercase.
+        //
+        // Excluded (tested + reverted in §23.222aw): eos / c_eos /
+        // findword.  Their hand-ports are semantically equivalent to
+        // the §23.222at cherry-pick form for null / string / array
+        // shapes, but the cherry-pick form quietly enters an infinite
+        // loop on `{value: N!=0}` scalar-ptr-wrapper input (each iter
+        // does __nh_advance_str which returns the wrapper unchanged,
+        // and __nh_char_at0 keeps returning the same byte).  Production
+        // somehow tolerates this — perhaps the wrapper case is never
+        // exercised — but replacing eos with a return-on-scalar-ptr
+        // form breaks seed1800 (-3 screens).  The loop-vs-return
+        // difference must be observable somewhere; investigation
+        // deferred.
+        functions: ['upwords', 'xcrypt', 'strNsubst', 'case_insensitive_comp'],
+    },
+};
+
+// §23.228 — Force scalar-ptr-outparam classification on the named
+// function's specified arg indices.  Used for functions whose body
+// writes through the param indirectly (via a function-pointer
+// dispatch) where the body-scanner's `functionWritesViaParam`
+// doesn't see the write.  Without this allowlist, the param is
+// classified as read-only (no scalar-ptr-wrapper at callsites),
+// silently losing the write.
+//
+// Example: src/sfbase.c sfo_char(NHFILE *nhfp, char *d_char, ...)
+// writes `d_char` only via `(*sfoprocs[idx].fn.sf_char)(nhfp,
+// d_char, ...)` — the body-scanner only matches direct `*p = X`
+// writes, so d_char is demoted to read-only.  Caller sites end up
+// with raw value passthrough (`sfi_char(nhfp, indicate, ...)`),
+// losing the write.  Previously hand-patched (version.c surgical
+// patch, commit 6567248).
+//
+// Map: function name → Set of arg indices (0-based).
+export const FORCED_SCALAR_PTR_PARAMS = new Map([
+    ['sfo_char',   new Set([1])],
+    ['sfi_char',   new Set([1])],
+    ['sfo_uchar',  new Set([1])],
+    ['sfi_uchar',  new Set([1])],
+    ['sfo_short',  new Set([1])],
+    ['sfi_short',  new Set([1])],
+    ['sfo_ushort', new Set([1])],
+    ['sfi_ushort', new Set([1])],
+    ['sfo_int',    new Set([1])],
+    ['sfi_int',    new Set([1])],
+    ['sfo_uint',   new Set([1])],
+    ['sfi_uint',   new Set([1])],
+    ['sfo_int16',  new Set([1])],
+    ['sfi_int16',  new Set([1])],
+    ['sfo_uint16', new Set([1])],
+    ['sfi_uint16', new Set([1])],
+    ['sfo_int32',  new Set([1])],
+    ['sfi_int32',  new Set([1])],
+    ['sfo_uint32', new Set([1])],
+    ['sfi_uint32', new Set([1])],
+    ['sfo_int64',  new Set([1])],
+    ['sfi_int64',  new Set([1])],
+    ['sfo_uint64', new Set([1])],
+    ['sfi_uint64', new Set([1])],
+    ['sfo_long',   new Set([1])],
+    ['sfi_long',   new Set([1])],
+    ['sfo_ulong',  new Set([1])],
+    ['sfi_ulong',  new Set([1])],
+    ['sfo_aligntyp', new Set([1])],
+    ['sfi_aligntyp', new Set([1])],
+    ['sfo_boolean',  new Set([1])],
+    ['sfi_boolean',  new Set([1])],
+    ['sfo_genericptr', new Set([1])],
+    ['sfi_genericptr', new Set([1])],
+    ['sfo_any',    new Set([1])],
+    ['sfi_any',    new Set([1])],
+]);
+
+// §23.227 — Phase 2 string-mode allowlist.  C-file basenames in this
+// set are translated under STRING_MODE regardless of the env var,
+// so future regens (full builds or selective regen-files) preserve
+// the idiomatic JS-string emit form for these TUs.  Add a file here
+// when its Phase 2 batch lands; remove when migrating back is needed.
+// See docs/STRING_MIGRATION.md for the per-batch ordering.
+export const STRING_MODE_FILES = new Set([
+    'rip.c',
+    'coloratt.c',
+    'report.c',
+    'fountain.c',
+    'mcastu.c',
+    'iactions.c',
+    'region.c',
+    'explode.c',
+    'dokick.c',
+    'bones.c',
+    'steed.c',
+    'dig.c',
+    'mthrowu.c',
+    'weapon.c',
+    'mhitm.c',
+    'symbols.c',
+    'timeout.c',
+    'minion.c',
+    'mplayer.c',
+    'pray.c',
+    'dbridge.c',
+    'do_wear.c',
+    'glyphs.c',
+    'sfbase.c',
+    'utf8map.c',
+    'were.c',
+    'calendar.c',
+    'write.c',
+    'shknam.c',
+    'version.c',
+    'end.c',
+    'insight.c',
+    // §23.230 — Bulk addition: TUs that are unpatched, marker-free,
+    // and either have no char buffers or already have clean (parity-
+    // neutral) regen diffs.  Adding them here makes future builds
+    // emit idiomatic JS-string form natively for any string-mode
+    // pattern (e.g., char[N] → '', buf[0] = 0 → buf = '').
+    'ball.c',
+    'drawing.c',
+    'exper.c',
+    'extralev.c',
+    'monst.c',
+    'objects.c',
+    'quest.c',
+    'rect.c',
+    'selvar.c',
+    'stairs.c',
+    'strutil.c',
+    'sys.c',
+    'wizard.c',
+    'worm.c',
+    // §23.230b — Patched TUs with NO char-array literals.  Adding
+    // them is a no-op for current production (nothing to convert)
+    // but flags them as string-mode for future regens.
+    'dog.c',
+    'mkroom.c',
+    'track.c',
+    'u_init.c',
+    'decl.c',
+    'mkmap.c',
+    'attrib.c',
+    // §23.230d — Patched TUs with 1 char-array literal each.
+    // Migrated via --force-patched workflow (regen + reapply patches
+    // + verify parity).
+    'light.c',
+    'mondata.c',
+    'monmove.c',
+    'sit.c',
+    'vision.c',
+    // §23.230e — Continued migration via --force-patched
+    'dothrow.c',
+    'priest.c',
+    'lock.c',
+    'music.c',
+    'vault.c',
+    'display.c',
+    'sounds.c',
+    'dogmove.c',
+    'engrave.c',
+    'makemon.c',
+    'mkmaze.c',
+    'steal.c',
+    // §23.230f — Medium-array patched TUs (5-7 arrays each)
+    'wield.c',
+    'detect.c',
+    'worn.c',
+    // §23.230g — Larger char-buffer TUs (8-12 arrays)
+    'polyself.c',
+    'muse.c',
+    'spell.c',
+    'eat.c',
+    'hack.c',
+    // §23.230h — Medium-large char-buffer TUs (11-12 arrays)
+    'mhitu.c',
+    'role.c',
+    'potion.c',
+    'read.c',
+    // §23.230i — Large char-buffer TUs (15+ arrays)
+    'getpos.c',
+    'mkobj.c',
+    'mon.c',
+    'zap.c',
+    'shk.c',
+    'trap.c',
+    // §23.230j — Largest char-buffer TUs
+    'apply.c',
+    'uhitm.c',
+    'wizcmds.c',
+    'pager.c',
+    'cmd.c',
+    'options.c',
+    'date.c',
+    'questpgr.c',
+    'teleport.c',
+    'pickup.c',
+    'rumors.c',
+    'artifact.c',
+    'topten.c',
+    'windows.c',
+    'o_init.c',
+    'do_name.c',
+    'botl.c',
+    'allmain.c',
+    'invent.c',
+    'rnd.c',
+    'hacklib.c',
+]);
+
+// (UNWEDGE_PLAN Q8) Indirect async dispatch — three shapes the C
+// call-graph walker cannot see as edges:
+//   1. input-reading windowprocs members (their JS implementations
+//      await keys; the C AST shows only an opaque member call)
+//   2. function-pointer GLOBALS dispatched via (*name)() — occupation
+//      (interrupted-action continuation) and afternmv (post-move
+//      hook) hold command functions that are async in async builds
+//   3. function-pointer TABLE members dispatched via (*tbl[i].f)() —
+//      timeout_funcs (timer expiry handlers) and help_menu_items
+// Consumed by async-closure.mjs (functions containing such calls
+// join the closure) and by build-engine's NH_EMIT_ASYNC injection
+// (the call sites get awaits).
+export const INPUT_WINDOWPROCS = [
+    'win_nhgetch', 'win_yn_function', 'win_getlin',
+    'win_get_ext_cmd', 'win_select_menu', 'win_poskey',
+];
+export const INDIRECT_ASYNC_MEMBERS = [
+    ...INPUT_WINDOWPROCS,
+    'f',         // timeout_funcs[i].f / help_menu_items[i].f
+    'ef_funct',  // extcmd dispatch (translated site currently behind a
+                 // goto-TODO; hand cmd.js sites are linter territory)
+];
+export const INDIRECT_ASYNC_GLOBALS = [
+    'occupation', 'afternmv',
+    // Monster-iterator callback params (Q9 iteration 9): mon.c's
+    // iter_mons_safe(bfunc)/iter_mons(vfunc)/get_iter_mons* invoke
+    // their callbacks via (bfunc)(mtmp) — a parameter call invisible
+    // to the call-graph walker AND the await linter.  movemon's
+    // un-awaited movemon_singlemon callback ran every monster's
+    // movement DETACHED and interleaved (the pet double-placement /
+    // over-itself class).  Seeding the param names puts the
+    // iterators in the closure; the matching paren-deref injection
+    // regex awaits the invocations.
+    'bfunc', 'vfunc',
+    // qsort: the runtime sort awaits possibly-async comparators
+    // (qsort_async twin, Q9 iter 3) — so every qsort CALLER must be
+    // async-headed.  The FATAL detector named the exact six functions
+    // this entry exists for: sortloot, sort_rooms, sortspells,
+    // disco_output_sorted, init_mongen_order, condopt.
+    'qsort',
+];
+
 // Banned runtime calls per spec §8.  Conformance pass rejects any
 // translator output that contains them.
 export const BANNED_CALLS = [
@@ -130,6 +413,13 @@ export const EXTERNAL_SYMBOLS = {
     // libc <string.h> shims.
     atoi:          'js/c2js-runtime/string.js',
     atol:          'js/c2js-runtime/string.js',
+    __nh_char_at0:    'js/c2js-runtime/string.js',
+    __nh_advance_str: 'js/c2js-runtime/string.js',
+    __nh_char_write:  'js/c2js-runtime/string.js',
+    __nh_register_static: 'js/c2js-runtime/static-registry.js',
+    load_lua:      'js/c2js-runtime/lua.js',
+    splev_chr2typ: 'js/c2js-runtime/lua.js',
+    check_mapchr:  'js/c2js-runtime/lua.js',
     strcmp:        'js/c2js-runtime/string.js',
     strncmp:       'js/c2js-runtime/string.js',
     strcasecmp:    'js/c2js-runtime/string.js',
@@ -232,6 +522,7 @@ export const EXTERNAL_SYMBOLS = {
     snprintf:                'js/c2js-runtime/stdio.js',
     nh_snprintf:             'js/c2js-runtime/stdio.js',
     sprintf:                 'js/c2js-runtime/stdio.js',
+    __nh_buf_append:         'js/c2js-runtime/stdio.js',
 
     // Frozen ISAAC64 PRNG.  The contest overlays js/isaac64.js at
     // score time; we import the same names the C code references.
@@ -304,6 +595,12 @@ export const EXTERNAL_SYMBOLS = {
     get_table_boolean:       'js/c2js-runtime/lua.js',
     get_table_boolean_opt:   'js/c2js-runtime/lua.js',
     get_table_option:        'js/c2js-runtime/lua.js',
+    luaL_checkstring:        'js/c2js-runtime/lua.js',
+    luaL_checkinteger:       'js/c2js-runtime/lua.js',
+    luaL_checknumber:        'js/c2js-runtime/lua.js',
+    luaL_optinteger:         'js/c2js-runtime/lua.js',
+    luaL_optstring:          'js/c2js-runtime/lua.js',
+    luaL_typename:           'js/c2js-runtime/lua.js',
     luaL_checkoption:        'js/c2js-runtime/lua.js',
     luaL_setfuncs:           'js/c2js-runtime/lua.js',
     luaL_newlib:             'js/c2js-runtime/lua.js',

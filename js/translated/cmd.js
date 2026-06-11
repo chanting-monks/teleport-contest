@@ -91,8 +91,8 @@ import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, pline, raw_printf } from '../c2js-runtime/pline.js';
 import { do_write_config_file, dobugreport, dosave } from '../c2js-runtime/savestubs.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strrchr, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strrchr, strstri } from '../c2js-runtime/string.js';
 import { timet_delta } from './allmain.js';
 import { doapply, dojump, dorub, reset_trapset, use_unicorn_horn } from './apply.js';
 import { doinvoke } from './artifact.js';
@@ -463,13 +463,13 @@ export function doextcmd() {
 }
 /* format extended command flags for display */
 /* if Null, add a footnote to the menu */
-let __doc_extcmd_flagstr_Abuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __doc_extcmd_flagstr_Abuf = '';
 export function doc_extcmd_flagstr(menuwin, efp) {
     if (!efp) {
         /* 5 would suffice: {'[','m','A',']','\0'} */
         /* note: tag shown for menu prefix is 'm' even if m-prefix action
        has been bound to some other key */
-        let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let qbuf = '';
         add_menu_str(menuwin, "[A] Command autocompletes");
         qbuf = sprintf(qbuf, "[m] Command accepts '%s' prefix", visctrl(cmd_from_func(do_reqmenu)));
         add_menu_str(menuwin, qbuf);
@@ -498,10 +498,10 @@ export function doc_extcmd_flagstr(menuwin, efp) {
 const __doextlist_headings = ["Extended commands", "Debugging Extended Commands"];
 export function doextlist() {
     let efp = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let searchbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let descbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let promptbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let searchbuf = '';
+    let descbuf = '';
+    let promptbuf = '';
     let cmd_desc = null;
     let menuwin = 0;
     let any = 0;
@@ -514,7 +514,7 @@ export function doextlist() {
     let redisplay = (1);
     let search = (0);
     let clr = 8;
-    searchbuf[0] = 0;
+    searchbuf = '';
     menuwin = (game.windowprocs.win_create_nhwindow)(4);
     while (redisplay) {
         redisplay = (0);
@@ -537,7 +537,7 @@ export function doextlist() {
         } else {
             buf = strcpy(buf, "Switch back from search");
             if (strlen(buf) + strlen(searchbuf) + strlen(" (\"\")") < 128) {
-                buf = (buf || '') + sprintf('', " (\"%s\")", searchbuf);
+                buf = __nh_buf_append(buf, sprintf('', " (\"%s\")", searchbuf));
             }
             any.a_int = 3;
             /* specifying ':' as a group accelerator here is mostly a
@@ -552,7 +552,7 @@ export function doextlist() {
             add_menu(menuwin, nul_glyphinfo, any, 122, 0, 0, clr, onelist ? "Switch to showing debugging commands in separate section" : "Switch to showing all alphabetically, including debugging commands", 0);
         }
         add_menu_str(menuwin, "");
-        menushown[0] = menushown[1] = 0;
+        (menushown[1] = 0, menushown[0] = 0);
         n = 0;
         for (pass = 0; pass <= 1; ++pass) {
             /* skip second pass if not in wizard mode or wizard mode
@@ -635,13 +635,13 @@ export function doextlist() {
                 /* known map with known traps and objects */
                 case 3:
                     search = (0);
-                    searchbuf[0] = 0;
+                    searchbuf = '';
                     redisplay = (1);
                     break;
                 /* 'z': toggle showing wizard mode commands separately */
                 case 4:
                     search = (0);
-                    searchbuf[0] = 0;
+                    searchbuf = '';
                     onelist = 1 - onelist;
                     redisplay = (1);
                     break;
@@ -649,7 +649,7 @@ export function doextlist() {
             free(selected);
         } else {
             search = (0);
-            searchbuf[0] = 0;
+            searchbuf = '';
         }
         if (search) {
             promptbuf = strcpy(promptbuf, "Extended command list search phrase");
@@ -657,7 +657,7 @@ export function doextlist() {
             getlin(promptbuf, searchbuf);
             searchbuf = mungspaces(searchbuf);
             if (searchbuf[0] == 27) {
-                searchbuf[0] = 0;
+                searchbuf = '';
             }
             if (searchbuf) {
                 redisplay = (1);
@@ -685,10 +685,10 @@ export function extcmd_via_menu() {
     let win = 0;
     let any = 0;
     let choices = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let cbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let prompt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let fmtstr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let cbuf = '';
+    let prompt = '';
+    let fmtstr = '';
     let i = 0;
     let n = 0;
     let nchoices = 0;
@@ -703,7 +703,7 @@ export function extcmd_via_menu() {
     let one_per_line = 0;
     let clr = 8;
     ret = 0;
-    cbuf[0] = 0;
+    cbuf = '';
     biggest = 0;
     while (!ret) {
         i = n = 0;
@@ -734,7 +734,7 @@ export function extcmd_via_menu() {
         win = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(win, 0);
         fmtstr = sprintf(fmtstr, "%%-%ds", biggest + 15);
-        prompt[0] = 0;
+        prompt = '';
         /* True => had to wrap due to line width
                              * ('w' in wizard mode) */
         wastoolong = (0);
@@ -778,7 +778,7 @@ export function extcmd_via_menu() {
             any.a_char = prevaccelerator;
             add_menu(win, nul_glyphinfo, any, any.a_char, 0, 0, clr, buf, 0);
         }
-        nh_snprintf("extcmd_via_menu", 856, prompt, 128 /* sizeof(char [128]) */, "Extended Command: %s", cbuf);
+        prompt = nh_snprintf("extcmd_via_menu", 856, prompt, 128 /* sizeof(char [128]) */, "Extended Command: %s", cbuf);
         (game.windowprocs.win_end_menu)(win, prompt);
         n = select_menu(win, 1, pick_list);
         (game.windowprocs.win_destroy_nhwindow)(win);
@@ -1133,7 +1133,7 @@ export function dolookaround_floodfill_findroom(x, y) {
 export function lookaround_known_room(x, y) {
     let sel = selection_new();
     let rmno = game.u.urooms[0] - 3;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     set_selection_floodfillchk(dolookaround_floodfill_findroom);
     selection_floodfill(sel, x, y, (1));
     if (!((x) == game.u.ux && (y) == game.u.uy)) {
@@ -1185,7 +1185,7 @@ export function dolookaround() {
             let iscorr = (corr_next2u && (glyph = glyph_at(x, y)) >= 0 && ((glyph) >= GLYPH_CMAP_STONE_OFF && (glyph) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) && ((mapsym = glyph_to_cmap(glyph)) == S_corr || mapsym == S_litcorr));
             if (!((x) == game.u.ux && (y) == game.u.uy) && (gather_locs_interesting(x, y, GLOC_INTERESTING) || iscorr)) {
                 /* note: GLOC_INTERESTING catches S_engrcorr */
-                let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let buf = '';
                 let cc = { x: 0, y: 0 };
                 let sym = 0;
                 let firstmatch = null;
@@ -1552,8 +1552,8 @@ export function count_bind_keys() {
 export function get_changed_key_binds(sbuf) {
     let win = (-1);
     let i = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let bind = game.Cmd.cmdbinds;
     let keys = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     memset(keys, 0, 1 /* sizeof(uchar) */ * 256);
@@ -1608,8 +1608,8 @@ export function handler_rebind_keys_add(keyfirst) {
     let i = 0;
     let npick = 0;
     let picks = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let key = 0;
     let clr = 8;
     if (keyfirst) {
@@ -1654,7 +1654,7 @@ export function handler_rebind_keys_add(keyfirst) {
     (game.windowprocs.win_destroy_nhwindow)(win);
     if (npick > 0) {
         let prevcmd = null;
-        let cmdstr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let cmdstr = '';
         bindit: {
             i = picks.item.a_int;
             free(picks);
@@ -1665,13 +1665,13 @@ export function handler_rebind_keys_add(keyfirst) {
             } else {
                 ec = game.extcmdlist[i - 1];
                 if ((ec.flags & 16384) != 0) {
-                    let parambuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                    let querybuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                    parambuf[0] = 0;
+                    let parambuf = '';
+                    let querybuf = '';
+                    parambuf = '';
                     querybuf = sprintf(querybuf, "Command %s requires a parameter:", ec.ef_txt);
                     getlin(querybuf, parambuf);
                     parambuf = mungspaces(parambuf);
-                    nh_snprintf("handler_rebind_keys_add", 2376, cmdstr, 256 - 1, "%s(%s)", ec.ef_txt, parambuf);
+                    cmdstr = nh_snprintf("handler_rebind_keys_add", 2376, cmdstr, 256 - 1, "%s(%s)", ec.ef_txt, parambuf);
                     cmdstr[256 - 1] = 0;
                 } else {
                     cmdstr = strcat(cmdstr, ec.ef_txt);
@@ -1740,7 +1740,7 @@ export function handler_change_autocompletions() {
     let picks = null;
     let clr = 8;
     let ec = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
     any = cg.zeroany;
@@ -1830,7 +1830,7 @@ export function extcmds_match(findstr, ecmflags, matchlist) {
     }
     return mi;
 }
-let __key2extcmddesc_key2cmdbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __key2extcmddesc_key2cmdbuf = '';
 export function key2extcmddesc(key) {
     let txt = null;
     let k = 0;
@@ -1842,7 +1842,7 @@ export function key2extcmddesc(key) {
     /* need to check for movement commands before checking the extended
        commands table because it contains entries for number_pad commands
        that match !number_pad movement (like 'j' for "jump") */
-    __key2extcmddesc_key2cmdbuf[0] = 0;
+    __key2extcmddesc_key2cmdbuf = '';
     if (movecmd(k = key, MV_WALK)) {
         __key2extcmddesc_key2cmdbuf = strcpy(__key2extcmddesc_key2cmdbuf, "move");
     } else if (movecmd(k = key, MV_RUSH)) {
@@ -1851,7 +1851,7 @@ export function key2extcmddesc(key) {
         __key2extcmddesc_key2cmdbuf = strcpy(__key2extcmddesc_key2cmdbuf, "run");
     }
     if (digit(key) || (game.Cmd.num_pad && digit((127 & (key))))) {
-        __key2extcmddesc_key2cmdbuf[0] = 0;
+        __key2extcmddesc_key2cmdbuf = '';
         if (!game.Cmd.num_pad) {
             __key2extcmddesc_key2cmdbuf = strcpy(__key2extcmddesc_key2cmdbuf, "start of, or continuation of, a count");
         } else if (key == 53 || key == M_5) {
@@ -1932,10 +1932,10 @@ export function bind_key(key, command, user) {
         /* break off first autocomplete from the rest; parse the rest */
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        p++;
+        /* p points to the parameter */
+        (p = __nh_advance_str(p, 1));
     }
     for (let __nhi_extcmd = 0; (extcmd = game.extcmdlist[__nhi_extcmd]) && (extcmd.ef_txt); __nhi_extcmd++) {
-        /* p points to the parameter */
         if (strncmpi((buf), (extcmd.ef_txt), -1)) {
             continue;
         }
@@ -1954,7 +1954,7 @@ export function bind_key(key, command, user) {
                 } else {
                     bind.param = alloc(maxlen);
                     bind.param = strncpy(bind.param, p, maxlen);
-                    bind.param[maxlen - 1] = 0;
+                    bind.param = __nh_char_write(bind.param, maxlen - 1, 0);
                 }
             }
         } else if (p && strlen(p) > 0) {
@@ -2025,8 +2025,8 @@ export function keylist_func_has_key(extcmd, skip_keys_used) {
 export function keylist_putcmds(datawin, docount, incl_flags, excl_flags, keys_used) {
     let extcmd = null;
     let i = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     /* copy of keys_used[] before updates */
     let keys_already_used = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let count = 0;
@@ -2086,8 +2086,8 @@ export function keylist_putcmds(datawin, docount, incl_flags, excl_flags, keys_u
 export function dokeylist() {
     let extcmd = null;
     let datawin = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let key = 0;
     let spkey_gap = 0;
     let keys_used = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -2176,7 +2176,7 @@ export function dokeylist() {
             key = game.Cmd.spkeys[j];
             if (!key || (pfx_seen[key] != j)) {
                 buf2 = sprintf(buf2, "[%s]", spkey_name(j));
-                nh_snprintf("dokeylist", 2976, buf, 256 /* sizeof(char [256]) */, "%-21s %s", buf2, misc_keys[i].desc);
+                buf = nh_snprintf("dokeylist", 2976, buf, 256 /* sizeof(char [256]) */, "%-21s %s", buf2, misc_keys[i].desc);
                 (game.windowprocs.win_putstr)(datawin, 0, buf);
             }
         }
@@ -2248,7 +2248,7 @@ export function cmd_from_func(fn) {
 }
 /* return visual interpretation of the key bound to extended command,
    or the ext cmd name if not bound to any key. */
-let __cmd_from_ecname_cmdnamebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __cmd_from_ecname_cmdnamebuf = '';
 export function cmd_from_ecname(ecname) {
     let extcmd = null;
     for (let __nhi_extcmd = 0; (extcmd = game.extcmdlist[__nhi_extcmd]) && (extcmd.ef_txt); __nhi_extcmd++) {
@@ -2262,7 +2262,7 @@ export function cmd_from_ecname(ecname) {
             return __cmd_from_ecname_cmdnamebuf;
         }
     }
-    __cmd_from_ecname_cmdnamebuf[0] = 0;
+    __cmd_from_ecname_cmdnamebuf = '';
     return __cmd_from_ecname_cmdnamebuf;
 }
 export function ecname_from_fn(fn) {
@@ -2294,7 +2294,7 @@ export function cmdname_from_func(fn, outbuf, fullname) {
     if (!res) {
         /* make sure output buffer doesn't contain junk or stale data;
            return Null below */
-        outbuf[0] = 0;
+        outbuf = __nh_char_write(outbuf, 0, 0);
     } else if (fullname) {
         /* easy; the entire command name */
         res = strcpy(outbuf, res);
@@ -2386,13 +2386,13 @@ export function parseautocomplete(autocomplete, condition) {
     }
     /* strip leading and trailing white space */
     autocomplete = trimspaces(autocomplete);
-    if (!autocomplete.value) {
+    if (!__nh_char_at0(autocomplete)) {
         return;
     }
-    if (autocomplete.value == 33) {
+    if (__nh_char_at0(autocomplete) == 33) {
         /* unlike most options, a leading "no" might actually be a part of
          * the extended command.  Thus you have to use ! */
-        autocomplete++;
+        (autocomplete = __nh_advance_str(autocomplete, 1));
         autocomplete = trimspaces(autocomplete);
         condition = !condition;
     }
@@ -2421,7 +2421,7 @@ export function parseautocomplete(autocomplete, condition) {
 /* add changed autocompletions to the string buffer in config file format */
 export function all_options_autocomplete(sbuf) {
     let efp = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     for (let __nhi_efp = 0; (efp = game.extcmdlist[__nhi_efp]) && (efp.ef_txt); __nhi_efp++) {
         if ((efp.flags & 8192) != 0) {
             buf = sprintf(buf, "AUTOCOMPLETE=%s%s\n", (efp.flags & 2) ? "" : "!", efp.ef_txt);
@@ -2543,7 +2543,8 @@ export function reset_commands(initial) {
     game.Cmd.alphadirchars = !game.Cmd.num_pad ? game.Cmd.dirchars : __reset_commands_sdir;
     for (dir = 0; dir < (N_DIRS_Z - 2); dir++) {
         for (mode = MV_WALK; mode < N_MOVEMODES; mode++) {
-            let di = game.Cmd.dirchars.charCodeAt(dir);
+            /* back up the commands & keys overwritten by new movement keys */
+            let di = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, dir));
             let bind = null;
             if (!game.Cmd.num_pad) {
                 if (mode == MV_RUN) {
@@ -2569,13 +2570,15 @@ export function reset_commands(initial) {
     }
     __reset_commands_backed_dir_cmd = (1);
     for (i = 0; i < (N_DIRS_Z - 2); i++) {
-        /* dirchars-int fix */
-        bind_key_fn(game.Cmd.dirchars.charCodeAt(i), game.move_funcs[i][MV_WALK]);
+        /* bind the new keys to movement commands */
+        bind_key_fn(__nh_char_at0(__nh_advance_str(game.Cmd.dirchars, i)), game.move_funcs[i][MV_WALK]);
         if (!game.Cmd.num_pad) {
-            bind_key_fn(game.Cmd.dirchars.charCodeAt(i) >= 0x61 && game.Cmd.dirchars.charCodeAt(i) <= 0x7a ? game.Cmd.dirchars.charCodeAt(i) - 32 : game.Cmd.dirchars.charCodeAt(i), game.move_funcs[i][MV_RUN]);
-            bind_key_fn(31 & game.Cmd.dirchars.charCodeAt(i), game.move_funcs[i][MV_RUSH]);
+            bind_key_fn(highc(__nh_char_at0(__nh_advance_str(game.Cmd.dirchars, i))), game.move_funcs[i][MV_RUN]);
+            bind_key_fn((31 & (__nh_char_at0(__nh_advance_str(game.Cmd.dirchars, i)))), game.move_funcs[i][MV_RUSH]);
         } else {
-            bind_key_fn(game.Cmd.dirchars.charCodeAt(i) - 128, game.move_funcs[i][MV_RUN]);
+            /* M(number) works when altmeta is on */
+            /* can't bind highc() or C() of digits. just use the 5 prefix. */
+            bind_key_fn(((__nh_char_at0(__nh_advance_str(game.Cmd.dirchars, i))) - 128), game.move_funcs[i][MV_RUN]);
         }
     }
     update_rest_on_space();
@@ -2680,10 +2683,10 @@ export function random_response(buf, sz) {
             break;
         }
         if (count < sz - 1) {
-            buf[count++] = c;
+            buf = __nh_char_write(buf, count++, c);
         }
     }
-    buf[count] = 0;
+    buf = __nh_char_write(buf, count, 0);
 }
 export function rnd_extcmd_idx() {
     return rn2(game.extcmdlist_length + 1) - 1;
@@ -3008,9 +3011,9 @@ export function getdir(s) {
     if (cmdq) {
         if (cmdq.typ == CMDQ_DIR) {
             if (!cmdq.dirz) {
-                dirsym = game.Cmd.dirchars.charCodeAt(xytodir(cmdq.dirx, cmdq.diry));
+                dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, xytodir(cmdq.dirx, cmdq.diry)));
             } else {
-                dirsym = game.Cmd.dirchars.charCodeAt((cmdq.dirz > 0) ? DIR_DOWN : DIR_UP);
+                dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, (cmdq.dirz > 0) ? DIR_DOWN : DIR_UP));
             }
         } else if (cmdq.typ == CMDQ_KEY) {
             dirsym = cmdq.key;
@@ -3026,10 +3029,10 @@ export function getdir(s) {
     retry: while (true) {
         if (!__from_cmdq) {
             game.program_state.input_state = getdirInp;
-            if (game.in_doagain || readchar_queue) {
+            if (game.in_doagain || __nh_char_at0(readchar_queue)) {
                 dirsym = readchar();
             } else {
-                dirsym = yn_function((s && s.value != 94) ? s : "In what direction?", null, 0, (0));
+                dirsym = yn_function((s && __nh_char_at0(s) != 94) ? s : "In what direction?", null, 0, (0));
                 if (game.iflags.debug_fuzzer && rn2(20)) {
                     switch (rn2(20)) {
                         /* for the fuzzer, usually force the result to be a valid direction,
@@ -3041,10 +3044,10 @@ export function getdir(s) {
                             dirsym = game.Cmd.spkeys[rn2(2) ? NHKF_GETDIR_SELF : NHKF_ESC];
                             break;
                         case 1:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2(2) ? DIR_DOWN : DIR_UP);
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2(2) ? DIR_DOWN : DIR_UP));
                             break;
                         default:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2((N_DIRS_Z - 2)));
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2((N_DIRS_Z - 2))));
                             break;
                     }
                 }
@@ -3063,7 +3066,7 @@ export function getdir(s) {
     if (dirsym == game.Cmd.spkeys[NHKF_GETDIR_SELF] || dirsym == game.Cmd.spkeys[NHKF_GETDIR_SELF2]) {
         game.u.dx = game.u.dy = game.u.dz = 0;
     } else if (dirsym == game.Cmd.spkeys[NHKF_GETDIR_MOUSE]) {
-        let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let qbuf = '';
         let cc = { x: 0, y: 0 };
         let pos = 0;
         let mod = 0;
@@ -3132,7 +3135,7 @@ export function getdir(s) {
         if (!strchr(quitchars, dirsym)) {
             help_requested = (dirsym == game.Cmd.spkeys[NHKF_GETDIR_HELP]);
             if (help_requested || game.iflags.cmdassist) {
-                did_help = help_dir((s && s.value == 94) ? dirsym : 0, game.Cmd.spkeys[NHKF_ESC], help_requested ? null : "Invalid direction key!");
+                did_help = help_dir((s && __nh_char_at0(s) == 94) ? dirsym : 0, game.Cmd.spkeys[NHKF_ESC], help_requested ? null : "Invalid direction key!");
                 if (help_requested) {
                     continue retry;
                 }
@@ -3156,7 +3159,7 @@ export function getdir(s) {
 /* should specify a window which is using a fixed-width font */
 /* '.' or '@' or ' ' */
 export function show_direction_keys(win, centerchar, nodiag) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     if (!centerchar) {
         centerchar = 32;
     }
@@ -3189,8 +3192,8 @@ const __help_dir_wiz_only_list = "EFGIVW";
 export function help_dir(sym, spkey, msg) {
     let ctrl = 0;
     let win = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     let explain = null;
     let dothat = null;
     let prefixhandling = 0;
@@ -3204,7 +3207,7 @@ export function help_dir(sym, spkey, msg) {
      */
     dothat = "do that";
     /* for "<action> at yourself"; not used for up/down */
-    buf[0] = 0;
+    buf = '';
     ((prefixhandling));
     win = (game.windowprocs.win_create_nhwindow)(5);
     if (!win) {
@@ -3367,7 +3370,7 @@ export function mcmd_addmenu(win, act, txt) {
 /* command menu entries when targeting self */
 export function there_cmd_menu_self(win, x, y, act) {
     let K = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let typ = game.level.locations[x][y].typ;
     let stway = stairway_at(x, y);
     let ttmp = null;
@@ -3434,7 +3437,7 @@ export function there_cmd_menu_self(win, x, y, act) {
 /* add entries to there_cmd_menu, when x,y is next to hero */
 export function there_cmd_menu_next2u(win, x, y, mod, act) {
     let K = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let typ = game.level.locations[x][y].typ;
     let ttmp = null;
     let mtmp = null;
@@ -3866,7 +3869,7 @@ export function domouseaction() {
 /* primary output */
 /* control flags: GC_SAVEHIST, GC_ECHOFIRST */
 export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let key = 0;
     let save_input_state = game.program_state.input_state;
     let cnt = 0;
@@ -4034,8 +4037,8 @@ export function readchar_core(x, y, mod) {
             sym = randomkey();
             break readchar_done;
         }
-        if (readchar_queue) {
-            sym = readchar_queue++;
+        if (__nh_char_at0(readchar_queue)) {
+            sym = (readchar_queue = __nh_advance_str(readchar_queue, 1));
         } else if (game.in_doagain) {
             sym = pgetchar();
         } else {
@@ -4058,7 +4061,7 @@ export function readchar_core(x, y, mod) {
            only when we're called by parse() [possibly via get_count()]
            or getpos() [to support Alt+digit] or getdir() [for arrow keys
            under curses] */
-            sym = readchar_queue ? readchar_queue++ : pgetchar();
+            sym = __nh_char_at0(readchar_queue) ? (readchar_queue = __nh_advance_str(readchar_queue, 1)) : pgetchar();
             if (sym == (-1) || sym == 0) {
                 sym = 27;
             } else if (sym != 27) {
@@ -4187,7 +4190,7 @@ export function yn_function_menu(query, resp, def, res) {
         let win = (game.windowprocs.win_create_nhwindow)(4);
         let sel = null;
         let n = 0;
-        let keybuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let keybuf = '';
         (game.windowprocs.win_start_menu)(win, 0);
         if (resp == rightleftchars) {
             yn_func_menu_opt(win, 114, "Right", def);
@@ -4231,13 +4234,13 @@ export function yn_function_menu(query, resp, def, res) {
  */
 export function yn_function(query, resp, def, addcmdq) {
     let res = 27;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let cq = { typ: 0, key: 0, dirx: 0, diry: 0, dirz: 0, intval: 0, ec_entry: null, next: null };
     let cmdq = null;
     let idx = game.saved_pline_index;
     /* buffer to hold query+space+formatted_single_char_response */
     /* [QBUFSZ+1+7] should suffice */
-    let dumplog_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let dumplog_buf = '';
     /* most recent pline is clobbered */
     game.iflags.last_msg = PLNMSG_UNKNOWN;
     if (strlen(query) >= 128) {
@@ -4264,10 +4267,10 @@ export function yn_function(query, resp, def, addcmdq) {
         /* for the fuzzer, usually force a valid response, but sometimes let
        it exercise windowport yn_function and invalid response handling */
         addcmdq = (0);
-    } else if (game.iflags.debug_fuzzer && resp && resp.value && rn2(20)) {
+    } else if (game.iflags.debug_fuzzer && resp && __nh_char_at0(resp) && rn2(20)) {
         let ln = strlen(resp);
         let ridx = rn2(ln);
-        res = resp[ridx];
+        res = __nh_char_at0(__nh_advance_str(resp, ridx));
         if (res == 27) {
             if (ln > 1) {
                 /* if valid-responses includes ESC followed by unshown candidates
@@ -4275,7 +4278,7 @@ export function yn_function(query, resp, def, addcmdq) {
            before it; be careful to avoid rn2(0) */
                 /* if ESC is at start (ridx==0), pick something after it */
                 ridx = (ridx == 0) ? (1 + rn2(ln - 1)) : rn2(ridx);
-                res = resp[ridx];
+                res = __nh_char_at0(__nh_advance_str(resp, ridx));
             } else {
                 /* ESC is the only thing (ln==1); something is strange... */
                 res = def;
@@ -4297,7 +4300,7 @@ export function yn_function(query, resp, def, addcmdq) {
         key2txt(res, eos(dumplog_buf));
         dumplogmsg(dumplog_buf);
     }
-    if (resp && resp.value && res && !strchr(resp, res)) {
+    if (resp && __nh_char_at0(resp) && res && !strchr(resp, res)) {
         /* should not happen but cq.key has been observed to not obey 'resp';
        it is most likely caused by saving a keystroke that was just used
        to answer a context-sensitive prompt, then using the do-again
@@ -4308,8 +4311,8 @@ export function yn_function(query, resp, def, addcmdq) {
         let altres = def ? def : 27;
         if (!game.in_doagain || game.flags.debug) {
             let fuzzing = game.iflags.debug_fuzzer;
-            let dbg_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            nh_snprintf("yn_function", 5570, dbg_buf, 256 /* sizeof(char [256]) */, "%s [%s] (%s)", query, resp ? resp : "", def ? visctrl(def) : "");
+            let dbg_buf = '';
+            dbg_buf = nh_snprintf("yn_function", 5570, dbg_buf, 256 /* sizeof(char [256]) */, "%s [%s] (%s)", query, resp ? resp : "", def ? visctrl(def) : "");
             paniclog("yn debug", dbg_buf);
             /* don't let this known problem kill the fuzzer */
             game.iflags.debug_fuzzer = fuzzer_impossible_continue;
@@ -4329,9 +4332,9 @@ export function paranoid_ynq(be_paranoid, prompt, accept_q) {
         /* when paranoid, player must respond with "yes" rather than just 'y'
        to give the go-ahead for this query; default is "no" unless the
        ParanoidConfirm flag is set in which case there's no default */
-        let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let ans = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let pbuf = '';
+        let qbuf = '';
+        let ans = '';
         /* empty for first iteration */
         let promptprefix = "";
         let responsetype = ((game.flags.paranoia_bits & 1) != 0) ? (accept_q ? "[yes|no|quit]" : "[yes|no]") : (accept_q ? "[yes|n|q] (n)" : "[yes|n] (n)");
@@ -4345,7 +4348,7 @@ export function paranoid_ynq(be_paranoid, prompt, accept_q) {
             if (strlen(pbuf) + k > 128 - 1) {
                 strcpy(pbuf + (128 - 1) - k - 4, "...?");
             }
-            nh_snprintf("paranoid_ynq", 5624, qbuf, 128 /* sizeof(char [128]) */, "%s%s %s", promptprefix, pbuf, responsetype);
+            qbuf = nh_snprintf("paranoid_ynq", 5624, qbuf, 128 /* sizeof(char [128]) */, "%s%s %s", promptprefix, pbuf, responsetype);
             ans = '';
             getlin(qbuf, ans);
             ans = mungspaces(ans);
@@ -4416,10 +4419,6 @@ export function dummyfunction() {
 }
 /*cmd.c*/
 /* relies on implicit concatenation of literal strings */
-/* back up the commands & keys overwritten by new movement keys */
-/* bind the new keys to movement commands */
-/* M(number) works when altmeta is on */
-/* can't bind highc() or C() of digits. just use the 5 prefix. */
 /* any char, but avoid '\0' because it's used for mouse click */
 /* could plug in bound values for spkeys[NHKF_GETPOS_PICK],&c
                    but that feels like overkill for something which should

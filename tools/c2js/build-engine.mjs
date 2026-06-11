@@ -233,13 +233,12 @@ patchFile('rnd.js', (s) => {
 // string is NaN and `oclass = s` assigns the whole string instead
 // of the current char.  Pattern is too site-specific (depends on
 // loop var name `s` and assignment shape) to move generically.
-patchFile('o_init.js', (s) => {
-    s = s.replace(
-        /for \(s = classes; s; s\+\+\) \{\s*oclass = s;/,
-        'for (let __ci = 0; __ci < classes.length && classes.charCodeAt(__ci); __ci++) { oclass = classes.charCodeAt(__ci);'
-    );
-    return s;
-});
+// §23.229 — Retired noop patchFile('o_init.js') (was at line 236,
+// 7 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // vault.js: same pointer-deref pattern as o_init's `for (s = classes...)`.
 // C: `for (ptr = array; *ptr; ptr++) if (svr.rooms[*ptr - ROOMOFFSET].rtype == VAULT) return *ptr;`
@@ -1293,6 +1292,18 @@ patchFile('cmd.js', (s) => {
 // proper while-loop for the retry.  Score-stable (cmdq is empty in
 // the 44 score sessions' direct-key playback); defensive correctness
 // for cmdq-driven playback (#zap, macros, do-again).
+// §23.229b — Restored with updated regex.  The earlier retirement
+// (commit fa74662) removed the patch because its regex was stale
+// against the fresh translator output (`dirchars.charCodeAt` →
+// `__nh_char_at0(__nh_advance_str(dirchars, …))` after §23.228's
+// ArraySubscriptExpr-on-char-ptr recognizer).  The patch's EFFECT
+// is still required: without it, the retry: block stays as a
+// labeled block (not a loop) and the downstream getdir-retry-help
+// patch writes `continue retry;` into unlabeled context, breaking
+// cmd.js at module-load time with "Undefined label 'retry'".
+//
+// The old/new flow regex strings below use the current translator
+// emit forms.
 patchFile('cmd.js', (s) => {
     if (s.includes('/* getdir-cmdq-flow fix */')) return s;
     const oldFlow = `    retry: {
@@ -1300,9 +1311,9 @@ patchFile('cmd.js', (s) => {
         if (cmdq) {
             if (cmdq.typ == CMDQ_DIR) {
                 if (!cmdq.dirz) {
-                    dirsym = game.Cmd.dirchars.charCodeAt(xytodir(cmdq.dirx, cmdq.diry));
+                    dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, xytodir(cmdq.dirx, cmdq.diry)));
                 } else {
-                    dirsym = game.Cmd.dirchars.charCodeAt((cmdq.dirz > 0) ? DIR_DOWN : DIR_UP);
+                    dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, (cmdq.dirz > 0) ? DIR_DOWN : DIR_UP));
                 }
             } else if (cmdq.typ == CMDQ_KEY) {
                 dirsym = cmdq.key;
@@ -1317,20 +1328,20 @@ patchFile('cmd.js', (s) => {
     }
     game.program_state.input_state = getdirInp;
     got_dirsym: {
-        if (game.in_doagain || readchar_queue) {
+        if (game.in_doagain || __nh_char_at0(readchar_queue)) {
             dirsym = readchar();
         } else {
-            dirsym = yn_function((s && s.value != 94) ? s : "In what direction?", null, 0, (0));
+            dirsym = yn_function((s && __nh_char_at0(s) != 94) ? s : "In what direction?", null, 0, (0));
             if (game.iflags.debug_fuzzer && rn2(20)) {
                 switch (rn2(20)) {
                     case 0:
                         dirsym = game.Cmd.spkeys[rn2(2) ? NHKF_GETDIR_SELF : NHKF_ESC];
                         break;
                     case 1:
-                        dirsym = game.Cmd.dirchars.charCodeAt(rn2(2) ? DIR_DOWN : DIR_UP);
+                        dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2(2) ? DIR_DOWN : DIR_UP));
                         break;
                     default:
-                        dirsym = game.Cmd.dirchars.charCodeAt(rn2((N_DIRS_Z - 2)));
+                        dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2((N_DIRS_Z - 2))));
                         break;
                 }
             }
@@ -1350,9 +1361,9 @@ patchFile('cmd.js', (s) => {
     if (cmdq) {
         if (cmdq.typ == CMDQ_DIR) {
             if (!cmdq.dirz) {
-                dirsym = game.Cmd.dirchars.charCodeAt(xytodir(cmdq.dirx, cmdq.diry));
+                dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, xytodir(cmdq.dirx, cmdq.diry)));
             } else {
-                dirsym = game.Cmd.dirchars.charCodeAt((cmdq.dirz > 0) ? DIR_DOWN : DIR_UP);
+                dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, (cmdq.dirz > 0) ? DIR_DOWN : DIR_UP));
             }
         } else if (cmdq.typ == CMDQ_KEY) {
             dirsym = cmdq.key;
@@ -1367,20 +1378,20 @@ patchFile('cmd.js', (s) => {
     if (!__from_cmdq) {
         retry: while (true) {
             game.program_state.input_state = getdirInp;
-            if (game.in_doagain || readchar_queue) {
+            if (game.in_doagain || __nh_char_at0(readchar_queue)) {
                 dirsym = readchar();
             } else {
-                dirsym = yn_function((s && s.value != 94) ? s : "In what direction?", null, 0, (0));
+                dirsym = yn_function((s && __nh_char_at0(s) != 94) ? s : "In what direction?", null, 0, (0));
                 if (game.iflags.debug_fuzzer && rn2(20)) {
                     switch (rn2(20)) {
                         case 0:
                             dirsym = game.Cmd.spkeys[rn2(2) ? NHKF_GETDIR_SELF : NHKF_ESC];
                             break;
                         case 1:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2(2) ? DIR_DOWN : DIR_UP);
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2(2) ? DIR_DOWN : DIR_UP));
                             break;
                         default:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2((N_DIRS_Z - 2)));
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2((N_DIRS_Z - 2))));
                             break;
                     }
                 }
@@ -1416,23 +1427,26 @@ patchFile('cmd.js', (s) => {
     //    `if (!__from_cmdq) { retry: while (true) { ... break; } }`
     //    with `retry: while (true) { if (!__from_cmdq) { ... }
     //    __from_cmdq = (0);`
+    // §23.229b — Updated for current translator emit (dirchars[i] →
+    // __nh_char_at0(__nh_advance_str(...)); *p (char*) → __nh_char_at0(p);
+    // readchar_queue → __nh_char_at0(readchar_queue)).
     const oldInput = `    if (!__from_cmdq) {
         retry: while (true) {
             game.program_state.input_state = getdirInp;
-            if (game.in_doagain || readchar_queue) {
+            if (game.in_doagain || __nh_char_at0(readchar_queue)) {
                 dirsym = readchar();
             } else {
-                dirsym = yn_function((s && s.value != 94) ? s : "In what direction?", null, 0, (0));
+                dirsym = yn_function((s && __nh_char_at0(s) != 94) ? s : "In what direction?", null, 0, (0));
                 if (game.iflags.debug_fuzzer && rn2(20)) {
                     switch (rn2(20)) {
                         case 0:
                             dirsym = game.Cmd.spkeys[rn2(2) ? NHKF_GETDIR_SELF : NHKF_ESC];
                             break;
                         case 1:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2(2) ? DIR_DOWN : DIR_UP);
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2(2) ? DIR_DOWN : DIR_UP));
                             break;
                         default:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2((N_DIRS_Z - 2)));
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2((N_DIRS_Z - 2))));
                             break;
                     }
                 }
@@ -1453,20 +1467,20 @@ patchFile('cmd.js', (s) => {
     retry: while (true) {
         if (!__from_cmdq) {
             game.program_state.input_state = getdirInp;
-            if (game.in_doagain || readchar_queue) {
+            if (game.in_doagain || __nh_char_at0(readchar_queue)) {
                 dirsym = readchar();
             } else {
-                dirsym = yn_function((s && s.value != 94) ? s : "In what direction?", null, 0, (0));
+                dirsym = yn_function((s && __nh_char_at0(s) != 94) ? s : "In what direction?", null, 0, (0));
                 if (game.iflags.debug_fuzzer && rn2(20)) {
                     switch (rn2(20)) {
                         case 0:
                             dirsym = game.Cmd.spkeys[rn2(2) ? NHKF_GETDIR_SELF : NHKF_ESC];
                             break;
                         case 1:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2(2) ? DIR_DOWN : DIR_UP);
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2(2) ? DIR_DOWN : DIR_UP));
                             break;
                         default:
-                            dirsym = game.Cmd.dirchars.charCodeAt(rn2((N_DIRS_Z - 2)));
+                            dirsym = __nh_char_at0(__nh_advance_str(game.Cmd.dirchars, rn2((N_DIRS_Z - 2))));
                             break;
                     }
                 }
@@ -1869,29 +1883,12 @@ patchFile('mkmaze.js', (s) => {
 // four cases that need it (BRANCH, PORTAL, UPSTAIR/DOWNSTAIR share a
 // fallthrough → end with a single place_lregion call), with explicit
 // break in BRANCH to prevent the fallthrough into PORTAL.
-patchFile('mkmaze.js', (s) => {
-    return s.replace(
-        /            case LR_BRANCH:\n                added_branch = \(1\);\n                \/\* TODO Phase 5\+: goto place_it \(label not in scope of break\) \*\/\n            case LR_PORTAL:\n                if \(r\.rname\.str >= 48 && r\.rname\.str <= 57\) \{\n                    Object\.assign\(lev, game\.u\.uz\);\n                    lev\.dlevel = atoi\(r\.rname\.str\);\n                \} else \{\n                    sp = find_level\(r\.rname\.str\);\n                    Object\.assign\(lev, sp\.dlevel\);\n                \}\n                ;\n            case LR_UPSTAIR:\n            case LR_DOWNSTAIR:\n                \/\/ TODO LabelStmt place_it not at compound-stmt level\n                break;/,
-        `            case LR_BRANCH:
-                added_branch = (1);
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
-                break;
-            case LR_PORTAL:
-                if (r.rname.str >= 48 && r.rname.str <= 57) {
-                    Object.assign(lev, game.u.uz);
-                    lev.dlevel = atoi(r.rname.str);
-                } else {
-                    sp = find_level(r.rname.str);
-                    Object.assign(lev, sp.dlevel);
-                }
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
-                break;
-            case LR_UPSTAIR:
-            case LR_DOWNSTAIR:
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
-                break;`
-    );
-});
+// §23.229 — Retired noop patchFile('mkmaze.js') (was at line 1872,
+// 23 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // mon.js mfndpos nexttry: superseded by A3 goto back-jump-to-loop
 // recognizer (commit 85cb377).  Translator emits `nexttry: while
@@ -2497,6 +2494,29 @@ patchFile('invent.js', (s) => {
         );
 });
 
+// invent.js: noarmor's " dragon " splice — C uses pointer-mutation
+// `while ((p[1] = p[8]) != 0) ++p;` to shift bytes left over "
+// dragon ".  Translator emits the same loop literally; on a JS
+// string the indexed write is a no-op, so "set of red dragon scales"
+// keeps the " dragon " in place.  Patch wraps the broken else-if
+// with a typeof('string') fast path using String.slice — char-array
+// fallback retains the original emit for callers that still pass an
+// array.  §23.232q: was an in-file hand-port (§23.222 era); moved
+// here so invent.c can join STRING_MODE_FILES without losing the fix.
+patchFile('invent.js', (s) => {
+    if (s.includes("typeof uskinname === 'string'")) return s;
+    // Match either pre-string-mode emit (p[1]=p[8], ++p) or string-mode
+    // (__nh_char_write / __nh_advance_str).  Both replaced by typeof
+    // wrapper.
+    const reStr = /        if \(\(p = strstri\(uskinname, " dragon "\)\) != null\) \{\n            while \(\(p\[1\] = p\[8\]\) != 0\) \{\n                \+\+p;\n            \}\n        \}/;
+    const reStrMode = /        if \(\(p = strstri\(uskinname, " dragon "\)\) != null\) \{\n            while \(\(p = __nh_char_write\(p, 1, __nh_char_at0\(__nh_advance_str\(p, 8\)\)\)\) != 0\) \{\n                \(p = __nh_advance_str\(p, 1\)\);\n            \}\n        \}/;
+    const replacement = (raw) =>
+        `        if (typeof uskinname === 'string') {\n            const idx = uskinname.toLowerCase().indexOf(' dragon ');\n            if (idx >= 0) {\n                uskinname = uskinname.slice(0, idx) + uskinname.slice(idx + 7);\n            }\n        } else ${raw.trimStart()}`;
+    if (reStr.test(s)) return s.replace(reStr, (m) => replacement(m));
+    if (reStrMode.test(s)) return s.replace(reStrMode, (m) => replacement(m));
+    return s;
+});
+
 // hack.js: the *_to_any constructors translate C's `union any` builders
 // (you.h: a_obj/a_void/a_monst/a_long share memory).  The generator
 // writes them as `game.tmp_anything = cg.zeroany; tmp_anything.a_X = v`
@@ -2927,46 +2947,12 @@ patchFile('mklev.js', (s) => {
 // Replace the loop with a JS-native split-and-count, char-array
 // safe (mf.data may be string or char-array depending on dupstr
 // path).
-patchFile('sp_lev.js', (s) => s.replace(
-    /mf\.hei = 0;\s*tmps = mf\.data;\s*while \(tmps && tmps\) \{\s*let s1 = strchr\(tmps, 10\);\s*if \(mf\.hei > 21\) \{\s*free\(mf\.data\);\s*free\(mf\);\s*return null;\s*\}\s*if \(s1\) \{\s*s1\+\+;\s*\}\s*tmps = s1;\s*mf\.hei\+\+;\s*\}/,
-    "mf.hei = 0;\n    if (mf.data) {\n        const __mfs = typeof mf.data === 'string'\n            ? mf.data\n            : (() => { let r = ''; for (let i = 0; i < mf.data.length && mf.data[i]; i++) r += String.fromCharCode(mf.data[i]); return r; })();\n        for (let __i = 0; __i < __mfs.length; __i++) {\n            if (__mfs.charCodeAt(__i) === 10) {\n                mf.hei++;\n                if (mf.hei > 21) { free(mf.data); free(mf); return null; }\n            }\n        }\n        if (__mfs.length > 0 && __mfs.charCodeAt(__mfs.length - 1) !== 10) {\n            mf.hei++;\n        }\n    }"
-));
-
-// sp_lev.js: lspo_map — `goto redo_maploc` (back-jump to retry theme
-// room placement) cannot be modelled as `break label` because `break`
-// only exits a labeled statement, never re-enters it.  The translator
-// emits the prologue as `redo_maploc: { ... }` (a labeled block that
-// is structurally unreachable as a goto target) and the body as
-// `skipmap: { ... }` with a TODO comment in place of the actual
-// `continue redo_maploc` jump.
-//
-// Restructure into a labeled while-true loop spanning the C body
-// after the `redo_maploc:` label.  Mapping:
-//   goto redo_maploc  →  continue redo_maploc
-//   goto skipmap      →  break redo_maploc
-//   fall-through end  →  break redo_maploc  (one-shot if no retry)
-patchFile('sp_lev.js', (s) => {
-    s = s.replace(
-        /\n    redo_maploc: \{\n((?:.*\n)*?)    \}\n    game\.xsize = mf\.wid;\n    skipmap: \{\n        game\.ysize = mf\.hei;/,
-        (_m, body) => {
-            const dedented = body.replace(/^    /gm, '').replace(/\n$/, '');
-            return '\n' + dedented +
-                '\n    redo_maploc: while (true) {' +
-                '\n        game.xsize = mf.wid;' +
-                '\n        game.ysize = mf.hei;';
-        }
-    );
-    s = s.replace(/break skipmap;/g, 'break redo_maploc;');
-    s = s.replace(
-        /\/\* TODO Phase 5\+: goto redo_maploc \(label not in scope of break\) \*\//g,
-        'continue redo_maploc;'
-    );
-    s = s.replace(
-        /(\n {16}\}\n {12}\}\n {8}\}\n {4}\})\n(    mapfrag_free\(\{ get value\(\) \{ return mf;)/,
-        '\n                }\n            }\n        }\n        break redo_maploc;\n    }\n$2'
-    );
-    return s;
-});
+// §23.229 — Retired noop patchFile('sp_lev.js') (was at line 2930,
+// 40 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // `room - game.rooms` (C: pointer-difference yields room's index in
 // the rooms array) translates verbatim through binaryOp, but in JS
@@ -2998,19 +2984,19 @@ patchFile('sp_lev.js', (s) => {
 patchFile('hack.js', (s) => {
     return s
         .replace(
-            /export function obj_to_any\(obj\) \{\s*game\.tmp_anything = cg\.zeroany;\s*game\.tmp_anything\.a_obj = obj;\s*return game\.tmp_anything;\s*\}/,
+            /export function obj_to_any\(obj\) \{\s*(?:game\.tmp_anything = cg\.zeroany|Object\.assign\(game\.tmp_anything, cg\.zeroany\));\s*game\.tmp_anything\.a_obj = obj;\s*return game\.tmp_anything;\s*\}/,
             'export function obj_to_any(obj) {\n    return { a_obj: obj, a_void: obj, a_monst: null, a_long: 0, a_int: 0, a_uint: 0, a_ulong: 0, a_iflags: 0 };\n}'
         )
         .replace(
-            /export function monst_to_any\(mtmp\) \{\s*game\.tmp_anything = cg\.zeroany;\s*game\.tmp_anything\.a_monst = mtmp;\s*return game\.tmp_anything;\s*\}/,
+            /export function monst_to_any\(mtmp\) \{\s*(?:game\.tmp_anything = cg\.zeroany|Object\.assign\(game\.tmp_anything, cg\.zeroany\));\s*game\.tmp_anything\.a_monst = mtmp;\s*return game\.tmp_anything;\s*\}/,
             'export function monst_to_any(mtmp) {\n    return { a_obj: null, a_void: mtmp, a_monst: mtmp, a_long: 0, a_int: 0, a_uint: 0, a_ulong: 0, a_iflags: 0 };\n}'
         )
         .replace(
-            /export function long_to_any\(lng\) \{\s*game\.tmp_anything = cg\.zeroany;\s*game\.tmp_anything\.a_long = lng;\s*return game\.tmp_anything;\s*\}/,
+            /export function long_to_any\(lng\) \{\s*(?:game\.tmp_anything = cg\.zeroany|Object\.assign\(game\.tmp_anything, cg\.zeroany\));\s*game\.tmp_anything\.a_long = lng;\s*return game\.tmp_anything;\s*\}/,
             'export function long_to_any(lng) {\n    return { a_obj: null, a_void: null, a_monst: null, a_long: lng, a_int: lng, a_uint: lng, a_ulong: lng, a_iflags: lng };\n}'
         )
         .replace(
-            /export function uint_to_any\(ui\) \{\s*game\.tmp_anything = cg\.zeroany;\s*game\.tmp_anything\.a_uint = ui;\s*return game\.tmp_anything;\s*\}/,
+            /export function uint_to_any\(ui\) \{\s*(?:game\.tmp_anything = cg\.zeroany|Object\.assign\(game\.tmp_anything, cg\.zeroany\));\s*game\.tmp_anything\.a_uint = ui;\s*return game\.tmp_anything;\s*\}/,
             'export function uint_to_any(ui) {\n    return { a_obj: null, a_void: null, a_monst: null, a_long: ui, a_int: ui, a_uint: ui, a_ulong: ui, a_iflags: ui };\n}'
         );
 });
@@ -3026,75 +3012,12 @@ patchFile('hack.js', (s) => {
 // C ref hack.c:3588 move_update.  Rewrite the function body using
 // indexed array iteration and string mutation.  u.urooms etc. are
 // 5-element arrays of bytes (chars + null terminator).
-patchFile('hack.js', (s) => {
-    const oldBody = `    game.u.urooms = strcpy(game.u.urooms, in_rooms(game.u.ux, game.u.uy, 0));
-    for (ptr1 = game.u.urooms , ptr2 = game.u.uentered , ptr3 = game.u.ushops , ptr4 = game.u.ushops_entered; ptr1; ptr1++) {
-        c = ptr1;
-        if (!strchr(game.u.urooms0, c)) {
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = c) */;
-        }
-        if ((game.rooms[c - 3].rtype >= SHOPBASE)) {
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = c) */;
-            if (!strchr(game.u.ushops0, c)) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = c) */;
-            }
-        }
-    }
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */ , void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */ , void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-    for (ptr1 = game.u.ushops0 , ptr2 = game.u.ushops_left; ptr1; ptr1++) {
-        if (!strchr(game.u.ushops, ptr1)) {
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = ptr1) */;
-        }
-    }
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-}`;
-    const newBody = `    game.u.urooms = strcpy(game.u.urooms, in_rooms(game.u.ux, game.u.uy, 0));
-    // Indexed iteration: walk u.urooms (room number array, terminated
-    // by 0 byte); for each entry, mirror to u.uentered if not in
-    // u.urooms0, and to u.ushops + u.ushops_entered if it's a shop.
-    let __p2 = 0, __p3 = 0, __p4 = 0;
-    for (let __p1 = 0; __p1 < game.u.urooms.length && game.u.urooms[__p1]; __p1++) {
-        const c = game.u.urooms[__p1];
-        if (!strchr(game.u.urooms0, c)) {
-            game.u.uentered[__p2++] = c;
-        }
-        const __rno = c - 3;
-        if (__rno >= 0 && game.rooms[__rno] && (game.rooms[__rno].rtype >= SHOPBASE)) {
-            game.u.ushops[__p3++] = c;
-            if (!strchr(game.u.ushops0, c)) {
-                game.u.ushops_entered[__p4++] = c;
-            }
-        }
-    }
-    if (__p2 < game.u.uentered.length) game.u.uentered[__p2] = 0;
-    if (__p3 < game.u.ushops.length) game.u.ushops[__p3] = 0;
-    if (__p4 < game.u.ushops_entered.length) game.u.ushops_entered[__p4] = 0;
-    let __pl2 = 0;
-    for (let __pl1 = 0; __pl1 < game.u.ushops0.length && game.u.ushops0[__pl1]; __pl1++) {
-        const __c2 = game.u.ushops0[__pl1];
-        if (!strchr(game.u.ushops, __c2)) {
-            game.u.ushops_left[__pl2++] = __c2;
-        }
-    }
-    if (__pl2 < game.u.ushops_left.length) game.u.ushops_left[__pl2] = 0;
-}`;
-    s = s.replace(oldBody, newBody);
-    // check_special_room (line ~2497) has the same string-iteration
-    // gap: `for (ptr = game.u.uentered[0]; ptr; ptr++)` walks chars
-    // but reads index [0] then numerically increments the value (room
-    // number) instead of advancing through the array.  C ref hack.c
-    // around line 3640 — `for (ptr = u.uentered; *ptr; ptr++)`.  Patch
-    // just the loop header, leaving the (large) body intact.
-    s = s.replace(
-        /for \(ptr = game\.u\.uentered\[0\]; ptr; ptr\+\+\) \{\s+let roomno = ptr - 3;\s+let rt = game\.rooms\[roomno\]\.rtype;/,
-        `for (let __ue_i = 0; __ue_i < game.u.uentered.length && game.u.uentered[__ue_i]; __ue_i++) {
-        const ptr = game.u.uentered[__ue_i];
-        let roomno = ptr - 3;
-        if (roomno < 0 || !game.rooms[roomno]) continue;
-        let rt = game.rooms[roomno].rtype;`
-    );
-    return s;
-});
+// §23.229 — Retired noop patchFile('hack.js') (was at line 3029,
+// 69 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // hack.js: `in_rooms(x, y, typewanted)` — returns a string of
 // room numbers (as char codes) for rooms adjacent to (x,y).  C
@@ -3267,9 +3190,14 @@ patchFile('invent.js', (s) => {
     ilet = 97 - 1;
     ret: {`
     );
+    // §23.232z: accept both the old translator emit (olets.value/++olets)
+    // and the new char-walker emit (__nh_char_at0/__nh_advance_str).
+    // Without this, only the prologue/while-wrapper patch applies, leaving
+    // 1 unmatched open-brace per file → "Unexpected token 'export'" in
+    // invent.js + objnam.js downstream.
     s = s.replace(
-        /        if \(olets && olets\.value && \+\+olets\) \{\n            \/\* TODO Phase 5\+: goto nextclass \(label not in scope of break\) \*\/\n        \}\n        if \(!takeoff && \(dud \|\| cnt\)\) \{\n            pline\("That was all\."\);\n        \} else if \(!dud && !cnt\) \{\n            pline\("No applicable objects\."\);\n        \}\n    \}\n    unsortloot/,
-        `        if (olets && olets.value && ++olets) {
+        /        if \(olets && (?:olets\.value && \+\+olets|__nh_char_at0\(olets\) && \(olets = __nh_advance_str\(olets, 1\)\))\) \{\n            \/\* TODO Phase 5\+: goto nextclass \(label not in scope of break\) \*\/\n        \}\n        if \(!takeoff && \(dud \|\| cnt\)\) \{\n            (?:await )?pline\("That was all\."\);\n        \} else if \(!dud && !cnt\) \{\n            (?:await )?pline\("No applicable objects\."\);\n        \}\n    \}\n    unsortloot/,
+        `        if (olets && __nh_char_at0(olets) && (olets = __nh_advance_str(olets, 1))) {
             continue nextclass;
         }
         if (!takeoff && (dud || cnt)) {
@@ -3519,10 +3447,12 @@ patchFile('objnam.js', (s) => {
     // Downstream `buf = strcpy(buf, name)` / `buf = strcat(buf, suffix)`
     // re-assigns buf to the returned string anyway, so the array is only
     // used by the buf[0]=0 initial-NUL.
+    // Match either the pre-A3 emit (`buf = game.xnamep + 80`) or
+    // the post-A3 emit (`buf = __nh_advance_str(game.xnamep, 80)`).
+    // Both have the same broken-semantic-in-JS — the patch's
+    // replacement (fresh 176-byte char array) is correct for both.
     s = s.replace(
-        `    buf = game.xnamep + 80;
-    buf_end = game.xnamep + 256 - 1;
-    buf[0] = 0;`,
+        /    buf = (?:game\.xnamep \+ 80|__nh_advance_str\(game\.xnamep, 80\));\n    buf_end = (?:game\.xnamep \+ 256 - 1|__nh_advance_str\(game\.xnamep, 256\) - 1);\n    (?:buf\[0\] = 0;|buf = __nh_char_write\(buf, 0, 0\);)/,
         `    buf = new Array(176).fill(0);
     buf_end = 175;
     /* patched: fixed-capacity char array instead of broken pointer
@@ -3537,15 +3467,18 @@ patchFile('objnam.js', (s) => {
     // Subsequent `outbuf = strcpy(outbuf, ...)` reassigns outbuf, so
     // the initial clear is redundant for the string-input case.  Use
     // a runtime guard so the array-input case still mutates.
+    // Match either the pre-A1 emit (`c0 = lowc(str.value)`) or the
+    // post-A1 emit (`c0 = lowc(__nh_char_at0(str))`).  A1 lands the
+    // *str→__nh_char_at0 transform for const char* params at the
+    // translator layer; this patch retires the `outbuf.value = 0`
+    // pointer-mutation lvalue + the lowc-of-empty wrap for both
+    // emit shapes.  See §23.222x.
     s = s.replace(
-        `export function just_an(outbuf, str) {
-    let c0 = 0;
-    outbuf.value = 0;
-    c0 = lowc(str.value);`,
+        /export function just_an\(outbuf, str\) \{\n    let c0 = 0;\n    outbuf\.value = 0;\n    c0 = lowc\((?:str\.value|__nh_char_at0\(str\))\);/,
         `export function just_an(outbuf, str) {
     let c0 = 0;
     if (Array.isArray(outbuf) && outbuf.length > 0) outbuf[0] = 0;
-    c0 = lowc((typeof str === 'string') ? str.charCodeAt(0) : (str && str[0]) || 0);`
+    c0 = lowc(__nh_char_at0(str));`
     );
     // xname_flags pluralize buf reset: C `buf[0] = '\\0'; ConcUpdate;
     // Strncat(buf, obufp, ...);` to replace buf content with obufp's
@@ -3709,20 +3642,26 @@ patchFile('objnam.js', (s) => {
     if (!__is_pname) {
     switch (obj.oclass) {`
     );
+    // §23.232z: accept both pre-string-mode (buf_eos - 0, buf_end -
+    // buf_eos) and string-mode (buf_eos, buf_eos.length - buf_end.length)
+    // emit forms.  Without this, only replace #8 above applies (which
+    // opens `if (!__is_pname) {`) but the matching close-brace from
+    // this replace never runs → +1 unmatched open → "Unexpected token
+    // 'export'" at line 968 (export function minimal_xname).
     s = s.replace(
-        /    if \(\(\(obj\)\.oextra && \(\(obj\)\.oextra\.oname\)\) && dknown\) \{\n        nameit: \{\n            do \{\n                strncat\(buf_eos - 0, " named ", bufspaceleft \+ 0\);\n                buf_eos = eos\(buf\) , bufspaceleft = \(buf_end - buf_eos\);\n            \} while \(0\);\n        \}\n        obufp = eos\(buf\);\n        do \{\n            strncat\(buf_eos - 0, \(\(obj\)\.oextra\.oname\), bufspaceleft \+ 0\);\n            buf_eos = eos\(buf\) , bufspaceleft = \(buf_end - buf_eos\);\n        \} while \(0\);/,
+        /    if \(\(\(obj\)\.oextra && \(\(obj\)\.oextra\.oname\)\) && dknown\) \{\n        nameit: \{\n            do \{\n                strncat\(buf_eos(?: - 0)?, " named ", bufspaceleft \+ 0\);\n                buf_eos = eos\(buf\) , bufspaceleft = (?:\(buf_end - buf_eos\)|\(\(buf_eos\.length - buf_end\.length\)\));\n            \} while \(0\);\n        \}\n        obufp = eos\(buf\);\n        do \{\n            strncat\(buf_eos(?: - 0)?, \(\(obj\)\.oextra\.oname\), bufspaceleft \+ 0\);\n            buf_eos = eos\(buf\) , bufspaceleft = (?:\(buf_end - buf_eos\)|\(\(buf_eos\.length - buf_end\.length\)\));\n        \} while \(0\);/,
         `    }
     if (__is_pname || (((obj).oextra && ((obj).oextra.oname)) && dknown)) {
         if (!__is_pname) {
             do {
-                strncat(buf_eos - 0, " named ", bufspaceleft + 0);
-                buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                strncat(buf_eos, " named ", bufspaceleft + 0);
+                buf_eos = eos(buf) , bufspaceleft = ((buf_eos.length - buf_end.length));
             } while (0);
         }
         obufp = eos(buf);
         do {
-            strncat(buf_eos - 0, ((obj).oextra.oname), bufspaceleft + 0);
-            buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+            strncat(buf_eos, ((obj).oextra.oname), bufspaceleft + 0);
+            buf_eos = eos(buf) , bufspaceleft = ((buf_eos.length - buf_end.length));
         } while (0);`
     );
     return s;
@@ -3796,6 +3735,11 @@ patchFile('pager.js', (s) => {
     );
 });
 
+// (Q9 iter 4: the init-block regex tracks the 4a walker-index emit
+// — `__nh_ap_idx = 0;` where the older translator emitted
+// `ap = altlets;`.  When this patch noops, patch #2 still applies
+// and leaves `continue` targeting a labeled BLOCK → SyntaxError
+// "Undefined label need_more_cq" at module load.)
 // invent.js: getobj() has 3 goto sites — need_more_cq (back-jump
 // after CMDQ_INT for count, to re-pop cmdq for the actual key),
 // split_otmp (forward from inside cntgiven branch to skip
@@ -3819,12 +3763,12 @@ patchFile('pager.js', (s) => {
 patchFile('invent.js', (s) => {
     // 1. Restructure need_more_cq: move init out, wrap cmdq-pop in while (true)
     s = s.replace(
-        /    let need_more_cq = 0;\n    need_more_cq: \{\n        ilet = 0;\n        suggested = 0;\n        bp = buf;\n        ap = altlets;\n        allowcnt = \(ctrlflags & 1\);\n        forceprompt = \(ctrlflags & 2\);\n        allownone = \(0\);\n        inaccess = 0;\n        cnt = 0;\n        cntgiven = \(0\);\n        msggiven = \(0\);\n        oneloop = \(0\);\n        need_more_cq = \(0\);\n    \}\n    if \(\(cmdq = cmdq_pop\(\)\) != null\) \{/,
+        /    let need_more_cq = 0;\n    need_more_cq: \{\n        ilet = 0;\n        suggested = 0;\n        bp = buf;\n        __nh_ap_idx = 0;\n        allowcnt = \(ctrlflags & 1\);\n        forceprompt = \(ctrlflags & 2\);\n        allownone = \(0\);\n        inaccess = 0;\n        cnt = 0;\n        cntgiven = \(0\);\n        msggiven = \(0\);\n        oneloop = \(0\);\n        need_more_cq = \(0\);\n    \}\n    if \(\(cmdq = cmdq_pop\(\)\) != null\) \{/,
         `    let need_more_cq = 0;
     ilet = 0;
     suggested = 0;
     bp = buf;
-    ap = altlets;
+    __nh_ap_idx = 0;
     allowcnt = (ctrlflags & 1);
     forceprompt = (ctrlflags & 2);
     allownone = (0);
@@ -4001,30 +3945,12 @@ patchFile('options.js', (s) => {
 // Rewrite using array-of-chars iteration.
 //
 // C ref: src/engrave.c lines 1194-1228.
-patchFile('engrave.js', (s) => {
-    s = s.replace(
-        /        de\.len = strlen\(de\.ebuf\);\n        for \(sp = de\.ebuf; sp; sp\+\+\) \{\n            if \(sp == 32\) \{\n                de\.len -= 1;\n            \}\n        \}/,
-        `        de.len = strlen(de.ebuf);
-        de.len -= (typeof de.ebuf === 'string' ? (de.ebuf.match(/ /g) || []).length : 0);`
-    );
-    s = s.replace(
-        /        for \(sp = de\.ebuf; sp; sp\+\+\) \{\n            if \(sp == 32\) \{\n                continue;\n            \}\n            if \(\(\(de\.type == 1 \|\| de\.type == 5\) && !rn2\(25\)\) \|\| \(\(\(game\.u\.uprops\[BLINDED\]\.intrinsic \|\| game\.u\.uprops\[BLINDED\]\.extrinsic\) && !game\.u\.uprops\[BLINDED\]\.blocked\) && !rn2\(11\)\) \|\| \(game\.u\.uprops\[CONFUSION\]\.intrinsic && !rn2\(7\)\) \|\| \(game\.u\.uprops\[STUNNED\]\.intrinsic && !rn2\(4\)\) \|\| \(\(game\.u\.uprops\[HALLUC\]\.intrinsic && !\(game\.u\.uprops\[HALLUC_RES\]\.intrinsic \|\| game\.u\.uprops\[HALLUC_RES\]\.extrinsic\)\) && !rn2\(2\)\)\) \{\n                void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = 32 \+ rnd\(96 - 2\)\) \*\/;\n            \}\n        \}/,
-        `        if (typeof de.ebuf === 'string') {
-            const __ebuf_arr = [...de.ebuf].map(c => c.charCodeAt(0));
-            for (let __sp_idx = 0; __sp_idx < __ebuf_arr.length; __sp_idx++) {
-                let sp_char = __ebuf_arr[__sp_idx];
-                if (sp_char === 32) {
-                    continue;
-                }
-                if (((de.type == 1 || de.type == 5) && !rn2(25)) || (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !rn2(11)) || (game.u.uprops[CONFUSION].intrinsic && !rn2(7)) || (game.u.uprops[STUNNED].intrinsic && !rn2(4)) || ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !rn2(2))) {
-                    __ebuf_arr[__sp_idx] = 32 + rnd(96 - 2);
-                }
-            }
-            de.ebuf = __ebuf_arr.map(c => String.fromCharCode(c)).join('');
-        }`
-    );
-    return s;
-});
+// §23.229 — Retired noop patchFile('engrave.js') (was at line 4009,
+// 24 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // apply.js: find_poleable_mon's `*pos = mpos` out-param
 // struct-copy.  TODO no-op; caller's pos never got the
@@ -4048,12 +3974,12 @@ patchFile('apply.js', (s) => {
 // the H→B mutation is TODO no-op.  Replace entire loop with
 // single JS expression that handles both array-of-ints and
 // string buf.
-patchFile('music.js', (s) => {
-    return s.replace(
-        /            for \(s = buf; s; s\+\+\) \{\n                s = \(\(\) => \{ const __s = s; if \(!__s\) return __s; const __t = Array\.isArray\(__s\)   \? \(\(\) => \{ let r=''; for \(let i=0;i<__s\.length&&__s\[i\];i\+\+\) r\+=String\.fromCharCode\(__s\[i\]\); return r; \}\)\(\)   : \(__s \+ ''\); return __t\.length \? __t\[0\]\.toUpperCase\(\) \+ __t\.slice\(1\) : __s; \}\)\(\);\n                if \(s == 72\) \{\n                    void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = 66\) \*\/;\n                \}\n            \}/,
-        `            buf = (Array.isArray(buf) ? (() => { let r=''; for (let i=0;i<buf.length&&buf[i];i++) r+=String.fromCharCode(buf[i]); return r; })() : String(buf)).toUpperCase().replace(/H/g, 'B');`
-    );
-});
+// §23.229 — Retired noop patchFile('music.js') (was at line 4056,
+// 6 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // artifact.js: orb_of_detection's "demons → demon" singular
 // truncation.  C: `*(eos(subject) - 1) = '\\0'` removes last
@@ -4076,16 +4002,12 @@ patchFile('artifact.js', (s) => {
 // string kept the dead shopkeeper's room marker, causing
 // stale shop-presence checks.  JS-equivalent: replace the
 // shoproom char in u.ushops with empty string.
-patchFile('shk.js', (s) => {
-    return s.replace(
-        /        if \(\(p = strchr\(game\.u\.ushops, eshk\.shoproom\)\) != null\) \{\n            setpaid\(mtmp\);\n            eshk\.bill_p = null;\n            do \{\n                void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = \(p \+ 1\)\) \*\/;\n            \} while \(\+\+p\);\n        \}/,
-        `        if ((p = strchr(game.u.ushops, eshk.shoproom)) != null) {
-            setpaid(mtmp);
-            eshk.bill_p = null;
-            game.u.ushops = game.u.ushops.replace(String.fromCharCode(eshk.shoproom), '');
-        }`
-    );
-});
+// §23.229 — Retired noop patchFile('shk.js') (was at line 4084,
+// 10 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // RETIRED 2026-05-30 — dig.js use_pick_axe's `*dsp++ = dirch` walker
 // pattern is now handled by the translator's charBufferRewrites
@@ -4884,23 +4806,12 @@ patchFile('uhitm.js', (s) => {
 // Fix: extract the array's NUL-terminated string content first, then
 // concatenate the sprintf result, then store back as a JS string
 // (subsequent strlen/strstri/etc treat strings correctly).
-patchFile('botl.js', (s) => {
-    return s.replace(
-        `    dloc = (dloc || '') + sprintf('', "%s:%-2ld",`,
-        `    {
-        let __dloc_prefix = '';
-        if (typeof __do_statusline2_dloc === 'string') {
-            __dloc_prefix = __do_statusline2_dloc;
-        } else if (Array.isArray(__do_statusline2_dloc)) {
-            for (let __i = 0; __i < __do_statusline2_dloc.length && __do_statusline2_dloc[__i]; __i++) {
-                __dloc_prefix += String.fromCharCode(__do_statusline2_dloc[__i]);
-            }
-        }
-        __do_statusline2_dloc = __dloc_prefix;
-    }
-    __do_statusline2_dloc = __do_statusline2_dloc + sprintf('', "%s:%-2ld",`
-    );
-});
+// §23.229 — Retired noop patchFile('botl.js') (was at line 4892,
+// 17 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // botl.js do_statusline1 line 66: same `var = strcpy(var, src)` reassign
 // pattern as uhitm.js do_attack (see fix below).  Subsequent
@@ -4930,17 +4841,12 @@ patchFile('botl.js', (s) => {
 // a direct case-flip on the y_monnam() return.  Semantically
 // identical (the buf char-array is never re-read elsewhere in this
 // branch) and bypasses the strcpy ↔ string round-trip entirely.
-patchFile('uhitm.js', (s) => {
-    return s.replace(
-        `                    buf = strcpy(buf, y_monnam(mtmp));
-                    buf[0] = highc(buf[0]);
-                    You("stop.  %s is in the way!", buf);`,
-        `                    /* C ref uhitm.c — capitalize the y_monnam result */
-                    let __ynm = y_monnam(mtmp);
-                    __ynm = __ynm ? __ynm.charAt(0).toUpperCase() + __ynm.slice(1) : __ynm;
-                    You("stop.  %s is in the way!", __ynm);`
-    );
-});
+// §23.229 — Retired noop patchFile('uhitm.js') (was at line 4938,
+// 11 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // uhitm.js: mhitm_ad_famn / mhitm_ad_pest / mhitm_ad_deth all have
 // `goto mhitm_LABEL` from the uhitm branch (magr == youmonst) into
@@ -5050,6 +4956,24 @@ patchFile('topten.js', (s) => {
 // vision.js: vision_recalc's `goto not_in_sight` (cross-branch
 // forward from door/wall LOS-blocked sub-branch to else-of-elseif
 // chain's not_in_sight body).  Inline the not_in_sight body
+// topten.js outheader: C builds " No  Points     Name<spaces>Hp [max]"
+// with `*bp++ = ' '` pointer-walk padding.  Translator emits the loop
+// body as `void 0 /* TODO */`, so the scoreboard header is missing the
+// space padding + "Hp [max]" suffix.  Replace the entire function body
+// with padEnd.
+//
+// §23.232p: migrated from in-file hand-port for topten.c STRING_MODE.
+patchFile('topten.js', (s) => {
+    if (s.includes('".padEnd(80 - 9')) return s;
+    return s.replace(
+        /export function outheader\(\) \{[\s\S]*?\n\}/,
+        `export function outheader() {
+    const header = " No  Points     Name".padEnd(80 - 9, ' ') + "Hp [max]";
+    topten_print(header);
+}`
+    );
+});
+
 // (old-IN_SIGHT or COULD_SEE-change check + newsym if col!=0) at
 // the goto site.
 patchFile('vision.js', (s) => {
@@ -5271,19 +5195,22 @@ patchFile('objnam.js', (s) => {
             break;`
     );
     // 2. Restore W_RINGR "(on right " in RING_CLASS and drop label TODO comment
+        // §23.232z+: accept both pre-string-mode (bp_eos - 0, bp_end -
+    // bp_eos) and string-mode (bp_eos, bp_eos.length - bp_end.length)
+    // emit forms.
     s = s.replace(
-        /        case RING_CLASS:\n            \/\/ TODO LabelStmt ring not at compound-stmt level\n            if \(obj\.owornmask & 131072\) \{\n                do \{\n                    strncat\(bp_eos - 0, " \(on left ", bpspaceleft \+ 0\);\n                    bp_eos = eos\(bp\) , bpspaceleft = \(bp_end - bp_eos\);\n                \} while \(0\);\n            \}\n            if \(obj\.owornmask & \(131072 \| 262144\)\) \{/,
+        /        case RING_CLASS:\n            \/\/ TODO LabelStmt ring not at compound-stmt level\n            if \(obj\.owornmask & 131072\) \{\n                do \{\n                    strncat\(bp_eos(?: - 0)?, " \(on left ", bpspaceleft \+ 0\);\n                    bp_eos = eos\(bp\) , bpspaceleft = (?:\(bp_end - bp_eos\)|\(\(bp_eos\.length - bp_end\.length\)\));\n                \} while \(0\);\n            \}\n            if \(obj\.owornmask & \(131072 \| 262144\)\) \{/,
         `        case RING_CLASS:
             if (obj.owornmask & 262144) {
                 do {
-                    strncat(bp_eos - 0, " (on right ", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    strncat(bp_eos, " (on right ", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = ((bp_eos.length - bp_end.length));
                 } while (0);
             }
             if (obj.owornmask & 131072) {
                 do {
-                    strncat(bp_eos - 0, " (on left ", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    strncat(bp_eos, " (on left ", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = ((bp_eos.length - bp_end.length));
                 } while (0);
             }
             if (obj.owornmask & (131072 | 262144)) {`
@@ -5294,20 +5221,20 @@ patchFile('objnam.js', (s) => {
         `            } else if (obj.otyp == MEAT_RING) {
                 if (obj.owornmask & 262144) {
                     do {
-                        strncat(bp_eos - 0, " (on right ", bpspaceleft + 0);
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        strncat(bp_eos, " (on right ", bpspaceleft + 0);
+                        bp_eos = eos(bp) , bpspaceleft = ((bp_eos.length - bp_end.length));
                     } while (0);
                 }
                 if (obj.owornmask & 131072) {
                     do {
-                        strncat(bp_eos - 0, " (on left ", bpspaceleft + 0);
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        strncat(bp_eos, " (on left ", bpspaceleft + 0);
+                        bp_eos = eos(bp) , bpspaceleft = ((bp_eos.length - bp_end.length));
                     } while (0);
                 }
                 if (obj.owornmask & (131072 | 262144)) {
                     do {
-                        nh_snprintf("doname_base", 1499, bp_eos - 0, bpspaceleft + 0, "%s)", body_part(HAND));
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        nh_snprintf("doname_base", 1499, bp_eos, bpspaceleft + 0, "%s)", body_part(HAND));
+                        bp_eos = eos(bp) , bpspaceleft = ((bp_eos.length - bp_end.length));
                     } while (0);
                 }
                 if (known && game.objects[obj.otyp].oc_charged) {
@@ -5954,9 +5881,14 @@ export function reset_role_filtering`
 // C ref: src/teleport.c lines 1214/1217/1256/1293/1324
 // (5x random_levtport sites).
 patchFile('teleport.js', (s) => {
-    // 1. Add flags + wrap controllable branch with __controllable_taken + label do-while
+    // 1. Add flags + wrap controllable branch with __controllable_taken + label do-while.
+    // §23.232i — accept both char-array `let qbuf = [0,0,...]` and string-mode
+    // `let qbuf = ''` initializer forms.  Without the alternation, a future
+    // teleport.c migration to STRING_MODE_FILES silently misses this anchor
+    // and subsequent patches emit `break levtport_pick` without the label-add,
+    // producing a "Fatal: Undefined label 'levtport_pick'" panic at runtime.
     s = s.replace(
-        /    if \(\(\(game\.u\.uprops\[TELEPORT_CONTROL\]\.intrinsic \|\| game\.u\.uprops\[TELEPORT_CONTROL\]\.extrinsic\) && !game\.u\.uprops\[STUNNED\]\.intrinsic\) \|\| game\.flags\.debug\) \{\n        let qbuf = (\[0(?:, 0)+\]);\n        let trycnt = 0;\n        qbuf = strcpy\(qbuf, "To what level do you want to teleport\?"\);\n        do \{\n            if \(game\.iflags\.menu_requested\) \{/,
+        /    if \(\(\(game\.u\.uprops\[TELEPORT_CONTROL\]\.intrinsic \|\| game\.u\.uprops\[TELEPORT_CONTROL\]\.extrinsic\) && !game\.u\.uprops\[STUNNED\]\.intrinsic\) \|\| game\.flags\.debug\) \{\n        let qbuf = (\[0(?:, 0)+\]|'');\n        let trycnt = 0;\n        qbuf = strcpy\(qbuf, "To what level do you want to teleport\?"\);\n        do \{\n            if \(game\.iflags\.menu_requested\) \{/,
         `    let __do_random_levtport = false;
     let __controllable_taken = false;
     if (((game.u.uprops[TELEPORT_CONTROL].intrinsic || game.u.uprops[TELEPORT_CONTROL].extrinsic) && !game.u.uprops[STUNNED].intrinsic) || game.flags.debug) {
@@ -6130,78 +6062,12 @@ patchFile('rumors.js', (s) => {
 // and replaces random_levtport gotos with `break levtport_pick`.
 //
 // Wizard-mode only (#leveltel); score-irrelevant.
-patchFile('teleport.js', (s) => {
-    if (s.includes('/* levTport_menu-force-menu fix */')) return s;
-    const oldBlock = `        levtport_pick: do {
-            if (game.iflags.menu_requested) {
-                game.iflags.menu_requested = (0);
-                if (game.flags.debug) {
-                    /* TODO Phase 5+: goto levTport_menu (label not in scope of break) */
-                }
-            }
-            if (++trycnt == 2) {
-                if (game.flags.debug) {
-                    qbuf = strcat(qbuf, " [type a number, name, or ? for a menu]");
-                } else {
-                    qbuf = strcat(qbuf, " [type a number or name]");
-                }
-            }
-            buf = '';
-            getlin(qbuf, buf);
-            if (!strcmp(buf, "*")) {
-                __do_random_levtport = true;
-                break levtport_pick;
-            } else if (game.u.uprops[CONFUSION].intrinsic && rnl(5)) {
-                pline("Oops...");
-                __do_random_levtport = true;
-                break levtport_pick;
-            } else if (!strcmp(buf, "\\x1b")) {
-                return;
-            }
-            if (game.flags.debug && !strcmp(buf, "?")) {
-                let destlev = 0;
-                let destdnum = 0;
-                levTport_menu: {
-                }
-                destlev = 0;
-                destdnum = 0;
-                newlev = print_dungeon((1), { get value() { return destlev; }, set value(_v) { destlev = _v; } }, { get value() { return destdnum; }, set value(_v) { destdnum = _v; } });`;
-    const newBlock = `        /* levTport_menu-force-menu fix */
-        levtport_pick: do {
-            let __force_menu = (0);
-            if (game.iflags.menu_requested) {
-                game.iflags.menu_requested = (0);
-                if (game.flags.debug) {
-                    __force_menu = (1);
-                }
-            }
-            if (!__force_menu) {
-                if (++trycnt == 2) {
-                    if (game.flags.debug) {
-                        qbuf = strcat(qbuf, " [type a number, name, or ? for a menu]");
-                    } else {
-                        qbuf = strcat(qbuf, " [type a number or name]");
-                    }
-                }
-                buf = '';
-                getlin(qbuf, buf);
-                if (!strcmp(buf, "*")) {
-                    __do_random_levtport = true;
-                    break levtport_pick;
-                } else if (game.u.uprops[CONFUSION].intrinsic && rnl(5)) {
-                    pline("Oops...");
-                    __do_random_levtport = true;
-                    break levtport_pick;
-                } else if (!strcmp(buf, "\\x1b")) {
-                    return;
-                }
-            }
-            if (__force_menu || (game.flags.debug && !strcmp(buf, "?"))) {
-                let destlev = 0;
-                let destdnum = 0;
-                newlev = print_dungeon((1), { get value() { return destlev; }, set value(_v) { destlev = _v; } }, { get value() { return destdnum; }, set value(_v) { destdnum = _v; } });`;
-    return s.replace(oldBlock, newBlock);
-});
+// §23.229 — Retired noop patchFile('teleport.js') (was at line 6138,
+// 72 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // strutil.js pmatch_internal pmatch_top + pickup.js query_category
 // ask_again: both superseded by A3 goto back-jump-to-loop recognizer
@@ -6232,9 +6098,10 @@ patchFile('teleport.js', (s) => {
 // C ref: src/pickup.c lines 754-791 (menu_pickup body) +
 // 756/835 (goto sites).
 patchFile('pickup.js', (s) => {
-    // 1. Replace autopick + menu_style branch + old-style entry
+    // 1. Replace autopick + menu_style branch + old-style entry.
+    // §23.232i — accept char-array (\[0,...\]) or string-mode ('') qbuf init.
     s = s.replace(
-        /        if \(autopickup\) \{\n            n = autopick\(objchain_p, traverse_how, \{ get value\(\) \{ return pick_list; \}, set value\(_v\) \{ pick_list = _v; \} \}\);\n            \/\* TODO Phase 5\+: goto menu_pickup \(label not in scope of break\) \*\/\n        \}\n        if \(game\.flags\.menu_style != 0 \|\| game\.iflags\.menu_requested\) \{\n            menu_pickup: \{\n                traverse_how \|= 4 \| \(game\.flags\.sortpack \? 16 : 0\);\n                if \(count\) \{\n                    let qbuf = \[0(?:, 0){127}\];\n                    qbuf = sprintf\(qbuf, "Pick %d of what\?", count\);\n                    game\.val_for_n_or_more = count;\n                    n = query_objlist\(qbuf, objchain_p, traverse_how, \{ get value\(\) \{ return pick_list; \}, set value\(_v\) \{ pick_list = _v; \} \}, 1, n_or_more\);\n                    for \(i = 0; i < n; i\+\+\) \{\n                        pick_list\[i\]\.count = count;\n                    \}\n                \} else \{\n                    n = query_objlist\("Pick up what\?", objchain_p, \(traverse_how \| 128\), \{ get value\(\) \{ return pick_list; \}, set value\(_v\) \{ pick_list = _v; \} \}, 2, all_but_uchain\);\n                \}\n            \}\n            if \(n > 0\) \{\n                reset_justpicked\(game\.invent\);\n            \}\n            n_tried = n;\n            for \(n_picked = i = 0; i < n; i\+\+\) \{\n                res = pickup_object\(pick_list\[i\]\.item\.a_obj, pick_list\[i\]\.count, \(0\)\);\n                if \(res < 0\) \{\n                    break;\n                \}\n                n_picked \+= res;\n            \}\n            if \(pick_list\) \{\n                free\(pick_list\);\n            \}\n        \} else \{/,
+        /        if \(autopickup\) \{\n            n = autopick\(objchain_p, traverse_how, \{ get value\(\) \{ return pick_list; \}, set value\(_v\) \{ pick_list = _v; \} \}\);\n            \/\* TODO Phase 5\+: goto menu_pickup \(label not in scope of break\) \*\/\n        \}\n        if \(game\.flags\.menu_style != 0 \|\| game\.iflags\.menu_requested\) \{\n            menu_pickup: \{\n                traverse_how \|= 4 \| \(game\.flags\.sortpack \? 16 : 0\);\n                if \(count\) \{\n                    let qbuf = (?:\[0(?:, 0){127}\]|'');\n                    qbuf = sprintf\(qbuf, "Pick %d of what\?", count\);\n                    game\.val_for_n_or_more = count;\n                    n = query_objlist\(qbuf, objchain_p, traverse_how, \{ get value\(\) \{ return pick_list; \}, set value\(_v\) \{ pick_list = _v; \} \}, 1, n_or_more\);\n                    for \(i = 0; i < n; i\+\+\) \{\n                        pick_list\[i\]\.count = count;\n                    \}\n                \} else \{\n                    n = query_objlist\("Pick up what\?", objchain_p, \(traverse_how \| 128\), \{ get value\(\) \{ return pick_list; \}, set value\(_v\) \{ pick_list = _v; \} \}, 2, all_but_uchain\);\n                \}\n            \}\n            if \(n > 0\) \{\n                reset_justpicked\(game\.invent\);\n            \}\n            n_tried = n;\n            for \(n_picked = i = 0; i < n; i\+\+\) \{\n                res = pickup_object\(pick_list\[i\]\.item\.a_obj, pick_list\[i\]\.count, \(0\)\);\n                if \(res < 0\) \{\n                    break;\n                \}\n                n_picked \+= res;\n            \}\n            if \(pick_list\) \{\n                free\(pick_list\);\n            \}\n        \} else \{/,
         `        let __do_pickup_processing = false;
         if (autopickup) {
             n = autopick(objchain_p, traverse_how, { get value() { return pick_list; }, set value(_v) { pick_list = _v; } });
@@ -6791,6 +6658,232 @@ patchFile('hacklib.js', (s) => {
     return out;
 });
 
+// hacklib.js fuzzymatch: C uses `c = *s++` byte-walk + index() to
+// find ignore-chars.  Translator emits `c = (s = __nh_advance_str(s, 1))`
+// which assigns the STRING SUFFIX to c, breaking the byte comparison.
+// Replace the entire function body with charCodeAt + indexOf so the
+// fuzzy match works on JS strings AND char-array inputs.
+//
+// §23.232r: migrated from in-file hand-port for hacklib.c STRING_MODE.
+patchFile('hacklib.js', (s) => {
+    if (s.includes("§23.232r fuzzymatch")) return s;
+    return s.replace(
+        /export function fuzzymatch\(s1, s2, ignore_chars, caseblind\) \{[\s\S]*?return \(!c1 && !c2\);\s*\}/,
+        `export function fuzzymatch(s1, s2, ignore_chars, caseblind) {
+    /* §23.232r fuzzymatch — char-array-safe byte iteration via
+       charCodeAt + ignore-chars indexOf.  C ref hacklib.c does
+       \`while ((c1 = *s1++) != 0 && index(...) != 0)\`. */
+    const a = (s1 == null) ? '' : ((typeof s1 === 'string') ? s1 : (() => { let r=''; for (let k=0;k<s1.length&&s1[k];k++) r+=String.fromCharCode(s1[k]); return r; })());
+    const b = (s2 == null) ? '' : ((typeof s2 === 'string') ? s2 : (() => { let r=''; for (let k=0;k<s2.length&&s2[k];k++) r+=String.fromCharCode(s2[k]); return r; })());
+    const ign = (ignore_chars == null) ? '' : ((typeof ignore_chars === 'string') ? ignore_chars : (() => { let r=''; for (let k=0;k<ignore_chars.length&&ignore_chars[k];k++) r+=String.fromCharCode(ignore_chars[k]); return r; })());
+    let i = 0, j = 0;
+    let c1 = 0, c2 = 0;
+    do {
+        do { c1 = (i < a.length) ? a.charCodeAt(i++) : 0; } while (c1 !== 0 && ign.indexOf(String.fromCharCode(c1)) >= 0);
+        do { c2 = (j < b.length) ? b.charCodeAt(j++) : 0; } while (c2 !== 0 && ign.indexOf(String.fromCharCode(c2)) >= 0);
+        if (!c1 || !c2) {
+            /* stop when end of either string is reached */
+            break;
+        }
+        if (caseblind) {
+            if (c1 >= 65 && c1 <= 90) c1 |= 32;
+            if (c2 >= 65 && c2 <= 90) c2 |= 32;
+        }
+    } while (c1 === c2);
+    /* match occurs only when the end of both strings has been reached */
+    return (!c1 && !c2);
+}`
+    );
+});
+
+// do_name.js docall: C uses `char **uname_p = &(objects[obj->otyp].
+// oc_uname)` pointer-to-pointer indirection.  Translator can't
+// represent the ptr-to-ptr write through uname_p, emitting `*p = X`
+// as a void-0 TODO.  Both `*uname_p = NULL` (clear) and `*uname_p =
+// dupstr(buf)` (set) sites lose the write — leaving stale oc_uname.
+// Replace via direct game.objects[obj.otyp].oc_uname assignment, which
+// is what uname_p was aliasing in the first place.
+//
+// §23.232u: migrated from in-file hand-port for do_name.c STRING_MODE.
+patchFile('do_name.js', (s) => {
+    if (s.includes('§23.232u oc_uname')) return s;
+    // Site 1: free + null-clear after had_name flag set.
+    s = s.replace(
+        /        had_name = \(1\);\n        free\(uname_p\) , void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = null\) \*\/;\n    \}/,
+        `        had_name = (1);
+        free(uname_p); /* §23.232u oc_uname — null-clear via direct slot */
+        game.objects[obj.otyp].oc_uname = null;
+    }`
+    );
+    // Site 2: dupstr(buf) write.  May appear as either `void 0 /* TODO */`
+    // (string-mode) or a bare TODO marker; replace either form.
+    s = s.replace(
+        /    \} else \{\n        void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = dupstr\(buf\)\) \*\/;\n        discover_object\(obj\.otyp, \(0\), \(1\), \(1\)\);\n    \}/,
+        `    } else {
+        /* §23.232u oc_uname — set via direct slot from buf */
+        const __bufStr = (typeof buf === 'string') ? buf
+            : (Array.isArray(buf) ? ((() => { let r=''; for (let i=0; i<buf.length && buf[i]; i++) r += String.fromCharCode(buf[i]); return r; })()) : String(buf));
+        game.objects[obj.otyp].oc_uname = __bufStr;
+        discover_object(obj.otyp, (0), (1), (1));
+    }`
+    );
+    return s;
+});
+
+// RETIRED 2026-06-10 (Q9 iteration 13) — o_init.js shuffle_all
+// classes-walker loop.  The translator's string-mode char-walker
+// READ fix (translate.mjs unaryOp: `*p++` reads route through
+// __nh_char_at0/__nh_advance_str) now emits a byte-correct loop
+// condition and `oclass` read directly, so the hand rewrite to
+// charCodeAt() form no longer matched (BUILD_ENGINE_TRACE_NOOP
+// confirmed).  Historical: `classes[__nh_s_idx]` on a JS string
+// yielded one-char strings / undefined, breaking the loop bound and
+// oclass byte compares; the patch rewrote to a __ci charCodeAt
+// cursor.  §23.232s originally migrated it from an in-file
+// hand-port for o_init.c STRING_MODE.
+
+// windows.js getlin cmdq drain: C `*bufp = key; bufp++` is broken
+// at translate time (`bufp.value = X` can't fill the caller's
+// buffer).  Replace the cmdq-drain loop with a string accumulator
+// rebound into bufp.  §23.239: getlin follows the void-char*-out-
+// param convention — bufp is returned at every exit (the translator
+// emits `return bufp;`, this replacement preserves it) and the
+// win_getlin windowproc call rebinds bufp from its return value
+// (the proc returns the typed line; it cannot write back through a
+// JS string param).
+//
+// §23.232t: migrated from in-file hand-port for windows.c STRING_MODE.
+patchFile('windows.js', (s) => {
+    if (!s.includes("let __line = '';")) {
+        s = s.replace(
+            /    let got_cmdq = 0;\n    let cmdq = null;\n    while \(\(cmdq = cmdq_pop\(\)\) != null\) \{\n        if \(cmdq\.typ == CMDQ_KEY\) \{\n            got_cmdq = 1;\n            (?:bufp\.value = \(cmdq\.key != 10\) \? cmdq\.key : 0;\n            bufp\+\+;|bufp = __nh_char_write\(bufp, 0, \(cmdq\.key != 10\) \? cmdq\.key : 0\);\n            bufp = __nh_advance_str\(bufp, 1\);|bufp\.value = \(cmdq\.key != 10\) \? cmdq\.key : 0;\n            \(bufp = __nh_advance_str\(bufp, 1\)\);)\n            if \(cmdq\.key == 10\) \{\n                break;\n            \}\n        \} else \{\n            break;\n        \}\n        free\(cmdq\);\n        cmdq = null;\n    \}\n    if \(cmdq\) \{\n        free\(cmdq\);\n    \}\n    if \(got_cmdq\) \{\n        (?:bufp\.value = 0;|bufp = __nh_char_write\(bufp, 0, 0\);|void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*bufp = 0\) \*\/;)\n        pline\("%s %s", query, obufp\);\n        return(?: bufp)?;\n    \}/,
+            `    let got_cmdq = 0;
+    let cmdq = null;
+    let __line = '';
+    while ((cmdq = cmdq_pop()) != null) {
+        if (cmdq.typ == CMDQ_KEY) {
+            got_cmdq = 1;
+            if (cmdq.key != 10) {
+                __line += String.fromCharCode(cmdq.key);
+            }
+            if (cmdq.key == 10) {
+                break;
+            }
+        } else {
+            break;
+        }
+        free(cmdq);
+        cmdq = null;
+    }
+    if (cmdq) {
+        free(cmdq);
+    }
+    if (got_cmdq) {
+        bufp = __line;
+        pline("%s %s", query, bufp);
+        return bufp;
+    }`
+        );
+    }
+    // §23.239 — the windowproc returns the typed line (return-the-
+    // buffer convention); rebind bufp so getlin's own `return bufp;`
+    // hands it to the caller.  calleeBase can't resolve member
+    // callees, so the translator's call-site rewrite doesn't reach
+    // this paren-deref form.
+    s = s.replace(
+        '    (game.windowprocs.win_getlin)(query, bufp);',
+        '    bufp = (game.windowprocs.win_getlin)(query, bufp);'
+    );
+    // Convention marker: allmain.js installs its win_getlin default
+    // ONLY when this rebinding emit is present.  In the frozen
+    // production build (no marker) the proc stays uninstalled —
+    // installing it there would consume input-queue keys whose
+    // result the un-rebound getlin then discards (measured -649 P
+    // on seed0002).
+    if (!s.includes('__getlin_returns_buffer')) {
+        s += '\ngame.__getlin_returns_buffer = 1;\n';
+    }
+    return s;
+});
+
+// sp_lev.js lspo_map: C's backward `goto redo_maploc` (sp_lev.c:6270
+// → 6142) retries themed-room map placement with fresh rn2 coords
+// when the footprint scan finds a conflict (up to tryct 100).  The
+// translator emits the label as a BLOCK-END convention (forward
+// jumps only) and the backward goto as a TODO no-op — so a themed
+// map placement that collided FAILED outright instead of retrying,
+// desyncing the whole level-gen PRNG stream (the lspo_map x6
+// cluster: 0004/0013x2/0015/0399/5002; Q9 iteration 17).  Wrap the
+// placement+scan+load region in `__redo_maploc: for (;;)` so the
+// goto becomes `continue`; success paths fall through to `break`.
+patchFile('sp_lev.js', (s) => {
+    if (s.includes('__redo_maploc')) return s;
+    s = s.replace(
+        '    game.xsize = mf.wid;\n    skipmap: {',
+        '    __redo_maploc: for (;;) {\n    game.xsize = mf.wid;\n    skipmap: {'
+    );
+    s = s.replace(
+        `                            if (tryct++ < 100 && (lr == -1 || tb == -1)) {
+                                /* TODO Phase 5+: goto redo_maploc (label not in scope of break) */
+                            }`,
+        `                            if (tryct++ < 100 && (lr == -1 || tb == -1)) {
+                                continue __redo_maploc;
+                            }`
+    );
+    s = s.replace(
+        '    }\n    mapfrag_free({ get value() { return mf; }, set value(_v) { mf = _v; } });\n    if (game.in_mk_themerooms && game.themeroom_failed) {',
+        '    }\n    break;\n    } /* __redo_maploc */\n    mapfrag_free({ get value() { return mf; }, set value(_v) { mf = _v; } });\n    if (game.in_mk_themerooms && game.themeroom_failed) {'
+    );
+    return s;
+});
+
+// dungeon.js menu selections: C `select_menu(win, how, &selected)`
+// fills a menu_item** OUT-PARAM; the emit passes a null local by
+// value and then reads `selected[0].item...` — nothing can write
+// back (same class as the §23.239 char* convention).  Box the arg
+// and unpack from the box the windowproc fills (allmain's
+// win_select_menu sets box.value = [{item, count}]).  Q9 iter 26:
+// unblocks print_dungeon's wizard level-teleport menu (the `?`
+// sub-path of the getbones x7 cluster).
+patchFile('dungeon.js', (s) => {
+    s = s.replace(
+        /n = (?:await )?select_menu\(win, 1, selected\);/g,
+        '{ const __selbox = { value: null }; n = await select_menu(win, 1, __selbox); selected = __selbox.value; }'
+    );
+    s = s.replace(
+        /n = (?:await )?select_menu\(win, \(why != -1\) \? 0 : 1, selected\);/g,
+        '{ const __selbox = { value: null }; n = await select_menu(win, (why != -1) ? 0 : 1, __selbox); selected = __selbox.value; }'
+    );
+    return s;
+});
+
+// dungeon.js find_level_name: C's `*(eos(buf) - 6) = '\\0'` chops
+// " level" suffix off nam after `strcpy(buf, nam)`.  Translator emits
+// the truncation as a `void 0 /* TODO ... */` no-op (JS strings are
+// immutable).  Without this fix, lev_by_name("oracle level") matches
+// the " level" suffix but never truncates, then find_level("oracle
+// level") returns null instead of finding "oracle".
+//
+// §23.232x: migrated from in-file hand-port for dungeon.c STRING_MODE.
+patchFile('dungeon.js', (s) => {
+    if (s.includes("__levelIdx = nam.toLowerCase()")) return s;
+    return s.replace(
+        `        if ((p = strstri(nam, " level")) != null && p == eos(nam) - 6) {
+            nam = strcpy(buf, nam);
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        }`,
+        `        if ((p = strstri(nam, " level")) != null && p == eos(nam) - 6) {
+            if (typeof nam === 'string') {
+                const __levelIdx = nam.toLowerCase().lastIndexOf(' level');
+                if (__levelIdx >= 0) nam = nam.slice(0, __levelIdx);
+                nam = strcpy(buf, nam);
+            } else {
+                nam = strcpy(buf, nam);
+            }
+        }`
+    );
+});
+
 // RETIRED 2026-05-30 — translator now handles `struct monst **mprev`
 // pointer-to-pointer iteration via `__parent`/`__field` decomposition
 // (e.g., `mmtmp__parent = game, mmtmp__field = "migrating_mons"`,
@@ -6975,21 +7068,12 @@ patchFile('pager.js', fixStrstriTruncate);
 //
 // Fix: rewrite to iterate over each char of the returned string,
 // looking up game.rooms[code - 3] for each.
-patchFile('uhitm.js', (s) => {
-    return s.replace(
-        /                if \(!foo\) \{\s+for \(p = in_rooms\(mtmp\.mx, mtmp\.my, SHOPBASE\); p; p\+\+\) \{\s+if \(tended_shop\(game\.rooms\[p - 3\]\)\) \{\s+inshop = \(1\);\s+break;\s+\}\s+\}\s+\}/,
-        `                if (!foo) {
-                    const __rooms = in_rooms(mtmp.mx, mtmp.my, SHOPBASE);
-                    const __rs = (typeof __rooms === 'string') ? __rooms : '';
-                    for (let __ri = 0; __ri < __rs.length; __ri++) {
-                        if (tended_shop(game.rooms[__rs.charCodeAt(__ri) - 3])) {
-                            inshop = (1);
-                            break;
-                        }
-                    }
-                }`
-    );
-});
+// §23.229 — Retired noop patchFile('uhitm.js') (was at line 6983,
+// 15 lines).  BUILD_ENGINE_TRACE_NOOP=1 with
+// BUILD_ENGINE_OUT=/tmp/audit confirmed the regex no longer matched
+// fresh translator output as of 2026-06-02.  Production unaffected
+// (build-engine isn't run in normal flow); retirement just removes
+// dead code from the build pipeline.
 
 // mhitu.js: monst_attk's permanent-HP-damage block has a C
 // `int *hpmax_p = &u.mhmax;` (or `&u.uhpmax`) pointer-to-scalar
@@ -7063,7 +7147,7 @@ patchFile('wizcmds.js', (s) => {
 // gates in place as diagnostic infrastructure for Step F / future
 // translator-driven replacement work.
 patchFile('windows.js', (s) => {
-    const tail = `\n// Install hup_procs no-op defaults for null windowprocs fields.\n// Gated: enable with NH_WINPROCS_DEFAULTS=1.  See LEARNINGS §23.29.\nif (process.env.NH_WINPROCS_DEFAULTS) {\n    for (const __wp_k of Object.keys(game.windowprocs)) {\n        if (game.windowprocs[__wp_k] === null && typeof game.hup_procs[__wp_k] === 'function') {\n            game.windowprocs[__wp_k] = game.hup_procs[__wp_k];\n        }\n    }\n}\n`;
+    const tail = `\n// Install hup_procs no-op defaults for null windowprocs fields.\n// Gated: enable with NH_WINPROCS_DEFAULTS=1.  See LEARNINGS §23.29.\nif (typeof process !== 'undefined' && process.env?.NH_WINPROCS_DEFAULTS) {\n    for (const __wp_k of Object.keys(game.windowprocs)) {\n        if (game.windowprocs[__wp_k] === null && typeof game.hup_procs[__wp_k] === 'function') {\n            game.windowprocs[__wp_k] = game.hup_procs[__wp_k];\n        }\n    }\n}\n`;
     if (s.includes('Install hup_procs no-op defaults')) return s;
     return s + tail;
 });
@@ -7387,13 +7471,36 @@ patchFile('light.js', (s) => {
 if (process.env.NH_EMIT_ASYNC) {
     const manifestPath = join(outputDir, '__async_closure.json');
     let asyncSet;
-    try {
-        asyncSet = new Set(JSON.parse(readFileSync(manifestPath, 'utf8')));
-    } catch (e) {
-        console.warn(`build-engine: NH_EMIT_ASYNC=1 but no closure manifest at ${manifestPath} — skipping injection`);
-        asyncSet = null;
+    // §23.232l — NH_EMIT_ASYNC=runtime restricts injection to the
+    // RUNTIME_ASYNC_FUNCTIONS set ONLY (nhl_pcall_handle, etc.) —
+    // skips the closure-derived cascade.  Used by regenerate-files
+    // for TUs that call nhl_pcall_handle (require runtime awaits)
+    // but should match production's non-cascading sync style for
+    // closure-derived functions (e.g. enexto wasn't async in
+    // production despite pline being in the closure).
+    const runtimeOnly = process.env.NH_EMIT_ASYNC === 'runtime';
+    if (runtimeOnly) {
+        asyncSet = new Set();
+    } else {
+        try {
+            asyncSet = new Set(JSON.parse(readFileSync(manifestPath, 'utf8')));
+        } catch (e) {
+            console.warn(`build-engine: NH_EMIT_ASYNC=1 but no closure manifest at ${manifestPath} — skipping injection`);
+            asyncSet = null;
+        }
     }
     if (asyncSet) {
+        // §23.232 — Include runtime async functions in the injection
+        // set so call sites in translator output get `await` added.
+        // These don't have function-decl heads to convert (the heads
+        // live in c2js-runtime/), only call sites.  The fn-decl
+        // pattern in the loop below won't match them anyway, so this
+        // is safe.  Must stay in sync with conformance.mjs's
+        // RUNTIME_ASYNC_FUNCTIONS list.
+        for (const name of [
+            'nhl_init', 'nhl_loadlua', 'nhl_pcall_handle',
+            'l_selection_new', 'installLuaData',
+        ]) asyncSet.add(name);
         let injectedAsyncFns = 0;
         let injectedAwaitCalls = 0;
         for (const f of readdirSync(outputDir)) {
@@ -7441,11 +7548,55 @@ if (process.env.NH_EMIT_ASYNC) {
                     return 'await ' + m;
                 });
             }
-            // The async seed itself: indirect `(game.windowprocs.win_nhgetch)()` call.
+            // Indirect async dispatch (UNWEDGE_PLAN Q8) — call sites
+            // the closure walker reaches only via seeds (no call-graph
+            // edge through a pointer):
+            //   1. input windowprocs: (game.windowprocs.win_X)(...)
+            //   2. fn-pointer globals: (game.occupation)(...),
+            //      (game.afternmv)(...)
+            //   3. fn-pointer tables: (timeout_funcs[i].f)(...),
+            //      (help_menu_items[i].f)(...)
+            // All paren-deref forms (the translator's emit for C's
+            // (*ptr)(...)).  await of a sync target is order-harmless
+            // on a single chain; a MISSING await is the §23.235
+            // fire-and-forget.
             s = replaceInCode(s,
-                /(?<!await\s)(\(game\.windowprocs\.win_nhgetch\))\(/g,
+                /(?<!await\s)(\(game\.windowprocs\.(?:win_nhgetch|win_yn_function|win_getlin|win_get_ext_cmd|win_select_menu|win_poskey)\))\(/g,
                 'await $1('
             );
+            s = replaceInCode(s,
+                /(?<!await\s)(\(game\.(?:occupation|afternmv)\))\(/g,
+                'await $1('
+            );
+            s = replaceInCode(s,
+                /(?<!await\s)(\((?:timeout_funcs|help_menu_items)\[[^\]]*\]\.f\))\(/g,
+                'await $1('
+            );
+            // Monster-iterator callback params (Q9 iteration 9):
+            // (bfunc)(mtmp) / (vfunc)(mtmp) in the iter_mons family.
+            s = replaceInCode(s,
+                /(?<!await\s)(\((?:bfunc|vfunc)\))\(/g,
+                'await $1('
+            );
+            // qsort with possibly-async comparators (Q9 iteration 3):
+            // a comparator in the closure cone returns a Promise that
+            // a sync sort would NaN-order (tripwire-caught at
+            // sortloot).  Route every translated qsort call through
+            // the awaited twin — identical ordering for sync
+            // comparators, honest awaiting for async ones.  Also
+            // widen the import.
+            if (/(?<![\w.])qsort\(/.test(s)) {
+                s = replaceInCode(s,
+                    /(?<!await\s)(?<![\w.])qsort\(/g,
+                    'await qsort_async('
+                );
+                s = s.replace(
+                    /import\s*\{([^}]*\bqsort\b[^}]*)\}\s*from\s*('[^']*\/qsort\.js')/,
+                    (m, names, spec) => names.includes('qsort_async')
+                        ? m
+                        : `import {${names}, qsort_async } from ${spec}`
+                );
+            }
             // Translator-emitted goto-label arrow functions —
             // `const __NAME = () => { ... };` — need `async` when
             // their body contains `await`, plus their callsites need
@@ -7456,6 +7607,48 @@ if (process.env.NH_EMIT_ASYNC) {
             }
         }
         console.log(`build-engine: NH_EMIT_ASYNC=1 — injected ${injectedAsyncFns} async-function heads, ${injectedAwaitCalls} await call sites across ${asyncSet.size} closure entries`);
+        // Unawaitable-context detector (Q8): an `await` that landed
+        // inside a non-async function means the closure missed its
+        // enclosing function (an indirect-only caller).  That is a
+        // build bug — fail loud with the function names so the seed
+        // set can be extended, never ship a syntax-broken or
+        // silently-sync file.
+        {
+            const bad = [];
+            for (const f of readdirSync(outputDir)) {
+                if (!f.endsWith('.js')) continue;
+                const src = readFileSync(join(outputDir, f), 'utf8');
+                const fnRe = /\b(async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\([^)]*\)\s*\{/g;
+                let m;
+                const spans = [];
+                while ((m = fnRe.exec(src)) !== null) {
+                    let depth = 0, end = -1;
+                    for (let i = fnRe.lastIndex - 1; i < src.length; i++) {
+                        if (src[i] === '{') depth++;
+                        else if (src[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+                    }
+                    if (end > 0) spans.push({ isAsync: !!m[1], name: m[2], start: fnRe.lastIndex, end });
+                }
+                const awaitRe = /\bawait\b/g;
+                while ((m = awaitRe.exec(src)) !== null) {
+                    // innermost enclosing span
+                    let enc = null;
+                    for (const sp of spans) {
+                        if (m.index > sp.start && m.index < sp.end
+                            && (!enc || sp.start > enc.start)) enc = sp;
+                    }
+                    if (enc && !enc.isAsync) {
+                        const key = `${f}:${enc.name}`;
+                        if (!bad.includes(key)) bad.push(key);
+                    }
+                }
+            }
+            if (bad.length) {
+                console.error('build-engine: FATAL — await inside non-async function (closure missed an indirect caller; extend INDIRECT_ASYNC_* seeds in c2js.config.mjs):');
+                for (const b of bad.slice(0, 20)) console.error('  ' + b);
+                process.exit(1);
+            }
+        }
     }
 }
 
@@ -7739,6 +7932,15 @@ console.log(`build-engine: patchFile applied ${__patchFile_callCount - __patchFi
         .filter(([, n]) => n > 0)
         .map(([k, n]) => `${k}=${n}`);
     console.log(`build-engine: residual TODO markers (${total} total) — ${parts.join(', ') || 'none'}`);
+}
+
+// Refresh the runtime stub manifest (UNWEDGE_PLAN Q2): the candidate
+// names depend on the emitted output, so regenerate after patches +
+// comment injection.  See tools/c2js/gen-stub-manifest.mjs.
+{
+    const { generateStubManifest } = await import('./gen-stub-manifest.mjs');
+    const n = generateStubManifest(outputDir);
+    console.log(`build-engine: stub-manifest ${n} candidate names`);
 }
 
 console.log('build-engine: done');

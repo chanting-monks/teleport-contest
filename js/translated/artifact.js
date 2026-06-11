@@ -15,7 +15,7 @@ import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
 import { getrumor } from '../c2js-runtime/rumors.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { do_blinding_ray, next_to_u } from './apply.js';
 import { exercise } from './attrib.js';
 import { getdir, isok } from './cmd.js';
@@ -131,7 +131,6 @@ export function save_artifacts(nhfp) {
         sfo_arti_info(nhfp, game.artiexist[i], "artiexist");
     }
     for (i = 0; i < NROFARTIFACTS; ++i) {
-        /* Translator gap: same consistency tightening as commit 32a2f91. */
         sfo_xint16(nhfp, { get value() { return game.artidisco[i]; }, set value(_v) { game.artidisco[i] = _v; } }, "artidisco");
     }
 }
@@ -142,9 +141,6 @@ export function restore_artifacts(nhfp) {
         sfi_arti_info(nhfp, game.artiexist[i], "artiexist");
     }
     for (i = 0; i < NROFARTIFACTS; ++i) {
-        /* Translator gap: by-value sfi_* drops the write-back.  Box
-           the outparam; same hand-sync as dungeon.js exclusion-zone
-           fix (commit da46f8b).  Retire when Axis B tooling lands. */
         sfi_short(nhfp, { get value() { return game.artidisco[i]; }, set value(_v) { game.artidisco[i] = _v; } }, "artidisco");
     }
     hack_artifacts();
@@ -328,16 +324,13 @@ export function dispose_of_orig_obj(obj) {
 export function artifact_name(name, otyp_p, fuzzy) {
     let a = null;
     let aname = null;
-    /* Translator gap: C `name += 4` advances past "the ".
-       In JS, string + 4 is concat ("the Sunsword" + 4 →
-       "the Sunsword4").  Use slice(4) for proper advance. */
     if (!strncmpi(name, "the ", 4)) {
-        name = (typeof name === 'string') ? name.slice(4) : name + 4;
+        name = __nh_advance_str(name, 4);
     }
     for (let __nhi_a = 1; (a = artilist[__nhi_a]) && (a.otyp); __nhi_a++) {
         aname = a.name;
         if (!strncmpi(aname, "the ", 4)) {
-            aname = (typeof aname === 'string') ? aname.slice(4) : aname + 4;
+            aname = __nh_advance_str(aname, 4);
         }
         if (!fuzzy ? !strncmpi((name), (aname), -1) : fuzzymatch(name, aname, " -", (1))) {
             if (otyp_p) {
@@ -351,7 +344,7 @@ export function artifact_name(name, otyp_p, fuzzy) {
 export function exist_artifact(otyp, name) {
     let a = null;
     let arex = null;
-    if (otyp && name.value) {
+    if (otyp && __nh_char_at0(name)) {
         for (let __nhi_a = 1; (arex = game.artiexist[__nhi_a], a = artilist[__nhi_a]) && (a.otyp); __nhi_a++) {
             if (a.otyp == otyp && !strcmp(a.name, name)) {
                 return arex.exists ? (1) : (0);
@@ -369,7 +362,7 @@ export function exist_artifact(otyp, name) {
 /* ONAME_xyz flags; not relevant if !mod */
 export function artifact_exists(otmp, name, mod, flgs) {
     let a = null;
-    if (otmp && name.value) {
+    if (otmp && __nh_char_at0(name)) {
         for (let __nhi_a = 1; (a = artilist[__nhi_a]) && (a.otyp); __nhi_a++) {
             if (a.otyp == otmp.otyp && !strcmp(a.name, name)) {
                 let m = (artilist.indexOf(a));
@@ -531,13 +524,6 @@ export function shade_glare(obj) {
 }
 /* returns 1 if name is restricted for otmp->otyp */
 export function restrict_name(otmp, name) {
-    /* Hand-port: C `if (!*name)` (empty C-string check) was emitted
-       by translator as `!name.value`, which is always true for JS
-       strings (name.value=undefined → !undefined=true) → function
-       returned 0 unconditionally.  Normalize name to a JS string and
-       use proper empty-string check. */
-    name = (typeof name === 'string') ? name
-        : (Array.isArray(name) ? ((() => { let r=''; for (let i=0; i<name.length && name[i]; i++) r += String.fromCharCode(name[i]); return r; })()) : '');
     let a = null;
     let aname = null;
     let odesc = null;
@@ -548,14 +534,13 @@ export function restrict_name(otmp, name) {
     let hi = 0;
     let otyp = otmp.otyp;
     let ocls = game.objects[otyp].oc_class;
-    if (!name) {
+    if (!__nh_char_at0(name)) {
         /* since damage bonus didn't apply, nothing more to do;
            no further attacks have side-effects on inventory */
         return (0);
     }
     if (!strncmpi(name, "the ", 4)) {
-        /* Hand-port: C `name += 4` skips "the " prefix.  Slice in JS. */
-        name = name.slice(4);
+        name = __nh_advance_str(name, 4);
     }
     /* decide what types of objects are the same as otyp;
        if it's been discovered, then only itself matches;
@@ -585,8 +570,7 @@ export function restrict_name(otmp, name) {
         }
         aname = a.name;
         if (!strncmpi(aname, "the ", 4)) {
-            /* Hand-port: skip "the " prefix via slice. */
-            aname = (typeof aname === 'string') ? aname.slice(4) : aname;
+            aname = __nh_advance_str(aname, 4);
         }
         if (!strcmp(aname, name)) {
             return ((a.spfx & (1 | 2)) != 0 || otmp.quan > 1);
@@ -673,7 +657,7 @@ export function protects(otmp, being_worn) {
  * a potential artifact has just been worn/wielded/picked-up or
  * unworn/unwielded/dropped.  Pickup/drop only set/reset the W_ART mask.
  */
-export async function set_artifact_intrinsic(otmp, on, wp_mask) {
+export function set_artifact_intrinsic(otmp, on, wp_mask) {
     let mask = null;
     let art = null;
     let oart = get_artifact(otmp);
@@ -845,7 +829,7 @@ export async function set_artifact_intrinsic(otmp, on, wp_mask) {
     if (wp_mask == 4096 && !on && oart.inv_prop) {
         /* might have to turn off invoked power too */
         if (oart.inv_prop <= LAST_PROP && (game.u.uprops[oart.inv_prop].extrinsic & 8192)) {
-            await arti_invoke(otmp);
+            arti_invoke(otmp);
         }
     }
     if (wp_mask == 256 && is_art(otmp, ART_SUNSWORD)) {
@@ -886,7 +870,7 @@ export function touch_artifact(obj, mon) {
     if (yours) {
         badclass = self_willed && ((oart.role != NON_PM && !(game.urole.mnum == (oart.role))) || (oart.race != NON_PM && !(game.urace.mnum == (oart.race))));
         badalign = ((oart.spfx & 2) != 0 && oart.alignment != (-128) && (oart.alignment != game.u.ualign.type || game.u.ualign.record < 0));
-    } else if (!(((mon.data).mflags3 & 31)) && !((mon.data).pmidx >= PM_ARCHEOLOGIST && (mon.data).pmidx <= PM_WIZARD)) {
+    } else if (!(((mon.data).mflags3 & 31)) && !(((mon.data).pmidx >= PM_ARCHEOLOGIST) && ((mon.data).pmidx <= PM_WIZARD))) {
         badclass = self_willed && oart.role != NON_PM && oart != artilist[ART_EXCALIBUR];
         badalign = (oart.spfx & 2) && oart.alignment != (-128) && (oart.alignment != mon_aligntyp(mon));
     } else {
@@ -903,7 +887,7 @@ export function touch_artifact(obj, mon) {
     if (((badclass || badalign) && self_willed) || (badalign && (!yours || !rn2(4)))) {
         let dmg = 0;
         let tmp = 0;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         if (!yours) {
             return 0;
         }
@@ -1073,7 +1057,7 @@ export function disp_artifact_discoveries(tmpwin) {
     let m = 0;
     let otyp = 0;
     let algnstr = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     for (i = 0; i < NROFARTIFACTS; i++) {
         if (game.artidisco[i] == 0) {
             break;
@@ -1100,13 +1084,13 @@ export function disp_artifact_discoveries(tmpwin) {
 /* (wizard mode only) show all artifacts and their flags */
 export function dump_artifact_info(tmpwin) {
     let m = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let buf2 = '';
     (game.windowprocs.win_putstr)(tmpwin, game.iflags.menu_headings.attr, "Artifacts");
     /* not a menu, but header uses same bold or whatever attribute as such */
     for (m = 1; m <= NROFARTIFACTS; ++m) {
-        nh_snprintf("dump_artifact_info", 1197, buf2, 256 /* sizeof(char [256]) */, "[%s%s%s%s%s%s%s%s%s]", game.artiexist[m].exists ? "exists;" : "", game.artiexist[m].found ? " hero knows;" : "", game.artiexist[m].gift ? " gift" : "", game.artiexist[m].wish ? " wish" : "", game.artiexist[m].named ? " named" : "", game.artiexist[m].viadip ? " viadip" : "", game.artiexist[m].lvldef ? " lvldef" : "", game.artiexist[m].bones ? " bones" : "", game.artiexist[m].rndm ? " random" : "");
-        nh_snprintf("dump_artifact_info", 1204, buf, 256 /* sizeof(char [256]) */, "  %-36.36s%s", artiname(m), buf2);
+        buf2 = nh_snprintf("dump_artifact_info", 1197, buf2, 256 /* sizeof(char [256]) */, "[%s%s%s%s%s%s%s%s%s]", game.artiexist[m].exists ? "exists;" : "", game.artiexist[m].found ? " hero knows;" : "", game.artiexist[m].gift ? " gift" : "", game.artiexist[m].wish ? " wish" : "", game.artiexist[m].named ? " named" : "", game.artiexist[m].viadip ? " viadip" : "", game.artiexist[m].lvldef ? " lvldef" : "", game.artiexist[m].bones ? " bones" : "", game.artiexist[m].rndm ? " random" : "");
+        buf = nh_snprintf("dump_artifact_info", 1204, buf, 256 /* sizeof(char [256]) */, "  %-36.36s%s", artiname(m), buf2);
         (game.windowprocs.win_putstr)(tmpwin, 0, buf);
     }
     return;
@@ -1317,8 +1301,8 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
             shieldeff(youdefend ? game.u.ux : mdef.mx, youdefend ? game.u.uy : mdef.my);
         }
         if ((do_stun || do_confuse) && game.flags.verbose) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            buf[0] = 0;
+            let buf = '';
+            buf = '';
             if (do_stun) {
                 buf = strcat(buf, "stunned");
             }
@@ -1354,7 +1338,7 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
     let vis = (!youattack && magr && ((game.viz_array[magr.my][magr.mx] & 2) != 0)) || (!youdefend && ((game.viz_array[mdef.my][mdef.mx] & 2) != 0)) || (youattack && (game.u.uswallow && (game.u.ustuck == (mdef))) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked));
     let realizes_damage = 0;
     let wepdesc = null;
-    let hittee = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let hittee = '';
     hittee = strcpy(hittee, youdefend ? __artifact_hit_you : mon_nam(mdef));
     /* The following takes care of most of the damage, but not all--
      * the exception being for level draining, which is specially
@@ -1595,7 +1579,7 @@ export function invoke_ok(obj) {
     return GETOBJ_EXCLUDE;
 }
 /* the #invoke command */
-export async function doinvoke() {
+export function doinvoke() {
     let obj = null;
     obj = getobj("invoke", invoke_ok, 2);
     if (!obj) {
@@ -1604,7 +1588,7 @@ export async function doinvoke() {
     if (!retouch_object({ get value() { return obj; }, set value(_v) { obj = _v; } }, (0))) {
         return 1;
     }
-    return await arti_invoke(obj);
+    return arti_invoke(obj);
 }
 export function nothing_special(obj) {
     if (((obj).where == 3)) {
@@ -1695,7 +1679,7 @@ export function invoke_charge_obj(obj) {
     update_inventory();
     return 1;
 }
-export async function invoke_create_portal(obj) {
+export function invoke_create_portal(obj) {
     let i = 0;
     let num_ok_dungeons = 0;
     let last_ok_dungeon = 0;
@@ -1758,7 +1742,7 @@ export async function invoke_create_portal(obj) {
         } else {
             You_feel("weightless for a moment.");
         }
-        await goto_level(newlev, (0), (0), (0));
+        goto_level(newlev, (0), (0), (0));
     }
     return 1;
 }
@@ -1926,7 +1910,7 @@ export function arti_invoke_cost(obj) {
     }
     return (1);
 }
-export async function arti_invoke(obj) {
+export function arti_invoke(obj) {
     let oart = null;
     let res = 0;
     if (!obj) {
@@ -1968,7 +1952,7 @@ export async function arti_invoke(obj) {
                 res = 1;
                 break;
             case CREATE_PORTAL:
-                res = await invoke_create_portal(obj);
+                res = invoke_create_portal(obj);
                 break;
             case ENLIGHTENING:
                 enlightenment(2, 0);
@@ -2080,13 +2064,13 @@ export function artifact_light(obj) {
 export function arti_speak(obj) {
     let oart = get_artifact(obj);
     let line = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     /* Is this a speaking artifact? */
     if (oart == artilist[ART_NONARTIFACT] || !(oart.spfx & 8)) {
         return 0;
     }
     line = getrumor(bcsign(obj), buf, (1));
-    if (!line) {
+    if (!__nh_char_at0(line)) {
         line = "NetHack rumors file closed for renovation.";
     }
     pline("%s:", Tobjnam(obj, "whisper"));
@@ -2189,7 +2173,7 @@ export function glow_strength(count) {
     return (count > 12) ? 3 : (count > 4) ? 2 : (count > 0);
 }
 /* 0 means blind rather than no applicable creatures */
-let __glow_verb_resbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __glow_verb_resbuf = '';
 export function glow_verb(count, ingsfx) {
     __glow_verb_resbuf = strcpy(__glow_verb_resbuf, glow_verbs[glow_strength(count)]);
     /* ing_suffix() will double the last consonant for all the words
@@ -2237,7 +2221,7 @@ export function retouch_object(objp, loseit) {
         return 1;
     }
     if (touch_artifact(obj, game.youmonst)) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let dmg = 0;
         let tmp = 0;
         let ag = (game.objects[obj.otyp].oc_material == SILVER && (game.u.ulycn >= LOW_PM || hates_silver(game.youmonst.data)));
@@ -2315,7 +2299,7 @@ export function retouch_object(objp, loseit) {
    if it fails, it will be unworn/unwielded and maybe dropped */
 /* object to test; in invent or is steed's saddle */
 /* whether to drop it if it can't be touched */
-export async function untouchable(obj, drop_untouchable) {
+export function untouchable(obj, drop_untouchable) {
     let art = null;
     let beingworn = 0;
     let carryeffect = 0;
@@ -2339,7 +2323,7 @@ export async function untouchable(obj, drop_untouchable) {
                carried effect was turned off, else we leave that alone;
                we turn off invocation property here if still carried */
             if (invoked && obj) {
-                await arti_invoke(obj);
+                arti_invoke(obj);
             }
             return (1);
         }
@@ -2349,7 +2333,7 @@ export async function untouchable(obj, drop_untouchable) {
 /* check all items currently in use (mostly worn) for touchability */
 /* 0==don't drop, 1==drop all, 2==drop weapon */
 let __retouch_equipment_nesting = 0;
-export async function retouch_equipment(dropflag) {
+export function retouch_equipment(dropflag) {
     let obj = null;
     let dropit = 0;
     let had_gloves = (game.uarmg != null);
@@ -2373,19 +2357,19 @@ export async function retouch_equipment(dropflag) {
         /* check secondary weapon first, before possibly unwielding primary */
         /* so loop below won't process it again */
         bypass_obj(game.uswapwep);
-        await untouchable(game.uswapwep, dropit);
+        untouchable(game.uswapwep, dropit);
     }
     if (game.uwep) {
         /* check primary weapon next so that they're handled together */
         bypass_obj(game.uwep);
-        await untouchable(game.uwep, dropit);
+        untouchable(game.uwep, dropit);
     }
     if (game.u.usteed && (obj = which_armor(game.u.usteed, 1048576)) != null) {
         /* in case someone is daft enough to add artifact or silver saddle */
         /* untouchable() calls retouch_object() which expects an object in
            hero's inventory, but remove_worn_item() will be harmless for
            saddle and we're suppressing drop, so this works as intended */
-        if (await untouchable(obj, (0))) {
+        if (untouchable(obj, (0))) {
             dismount_steed(DISMOUNT_THROWN);
         }
     }
@@ -2402,7 +2386,7 @@ export async function retouch_equipment(dropflag) {
        gi.invent chain each time it moves on to another object; we use bypass
        handling to keep track of which items have already been processed */
     while ((obj = nxt_unbypassed_obj(game.invent)) != null) {
-        await untouchable(obj, dropit);
+        untouchable(obj, dropit);
     }
     if (had_rings != (!!game.uleft + !!game.uright) && game.uarmg && game.uarmg.cursed) {
         uncurse(game.uarmg);

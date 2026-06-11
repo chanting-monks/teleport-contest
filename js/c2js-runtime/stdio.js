@@ -62,7 +62,12 @@ function formatOne(spec, arg) {
     const { flags, width, conv } = parseSpec(spec);
     if (conv === '%') return '%';
     if (conv === 'd' || conv === 'i' || conv === 'D') {
-        let n = arg | 0;
+        /* §23.226 — use Math.trunc on Number(arg) instead of `arg | 0`.
+           Bitwise OR truncates to int32, breaking `%ld` for long
+           values > 2^31 (e.g. game.moves on long runs, score values).
+           Math.trunc preserves full JS-number precision (up to 2^53). */
+        const num = Number(arg);
+        let n = Number.isFinite(num) ? Math.trunc(num) : 0;
         let s = String(Math.abs(n));
         // C printf: '+' flag forces sign on positive numbers (and 0);
         // ' ' flag uses a leading space for positives if '+' isn't set.
@@ -78,24 +83,28 @@ function formatOne(spec, arg) {
         return padded(signPrefix + s, width, flags);
     }
     if (conv === 'u') {
-        let n = arg >>> 0;
+        /* §23.226 — Math.trunc + unsigned conversion for negatives. */
+        const num = Number(arg);
+        let n = Number.isFinite(num) ? Math.trunc(num) : 0;
+        if (n < 0) n = n >>> 0; /* C: negative cast to size_t gives bit-pattern */
         return padded(String(n), width, flags);
     }
-    if (conv === 'x') {
-        let n = (arg >>> 0).toString(16);
-        return padded(n, width, flags);
-    }
-    if (conv === 'X') {
-        let n = (arg >>> 0).toString(16).toUpperCase();
-        return padded(n, width, flags);
-    }
-    if (conv === 'o') {
-        let n = (arg >>> 0).toString(8);
-        return padded(n, width, flags);
+    if (conv === 'x' || conv === 'X' || conv === 'o') {
+        /* §23.226 — Math.trunc + bit-pattern for negative. */
+        const num = Number(arg);
+        let n = Number.isFinite(num) ? Math.trunc(num) : 0;
+        if (n < 0) n = n >>> 0;
+        const base = conv === 'o' ? 8 : 16;
+        let s = n.toString(base);
+        if (conv === 'X') s = s.toUpperCase();
+        return padded(s, width, flags);
     }
     if (conv === 'p') {
         // Pointer — print as hex; only used in debug output in C
-        return padded((arg >>> 0).toString(16), width, flags);
+        const num = Number(arg);
+        let n = Number.isFinite(num) ? Math.trunc(num) : 0;
+        if (n < 0) n = n >>> 0;
+        return padded(n.toString(16), width, flags);
     }
     if (conv === 's') {
         // C printf '.precision' on %s = max chars to print.
@@ -107,13 +116,40 @@ function formatOne(spec, arg) {
         return padded(str, width, flags);
     }
     if (conv === 'c') {
+        /* §23.226 — null/undefined arg returns empty string (C is
+           undefined here; previously returned "(" because coerceArgForS
+           gave "(null)" and charAt(0) = "("). */
+        if (arg == null) return '';
         if (typeof arg === 'number') return String.fromCharCode(arg & 0xff);
         return coerceArgForS(arg).charAt(0);
     }
-    if (conv === 'f' || conv === 'F' || conv === 'e' || conv === 'E' || conv === 'g' || conv === 'G') {
-        // Floating point — fall back to JS String() coercion.  Width/
-        // precision honored minimally.
-        return padded(String(Number(arg)), width, flags);
+    if (conv === 'f' || conv === 'F') {
+        /* §23.226 — apply precision via toFixed.  C default precision
+           for %f is 6.  Previously precision was ignored, so e.g.
+           "%.2f" on 3.14159 returned "3.14159" instead of "3.14". */
+        const { precision } = parseSpec(spec);
+        const num = Number(arg);
+        if (Number.isNaN(num)) return padded('nan', width, flags);
+        const p = precision >= 0 ? precision : 6;
+        return padded(num.toFixed(p), width, flags);
+    }
+    if (conv === 'e' || conv === 'E' || conv === 'g' || conv === 'G') {
+        /* Minimal %e/%g support — exponential/general format.  C
+           default precision is 6.  NetHack doesn't currently use
+           these, so fall back to JS toExponential / toPrecision. */
+        const { precision } = parseSpec(spec);
+        const num = Number(arg);
+        if (Number.isNaN(num)) return padded('nan', width, flags);
+        const p = precision >= 0 ? precision : 6;
+        let s;
+        if (conv === 'e' || conv === 'E') {
+            s = num.toExponential(p);
+            if (conv === 'E') s = s.toUpperCase();
+        } else {
+            s = num.toPrecision(p === 0 ? 1 : p);
+            if (conv === 'G') s = s.toUpperCase();
+        }
+        return padded(s, width, flags);
     }
     throw new Error(`stdio.js printf: unsupported format spec "${spec}"`);
 }
@@ -156,27 +192,51 @@ export function format_string(fmt, args) {
     return out;
 }
 
+/* §23.226 — browser-compatible stdout/stderr write.  C `printf` /
+   `puts` / `putchar` calls in translated NetHack are configuration
+   errors, debug output, and crashes — none affect PRNG or screen
+   state, which flow through game.windowprocs.win_putstr.  Use a
+   guarded process check so this works in Node (test harness),
+   browser (production game), and the test runner's isolated VM:
+   - Node: uses process.stdout/stderr.write
+   - Browser: falls back to console.log/error (with trailing \n
+     stripped to avoid double-newlining since console.* already
+     adds one). */
+const _stdoutWrite = (typeof process !== 'undefined' && process.stdout && typeof process.stdout.write === 'function')
+    ? (s) => process.stdout.write(s)
+    : (s) => { if (typeof console !== 'undefined' && console.log) console.log(s.replace(/\n$/, '')); };
+const _stderrWrite = (typeof process !== 'undefined' && process.stderr && typeof process.stderr.write === 'function')
+    ? (s) => process.stderr.write(s)
+    : (s) => { if (typeof console !== 'undefined' && console.error) console.error(s.replace(/\n$/, '')); };
+
 export function printf(fmt, ...args) {
     const s = format_string(fmt, args);
-    process.stdout.write(s);
+    _stdoutWrite(s);
     return s.length;
 }
 
 export function fprintf(stream, fmt, ...args) {
     const s = format_string(fmt, args);
-    if (stream === 'stderr' || stream === 2) process.stderr.write(s);
-    else process.stdout.write(s);
+    if (stream === 'stderr' || stream === 2) _stderrWrite(s);
+    else _stdoutWrite(s);
     return s.length;
 }
 
 export function puts(s) {
-    process.stdout.write(s + '\n');
-    return s.length + 1;
+    /* §23.226 — coerce char-array via NUL walk instead of toString
+       (which joins array elements with commas).  C `puts(arr)` walks
+       to the NUL terminator. */
+    const str = (s == null) ? ''
+        : (Array.isArray(s)
+            ? (() => { let r=''; for (let i=0;i<s.length&&s[i];i++) r+=String.fromCharCode(s[i]); return r; })()
+            : String(s));
+    _stdoutWrite(str + '\n');
+    return str.length + 1;
 }
 
 export function putchar(c) {
     const ch = typeof c === 'number' ? String.fromCharCode(c & 0xff) : String(c);
-    process.stdout.write(ch);
+    _stdoutWrite(ch);
     return c;
 }
 
@@ -229,15 +289,69 @@ function writeIntoCharArray(buf, str) {
 export function snprintf(_buf, _size, fmt, ...args) {
     const result = format_string(coerceFmtArg(fmt), args);
     writeIntoCharArray(_buf, result);
+    // §23.222db — same array-preserving return as sprintf above.
+    if (Array.isArray(_buf)) return _buf;
     return result;
 }
 export function nh_snprintf(_label, _line, _buf, _size, fmt, ...args) {
     const result = format_string(coerceFmtArg(fmt), args);
     writeIntoCharArray(_buf, result);
+    // §23.222db — same array-preserving return as sprintf above.
+    if (Array.isArray(_buf)) return _buf;
     return result;
 }
 export function sprintf(_buf, fmt, ...args) {
     const result = format_string(coerceFmtArg(fmt), args);
     writeIntoCharArray(_buf, result);
+    // §23.222db — C ref: `Sprintf(buf, fmt, args)` returns the destination
+    // pointer (buf), so `buf = Sprintf(buf, ...)` is a no-op rebind in C.
+    // Previously we returned the formatted STRING here, which made the
+    // JS `buf = sprintf(buf, ...)` rebind buf away from its char-array
+    // binding — breaking subsequent nh_snprintf/sprintf mutations.
+    // Now return buf when it's an array (matches C-pointer semantics),
+    // and the formatted string when buf is null/string/something-else
+    // (no buffer to track).
+    if (Array.isArray(_buf)) return _buf;
     return result;
+}
+
+// §23.222da — append-to-buffer helper that preserves char-array binding.
+// C ref: `Sprintf(eos(buf), fmt, args)` — appends formatted text at the
+// current C-string end of buf, leaving buf still pointing at the (now
+// extended) array.
+//
+// In JS, the prior translator emit `buf = ((typeof buf === 'string') ?
+// buf : '') + sprintf('', fmt, args)` rebinds buf to a string.  After
+// rebinding, any subsequent nh_snprintf(buf, ...) silently no-ops
+// (Array.isArray(buf) is false on a string), so successive C-style
+// buffer-mutation calls produce empty output.
+//
+// __nh_buf_append:
+//   - Array buf: walks to first NUL, appends str.charCodeAt bytes
+//     starting there, writes a new NUL at the end, returns buf (still
+//     the array binding).  Mutates in place; the returned reference
+//     equals the input.
+//   - String buf: concatenates str and returns the new string.
+//   - null/undefined buf: treats as empty, returns the string str.
+//
+// Used by the translator emit for `Sprintf(eos(BUF), ...)` /
+// `Snprintf(eos(BUF), ...)` patterns (translate.mjs:7886) so the array
+// path doesn't lose its binding to a string-builder rebind.
+export function __nh_buf_append(buf, str) {
+    const s = (str == null) ? '' : String(str);
+    if (Array.isArray(buf)) {
+        const lim = buf.length;
+        // Walk to first NUL — the C eos position.
+        let i = 0;
+        while (i < lim && buf[i]) i++;
+        // Append from position i.
+        for (let j = 0; j < s.length && i + j < lim; j++) {
+            buf[i + j] = s.charCodeAt(j);
+        }
+        const end = Math.min(i + s.length, lim - 1);
+        if (end < lim) buf[end] = 0;
+        return buf;
+    }
+    if (typeof buf === 'string') return buf + s;
+    return s;
 }

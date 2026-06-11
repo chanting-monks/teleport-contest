@@ -39,8 +39,9 @@ import {
     lua_pushinteger, lua_pushnumber, lua_pushstring, lua_pushboolean,
     lua_pushnil, lua_gettop, lua_settop, lua_setfield, lua_rawseti,
     lua_createtable, lua_tointeger, lua_tostring, lua_tonumber,
-    lua_isnumber, lua_isstring,
+    lua_isnumber, lua_isstring, luaValueToJs,
 } from './lua.js';
+import { lua_pushjsfunction } from './lua-state.mjs';
 import { pushSelection } from './nhlsel-bridge.mjs';
 import { Selection } from './selection-js.mjs';
 
@@ -59,7 +60,18 @@ export function buildDesProxy(L, lspoTable) {
         // Each method takes any number of JS args, pushes them
         // onto L, calls lspoFn(L), reads any returned values.
         proxy[entry.name] = async function(...args) {
-            const baseTop = lua_gettop(L);
+            // Frame discipline (Q9 iteration 21): a des.* call can
+            // arrive MID-pcall (a map-contents callback runs inside
+            // lspo_map's pcall), and lspo_* read their arg count via
+            // lua_gettop — which is FRAME-relative.  Without a fresh
+            // frame the callee sees the enclosing call's leftovers
+            // (lspo_region got argc=2/type1=TABLE from filler_region's
+            // one-table call and took the selection-arg branch, so the
+            // percent cluster never reached its litstate_rnd rolls).
+            // Mirror lua_pcall_async: push a frame base at the current
+            // absolute top, pop it in finally.
+            const absBase = L.stack.length;
+            L.frameBases.push(absBase);
             try {
                 for (const a of args) pushJsValue(L, a);
                 const nresults = await lspoFn(L);
@@ -80,12 +92,13 @@ export function buildDesProxy(L, lspoTable) {
                 // themerms run — under fengari, wrapAsyncForLua
                 // converts the same exception to a silent 0-return
                 // so subsequent lspo_* calls still execute.
-                if (process.env.NH_DEBUG_LUA) {
+                if (typeof process !== 'undefined' && process.env?.NH_DEBUG_LUA) {
                     console.warn('[des-bridge async err]', entry.name, ':', e?.message || e);
                 }
                 return undefined;
             } finally {
-                lua_settop(L, baseTop);
+                L.frameBases.pop();
+                L.stack.length = absBase;
             }
         };
     }
@@ -119,6 +132,26 @@ export function pushJsValue(L, v) {
     }
     if (typeof v === 'string') {
         lua_pushstring(L, v);
+        return;
+    }
+    if (typeof v === 'function') {
+        // Callback values (e.g. des.map's `contents = function(m)
+        // filler_region(1,1) end`) must round-trip as CALLABLES.
+        // The string fallback below used to swallow them (the
+        // function marshalled as its source text, lua_type !=
+        // LUA_TFUNCTION, and lspo_map silently skipped the room's
+        // contents — the Lua-percent x7 cluster's B-layer, Q9
+        // iteration 19).  Same arg-marshal protocol as
+        // installThemermsWrappers: Lua-stack args -> JS values; the
+        // returned Promise is awaited by lua_pcall_async.
+        lua_pushjsfunction(L, (innerL) => {
+            const argc = lua_gettop(innerL);
+            const args = [];
+            for (let i = 1; i <= argc; i++) {
+                args.push(luaValueToJs(innerL, i));
+            }
+            return v(...args);
+        });
         return;
     }
     if (Array.isArray(v)) {

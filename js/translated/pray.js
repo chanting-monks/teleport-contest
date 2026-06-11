@@ -5,8 +5,8 @@ import { game } from '../gstate.js';
 import { sgn } from '../c2js-runtime/math.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, You_hear, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { artifact_origin, artiname, confers_luck, discover_artifact, exist_artifact, is_art, mk_artifact, nartifact_exist } from './artifact.js';
 import { adjalign, adjattrib, change_luck, exercise, setuhpmax, uchangealign } from './attrib.js';
 import { xlev_to_rank } from './botl.js';
@@ -556,10 +556,10 @@ export function fix_worst_trouble(trouble) {
         case (-5):
 {
                 /* handles deafness as well as blindness */
-                let msgbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let msgbuf = '';
                 let eyes = body_part(EYE);
                 let cure_deaf = (game.u.uprops[DEAF].intrinsic & 16777215) ? (1) : (0);
-                msgbuf[0] = 0;
+                msgbuf = '';
                 if ((game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked)) {
                     if ((!(((game.youmonst.data).mflags1 & 4096) == 0) ? 0 : ((game.youmonst.data) == game.mons[PM_CYCLOPS] || (game.youmonst.data) == game.mons[PM_FLOATING_EYE]) ? 1 : 2) != 1) {
                         eyes = makeplural(eyes);
@@ -573,7 +573,7 @@ export function fix_worst_trouble(trouble) {
                 if (cure_deaf) {
                     make_deaf(0, (0));
                     if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                        msgbuf = (msgbuf || '') + sprintf('', "%s can hear again", !msgbuf ? "You" : " and you");
+                        msgbuf = __nh_buf_append(msgbuf, sprintf('', "%s can hear again", !msgbuf ? "You" : " and you"));
                     }
                 }
                 if (msgbuf) {
@@ -832,7 +832,7 @@ export function gcrownu() {
             break;
     }
     if (game.objects[class_gift].oc_class == SPBOOK_CLASS) {
-        let bbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let bbuf = '';
         obj = mksobj(class_gift, (1), (0));
         bbuf = strcpy(bbuf, actualoname(obj));
         /* get book type before dropping (don't think that could destroy
@@ -861,7 +861,7 @@ export function gcrownu() {
             if (class_gift != STRANGE_OBJECT) {
                 ;
             } else if (obj && obj.otyp == LONG_SWORD && !obj.oartifact) {
-                let lbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let lbuf = '';
                 lbuf = strcpy(lbuf, simpleonames(obj));
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                     Your("sword shines brightly for a moment.");
@@ -901,7 +901,7 @@ export function gcrownu() {
             break;
         case (-1):
 {
-                let swordbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let swordbuf = '';
                 swordbuf = sprintf(swordbuf, "%s sword", hcolor(c_color_names.c_black));
                 if (class_gift != STRANGE_OBJECT) {
                     ;
@@ -1102,7 +1102,7 @@ export function pleased(g_align) {
                 break;
             case 1:
                 if (game.uwep && (welded(game.uwep) || game.uwep.oclass == WEAPON_CLASS || ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE))) {
-                    let repair_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let repair_buf = '';
                     repair_buf = '';
                     if (game.uwep.oeroded || game.uwep.oeroded2) {
                         repair_buf = sprintf(repair_buf, " and %s now as good as new", otense(game.uwep, "are"));
@@ -1391,7 +1391,7 @@ export function offer_too_soon(altaralign) {
     You_feel("%s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "homesick" : (altaralign == game.u.ualign.type) ? "an urge to return to the surface" : "ashamed");
 }
 export function desecrate_altar(highaltar, altaralign) {
-    let gvbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let gvbuf = '';
     if (altaralign == game.u.ualign.type) {
         /*
      * REAL BAD NEWS!!! High altars cannot be converted.  Even an attempt
@@ -1589,7 +1589,7 @@ export function sacrifice_your_race(otmp, highaltar, altaralign) {
             demonless_msg = "blood coagulates";
         }
         if ((pm = dlord(altaralign)) != NON_PM && (dmon = makemon(game.mons[pm], game.u.ux, game.u.uy, 131072)) != null) {
-            let dbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let dbuf = '';
             dbuf = strcpy(dbuf, a_monnam(dmon));
             if (!strncmpi((dbuf), ("it"), -1)) {
                 dbuf = strcpy(dbuf, "something dreadful");
@@ -1643,7 +1643,7 @@ export function bestow_artifact(max_giftvalue) {
         /* mk_artifact() with NULL obj and a_align() arg can return NULL */
         otmp = mk_artifact(null, ((((((game.level.locations[game.u.ux][game.u.uy].flags & 7) & 7) == 0) ? (-128) : (((game.level.locations[game.u.ux][game.u.uy].flags & 7) & 7) == 4) ? 1 : (((game.level.locations[game.u.ux][game.u.uy].flags & 7) & 7)) - 2))), max_giftvalue, (1));
         if (otmp) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             artifact_origin(otmp, 8 | 256);
             if (otmp.spe < 0) {
                 otmp.spe = 0;
@@ -1654,7 +1654,7 @@ export function bestow_artifact(max_giftvalue) {
             otmp.oerodeproof = (1);
             buf = strcpy(buf, ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "a doodad" : ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "an object" : ansimpleoname(otmp)));
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                buf = (buf || '') + sprintf('', " named %s", bare_artifactname(otmp));
+                buf = __nh_buf_append(buf, sprintf('', " named %s", bare_artifactname(otmp)));
             }
             at_your_feet(upstart(buf));
             dropy(otmp);
@@ -2284,20 +2284,8 @@ export function align_gname(alignment) {
             gnam = "someone";
             break;
     }
-    /* Translator gap: C `if (*gnam == '_') ++gnam;` strips the
-       leading underscore that NetHack uses to mark proper-noun
-       deity names (lgod="_Amaterasu Omikami" etc.) so they print
-       without an article.  Translator emitted `gnam == 95` (the
-       ASCII code for '_') comparing the whole string to a number
-       (always false), and `++gnam` is a no-op on a string.  Hand-
-       patched 2026-05-31 for seed0017 prayer rendering. */
-    if (typeof gnam === 'string' && gnam.charCodeAt(0) === 95) {
-        gnam = gnam.slice(1);
-    } else if (Array.isArray(gnam) && gnam[0] === 95) {
-        let __i = 1;
-        let __s = '';
-        for (; __i < gnam.length && gnam[__i]; __i++) __s += String.fromCharCode(gnam[__i]);
-        gnam = __s;
+    if (__nh_char_at0(gnam) == 95) {
+        (gnam = __nh_advance_str(gnam, 1));
     }
     return gnam;
 }
@@ -2359,20 +2347,8 @@ export function halu_gname(alignment) {
         impossible("No random god name?");
         gnam = "your Friend the Computer";
     }
-    /* Translator gap: C `if (*gnam == '_') ++gnam;` strips the
-       leading underscore that NetHack uses to mark proper-noun
-       deity names (lgod="_Amaterasu Omikami" etc.) so they print
-       without an article.  Translator emitted `gnam == 95` (the
-       ASCII code for '_') comparing the whole string to a number
-       (always false), and `++gnam` is a no-op on a string.  Hand-
-       patched 2026-05-31 for seed0017 prayer rendering. */
-    if (typeof gnam === 'string' && gnam.charCodeAt(0) === 95) {
-        gnam = gnam.slice(1);
-    } else if (Array.isArray(gnam) && gnam[0] === 95) {
-        let __i = 1;
-        let __s = '';
-        for (; __i < gnam.length && gnam[__i]; __i++) __s += String.fromCharCode(gnam[__i]);
-        gnam = __s;
+    if (__nh_char_at0(gnam) == 95) {
+        (gnam = __nh_advance_str(gnam, 1));
     }
     return gnam;
 }
@@ -2394,7 +2370,7 @@ export function align_gtitle(alignment) {
             gnam = null;
             break;
     }
-    if (gnam && gnam == 95) {
+    if (gnam && __nh_char_at0(gnam) == 95) {
         result = "goddess";
     }
     return result;

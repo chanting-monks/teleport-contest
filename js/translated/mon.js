@@ -9,7 +9,7 @@ import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, You_feel, You_hear, You_see, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcat, strcmp, strcpy, strlen, strncmpi, strstr } from '../c2js-runtime/string.js';
+import { __nh_char_at0, nh_strchr_truncate, strcat, strcmp, strcpy, strlen, strncmpi, strstr } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
 import { get_mleash, leashable, m_unleash, um_dist } from './apply.js';
 import { artifact_exists, touch_artifact } from './artifact.js';
@@ -34,7 +34,7 @@ import { explode, mon_explodes } from './explode.js';
 import { dryup } from './fountain.js';
 import { coord_desc } from './getpos.js';
 import { bad_rock, cant_squeeze_thru, disturb_buried_zombies, in_rooms, losehp, may_dig, may_passwall, monst_to_any, spoteffects, u_locomotion } from './hack.js';
-import { dist2, eos, highc, mungspaces, online2, ordin, s_suffix, upstart } from './hacklib.js';
+import { dist2, eos, mungspaces, online2, ordin, s_suffix, upstart } from './hacklib.js';
 import { record_achievement } from './insight.js';
 import { delobj, g_at, nxtobj, sobj_at, stackobj, update_inventory } from './invent.js';
 import { any_light_source, del_light_source, new_light_source } from './light.js';
@@ -99,7 +99,7 @@ export function sanity_check_single_mon(mtmp, chk_geno, msg) {
     let mptr = mtmp.data;
     let mx = mtmp.mx;
     let my = mtmp.my;
-    if (!mptr || mptr < game.mons[LOW_PM] || mptr > game.mons[HIGH_PM]) {
+    if (!mptr || mptr.pmidx < LOW_PM || mptr.pmidx > HIGH_PM) {
         /* most sanity checks issue warnings if they detect a problem,
            but this would be too extreme to keep going */
         panic("illegal mon data %s; mnum=%d (%s)", fmt_ptr(mptr), mtmp.mnum, msg);
@@ -1104,7 +1104,7 @@ export function movemon_singlemon(mtmp) {
     return (0);
 }
 /* perform movement for all monsters */
-export async function movemon() {
+export function movemon() {
     fnEnter("movemon", "mon.c", 0);
     game.somebody_can_move = (0);
     iter_mons_safe(movemon_singlemon);
@@ -1120,7 +1120,7 @@ export async function movemon() {
     dmonsfree();
     if (game.u.utotype) {
         /* a monster may have levteleported player -dlc */
-        await deferred_goto();
+        deferred_goto();
         game.somebody_can_move = (0);
     }
     return game.somebody_can_move;
@@ -1307,9 +1307,9 @@ export function meatobj(mtmp) {
     let original_ptr = mtmp.data;
     let count = 0;
     let ecount = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let otmpname = null;
-    buf[0] = 0;
+    buf = '';
     if (mtmp.mtame) {
         return 0;
     }
@@ -1515,7 +1515,7 @@ export function mon_givit(mtmp, ptr) {
          * Players will just have to live with it if they want to be
          * able to have pets gain intrinsics from eating corpses.
          */
-            let mtmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let mtmpbuf = '';
             mtmpbuf = strcpy(mtmpbuf, Monnam(mtmp));
             mon_set_minvis(mtmp, (0));
             if (vis) {
@@ -1843,7 +1843,7 @@ export function mfndpos(mon, data, flag) {
     y = mon.my;
     nowtyp = game.level.locations[x][y].typ;
     memset(data, 0, 1 /* sizeof(struct mfndposdata) */);
-    nodiag = (((mdat).pmidx) == PM_GRID_BUG);
+    nodiag = ((mdat.pmidx) == PM_GRID_BUG);
     wantpool = (mdat.mlet == S_EEL);
     poolok = ((!(((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) && m_in_air(mon)) || ((((mdat).mflags1 & 2) != 0) && !wantpool));
     lavaok = (m_in_air(mon) || (mdat == game.mons[PM_FIRE_ELEMENTAL] || mdat == game.mons[PM_SALAMANDER]));
@@ -2118,7 +2118,7 @@ export function mm_displacement(magr, mdef) {
 /* Is the square close enough for the monster to move or attack into? */
 export function monnear(mon, x, y) {
     let distance = dist2(mon.mx, mon.my, x, y);
-    if (distance == 2 && (((mon.data).pmidx) == PM_GRID_BUG)) {
+    if (distance == 2 && ((mon.data.pmidx) == PM_GRID_BUG)) {
         return 0;
     }
     return (distance < 3);
@@ -2130,8 +2130,8 @@ export function dmonsfree() {
     let mtmp__field = null;
     let freetmp = null;
     let count = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    buf[0] = 0;
+    let buf = '';
+    buf = '';
     for ((mtmp__parent = game.level, mtmp__field = "monlist"); mtmp__parent[mtmp__field]; ) {
         freetmp = mtmp__parent[mtmp__field];
         if (((freetmp).mhp < 1) && !freetmp.isgd) {
@@ -2309,8 +2309,8 @@ export function dealloc_mextra(m) {
     }
 }
 export function dealloc_monst(mon) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    buf[0] = 0;
+    let buf = '';
+    buf = '';
     if (mon.nmon) {
         describe_level(buf, 2);
         panic("dealloc_monst with nmon on %s", buf);
@@ -2520,13 +2520,13 @@ export function vamprises(mtmp) {
      * the vampire will always be in normal form instead of shifted.
      * So there's no need to check for that attribute being active.
      */
-        let action = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let action = '';
         /* alternate message phrasing for some monster types */
         let spec_mon = (((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) || ((mtmp.data).mlet == S_GHOST) || (((mtmp.data).mflags1 & 4) != 0));
         let spec_death = (game.disintegested || ((mtmp.data).mlet == S_GHOST) || (((mtmp.data).mflags1 & 4) != 0));
         let x = mtmp.mx;
         let y = mtmp.my;
-        nh_snprintf("vamprises", 2919, action, 256 /* sizeof(char [256]) */, "%s%s %s%s and rises as", (game.multi < 0 && (unconscious() || is_fainted())) ? "you dream that " : "", x_monnam(mtmp, 1, spec_mon ? null : "seemingly dead", (2 | 64), (0)), (game.multi < 0 && (unconscious() || is_fainted())) ? "" : "suddenly ", spec_death ? "reconstitutes" : "transforms");
+        action = nh_snprintf("vamprises", 2919, action, 256 /* sizeof(char [256]) */, "%s%s %s%s and rises as", (game.multi < 0 && (unconscious() || is_fainted())) ? "you dream that " : "", x_monnam(mtmp, 1, spec_mon ? null : "seemingly dead", (2 | 64), (0)), (game.multi < 0 && (unconscious() || is_fainted())) ? "" : "suddenly ", spec_death ? "reconstitutes" : "transforms");
         mtmp.mcanmove = 1;
         mtmp.mfrozen = 0;
         set_mon_min_mhpmax(mtmp, 10);
@@ -2601,7 +2601,7 @@ export function logdeadmon(mtmp, mndx) {
         /* also generates a livelog event */
         record_achievement(ACH_MEDU);
     } else if (((((mtmp.data).geno & 4096) != 0) && (mndx != PM_HIGH_CLERIC || !mtmp.mrevived)) || (mtmp.isshk && !mtmp.mrevived)) {
-        let shkdetail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let shkdetail = '';
         let mkilled = null;
         let herodidit = !game.context.mon_moving;
         /*
@@ -2613,7 +2613,7 @@ export function logdeadmon(mtmp, mndx) {
          * for this purpose (and it wouldn't account for polymorphed
          * shopkeepers either).
          */
-        shkdetail[0] = 0;
+        shkdetail = '';
         if (mtmp.isshk) {
             /* the high priest[ess] monster is not unique; we know that
                this is the first death for this particular high priest
@@ -2623,7 +2623,7 @@ export function logdeadmon(mtmp, mndx) {
                the alternate phrasing "<shk>, shkdetails, has been killed"
                when hero isn't directly responsible */
             /* in case shk name doesn't include Mr or Ms honorific */
-            nh_snprintf("logdeadmon", 3029, shkdetail, 128 /* sizeof(char [128]) */, ", the %s %s%s", shtypes[((mtmp).mextra.eshk).shoptype - SHOPBASE].name, mtmp.female ? "proprietrix" : "proprietor", herodidit ? "" : ",");
+            shkdetail = nh_snprintf("logdeadmon", 3029, shkdetail, 128 /* sizeof(char [128]) */, ", the %s %s%s", shtypes[((mtmp).mextra.eshk).shoptype - SHOPBASE].name, mtmp.female ? "proprietrix" : "proprietor", herodidit ? "" : ",");
         } else if (mndx == PM_HIGH_CLERIC) {
             howmany = 1;
         }
@@ -2634,7 +2634,7 @@ export function logdeadmon(mtmp, mndx) {
            use of undead turning to revive a corpse or petrification plus
            stone-to-flesh to create and revive a statue */
             /* space for " (Nth time)" when N > 1 */
-            let xtra = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let xtra = '';
             let llevent_type = 4;
             /* the first kill of any unique monster is a major event;
                all kills of the Wizard and the Riders are major when
@@ -2642,7 +2642,7 @@ export function logdeadmon(mtmp, mndx) {
             if (howmany == 1 || mtmp.iswiz || ((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE])) {
                 llevent_type |= 2;
             }
-            xtra[0] = 0;
+            xtra = '';
             /* "(2nd time)" or "(50th time)" */
             if (howmany > 1) {
                 xtra = sprintf(xtra, " (%d%s time)", howmany, ordin(howmany));
@@ -2815,7 +2815,7 @@ export function corpse_chance(mon, magr, was_swallowed) {
     if (((((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level)))) || !game.level.flags.deathdrops || (game.level.flags.graveyard && (((mdat).mflags2 & 2) != 0) && rn2(3)))) {
         return (0);
     }
-    if (((((mdat).msize >= 3) || mdat == game.mons[PM_LIZARD]) && !mon.mcloned) || ((mdat).mlet == S_GOLEM) || ((mdat).pmidx >= PM_ARCHEOLOGIST && (mdat).pmidx <= PM_WIZARD) || ((mdat) == game.mons[PM_DEATH] || (mdat) == game.mons[PM_FAMINE] || (mdat) == game.mons[PM_PESTILENCE]) || mon.isshk) {
+    if (((((mdat).msize >= 3) || mdat == game.mons[PM_LIZARD]) && !mon.mcloned) || ((mdat).mlet == S_GOLEM) || (((mdat).pmidx >= PM_ARCHEOLOGIST) && ((mdat).pmidx <= PM_WIZARD)) || ((mdat) == game.mons[PM_DEATH] || (mdat) == game.mons[PM_FAMINE] || (mdat) == game.mons[PM_PESTILENCE]) || mon.isshk) {
         return (1);
     }
     tmp = 2 + ((mdat.geno & 7) < 2) + ((mdat).msize < 1);
@@ -2944,7 +2944,7 @@ export function monstone(mdef) {
 export function monkilled(mdef, fltxt, how) {
     let mptr = mdef.data;
     if (fltxt && (mdef.wormno ? worm_known(mdef) : ((game.viz_array[mdef.my][mdef.mx] & 2) != 0))) {
-        pline_mon(mdef, "%s is %s%s%s!", Monnam(mdef), ((((mptr).mflags2 & 2) != 0) || (mptr) == game.mons[PM_MANES] || (((mptr).mlet == S_GOLEM) || (mptr).mlet == S_VORTEX)) ? "destroyed" : "killed", fltxt.value ? " by the " : "", fltxt);
+        pline_mon(mdef, "%s is %s%s%s!", Monnam(mdef), ((((mptr).mflags2 & 2) != 0) || (mptr) == game.mons[PM_MANES] || (((mptr).mlet == S_GOLEM) || (mptr).mlet == S_VORTEX)) ? "destroyed" : "killed", __nh_char_at0(fltxt) ? " by the " : "", fltxt);
     /* sad feeling is deferred until after potential life-saving */
     } else {
         game.iflags.sad_feeling = mdef.mtame ? (1) : (0);
@@ -3279,7 +3279,7 @@ export function vamp_stone(mtmp) {
         if (mndx >= LOW_PM && mndx != ((mtmp.data).pmidx) && !(game.mvitals[mndx].mvflags & 2)) {
             /* this only happens if shapeshifted */
             /* is no longer peaceful, but be explicit...  */
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             buf = sprintf(buf, "The lapidifying %s %s %s", x_monnam(mtmp, 0, null, (8 | 4 | 2 | 1), (0)), (((mtmp.data).mflags1 & 4) != 0) ? "coalesces on the" : (((mtmp.data).mflags1 & 1) != 0) ? "drops to the" : "writhes on the", surface(x, y));
             mtmp.mcanmove = 1;
             mtmp.mfrozen = 0;
@@ -3490,7 +3490,7 @@ export function deal_with_overcrowding(mtmp) {
 export function maybe_mnexto(mtmp) {
     let mm = { x: 0, y: 0 };
     let ptr = mtmp.data;
-    let diagok = !(((ptr).pmidx) == PM_GRID_BUG);
+    let diagok = !((ptr.pmidx) == PM_GRID_BUG);
     let tryct = 20;
     do {
         if (!enexto(mm, game.u.ux, game.u.uy, ptr)) {
@@ -3639,11 +3639,11 @@ export function peacefuls_respond(mtmp) {
             continue;
         }
         if (!(((mon.data).mflags1 & 65536) != 0) && mon.mpeaceful && ((game.viz_array[mon.my][mon.mx] & 1) != 0) && !mon.msleeping && mon.mcansee && ((!((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) || ((((mon).data).mflags1 & 16777216) != 0)) && !(game.u.uinwater) && ((game.viz_array[(mon).my][(mon).mx] & 1) != 0))) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             let exclaimed = (0);
             let needpunct = (0);
             let alreadyfleeing = 0;
-            buf[0] = 0;
+            buf = '';
             if ((((mon.data).mflags1 & 131072) != 0) || mon.isshk || mon.ispriest) {
                 if (((mon.data) == game.mons[PM_WATCHMAN] || (mon.data) == game.mons[PM_WATCH_CAPTAIN])) {
                     ;
@@ -4431,10 +4431,10 @@ export function validvamp(mon, mndx_p, monclass) {
     return (mndx_p.value != NON_PM);
 }
 export function wiz_force_cham_form(mon) {
-    let pprompt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let parttwo = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let prevbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pprompt = '';
+    let parttwo = '';
+    let buf = '';
+    let prevbuf = '';
     let monclass = 0;
     let len = 0;
     let tryct = 0;
@@ -4449,7 +4449,7 @@ export function wiz_force_cham_form(mon) {
     }
     pprompt = strcat(pprompt, parttwo);
     /* clear buffer for EDIT_GETLIN */
-    buf[0] = prevbuf[0] = 0;
+    (prevbuf = '', buf = '');
     tryct = 5;
     do {
         if (tryct == 5 - 1) {
@@ -4552,9 +4552,9 @@ export function select_newcham_form(mon) {
 {
                 let m_armr = which_armor(mon, 1);
                 if (m_armr && ((m_armr).otyp >= GRAY_DRAGON_SCALES && (m_armr).otyp <= YELLOW_DRAGON_SCALES)) {
-                    mndx = ((game.mons[PM_GRAY_DRAGON + (m_armr).otyp - GRAY_DRAGON_SCALES]).pmidx);
+                    mndx = (game.mons[PM_GRAY_DRAGON + (m_armr).otyp - GRAY_DRAGON_SCALES].pmidx);
                 } else if (m_armr && ((m_armr).otyp >= GRAY_DRAGON_SCALE_MAIL && (m_armr).otyp <= YELLOW_DRAGON_SCALE_MAIL)) {
-                    mndx = ((game.mons[PM_GRAY_DRAGON + (m_armr).otyp - GRAY_DRAGON_SCALE_MAIL]).pmidx);
+                    mndx = (game.mons[PM_GRAY_DRAGON + (m_armr).otyp - GRAY_DRAGON_SCALE_MAIL].pmidx);
                 }
             }
             break;
@@ -4588,7 +4588,7 @@ export function accept_newcham_form(mon, mndx) {
     /* select_newcham_form() might deliberately pick a player
        character type (random selection never does) which
        polyok() rejects, so we need a special case here */
-    if (((mdat).pmidx >= PM_ARCHEOLOGIST && (mdat).pmidx <= PM_WIZARD)) {
+    if ((((mdat).pmidx >= PM_ARCHEOLOGIST) && ((mdat).pmidx <= PM_WIZARD))) {
         return mdat;
     }
     /* shapeshifters are rejected by polyok() but allow a shapeshifter
@@ -4628,8 +4628,8 @@ export function newcham(mtmp, mdat, ncflags) {
     let tryct = 0;
     let olddata = mtmp.data;
     let p = null;
-    let oldname = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let l_oldname = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let oldname = '';
+    let l_oldname = '';
     if (mtmp.cham == NON_PM) {
         /* "The oldmon turns into a newmon!" */
         /* Riders are immune to polymorph and green slime
@@ -4653,7 +4653,7 @@ export function newcham(mtmp, mdat, ncflags) {
     }
     if (msg) {
         oldname = strcpy(oldname, x_monnam(mtmp, mtmp.mtame ? 3 : 1, null, 8, (0)));
-        oldname[0] = highc(oldname[0]);
+        oldname = (() => { const __s = oldname; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     }
     l_oldname = strcpy(l_oldname, x_monnam(mtmp, 1, null, ((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? 8 : 0, (0)));
     if (mdat == null) {
@@ -4691,7 +4691,7 @@ export function newcham(mtmp, mdat, ncflags) {
      * the opposite sex.  Player characters don't use ranks when
      * polymorphed, so dropping rank for mplayers seems reasonable.
      */
-    if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && ((olddata).pmidx >= PM_ARCHEOLOGIST && (olddata).pmidx <= PM_WIZARD) && ((mtmp).mextra && ((mtmp).mextra.mgivenname)) && (p = strstr(((mtmp).mextra.mgivenname), " the ")) != null) {
+    if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && (((olddata).pmidx >= PM_ARCHEOLOGIST) && ((olddata).pmidx <= PM_WIZARD)) && ((mtmp).mextra && ((mtmp).mextra.mgivenname)) && (p = strstr(((mtmp).mextra.mgivenname), " the ")) != null) {
         ((mtmp).mextra.mgivenname) = nh_strchr_truncate(((mtmp).mextra.mgivenname), " the ", 'str');
     }
     if (mtmp.wormno) {
@@ -4757,13 +4757,13 @@ export function newcham(mtmp, mdat, ncflags) {
         if (game.u.uswallow) {
             if (!attacktype(mdat, 11)) {
                 if (!((mdat).mlet == S_GHOST) && !((mdat).mlet == S_VORTEX || (mdat) == game.mons[PM_AIR_ELEMENTAL]) && !((((mdat).mflags1 & 4) != 0) || mdat.mlet == S_LIGHT)) {
-                    let msgtrail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let msgtrail = '';
                     if (((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER)) {
                         msgtrail = sprintf(msgtrail, " which was a shapeshifted %s", noname_monnam(mtmp, 0));
                     } else if ((dmgtype_fromattack((mdat), 26, 11) != null)) {
                         msgtrail = strcpy(msgtrail, "'s stomach");
                     } else {
-                        msgtrail[0] = 0;
+                        msgtrail = '';
                     }
                     /* Do this even if msg is FALSE */
                     You("%s %s%s!", ((((olddata).mflags1 & 4) != 0) || ((olddata).mlet == S_VORTEX || (olddata) == game.mons[PM_AIR_ELEMENTAL])) ? "emerge from" : "break out of", l_oldname, msgtrail);
@@ -5029,7 +5029,7 @@ export function angry_guards(silent) {
     }
     if (ct) {
         if (!silent) {
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             if (slct) {
                 buf = sprintf(buf, "guard%s", (((slct) == 1) ? "" : "s"));
                 pline_The("%s %s up.", buf, vtense(buf, "wake"));

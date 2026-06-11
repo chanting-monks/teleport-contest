@@ -8,8 +8,8 @@ import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, atol, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
 import { acurr } from './attrib.js';
 import { clr2colorname, match_str2attr, match_str2clr, query_attr, query_color } from './coloratt.js';
 import { cg } from './decl.js';
@@ -35,7 +35,7 @@ import { add_menu, add_menu_heading, add_menu_str, encglyph, getlin, select_menu
 /* defined in eat.c */
 /* also used in insight.c */
 export const enc_stat = ["", "Burdened", "Stressed", "Strained", "Overtaxed", "Overloaded"];
-let __get_strength_str_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __get_strength_str_buf = '';
 export function get_strength_str() {
     let st = (acurr(A_STR));
     if (st > 18) {
@@ -55,7 +55,7 @@ export function check_gold_symbol() {
     let goldch = game.showsyms[COIN_CLASS + ((0) + MAXPCHARS)];
     game.iflags.invis_goldsym = (goldch <= 32);
 }
-let __do_statusline1_newbot1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __do_statusline1_newbot1 = '';
 export function do_statusline1() {
     let nb = null;
     let i = 0;
@@ -64,18 +64,18 @@ export function do_statusline1() {
         return strcpy(__do_statusline1_newbot1, "");
     }
     strcpy(__do_statusline1_newbot1, game.plname);
-    if (97 <= __do_statusline1_newbot1[0] && __do_statusline1_newbot1[0] <= 122) {
-        __do_statusline1_newbot1[0] += 65 - 97;
+    if (97 <= __nh_char_at0(__do_statusline1_newbot1) && __nh_char_at0(__do_statusline1_newbot1) <= 122) {
+        __nh_char_at0(__do_statusline1_newbot1) += 65 - 97;
     }
-    __do_statusline1_newbot1[16] = 0;
+    __do_statusline1_newbot1 = __nh_char_write(__do_statusline1_newbot1, 16, 0);
     sprintf(nb = eos(__do_statusline1_newbot1), " the ");
     if ((game.u.umonnum != game.u.umonster)) {
-        let mbot = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let mbot = '';
         let k = 0;
         mbot = strcpy(mbot, pmname(game.mons[game.u.umonnum], (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)));
-        while (mbot[k] != 0) {
-            if ((k == 0 || (k > 0 && mbot[k - 1] == 32)) && 97 <= mbot[k] && mbot[k] <= 122) {
-                mbot[k] += 65 - 97;
+        while (__nh_char_at0(__nh_advance_str(mbot, k)) != 0) {
+            if ((k == 0 || (k > 0 && __nh_char_at0(__nh_advance_str(mbot, k - 1)) == 32)) && 97 <= __nh_char_at0(__nh_advance_str(mbot, k)) && __nh_char_at0(__nh_advance_str(mbot, k)) <= 122) {
+                __nh_char_at0(__nh_advance_str(mbot, k)) += 65 - 97;
             }
             k++;
         }
@@ -86,7 +86,7 @@ export function do_statusline1() {
     sprintf(nb = eos(nb), "  ");
     i = game.mrank_sz + 15;
     /* strlen(newbot1) but less computation */
-    j = ((nb + 2) - __do_statusline1_newbot1);
+    j = ((__nh_advance_str(nb, 2)) - __do_statusline1_newbot1);
     if ((i - j) > 0) {
         sprintf(nb = eos(nb), "%*s", i - j, " ");
     }
@@ -94,16 +94,16 @@ export function do_statusline1() {
     sprintf(nb = eos(nb), "%s", (game.u.ualign.type == (-1)) ? "  Chaotic" : (game.u.ualign.type == 0) ? "  Neutral" : "  Lawful");
     return __do_statusline1_newbot1;
 }
-let __do_statusline2_newbot2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __do_statusline2_newbot2 = '';
 /* dungeon location (and gold), hero health (HP, PW, AC),
             experience (HD if poly'd, else Exp level and maybe Exp points),
             time (in moves), varying number of status conditions */
-let __do_statusline2_dloc = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-let __do_statusline2_hlth = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-let __do_statusline2_expr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-let __do_statusline2_tmmv = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-let __do_statusline2_cond = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-let __do_statusline2_vers = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __do_statusline2_dloc = '';
+let __do_statusline2_hlth = '';
+let __do_statusline2_expr = '';
+let __do_statusline2_tmmv = '';
+let __do_statusline2_cond = '';
+let __do_statusline2_vers = '';
 export function do_statusline2() {
     let nb = null;
     let dln = 0;
@@ -134,18 +134,7 @@ export function do_statusline2() {
     if ((money = money_cnt(game.invent)) < 0) {
         money = 0;
     }
-    {
-        let __dloc_prefix = '';
-        if (typeof __do_statusline2_dloc === 'string') {
-            __dloc_prefix = __do_statusline2_dloc;
-        } else if (Array.isArray(__do_statusline2_dloc)) {
-            for (let __i = 0; __i < __do_statusline2_dloc.length && __do_statusline2_dloc[__i]; __i++) {
-                __dloc_prefix += String.fromCharCode(__do_statusline2_dloc[__i]);
-            }
-        }
-        __do_statusline2_dloc = __dloc_prefix;
-    }
-    __do_statusline2_dloc = __do_statusline2_dloc + sprintf('', "%s:%-2ld", (game.iflags.in_dumplog || game.iflags.invis_goldsym) ? "$" : encglyph(((GOLD_PIECE) + GLYPH_OBJ_OFF)), ((money) < (999999) ? (money) : (999999)));
+    __do_statusline2_dloc = __nh_buf_append(__do_statusline2_dloc, sprintf('', "%s:%-2ld", (game.iflags.in_dumplog || game.iflags.invis_goldsym) ? "$" : encglyph(((GOLD_PIECE) + GLYPH_OBJ_OFF)), ((money) < (999999) ? (money) : (999999))));
     dln = strlen(__do_statusline2_dloc);
     /* '$' encoded as \GXXXXNNNN is 9 chars longer than display will need */
     dx = strstri(__do_statusline2_dloc, "\\G") ? 9 : 0;
@@ -170,12 +159,12 @@ export function do_statusline2() {
     /* ought to issue impossible() and then discard gold */
     /* strongest hero can lift ~300000 gold */
     } else {
-        __do_statusline2_tmmv[0] = 0;
+        __do_statusline2_tmmv = '';
     }
     tln = strlen(__do_statusline2_tmmv);
     /* status conditions; worst ones first */
     /* once non-empty, cond will have a leading space */
-    __do_statusline2_cond[0] = 0;
+    __do_statusline2_cond = '';
     nb = __do_statusline2_cond;
     /*
      * Stoned, Slimed, Strangled, and both types of Sick are all fatal
@@ -236,11 +225,11 @@ export function do_statusline2() {
         status_version(__do_statusline2_vers, 128 /* sizeof(char [128]) */, (1));
     /* version on status line, with leading space */
     } else {
-        __do_statusline2_vers[0] = 0;
+        __do_statusline2_vers = '';
     }
     vrn = strlen(__do_statusline2_vers);
     if ((dln - dx) + 1 + hln + 1 + xln + 1 + tln + 1 + cln + vrn <= 80) {
-        nh_snprintf("do_statusline2", 229, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_expr, __do_statusline2_tmmv, __do_statusline2_cond, __do_statusline2_vers);
+        __do_statusline2_newbot2 = nh_snprintf("do_statusline2", 229, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_expr, __do_statusline2_tmmv, __do_statusline2_cond, __do_statusline2_vers);
     } else {
         if (dln + 1 + hln + 1 + xln + 1 + tln + 1 + cln + vrn > 200) {
             /*
@@ -257,11 +246,11 @@ export function do_statusline2() {
      */
             panic("bot2: second status line exceeds MAXCO (%u > %d)", (dln + 1 + hln + 1 + xln + 1 + tln + 1 + cln + vrn), 200);
         } else if ((dln - dx) + 1 + hln + 1 + xln + 1 + cln <= 80) {
-            nh_snprintf("do_statusline2", 238, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_expr, __do_statusline2_cond, __do_statusline2_tmmv, __do_statusline2_vers);
+            __do_statusline2_newbot2 = nh_snprintf("do_statusline2", 238, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_expr, __do_statusline2_cond, __do_statusline2_tmmv, __do_statusline2_vers);
         } else if ((dln - dx) + 1 + hln + 1 + cln <= 80) {
-            nh_snprintf("do_statusline2", 241, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_cond, __do_statusline2_expr, __do_statusline2_tmmv, __do_statusline2_vers);
+            __do_statusline2_newbot2 = nh_snprintf("do_statusline2", 241, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_cond, __do_statusline2_expr, __do_statusline2_tmmv, __do_statusline2_vers);
         } else {
-            nh_snprintf("do_statusline2", 244, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_hlth, __do_statusline2_cond, __do_statusline2_dloc, __do_statusline2_expr, __do_statusline2_tmmv, __do_statusline2_vers);
+            __do_statusline2_newbot2 = nh_snprintf("do_statusline2", 244, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_hlth, __do_statusline2_cond, __do_statusline2_dloc, __do_statusline2_expr, __do_statusline2_tmmv, __do_statusline2_vers);
         }
         /* only two or three consecutive spaces available to squeeze out */
         __do_statusline2_newbot2 = mungspaces(__do_statusline2_newbot2);
@@ -448,7 +437,7 @@ export function describe_level(buf, dflgs) {
         ret = 0;
     }
     if (addbranch) {
-        buf = (buf || '') + sprintf('', ", %s", game.dungeons[game.u.uz.dnum].dname);
+        buf = __nh_buf_append(buf, sprintf('', ", %s", game.dungeons[game.u.uz.dnum].dname));
         buf = strsubst(buf, "The ", "the ");
     }
     if (addspace) {
@@ -517,7 +506,7 @@ export function weapon_status(outbuf) {
                     break;
             }
         }
-        if ((game.uwep.oclass == WEAPON_CLASS || ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE)) && ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big) && res != 50 && strncmpi(res, "two", 3)) {
+        if ((game.uwep.oclass == WEAPON_CLASS || ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE)) && ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big) && __nh_char_at0(res) != 50 && strncmpi(res, "two", 3)) {
             outbuf = strcat(outbuf, "2H-");
         }
         strcpy(p = eos(outbuf), res) , res = outbuf;
@@ -696,7 +685,7 @@ const cache_multi_reason = null;
  * without STATUS_HILITES.
  */
 export function bot_via_windowport() {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let titl = null;
     let nb = null;
     let i = 0;
@@ -720,7 +709,7 @@ export function bot_via_windowport() {
     /*
      *  Player name and title.
      */
-    nb[0] = highc(nb[0]);
+    nb = (() => { const __s = nb; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     titl = !(game.u.umonnum != game.u.umonster) ? rank() : pmname(game.mons[game.u.umonnum], (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0));
     i = (strlen(buf) + 6 /* sizeof(char [6]) */ + strlen(titl) - 1 /* sizeof(char [1]) */);
     if (i > 30) {
@@ -728,15 +717,15 @@ export function bot_via_windowport() {
        always keep at least BOTL_NSIZ characters of it; when hitpointbar is
        enabled, anything beyond 30 (long monster name) will be truncated */
         i = 30 - (6 /* sizeof(char [6]) */ + strlen(titl) - 1 /* sizeof(char [1]) */);
-        nb[((i) > (16) ? (i) : (16))] = 0;
+        nb = __nh_char_write(nb, ((i) > (16) ? (i) : (16)), 0);
     }
     strcpy(nb = eos(nb), " the ");
     strcpy(nb = eos(nb), titl);
     if ((game.u.umonnum != game.u.umonster)) {
         /* when poly'd, capitalize monster name */
-        for (i = 0; nb[i]; i++) {
-            if (i == 0 || nb[i - 1] == 32) {
-                nb[i] = highc(nb[i]);
+        for (i = 0; __nh_char_at0(__nh_advance_str(nb, i)); i++) {
+            if (i == 0 || __nh_char_at0(__nh_advance_str(nb, i - 1)) == 32) {
+                nb = __nh_char_write(nb, i, highc(__nh_char_at0(__nh_advance_str(nb, i))));
             }
         }
     }
@@ -920,8 +909,8 @@ export function bot_via_windowport() {
                 cache_multi_reason = game.multi_reason;
             }
             if (clear_cache || refresh_cache) {
-                game.cache_reslt[0] = game.cache_avail[0] = (0);
-                game.cache_reslt[1] = game.cache_avail[1] = (0);
+                (game.cache_avail[0] = (0), game.cache_reslt[0] = (0));
+                (game.cache_avail[1] = (0), game.cache_reslt[1] = (0));
             }
         } while (0);
         if (game.condtests[bl_unconsc].enabled && cache_nomovemsg && !game.cache_avail[0]) {
@@ -1042,7 +1031,7 @@ export function parse_cond_option(negated, opts) {
     if (!opts || strlen(opts) <= 6 /* sizeof(const char [6]) */ - 1) {
         return 2;
     }
-    uniqpart = opts + (6 /* sizeof(const char [6]) */ - 1);
+    uniqpart = __nh_advance_str(opts, (6 /* sizeof(const char [6]) */ - 1));
     for (i = 0; i < CONDITION_COUNT; ++i) {
         compareto = game.condtests[i].useroption;
         sl = Strlen_(compareto, "parse_cond_option", 1364);
@@ -1064,7 +1053,7 @@ export function cond_menu() {
     let tmpwin = 0;
     let any = 0;
     let picks = null;
-    let mbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mbuf = '';
     let showmenu = (1);
     let clr = 8;
     let changed = (0);
@@ -1233,7 +1222,7 @@ export function eval_notify_windowport_field(fld, valsetlist, idx) {
             anything_to_s(curr.val, curr.a, anytype);
         }
         if (anytype != ANY_MASK32) {
-            if (chg || curr.val) {
+            if (chg || __nh_char_at0(curr.val)) {
                 /* if Xp percentage changed, we set 'chg' to 1 above;
                    reset that if the Xp value hasn't actually changed
                    or possibly went down rather than up (level loss) */
@@ -1371,7 +1360,7 @@ export function init_blstats() {
             game.blstats[i][j].a = cg.zeroany;
             if (game.blstats[i][j].valwidth) {
                 game.blstats[i][j].val = alloc(game.blstats[i][j].valwidth);
-                game.blstats[i][j].val[0] = 0;
+                game.blstats[i][j].val = __nh_char_write(game.blstats[i][j].val, 0, 0);
             } else {
                 game.blstats[i][j].val = null;
             }
@@ -1493,7 +1482,7 @@ export function anything_to_s(buf, a, anytype) {
             ;
             break;
         default:
-            buf[0] = 0;
+            buf = __nh_char_write(buf, 0, 0);
     }
     return buf;
 }
@@ -1700,9 +1689,9 @@ export function bl_idx_to_fldname(idx) {
    trailing spaces; replace pairs of spaces with pairs of space+dash */
 export function repad_with_dashes(inoutbuf) {
     let p = eos(inoutbuf);
-    while (p >= inoutbuf + 2 && p[-1] == 32 && p[-2] == 32) {
-        p[-1] = 45;
-        p -= 2;
+    while (p >= __nh_advance_str(inoutbuf, 2) && __nh_char_at0(__nh_advance_str(p, -1)) == 32 && __nh_char_at0(__nh_advance_str(p, -2)) == 32) {
+        p = __nh_char_write(p, -1, 45);
+        p = __nh_advance_str(p, -(2));
     }
 }
 /****************************************************************************/
@@ -1718,7 +1707,7 @@ export function fldname_to_bl_indx(name) {
     let i = 0;
     let nmatches = 0;
     let fld = 0;
-    if (name && name.value) {
+    if (name && __nh_char_at0(name)) {
         for (i = 0; i < (Math.trunc(27 /* sizeof(struct istat_s [27]) */ / 1 /* sizeof(struct istat_s) */)); i++) {
             if (fuzzymatch(game.initblstats[i].fldname, name, " -_", (1))) {
                 /* check matches to canonical names */
@@ -1995,7 +1984,7 @@ export function get_hilite(idx, fldidx, vp, chg, pc, colorptr) {
                 case 104:
                     txtstr = game.blstats[idx][fldidx].val;
                     if (fldidx == BL_TITLE) {
-                        txtstr += strlen(game.plname) + 6 /* sizeof(char [6]) */ - 1 /* sizeof(char [1]) */;
+                        txtstr = __nh_advance_str(txtstr, strlen(game.plname) + 6 /* sizeof(char [6]) */ - 1 /* sizeof(char [1]) */);
                     }
                     if (hl.rel == TXT_VALUE && hl.textmatch[0]) {
                         if (fuzzymatch(hl.textmatch, txtstr, "\" -_", (1))) {
@@ -2056,15 +2045,15 @@ export function parse_status_hl1(op, from_configfile) {
     for (i = 0; i < 21; ++i) {
         hsbuf[i][0] = 0;
     }
-    while (op.value && fldnum < 21 && ccount < (128 - 2)) {
-        c = lowc(op.value);
+    while (__nh_char_at0(op) && fldnum < 21 && ccount < (128 - 2)) {
+        c = lowc(__nh_char_at0(op));
         if (c == 32) {
             if (fldnum >= 1) {
                 if (fldnum == 1 && strncmpi((hsbuf[0]), ("title"), -1) == 0) {
                     /* spaces are allowed in title */
                     hsbuf[fldnum][ccount++] = c;
                     hsbuf[fldnum][ccount] = 0;
-                    op++;
+                    (op = __nh_advance_str(op, 1));
                     continue;
                 }
                 rslt = parse_status_hl2(hsbuf, from_configfile);
@@ -2085,7 +2074,7 @@ export function parse_status_hl1(op, from_configfile) {
             hsbuf[fldnum][ccount++] = c;
             hsbuf[fldnum][ccount] = 0;
         }
-        op++;
+        (op = __nh_advance_str(op, 1));
     }
     if (fldnum >= 1 && !badopt) {
         rslt = parse_status_hl2(hsbuf, from_configfile);
@@ -2104,35 +2093,35 @@ export function parse_status_hl1(op, from_configfile) {
 }
 /* is str in the format of "[<>]?=?[-+]?[0-9]+%?" regex */
 export function is_ltgt_percentnumber(str) {
-    let s = str;
-    if (s.value == 60 || s.value == 62) {
-        s++;
+    let __nh_s_idx = 0;
+    if (str[__nh_s_idx] == 60 || str[__nh_s_idx] == 62) {
+        __nh_s_idx++;
     }
-    if (s.value == 61) {
-        s++;
+    if (str[__nh_s_idx] == 61) {
+        __nh_s_idx++;
     }
-    if (s.value == 45 || s.value == 43) {
-        s++;
+    if (str[__nh_s_idx] == 45 || str[__nh_s_idx] == 43) {
+        __nh_s_idx++;
     }
-    if (!digit(s.value)) {
+    if (!digit(str[__nh_s_idx])) {
         return (0);
     }
-    while (digit(s.value)) {
-        s++;
+    while (digit(str[__nh_s_idx])) {
+        __nh_s_idx++;
     }
-    if (s.value == 37) {
-        s++;
+    if (str[__nh_s_idx] == 37) {
+        __nh_s_idx++;
     }
-    return (s.value == 0);
+    return (str[__nh_s_idx] == 0);
 }
 /* does str only contain "<>=-+0-9%" chars */
 export function has_ltgt_percentnumber(str) {
-    let s = str;
-    while (s.value) {
-        if (!strchr("<>=-+0123456789%", s.value)) {
+    let __nh_s_idx = 0;
+    while (str[__nh_s_idx]) {
+        if (!strchr("<>=-+0123456789%", str[__nh_s_idx])) {
             return (0);
         }
-        s++;
+        __nh_s_idx++;
     }
     return (1);
 }
@@ -2158,10 +2147,10 @@ export function splitsubfields(str, sfarr, maxsf) {
             if (c.value == 38 || c.value == 43) {
                 c.value = 0;
                 __splitsubfields_subfields[sf] = st;
-                st = c + 1;
+                st = __nh_advance_str(c, 1);
                 sf++;
             }
-            c++;
+            (c = __nh_advance_str(c, 1));
         }
         if (sf >= maxsf - 1) {
             return -1;
@@ -2268,7 +2257,7 @@ export function parse_status_hl2(s, from_configfile) {
     let txt = null;
     let fld = BL_FLUSH;
     let hilite = { fld: 0, set: 0, anytype: 0, value: 0, behavior: 0, textmatch: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], rel: 0, coloridx: 0, next: null };
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tmpbuf = '';
     /* Examples:
         3.6.1:
       OPTION=hilite_status: hitpoints/<10%/red
@@ -2301,7 +2290,7 @@ export function parse_status_hl2(s, from_configfile) {
     }
     ++sidx;
     while (s[sidx][0]) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let subfields = null;
         let sf = 0;
         let kidx = 0;
@@ -2354,14 +2343,14 @@ export function parse_status_hl2(s, from_configfile) {
             if (strchr(tmp, 37)) {
                 percent = (1);
             }
-            if (tmp == 60) {
-                if (tmp[1] == 61) {
+            if (__nh_char_at0(tmp) == 60) {
+                if (__nh_char_at0(__nh_advance_str(tmp, 1)) == 61) {
                     le = (1);
                 } else {
                     lt = (1);
                 }
-            } else if (tmp == 62) {
-                if (tmp[1] == 61) {
+            } else if (__nh_char_at0(tmp) == 62) {
+                if (__nh_char_at0(__nh_advance_str(tmp, 1)) == 61) {
                     gte = (1);
                 } else {
                     grt = (1);
@@ -2552,12 +2541,12 @@ export function query_conditions() {
     }
     return ret;
 }
-let __conditionbitmask2str_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __conditionbitmask2str_buf = '';
 export function conditionbitmask2str(ul) {
     let i = 0;
     let first = (1);
     let alias = null;
-    __conditionbitmask2str_buf[0] = 0;
+    __conditionbitmask2str_buf = '';
     if (!ul) {
         return __conditionbitmask2str_buf;
     }
@@ -2568,7 +2557,7 @@ export function conditionbitmask2str(ul) {
     }
     for (i = 0; i < (Math.trunc(30 /* sizeof(const struct conditions_t [30]) */ / 1 /* sizeof(const struct conditions_t) */)); i++) {
         if ((conditions[i].mask & ul) != 0) {
-            buf = (buf || '') + sprintf('', "%s%s", (first) ? "" : "+", conditions[i].text[0]);
+            __conditionbitmask2str_buf = __nh_buf_append(__conditionbitmask2str_buf, sprintf('', "%s%s", (first) ? "" : "+", conditions[i].text[0]));
             first = (0);
         }
     }
@@ -2581,7 +2570,7 @@ export function match_str2conditionbitmask(str) {
     let i = 0;
     let nmatches = 0;
     let mask = 0;
-    if (str && str.value) {
+    if (str && __nh_char_at0(str)) {
         for (i = 0; i < (Math.trunc(30 /* sizeof(const struct conditions_t [30]) */ / 1 /* sizeof(const struct conditions_t) */)); i++) {
             if (fuzzymatch(conditions[i].text[0], str, " -_", (1))) {
                 mask |= conditions[i].mask;
@@ -2645,7 +2634,7 @@ export function parse_condition(s, sidx) {
     }
     while (s[sidx][0]) {
         let sf = 0;
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let subfields = null;
         tmp = s[sidx];
         buf = strcpy(buf, tmp);
@@ -2655,7 +2644,7 @@ export function parse_condition(s, sidx) {
         }
         sidx++;
         how = s[sidx];
-        if (!how || !how) {
+        if (!how || !__nh_char_at0(how)) {
             config_error_add("Missing color+attribute");
             return (0);
         }
@@ -2714,10 +2703,10 @@ export function clear_status_hilites() {
 }
 export function hlattr2attrname(attrib, buf, bufsz) {
     if (attrib && buf) {
-        let attbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let attbuf = '';
         let first = 0;
         let k = 0;
-        attbuf[0] = 0;
+        attbuf = '';
         if (attrib == HL_NONE) {
             buf = strcpy(buf, "normal");
             return buf;
@@ -2868,16 +2857,16 @@ export function status_hilite_linestr_gather_conditions() {
             let atr = HL_NONE;
             split_clridx(cond_maps[i].clratr, { get value() { return clr; }, set value(_v) { clr = _v; } }, { get value() { return atr; }, set value(_v) { atr = _v; } });
             if (clr != 8 || atr != HL_NONE) {
-                let clrbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                let attrbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                let condbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let clrbuf = '';
+                let attrbuf = '';
+                let condbuf = '';
                 let tmpattr = null;
                 strNsubst(strcpy(clrbuf, clr2colorname(clr)), " ", "-", 0);
                 tmpattr = hlattr2attrname(atr, attrbuf, 256);
                 if (tmpattr) {
-                    clrbuf = (clrbuf || '') + sprintf('', "&%s", tmpattr);
+                    clrbuf = __nh_buf_append(clrbuf, sprintf('', "&%s", tmpattr));
                 }
-                nh_snprintf("status_hilite_linestr_gather_conditions", 3562, condbuf, 256 /* sizeof(char [256]) */, "condition/%s/%s", conditionbitmask2str(cond_maps[i].bm), clrbuf);
+                condbuf = nh_snprintf("status_hilite_linestr_gather_conditions", 3562, condbuf, 256 /* sizeof(char [256]) */, "condition/%s/%s", conditionbitmask2str(cond_maps[i].bm), clrbuf);
                 status_hilite_linestr_add(BL_CONDITION, null, cond_maps[i].bm, condbuf);
             }
         }
@@ -2896,20 +2885,20 @@ export function status_hilite_linestr_gather() {
     }
     status_hilite_linestr_gather_conditions();
 }
-let __status_hilite2str_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __status_hilite2str_buf = '';
 export function status_hilite2str(hl) {
     let clr = 8;
     let attr = 0;
-    let behavebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let clrbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let attrbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let behavebuf = '';
+    let clrbuf = '';
+    let attrbuf = '';
     let tmpattr = null;
     let op = null;
     if (!hl) {
         return null;
     }
-    behavebuf[0] = 0;
-    clrbuf[0] = 0;
+    behavebuf = '';
+    clrbuf = '';
     op = (hl.rel == LT_VALUE) ? "<" : (hl.rel == LE_VALUE) ? "<=" : (hl.rel == GT_VALUE) ? ">" : (hl.rel == GE_VALUE) ? ">=" : (hl.rel == EQ_VALUE) ? "=" : null;
     switch (hl.behavior) {
         case 100:
@@ -2966,10 +2955,10 @@ export function status_hilite2str(hl) {
     strNsubst(strcpy(clrbuf, clr2colorname(clr)), " ", "-", 0);
     if (attr != HL_UNDEF) {
         if ((tmpattr = hlattr2attrname(attr, attrbuf, 256)) != null) {
-            clrbuf = (clrbuf || '') + sprintf('', "&%s", tmpattr);
+            clrbuf = __nh_buf_append(clrbuf, sprintf('', "&%s", tmpattr));
         }
     }
-    nh_snprintf("status_hilite2str", 3666, __status_hilite2str_buf, 256 /* sizeof(char [256]) */, "%s/%s/%s", game.initblstats[hl.fld].fldname, behavebuf, clrbuf);
+    __status_hilite2str_buf = nh_snprintf("status_hilite2str", 3666, __status_hilite2str_buf, 256 /* sizeof(char [256]) */, "%s/%s/%s", game.initblstats[hl.fld].fldname, behavebuf, clrbuf);
     return __status_hilite2str_buf;
 }
 export function status_hilite_menu_choose_field() {
@@ -3005,7 +2994,7 @@ export function status_hilite_menu_choose_behavior(fld) {
     let beh = 0 - 1;
     let any = 0;
     let picks = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let at = 0;
     let onlybeh = 0;
     let nopts = 0;
@@ -3085,7 +3074,7 @@ export function status_hilite_menu_choose_updownboth(fld, str, ltok, gtok) {
     let res = 0;
     let ret = NO_LTEQGT;
     let tmpwin = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let any = 0;
     let picks = null;
     let clr = 8;
@@ -3151,8 +3140,8 @@ export function status_hilite_menu_add(origfld) {
     let atr = HL_UNDEF;
     let hilite = { fld: 0, set: 0, anytype: 0, value: 0, behavior: 0, textmatch: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], rel: 0, coloridx: 0, next: null };
     let cond = 0;
-    let colorqry = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let attrqry = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let colorqry = '';
+    let attrqry = '';
     let retry = 0;
     choose_field: while (true) {
         fld = origfld;
@@ -3166,8 +3155,8 @@ export function status_hilite_menu_add(origfld) {
         if (fld == BL_FLUSH) {
             return (0);
         }
-        colorqry[0] = 0;
-        attrqry[0] = 0;
+        colorqry = '';
+        attrqry = '';
         memset(hilite, 0, 1 /* sizeof(struct hilite_s) */);
         hilite.next = null;
         hilite.set = (0);
@@ -3189,8 +3178,8 @@ export function status_hilite_menu_add(origfld) {
                     return (0);
                 }
                 if (behavior == 100 || behavior == 101) {
-                    let inbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let inbuf = '';
+                    let buf = '';
                     let aval = 0;
                     let val = 0;
                     let dt = 0;
@@ -3200,45 +3189,45 @@ export function status_hilite_menu_add(origfld) {
                     let numstart = null;
                     let op = null;
                     lt_gt_eq = NO_LTEQGT;
-                    inbuf[0] = 0;
+                    inbuf = '';
                     buf = sprintf(buf, "Enter %svalue for %s threshold:", percent ? "percentage " : "", game.initblstats[fld].fldname);
                     getlin(buf, inbuf);
-                    if (inbuf[0] == 0 || inbuf[0] == 27) {
+                    if (__nh_char_at0(inbuf) == 0 || __nh_char_at0(inbuf) == 27) {
                         continue choose_behavior;
                     }
                     inp = numstart = trimspaces(inbuf);
-                    if (!inp) {
+                    if (!__nh_char_at0(inp)) {
                         continue choose_behavior;
                     }
-                    if (inp == 62 || inp == 60 || inp == 61) {
+                    if (__nh_char_at0(inp) == 62 || __nh_char_at0(inp) == 60 || __nh_char_at0(inp) == 61) {
                         /* allow user to enter "<50%" or ">50" or just "50"
            or <=50% or >=50 or =50 */
-                        lt_gt_eq = (inp == 62) ? ((inp[1] == 61) ? GE_VALUE : GT_VALUE) : (inp == 60) ? ((inp[1] == 61) ? LE_VALUE : LT_VALUE) : EQ_VALUE;
+                        lt_gt_eq = (__nh_char_at0(inp) == 62) ? ((__nh_char_at0(__nh_advance_str(inp, 1)) == 61) ? GE_VALUE : GT_VALUE) : (__nh_char_at0(inp) == 60) ? ((__nh_char_at0(__nh_advance_str(inp, 1)) == 61) ? LE_VALUE : LT_VALUE) : EQ_VALUE;
                         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
-                        numstart++;
+                        (numstart = __nh_advance_str(numstart, 1));
                         if (lt_gt_eq == GE_VALUE || lt_gt_eq == LE_VALUE) {
                             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
-                            numstart++;
+                            (numstart = __nh_advance_str(numstart, 1));
                         }
                     }
-                    if (inp == 45) {
-                        inp++;
-                    } else if (inp == 43) {
+                    if (__nh_char_at0(inp) == 45) {
+                        (inp = __nh_advance_str(inp, 1));
+                    } else if (__nh_char_at0(inp) == 43) {
                         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
-                        numstart++;
+                        (numstart = __nh_advance_str(numstart, 1));
                     }
-                    while (digit(inp)) {
-                        inp++;
+                    while (digit(__nh_char_at0(inp))) {
+                        (inp = __nh_advance_str(inp, 1));
                         gotnum = (1);
                     }
-                    if (inp == 37) {
+                    if (__nh_char_at0(inp) == 37) {
                         if (!percent) {
                             pline("Not expecting a percentage.");
                             continue choose_behavior;
                         }
                         /* strip '%' [this accepts trailing junk!] */
                         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-                    } else if (inp) {
+                    } else if (__nh_char_at0(inp)) {
                         pline("\"%s\" is not a recognized number.", inp);
                         continue choose_value;
                     }
@@ -3319,10 +3308,10 @@ export function status_hilite_menu_add(origfld) {
                         }
                         return (0);
                     }
-                    nh_snprintf("status_hilite_menu_add", 4121, colorqry, 256 /* sizeof(char [256]) */, "Choose a color for conditions %s:", conditionbitmask2str(cond));
-                    nh_snprintf("status_hilite_menu_add", 4124, attrqry, 256 /* sizeof(char [256]) */, "Choose attribute for conditions %s:", conditionbitmask2str(cond));
+                    colorqry = nh_snprintf("status_hilite_menu_add", 4121, colorqry, 256 /* sizeof(char [256]) */, "Choose a color for conditions %s:", conditionbitmask2str(cond));
+                    attrqry = nh_snprintf("status_hilite_menu_add", 4124, attrqry, 256 /* sizeof(char [256]) */, "Choose attribute for conditions %s:", conditionbitmask2str(cond));
                 } else if (behavior == 104) {
-                    let qry_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    let qry_buf = '';
                     qry_buf = sprintf(qry_buf, "%s %s text value to match:", (fld == BL_CAP || fld == BL_ALIGN || fld == BL_HUNGER || fld == BL_TITLE) ? "Choose" : "Enter", game.initblstats[fld].fldname);
                     if (fld == BL_CAP) {
                         let rv = query_arrayvalue(qry_buf, enc_stat, SLT_ENCUMBER, OVERLOADED + 1);
@@ -3347,9 +3336,9 @@ export function status_hilite_menu_add(origfld) {
                         hilite.textmatch = strcpy(hilite.textmatch, __status_hilite_menu_add_hutxt[rv]);
                     } else if (fld == BL_TITLE) {
                         let rolelist = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
-                        let mbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                        let fbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                        let obuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                        let mbuf = '';
+                        let fbuf = '';
+                        let obuf = '';
                         let i = 0;
                         let j = 0;
                         let rv = 0;
@@ -3357,9 +3346,9 @@ export function status_hilite_menu_add(origfld) {
                             mbuf = sprintf(mbuf, "\"%s\"", game.urole.rank[i].m);
                             if (game.urole.rank[i].f) {
                                 fbuf = sprintf(fbuf, "\"%s\"", game.urole.rank[i].f);
-                                nh_snprintf("status_hilite_menu_add", 4179, obuf, 80 /* sizeof(char [80]) */, "%s or %s", game.flags.female ? fbuf : mbuf, game.flags.female ? mbuf : fbuf);
+                                obuf = nh_snprintf("status_hilite_menu_add", 4179, obuf, 80 /* sizeof(char [80]) */, "%s or %s", game.flags.female ? fbuf : mbuf, game.flags.female ? mbuf : fbuf);
                             } else {
-                                fbuf[0] = obuf[0] = 0;
+                                (obuf = '', fbuf = '');
                             }
                             if (game.flags.female) {
                                 if (fbuf) {
@@ -3392,10 +3381,10 @@ export function status_hilite_menu_add(origfld) {
                             continue choose_behavior;
                         }
                     } else {
-                        let inbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                        inbuf[0] = 0;
+                        let inbuf = '';
+                        inbuf = '';
                         getlin(qry_buf, inbuf);
-                        if (inbuf[0] == 0 || inbuf[0] == 27) {
+                        if (__nh_char_at0(inbuf) == 0 || __nh_char_at0(inbuf) == 27) {
                             continue choose_behavior;
                         }
                         hilite.rel = TXT_VALUE;
@@ -3425,8 +3414,8 @@ export function status_hilite_menu_add(origfld) {
                         continue choose_color;
                     }
                     if (behavior == 103) {
-                        let clrbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                        let attrbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                        let clrbuf = '';
+                        let attrbuf = '';
                         let tmpattr = null;
                         if (atr & HL_BOLD) {
                             game.cond_hilites[16 + 2] |= cond;
@@ -3458,7 +3447,7 @@ export function status_hilite_menu_add(origfld) {
                         strNsubst(strcpy(clrbuf, clr2colorname(clr)), " ", "-", 0);
                         tmpattr = hlattr2attrname(atr, attrbuf, 256);
                         if (tmpattr) {
-                            clrbuf = (clrbuf || '') + sprintf('', "&%s", tmpattr);
+                            clrbuf = __nh_buf_append(clrbuf, sprintf('', "&%s", tmpattr));
                         }
                         pline("Added hilite condition/%s/%s", conditionbitmask2str(cond), clrbuf);
                     } else {
@@ -3474,10 +3463,10 @@ export function status_hilite_menu_add(origfld) {
                             status_hilite_add_threshold(fld, hilite);
                             pline("Added hilite %s", status_hilite2str(hilite));
                             /* transfer female-rank to start of hilite.textmatch buffer */
-                            p += 5 /* sizeof(char [5]) */ - 1 /* sizeof(char [1]) */;
+                            p = __nh_advance_str(p, 5 /* sizeof(char [5]) */ - 1 /* sizeof(char [1]) */);
                             q = hilite.textmatch;
                             /* proceed with normal addition of new rule */
-                            while ((void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = p++) */) != 0) {
+                            while ((void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = (p = __nh_advance_str(p, 1))) */) != 0) {
                                 continue;
                             }
                         }
@@ -3547,7 +3536,7 @@ export function status_hilite_menu_fld(fld) {
     let any = 0;
     let count = status_hilite_linestr_countfield(fld);
     let hlstr = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let acted = 0;
     let clr = 8;
     if (!count) {
@@ -3627,7 +3616,7 @@ export function status_hilite_menu_fld(fld) {
 export function status_hilites_viewall() {
     let datawin = 0;
     let hlstr = game.status_hilite_str;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     datawin = (game.windowprocs.win_create_nhwindow)(5);
     while (hlstr) {
         buf = sprintf(buf, "OPTIONS=hilite_status: %.*s", (256 - 24 /* sizeof(char [24]) */ - 1), hlstr.str);
@@ -3639,7 +3628,7 @@ export function status_hilites_viewall() {
 }
 export function all_options_statushilites(sbuf) {
     let hlstr = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     status_hilite_linestr_done();
     status_hilite_linestr_gather();
     hlstr = game.status_hilite_str;
@@ -3674,7 +3663,7 @@ export function status_hilite_menu() {
         }
         for (i = 0; i < MAXBLSTATS; i++) {
             let count = 0;
-            let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let buf = '';
             fld = game.initblstats[i].fld;
             count = status_hilite_linestr_countfield(fld);
             /* config file might contain rules for highlighting 'score'
@@ -3688,7 +3677,7 @@ export function status_hilite_menu() {
             any.a_int = fld + 1;
             buf = sprintf(buf, "%-18s", game.initblstats[i].fldname);
             if (count) {
-                buf = (buf || '') + sprintf('', " (%d defined)", count);
+                buf = __nh_buf_append(buf, sprintf('', " (%d defined)", count));
             }
             add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }

@@ -106,7 +106,7 @@ export function mk_mplayer_armor(mon, typ) {
 }
 export function mk_mplayer(ptr, x, y, special) {
     let mtmp = null;
-    let nam = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let nam = '';
     if (!(((ptr).pmidx >= PM_ARCHEOLOGIST) && ((ptr).pmidx <= PM_WIZARD))) {
         return (null);
     }

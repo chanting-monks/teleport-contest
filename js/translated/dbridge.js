@@ -18,7 +18,7 @@
 import { game } from '../gstate.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_hear, You_see, pline, pline_The } from '../c2js-runtime/pline.js';
-import { strcat, strcpy } from '../c2js-runtime/string.js';
+import { __nh_char_at0, strcat, strcpy } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { canseemon, newsym, sensemon } from './display.js';
 import { flooreffects } from './do.js';
@@ -314,10 +314,10 @@ export function e_nam(etmp) {
  * Generates capitalized entity name, makes 2nd -> 3rd person conversion on
  * verb, where necessary.
  */
-let __E_phrase_wholebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __E_phrase_wholebuf = '';
 export function E_phrase(etmp, verb) {
     __E_phrase_wholebuf = strcpy(__E_phrase_wholebuf, (etmp.emon == game.youmonst) ? "You" : Monnam(etmp.emon));
-    if (!verb || !verb.value) {
+    if (!verb || !__nh_char_at0(verb)) {
         return __E_phrase_wholebuf;
     }
     __E_phrase_wholebuf = strcat(__E_phrase_wholebuf, " ");

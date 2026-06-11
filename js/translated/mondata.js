@@ -8,7 +8,7 @@
 /* set up an individual monster's base type (initial creation, shapechange) */
 import { game } from '../gstate.js';
 import { impossible } from '../c2js-runtime/panic.js';
-import { strcmp, strcpy, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcmp, strcpy, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { defends, defends_when_carried, is_art } from './artifact.js';
 import { acurr } from './attrib.js';
 import { title_to_mon } from './botl.js';
@@ -829,7 +829,7 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
     let s = null;
     let str = null;
     let term = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let len = 0;
     let mgend = 0;
     let matchgend = -1;
@@ -840,17 +840,17 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
     }
     str = strcpy(buf, in_str);
     if (!strncmp(str, "a ", 2)) {
-        str += 2;
+        str = __nh_advance_str(str, 2);
     } else if (!strncmp(str, "an ", 3)) {
-        str += 3;
+        str = __nh_advance_str(str, 3);
     } else if (!strncmp(str, "the ", 4)) {
-        str += 4;
+        str = __nh_advance_str(str, 4);
     }
     /* length possibly needs recomputing */
     slen = strlen(str);
-    term = str + slen;
+    term = __nh_advance_str(str, slen);
     if ((s = strstri(str, "vortices")) != null) {
-        strcpy(s + 4, "ex");
+        strcpy(__nh_advance_str(s, 4), "ex");
     } else if (slen > 3 && !strncmpi((term - 3), ("ies"), -1) && (slen < 7 || strncmpi((term - 7), ("zombies"), -1))) {
         strcpy(term - 3, "y");
     } else if (slen > 3 && !strncmpi((term - 3), ("ves"), -1)) {
@@ -861,10 +861,10 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
         let namep = null;
         for (let __nhi_namep = 0; (namep = __name_to_monplus_names[__nhi_namep]) && (namep.name); __nhi_namep++) {
             len = strlen(namep.name);
-            if (!strncmpi(str, namep.name, len) && (!str[len] || str[len] == 32 || str[len] == 39)) {
+            if (!strncmpi(str, namep.name, len) && (!__nh_char_at0(__nh_advance_str(str, len)) || __nh_char_at0(__nh_advance_str(str, len)) == 32 || __nh_char_at0(__nh_advance_str(str, len)) == 39)) {
                 /* force full word (which could conceivably be possessive) */
                 if (remainder_p) {
-                    remainder_p.value = in_str + (str[len] - buf);
+                    remainder_p.value = __nh_advance_str(in_str, (__nh_advance_str(str, len) - buf));
                 }
                 if (gender_name_var) {
                     gender_name_var.value = namep.genderhint;
@@ -887,7 +887,7 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
                     matchgend = mgend;
                     exact_match = (1);
                     break;
-                } else if (slen > m_i_len && (str[m_i_len] == 32 || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("s"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "s ", 2) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("'"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "' ", 2) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("'s"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "'s ", 3) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, ("es"), -1) || !strncmpi({ get value() { return str[m_i_len]; }, set value(_v) { str[m_i_len] = _v; } }, "es ", 3))) {
+                } else if (slen > m_i_len && (__nh_char_at0(__nh_advance_str(str, m_i_len)) == 32 || !strncmpi((__nh_advance_str(str, m_i_len)), ("s"), -1) || !strncmpi(__nh_advance_str(str, m_i_len), "s ", 2) || !strncmpi((__nh_advance_str(str, m_i_len)), ("'"), -1) || !strncmpi(__nh_advance_str(str, m_i_len), "' ", 2) || !strncmpi((__nh_advance_str(str, m_i_len)), ("'s"), -1) || !strncmpi(__nh_advance_str(str, m_i_len), "'s ", 3) || !strncmpi((__nh_advance_str(str, m_i_len)), ("es"), -1) || !strncmpi(__nh_advance_str(str, m_i_len), "es ", 3))) {
                     mntmp = i;
                     len = m_i_len;
                     matchgend = mgend;
@@ -903,7 +903,7 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
         mntmp = title_to_mon(str, null, { get value() { return len; }, set value(_v) { len = _v; } });
     }
     if (len && remainder_p) {
-        remainder_p.value = in_str + (str[len] - buf);
+        remainder_p.value = __nh_advance_str(in_str, (__nh_advance_str(str, len) - buf));
     }
     if (gender_name_var && matchgend != -1) {
         /* don't override with neuter if caller has already specified male
@@ -942,11 +942,11 @@ export function name_to_monclass(in_str, mndx_p) {
     if (mndx_p) {
         mndx_p.value = NON_PM;
     }
-    if (!in_str || !in_str[0]) {
+    if (!in_str || !__nh_char_at0(in_str)) {
         /* haven't [yet] matched a specific type */
         return 0;
-    } else if (!in_str[1]) {
-        i = def_char_to_monclass(in_str.value);
+    } else if (!__nh_char_at0(__nh_advance_str(in_str, 1))) {
+        i = def_char_to_monclass(__nh_char_at0(in_str));
         if (i == S_MIMIC_DEF) {
             i = S_MIMIC;
         } else if (i == S_WORM_TAIL) {
@@ -955,7 +955,7 @@ export function name_to_monclass(in_str, mndx_p) {
                 mndx_p.value = PM_LONG_WORM;
             }
         } else if (i == MAXMCLASSES) {
-            i = (in_str.value == DEF_INVISIBLE) ? S_invisible : 0;
+            i = (__nh_char_at0(in_str) == DEF_INVISIBLE) ? S_invisible : 0;
         }
         return i;
     } else {
@@ -986,7 +986,7 @@ export function name_to_monclass(in_str, mndx_p) {
         len = strlen(in_str);
         for (i = 1; i < MAXMCLASSES; i++) {
             x = def_monsyms[i].explain;
-            if ((p = strstri(x, in_str)) != null && (p == x || (p - 1) == 32) && (strlen(p) >= len && (p[len] == 0 || p[len] == 32))) {
+            if ((p = strstri(x, in_str)) != null && (p == x || __nh_char_at0((p - 1)) == 32) && (strlen(p) >= len && (__nh_char_at0(__nh_advance_str(p, len)) == 0 || __nh_char_at0(__nh_advance_str(p, len)) == 32))) {
                 return i;
             }
         }
@@ -1116,11 +1116,11 @@ game.ooze = ["ooze", "Ooze", "tremble", "Tremble"];
 game.immobile = ["wiggle", "Wiggle", "pulsate", "Pulsate"];
 game.crawl = ["crawl", "Crawl", "falter", "Falter"];
 export function locomotion(ptr, def) {
-    let locoindx = (def.value != highc(def.value)) ? 0 : 1;
+    let locoindx = (__nh_char_at0(def) != highc(__nh_char_at0(def))) ? 0 : 1;
     return (((ptr).mlet == S_EYE || (ptr).mlet == S_LIGHT) ? game.levitate[locoindx] : ((((ptr).mflags1 & 1) != 0) && ptr.msize <= 1) ? game.flys[locoindx] : ((((ptr).mflags1 & 1) != 0) && ptr.msize > 1) ? game.flyl[locoindx] : (((ptr).mflags1 & 524288) != 0) ? game.slither[locoindx] : (((ptr).mflags1 & 4) != 0) ? game.ooze[locoindx] : !ptr.mmove ? game.immobile[locoindx] : (((ptr).mflags1 & 24576) == 24576) ? game.crawl[locoindx] : def);
 }
 export function stagger(ptr, def) {
-    let locoindx = (def.value != highc(def.value)) ? 2 : 3;
+    let locoindx = (__nh_char_at0(def) != highc(__nh_char_at0(def))) ? 2 : 3;
     return (((ptr).mlet == S_EYE || (ptr).mlet == S_LIGHT) ? game.levitate[locoindx] : ((((ptr).mflags1 & 1) != 0) && ptr.msize <= 1) ? game.flys[locoindx] : ((((ptr).mflags1 & 1) != 0) && ptr.msize > 1) ? game.flyl[locoindx] : (((ptr).mflags1 & 524288) != 0) ? game.slither[locoindx] : (((ptr).mflags1 & 4) != 0) ? game.ooze[locoindx] : !ptr.mmove ? game.immobile[locoindx] : (((ptr).mflags1 & 24576) == 24576) ? game.crawl[locoindx] : def);
 }
 /* return phrase describing the effect of fire attack on a type of monster */

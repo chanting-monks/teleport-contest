@@ -994,6 +994,14 @@ function bodyNeedsAwait(stmts) {
     return false;
 }
 
+// Lua builtins that remain synchronous in the transpiled output —
+// the only ident-callee calls NOT colored async (everything else is
+// a lua-defined function, hence async; see isAsyncCall).
+const LUA_SYNC_BUILTINS = new Set([
+    'type', 'tostring', 'tonumber', 'ipairs', 'pairs', 'next',
+    'select', 'unpack', 'rawget', 'rawset', 'assert', 'error',
+]);
+
 function isAsyncCall(e) {
     if (!e || typeof e !== 'object') return false;
     if (e.kind === 'call') {
@@ -1001,11 +1009,38 @@ function isAsyncCall(e) {
         const callee = e.callee;
         if (callee?.kind === 'field' && callee.target?.kind === 'ident'
             && ALLOWED_NAMESPACES.has(callee.target.name)) return true;
+        // PROPERTY-HELD lua function values — `themerooms[pick].contents()`,
+        // `entry.handler(...)` — may be (and in themerms ARE) async
+        // arrows; an un-awaited call detaches the whole chain (Q9
+        // iteration 5: rect-345's root cause was exactly
+        // themerooms_generate's sync `...contents()`).  Total await
+        // coverage (LEARNINGS §23.237): color EVERY field-callee call
+        // async — await of a sync value is order-harmless.
+        if (callee?.kind === 'field') return true;
         // helper(...) — async if helper name is in known async set
         if (callee?.kind === 'ident' && ALLOWED_NAMESPACES.has(callee.name)) return true;
+        // NAME-CALLEE calls to lua-defined functions —
+        // `filler_region(1, 1)` inside a map-contents arrow (Q9
+        // iteration 21; the rect-345 / field-callee fix one level
+        // deeper).  Transpiled lua functions are async, so an
+        // un-awaited statement call detaches the chain: the
+        // L-shaped rooms' filler_region never ran its des.region,
+        // and the percent cluster stalled at litstate_rnd.  Total
+        // await coverage (§23.237): color every ident call async
+        // except known-sync lua builtins — await of a sync value is
+        // order-harmless.
+        if (callee?.kind === 'ident') {
+            return !LUA_SYNC_BUILTINS.has(callee.name);
+        }
         return false;
     }
     if (e.kind === 'method') {
+        // s:iterate(fn) — Selection.iterate awaits its (typically
+        // async) callback per point, so the call itself is async and
+        // an un-awaited statement call detaches every per-point
+        // des.*/nh.* chain (seed0015's Storeroom chests fired after
+        // the coder frame moved on; Q9 iteration 22).
+        if (e.name === 'iterate') return true;
         // a:method() — async if target eventually resolves to ns
         return isAsyncCallTarget(e.target);
     }

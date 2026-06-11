@@ -8,8 +8,8 @@ import { __builtin_va_end, __builtin_va_start } from '../c2js-runtime/builtins.j
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, Your, pline, pline_The, raw_printf } from '../c2js-runtime/pline.js';
-import { sprintf, vsnprintf } from '../c2js-runtime/stdio.js';
-import { nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf, vsnprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strstri } from '../c2js-runtime/string.js';
 import { timet_delta } from './allmain.js';
 import { arti_cost, artiname } from './artifact.js';
 import { acurr, adjattrib, minuhpmax, setuhpmax } from './attrib.js';
@@ -145,7 +145,7 @@ export function done_hangup(sig) {
 /* one compiler warns if the format
                                      string is the result of a ? x : y */
 export function done_in_by(mtmp, how) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let mptr = mtmp.data;
     let champtr = ((mtmp.cham) >= LOW_PM && (mtmp.cham) < NUMMONS) ? game.mons[mtmp.cham] : mptr;
     let distorted = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && (canseemon(mtmp) || sensemon(mtmp)));
@@ -154,7 +154,7 @@ export function done_in_by(mtmp, how) {
     You((how == STONING) ? "turn to stone..." : "die...");
     (game.windowprocs.win_mark_synch)();
     /* flush buffered screen output */
-    buf[0] = 0;
+    buf = '';
     game.killer.format = 0;
     if ((mptr.geno & 4096) != 0 && !(imitator && !mimicker) && !(mptr == game.mons[PM_HIGH_CLERIC] && !mtmp.ispriest)) {
         /* "killed by the high priest of Crom" is okay,
@@ -177,7 +177,7 @@ export function done_in_by(mtmp, how) {
         buf = strcat(buf, "hallucinogen-distorted ");
     }
     if (imitator) {
-        let shape = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let shape = '';
         let realnm = pmname(champtr, Mgender(mtmp));
         let fakenm = pmname(mptr, Mgender(mtmp));
         let alt = ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER);
@@ -201,26 +201,26 @@ export function done_in_by(mtmp, how) {
         } else {
             shape = strcpy(shape, an(fakenm));
         }
-        buf = (buf || '') + sprintf('', alt ? "%s in %s form" : mimicker ? "%s disguised as %s" : "%s imitating %s", realnm, shape);
+        buf = __nh_buf_append(buf, sprintf('', alt ? "%s in %s form" : mimicker ? "%s disguised as %s" : "%s imitating %s", realnm, shape));
         mptr = mtmp.data;
     } else if (mptr == game.mons[PM_GHOST]) {
         buf = strcat(buf, "ghost");
         /* "the"; don't use the() here */
         /* omit "called" to avoid excessive verbosity */
         if (((mtmp).mextra && ((mtmp).mextra.mgivenname))) {
-            buf = (buf || '') + sprintf('', " of %s", ((mtmp).mextra.mgivenname));
+            buf = __nh_buf_append(buf, sprintf('', " of %s", ((mtmp).mextra.mgivenname)));
         }
     } else if (mtmp.isshk) {
         let shknm = shkname(mtmp);
         let honorific = shkname_is_pname(mtmp) ? "" : mtmp.female ? "Ms. " : "Mr. ";
-        buf = (buf || '') + sprintf('', "%s%s, the shopkeeper", honorific, shknm);
+        buf = __nh_buf_append(buf, sprintf('', "%s%s, the shopkeeper", honorific, shknm));
         game.killer.format = 1;
     } else if (mtmp.ispriest || mtmp.isminion) {
         buf = strcat(buf, m_monnam(mtmp));
     } else {
         buf = strcat(buf, pmname(mptr, Mgender(mtmp)));
         if (((mtmp).mextra && ((mtmp).mextra.mgivenname))) {
-            buf = (buf || '') + sprintf('', " %s %s", ((mtmp).mextra && ((mtmp).mextra.ebones)) ? "of" : "called", ((mtmp).mextra.mgivenname));
+            buf = __nh_buf_append(buf, sprintf('', " %s %s", ((mtmp).mextra && ((mtmp).mextra.ebones)) ? "of" : "called", ((mtmp).mextra.mgivenname)));
         }
     }
     game.killer.name = strcpy(game.killer.name, buf);
@@ -318,7 +318,7 @@ export function fixup_death(how) {
 export function panic(str) {
     let the_args = 0;
 {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         __builtin_va_start(the_args, str);
         ;
         if (game.program_state.panicking++) {
@@ -381,7 +381,7 @@ export function should_query_disclose_option(category, defquery) {
     let dop = null;
     defquery.value = 110;
     if ((dop = strchr(disclosure_options, category)) != null) {
-        idx = (dop - disclosure_options);
+        idx = ((disclosure_options.length - dop.length));
         if (idx < 0 || idx >= 6) {
             impossible("should_query_disclose_option: bad disclosure index %d %c", idx, category);
             defquery.value = 121;
@@ -425,7 +425,7 @@ export function dump_everything(how, when) {
 export function disclose(how, taken) {
     let c = 0;
     let defquery = 0;
-    let qbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let qbuf = '';
     let ask = (0);
     if (game.invent && !game.program_state.stopprint) {
         if (taken) {
@@ -677,7 +677,7 @@ export function done_object_cleanup() {
 /* called twice; first to calculate total, then to list relevant items */
 /* true => add up points; false => display them */
 export function artifact_score(list, counting, endwin) {
-    let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pbuf = '';
     let otmp = null;
     let value = 0;
     let points = 0;
@@ -851,7 +851,7 @@ export function done(how) {
         if (how == GENOCIDED) {
             pline("Unfortunately you are still genocided...");
         } else {
-            let killbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let killbuf = '';
             formatkiller(killbuf, 256, how, (0));
             livelog_printf(16, "averted death (%s)", killbuf);
             survive = (1);
@@ -877,7 +877,7 @@ export function done(how) {
 /* separated from done() in order to specify the __noreturn__ attribute */
 export function really_done(how) {
     let taken = 0;
-    let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pbuf = '';
     let endwin = (-1);
     let bones_ok = 0;
     let have_windows = game.iflags.window_inited;
@@ -1052,7 +1052,7 @@ export function really_done(how) {
         }
     }
     /* clear grave text; also lint suppression */
-    pbuf[0] = 0;
+    pbuf = '';
 {
         let deepest = deepest_lev_reached((0));
         umoney = money_cnt(game.invent);
@@ -1168,7 +1168,7 @@ export function really_done(how) {
         pbuf = strcpy(pbuf, "You");
         if (mtmp || game.Schroedingers_cat) {
             while (mtmp) {
-                pbuf = (pbuf || '') + sprintf('', " and %s", mon_nam(mtmp));
+                pbuf = __nh_buf_append(pbuf, sprintf('', " and %s", mon_nam(mtmp)));
                 if (mtmp.mtame) {
                     game.u.urexp = ((game.u.urexp) <= (9223372036854775807 - (mtmp.mhp)) ? ((game.u.urexp) + (mtmp.mhp)) : 9223372036854775807);
                 }
@@ -1181,14 +1181,14 @@ export function really_done(how) {
                 let m_lev = adj_lev(game.mons[PM_HOUSECAT]);
                 mhp = d(m_lev, 8);
                 game.u.urexp = ((game.u.urexp) <= (9223372036854775807 - (mhp)) ? ((game.u.urexp) + (mhp)) : 9223372036854775807);
-                strcat(eos(pbuf), " and Schroedinger's cat");
+                pbuf = __nh_buf_append(pbuf, " and Schroedinger's cat");
             }
             dump_forward_putstr(endwin, 0, pbuf, game.program_state.stopprint);
-            pbuf[0] = 0;
+            pbuf = '';
         } else {
             pbuf = strcat(pbuf, " ");
         }
-        pbuf = (pbuf || '') + sprintf('', "%s with %ld point%s,", (how == ASCENDED) ? "went to your reward" : "escaped from the dungeon", game.u.urexp, (((game.u.urexp) == 1) ? "" : "s"));
+        pbuf = __nh_buf_append(pbuf, sprintf('', "%s with %ld point%s,", (how == ASCENDED) ? "went to your reward" : "escaped from the dungeon", game.u.urexp, (((game.u.urexp) == 1) ? "" : "s")));
         dump_forward_putstr(endwin, 0, pbuf, game.program_state.stopprint);
         if (!game.program_state.stopprint) {
             artifact_score(game.invent, (0), endwin);
@@ -1230,10 +1230,10 @@ export function really_done(how) {
             }
             pbuf = sprintf(pbuf, "You %s in %s", ends[how], where);
             if (!((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && !single_level_branch(game.u.uz)) {
-                pbuf = (pbuf || '') + sprintf('', " on dungeon level %d", In_quest(game.u.uz) ? dunlev(game.u.uz) : depth(game.u.uz));
+                pbuf = __nh_buf_append(pbuf, sprintf('', " on dungeon level %d", In_quest(game.u.uz) ? dunlev(game.u.uz) : depth(game.u.uz)));
             }
         }
-        pbuf = (pbuf || '') + sprintf('', " with %ld point%s,", game.u.urexp, (((game.u.urexp) == 1) ? "" : "s"));
+        pbuf = __nh_buf_append(pbuf, sprintf('', " with %ld point%s,", game.u.urexp, (((game.u.urexp) == 1) ? "" : "s")));
         dump_forward_putstr(endwin, 0, pbuf, game.program_state.stopprint);
     }
     pbuf = sprintf(pbuf, "and %ld piece%s of gold, after %ld move%s.", umoney, (((umoney) == 1) ? "" : "s"), game.moves, (((game.moves) == 1) ? "" : "s"));
@@ -1284,7 +1284,7 @@ export function really_done(how) {
 export function container_contents(list, identified, all_containers, reportempty) {
     let box = null;
     let obj = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let cat = 0;
     let dumping = game.iflags.in_dumplog;
     for (box = list; box; box = box.nobj) {
@@ -1316,7 +1316,7 @@ export function container_contents(list, identified, all_containers, reportempty
                 if (!dumping) {
                     (game.windowprocs.win_putstr)(tmpwin, 0, "");
                 }
-                buf[0] = buf[1] = 32;
+                (buf[1] = 32, buf[0] = 32);
                 if (box.cobj && !cat) {
                     sortflags = (((game.flags.sortloot == 108 || game.flags.sortloot == 102) ? 4 : 0) | (game.flags.sortpack ? 1 : 0));
                     sortedcobj = sortloot(box.cobj, sortflags, (0), null);
@@ -1455,15 +1455,15 @@ export function restore_killers(nhfp) {
 }
 export function wordcount(p) {
     let words = 0;
-    while (p.value) {
-        while (p.value && ((__ctype_b_loc())[((p.value))] & _ISspace)) {
-            p++;
+    while (__nh_char_at0(p)) {
+        while (__nh_char_at0(p) && ((__ctype_b_loc())[((__nh_char_at0(p)))] & _ISspace)) {
+            (p = __nh_advance_str(p, 1));
         }
-        if (p.value) {
+        if (__nh_char_at0(p)) {
             words++;
         }
-        while (p.value && !((__ctype_b_loc())[((p.value))] & _ISspace)) {
-            p++;
+        while (__nh_char_at0(p) && !((__ctype_b_loc())[((__nh_char_at0(p)))] & _ISspace)) {
+            (p = __nh_advance_str(p, 1));
         }
     }
     return words;
@@ -1473,11 +1473,11 @@ export function bel_copy1(inp, out) {
     let __nh_out_idx = 0;
     let in_ = inp[__nh_inp_idx];
     __nh_out_idx += strlen(out.slice(__nh_out_idx));
-    while (in_ && ((__ctype_b_loc())[((in_))] & _ISspace)) {
-        in_++;
+    while (__nh_char_at0(in_) && ((__ctype_b_loc())[((__nh_char_at0(in_)))] & _ISspace)) {
+        (in_ = __nh_advance_str(in_, 1));
     }
-    while (in_ && !((__ctype_b_loc())[((in_))] & _ISspace)) {
-        out[__nh_out_idx++] = in_++;
+    while (__nh_char_at0(in_) && !((__ctype_b_loc())[((__nh_char_at0(in_)))] & _ISspace)) {
+        out[__nh_out_idx++] = (in_ = __nh_advance_str(in_, 1));
     }
     out.value = 0;
     inp.value = in_;

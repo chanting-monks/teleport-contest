@@ -1,0 +1,13 @@
+{
+ "comment": "Async-debt ratchet baseline — see checkAsyncClosure in conformance.mjs.  Burned down to zero by the U3 all-async re-emit (UNWEDGE_PLAN).",
+ "generated": "NH_UPDATE_ASYNC_BASELINE=1 node tools/c2js/build.mjs --conformance",
+ "count": 6,
+ "keys": [
+  "cmd.js:rhack:ef_funct",
+  "translated/cmd.js:doextcmd:win_get_ext_cmd",
+  "translated/cmd.js:pgetchar:win_nhgetch",
+  "translated/cmd.js:yn_function:win_yn_function",
+  "translated/windows.js:getlin:win_getlin",
+  "translated/windows.js:select_menu:win_select_menu"
+ ]
+}

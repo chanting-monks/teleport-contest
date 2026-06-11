@@ -13,8 +13,8 @@ import { abs } from '../c2js-runtime/math.js';
 import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_char_at0, strcat, strchr, strcmp, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { artifact_exists } from './artifact.js';
 import { placebc, unplacebc } from './ball.js';
 import { describe_level } from './botl.js';
@@ -2997,7 +2997,7 @@ export async function lspo_monster(L) {
     if (argc == 1 && lua_type(L, 1) == 4) {
         let paramstr = luaL_checkstring(L, 1);
         if (strlen(paramstr) == 1) {
-            tmpmons.class = paramstr;
+            tmpmons.class = __nh_char_at0(paramstr);
             tmpmons.id = NON_PM;
         } else {
             tmpmons.class = -1;
@@ -3008,7 +3008,7 @@ export async function lspo_monster(L) {
         let paramstr = luaL_checkstring(L, 1);
         get_coord(L, 2, { get value() { return mx; }, set value(_v) { mx = _v; } }, { get value() { return my; }, set value(_v) { my = _v; } });
         if (strlen(paramstr) == 1) {
-            tmpmons.class = paramstr;
+            tmpmons.class = __nh_char_at0(paramstr);
             tmpmons.id = NON_PM;
         } else {
             tmpmons.class = -1;
@@ -3020,7 +3020,7 @@ export async function lspo_monster(L) {
         mx = luaL_checkinteger(L, 2);
         my = luaL_checkinteger(L, 3);
         if (strlen(paramstr) == 1) {
-            tmpmons.class = paramstr;
+            tmpmons.class = __nh_char_at0(paramstr);
             tmpmons.id = NON_PM;
         } else {
             tmpmons.class = -1;
@@ -3164,7 +3164,7 @@ export function get_table_int_or_random(L, name, rndval) {
         }
         buf = sprintf(buf, "Expected integer or \"random\" for \"%s\", got ", name);
         if (tmp) {
-            buf = (buf || '') + sprintf('', "\"%s\"", tmp);
+            buf = __nh_buf_append(buf, sprintf('', "\"%s\"", tmp));
         } else {
             buf = strcat(buf, "<Null>");
         }
@@ -3198,7 +3198,7 @@ export function get_table_objclass(L) {
 /* find object otyp by text s (optionally considering oclass) */
 let __find_objtype_class_prefixes = [{ prefix: "ring of ", class: RING_CLASS }, { prefix: "potion of ", class: POTION_CLASS }, { prefix: "scroll of ", class: SCROLL_CLASS }, { prefix: "spellbook of ", class: SPBOOK_CLASS }, { prefix: "wand of ", class: WAND_CLASS }, { prefix: null, class: 0 }];
 export function find_objtype(L, s, oclass) {
-    if (s && s.value) {
+    if (s && __nh_char_at0(s)) {
         let i = 0;
         let objname = null;
         let class_ = def_char_to_objclass(oclass);

@@ -4,7 +4,7 @@
 /* for config.h+extern.h */
 /* strbuf_init() initializes strbuf state for use */
 import { alloc, free } from '../c2js-runtime/memory.js';
-import { strcat, strchr, strcpy, strlen } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcpy, strlen } from '../c2js-runtime/string.js';
 import { lowc } from './hacklib.js';
 
 export function strbuf_init(strbuf) {
@@ -21,7 +21,7 @@ export function strbuf_append(strbuf, str) {
 export function strbuf_reserve(strbuf, len) {
     if (strbuf.str == (null)) {
         strbuf.str = strbuf.buf;
-        strbuf.str[0] = 0;
+        strbuf.str = __nh_char_write(strbuf.str, 0, 0);
         strbuf.len = 256 /* sizeof(char [256]) */;
     }
     if (len > strbuf.len) {
@@ -47,15 +47,15 @@ export function strbuf_nl_to_crlf(strbuf) {
         let len = strlen(strbuf.str);
         let count = 0;
         let cp = strbuf.str;
-        while (cp) {
-            if (cp++ == 10) {
+        while (__nh_char_at0(cp)) {
+            if ((cp = __nh_advance_str(cp, 1)) == 10) {
                 count++;
             }
         }
         if (count) {
             strbuf_reserve(strbuf, len + count + 1);
-            for (cp = strbuf.str + len + count; count; --cp) {
-                if ((void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = cp[-count]) */) == 10) {
+            for (cp = __nh_advance_str(strbuf.str, len) + count; count; (cp = __nh_advance_str(cp, -1))) {
+                if ((void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0(__nh_advance_str(cp, -coun) */) == 10) {
                     void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 13) */;
                     --count;
                 }
@@ -88,22 +88,22 @@ export function pmatch_internal(patrn, strng, ci, sk) {
      *  Simple pattern matcher:  '*' matches 0 or more characters, '?' matches
      *  any single character.  Returns TRUE if 'strng' matches 'patrn'.
      */
-            s = strng++;
+            s = (strng = __nh_advance_str(strng, 1));
             /* get next chars and pre-advance */
-            p = patrn++;
+            p = (patrn = __nh_advance_str(patrn, 1));
         } else {
             /* fuzzy match variant of pmatch; particular characters are ignored */
             do {
-                s = strng++;
+                s = (strng = __nh_advance_str(strng, 1));
             } while (strchr(sk, s));
             do {
-                p = patrn++;
+                p = (patrn = __nh_advance_str(patrn, 1));
             } while (strchr(sk, p));
         }
         if (!p) {
             return (s == 0);
         } else if (p == 42) {
-            return ((!patrn.value || pmatch_internal(patrn, strng - 1, ci, sk)) ? (1) : s ? pmatch_internal(patrn - 1, strng, ci, sk) : (0));
+            return ((!__nh_char_at0(patrn) || pmatch_internal(patrn, strng - 1, ci, sk)) ? (1) : s ? pmatch_internal(patrn - 1, strng, ci, sk) : (0));
         } else if ((ci ? lowc(p) != lowc(s) : p != s) && (p != 63 || !s)) {
             return (0);
         /* matches iff end of string too */

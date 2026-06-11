@@ -6,8 +6,8 @@ import { abs, sgn } from '../c2js-runtime/math.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { You, pline } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strchr, strcmp, strcpy } from '../c2js-runtime/string.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_char_write, strchr, strcmp, strcpy } from '../c2js-runtime/string.js';
 import { cmd_from_func, cmdq_add_key, cmdq_clear, cmdq_pop, directionname, do_move_east, do_move_north, do_move_south, do_move_west, do_run, do_run_east, do_run_north, do_run_south, do_run_west, do_rush, isok, lock_mouse_buttons, movecmd, readchar_poskey, redraw_cmd, xytodir } from './cmd.js';
 import { cg, quitchars } from './decl.js';
 import { back_to_glyph, docrt_flags, flush_screen, glyph_at, nul_glyphinfo } from './display.js';
@@ -94,8 +94,8 @@ export function getpos_getvalids_selection(sel, validf) {
 const gloc_descr = [["any monsters", "monster", "next/previous monster", "monsters"], ["any items", "item", "next/previous object", "objects"], ["any doors", "door", "next/previous door or doorway", "doors or doorways"], ["any unexplored areas", "unexplored area", "unexplored location", "locations next to unexplored locations"], ["anything interesting", "interesting thing", "anything interesting", "anything interesting"], ["any valid locations", "valid location", "valid location", "valid locations"]];
 const gloc_filtertxt = ["", " in view", " in this area"];
 export function getpos_help_keyxhelp(tmpwin, k1, k2, gloc) {
-    let sbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let fbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let sbuf = '';
+    let fbuf = '';
     let move_cursor_to = "move the cursor to ";
     let filtertxt = gloc_filtertxt[game.iflags.getloc_filter];
     if (gloc == GLOC_EXPLORE) {
@@ -112,7 +112,7 @@ export function getpos_help_keyxhelp(tmpwin, k1, k2, gloc) {
 /* the response for '?' help request in getpos() */
 const __getpos_help_fastmovemode = ["8 units at a time", "skipping same glyphs"];
 export function getpos_help(force, goal) {
-    let sbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let sbuf = '';
     let doing_what_is = 0;
     let tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     sbuf = sprintf(sbuf, "Use '%s', '%s', '%s', '%s' to move the cursor to %s.", visctrl(cmd_from_func(do_move_west)), visctrl(cmd_from_func(do_move_south)), visctrl(cmd_from_func(do_move_north)), visctrl(cmd_from_func(do_move_east)), goal);
@@ -153,7 +153,7 @@ export function getpos_help(force, goal) {
         }
     }
     if (__goto_skip_non_mons || !game.iflags.terrainmode) {
-        let kbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let kbuf = '';
         skip_non_mons: {
             if (game.getpos_getvalid) {
                 sbuf = sprintf(sbuf, "Use '%s' or '%s' to move to valid locations.", visctrl(game.Cmd.spkeys[NHKF_GETPOS_VALID_NEXT]), visctrl(game.Cmd.spkeys[NHKF_GETPOS_VALID_PREV]));
@@ -179,7 +179,7 @@ export function getpos_help(force, goal) {
         } else {
             kbuf = sprintf(kbuf, "'%s'", visctrl(game.Cmd.spkeys[NHKF_GETPOS_PICK]));
         }
-        nh_snprintf("getpos_help", 280, sbuf, 256 /* sizeof(char [256]) */, "Type a %s when you are at the right place.", kbuf);
+        sbuf = nh_snprintf("getpos_help", 280, sbuf, 256 /* sizeof(char [256]) */, "Type a %s when you are at the right place.", kbuf);
         (game.windowprocs.win_putstr)(tmpwin, 0, sbuf);
         if (doing_what_is) {
             sbuf = sprintf(sbuf, "  '%s' describe current spot, show 'more info', move to another spot.", visctrl(game.Cmd.spkeys[NHKF_GETPOS_PICK_V]));
@@ -359,7 +359,7 @@ export function gather_locs(arr_p, cnt_p, gloc) {
     }
     gloc_filter_done();
 }
-let __dxdy_to_dist_descr_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __dxdy_to_dist_descr_buf = '';
 const __dxdy_to_dist_descr_dirnames = [["n", "north"], ["s", "south"], ["w", "west"], ["e", "east"]];
 export function dxdy_to_dist_descr(dx, dy, fulldir) {
     let dst = 0;
@@ -368,30 +368,30 @@ export function dxdy_to_dist_descr(dx, dy, fulldir) {
     } else if ((dst = xytodir(dx, dy)) != -1) {
         __dxdy_to_dist_descr_buf = sprintf(__dxdy_to_dist_descr_buf, "%s", directionname(dst));
     } else {
-        __dxdy_to_dist_descr_buf[0] = 0;
+        __dxdy_to_dist_descr_buf = '';
         if (dy) {
             /* explicit direction; 'one step' is implicit */
             /* 9999: protect buf[] against overflow caused by invalid values */
             if (abs(dy) > 9999) {
                 dy = sgn(dy) * 9999;
             }
-            buf = (buf || '') + sprintf('', "%d%s%s", abs(dy), __dxdy_to_dist_descr_dirnames[(dy > 0)][fulldir], dx ? "," : "");
+            __dxdy_to_dist_descr_buf = __nh_buf_append(__dxdy_to_dist_descr_buf, sprintf('', "%d%s%s", abs(dy), __dxdy_to_dist_descr_dirnames[(dy > 0)][fulldir], dx ? "," : ""));
         }
         if (dx) {
             if (abs(dx) > 9999) {
                 dx = sgn(dx) * 9999;
             }
-            buf = (buf || '') + sprintf('', "%d%s", abs(dx), __dxdy_to_dist_descr_dirnames[2 + (dx > 0)][fulldir]);
+            __dxdy_to_dist_descr_buf = __nh_buf_append(__dxdy_to_dist_descr_buf, sprintf('', "%d%s", abs(dx), __dxdy_to_dist_descr_dirnames[2 + (dx > 0)][fulldir]));
         }
     }
     return __dxdy_to_dist_descr_buf;
 }
 /* coordinate formatting for 'whatis_coord' option */
-let __coord_desc_screen_fmt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __coord_desc_screen_fmt = '';
 export function coord_desc(x, y, outbuf, cmode) {
     let dx = 0;
     let dy = 0;
-    outbuf[0] = 0;
+    outbuf = __nh_char_write(outbuf, 0, 0);
     switch (cmode) {
         default:
             /* map line 0 is screen row 2;
@@ -418,7 +418,7 @@ export function coord_desc(x, y, outbuf, cmode) {
 export function auto_describe(cx, cy) {
     let cc = { x: 0, y: 0 };
     let sym = 0;
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tmpbuf = '';
     let firstmatch = "unknown";
     cc.x = cx;
     cc.y = cy;
@@ -437,7 +437,7 @@ export function getpos_menu(ccp, gloc) {
     let i = 0;
     let pick_cnt = 0;
     let picks = null;
-    let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let tmpbuf = '';
     let clr = 8;
     gather_locs({ get value() { return garr; }, set value(_v) { garr = _v; } }, { get value() { return gcount; }, set value(_v) { gcount = _v; } }, gloc);
     if (gcount < 2) {
@@ -451,7 +451,7 @@ export function getpos_menu(ccp, gloc) {
     any = cg.zeroany;
     for (i = 1; i < gcount; i++) {
         /* gather_locs returns array[0] == you. skip it. */
-        let fullbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let fullbuf = '';
         let tmpcc = { x: 0, y: 0 };
         let firstmatch = "unknown";
         let sym = 0;
@@ -460,7 +460,7 @@ export function getpos_menu(ccp, gloc) {
         tmpcc.y = garr[i].y;
         if (do_screen_description(tmpcc, (1), sym, tmpbuf, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, null)) {
             coord_desc(garr[i].x, garr[i].y, tmpbuf, game.iflags.getpos_coords);
-            nh_snprintf("getpos_menu", 705, fullbuf, 256 /* sizeof(char [256]) */, "%s%s%s", firstmatch, (tmpbuf ? " " : ""), tmpbuf);
+            fullbuf = nh_snprintf("getpos_menu", 705, fullbuf, 256 /* sizeof(char [256]) */, "%s%s%s", firstmatch, (tmpbuf ? " " : ""), tmpbuf);
             add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, fullbuf, 0);
         }
     }
@@ -518,8 +518,8 @@ export function getpos(ccp, force, goal) {
     let cq = { typ: 0, key: 0, dirx: 0, diry: 0, dirz: 0, intval: 0, ec_entry: null, next: null };
     let cmdq = null;
     let cp = null;
-    let pick_chars = [0, 0, 0, 0, 0, 0];
-    let mMoOdDxX = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let pick_chars = '';
+    let mMoOdDxX = '';
     let result = 0;
     let i = 0;
     let c = 0;
@@ -647,7 +647,7 @@ export function getpos(ccp, force, goal) {
                 }
                 if ((cp = strchr(pick_chars, c)) != null) {
                     /* '.' => 0, ',' => 1, ';' => 2, ':' => 3 */
-                    result = __getpos_pick_chars_def[(cp - pick_chars)].ret;
+                    result = __getpos_pick_chars_def[((pick_chars.length - cp.length))].ret;
                     break;
                 } else if (movecmd(c, MV_WALK)) {
                     if (rushrun) {
@@ -719,7 +719,7 @@ export function getpos(ccp, force, goal) {
                             free(garr[i]);
                             garr[i] = null;
                         }
-                        gidx[i] = gcount[i] = 0;
+                        (gcount[i] = 0, gidx[i] = 0);
                     }
                     pline("%s.", __getpos_view_filters[game.iflags.getloc_filter]);
                     msg_given = (1);
@@ -745,7 +745,7 @@ export function getpos(ccp, force, goal) {
                     break nxtc;
                 } else if ((cp = strchr(mMoOdDxX, c)) != null) {
                     /* nearest or farthest monster or object or door or unexplored */
-                    let gtmp = (cp - mMoOdDxX);
+                    let gtmp = ((mMoOdDxX.length - cp.length));
                     let gloc = gtmp >> 1;
                     if (game.iflags.getloc_usemenu) {
                         let tmpcrd = { x: 0, y: 0 };
@@ -774,7 +774,7 @@ export function getpos(ccp, force, goal) {
                     break nxtc;
                 } else {
                     if (!strchr(quitchars, c)) {
-                        let matching = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                        let matching = '';
                         let pass = 0;
                         let k = 0;
                         let lo_x = 0;
@@ -850,7 +850,7 @@ export function getpos(ccp, force, goal) {
                             msg_given = (1);
                             break nxtc;
                         } else {
-                            let note = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                            let note = '';
                             if (!force) {
                                 note = strcpy(note, "aborted");
                             } else {

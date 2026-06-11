@@ -11,7 +11,7 @@ import { game } from '../gstate.js';
 import { free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, You_feel, Your, pline } from '../c2js-runtime/pline.js';
-import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { strchr, strcpy } from '../c2js-runtime/string.js';
 import { artifact_light, is_art, shade_glare, spec_abon, spec_dbon, touch_artifact, undiscovered_artifact } from './artifact.js';
 import { acurr } from './attrib.js';
@@ -376,7 +376,7 @@ export function special_dmgval(magr, mdef, armask, silverhit_p) {
    not used for weapon hit, so we only handle rings */
 export function silver_sears(magr, mdef, silverhit) {
     /* plenty of room for "rings" */
-    let rings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let rings = '';
     let ltyp = ((game.uleft && (silverhit & 131072) != 0) ? game.uleft.otyp : STRANGE_OBJECT);
     let rtyp = ((game.uright && (silverhit & 262144) != 0) ? game.uright.otyp : STRANGE_OBJECT);
     let both = 0;
@@ -749,7 +749,7 @@ export function mon_wield_item(mon) {
          * can know it's cursed and needn't even bother trying.
          * Still....
          */
-                let welded_buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                let welded_buf = '';
                 let mon_hand = mbodypart(mon, HAND);
                 if (((mw_tmp.oclass == WEAPON_CLASS || mw_tmp.oclass == TOOL_CLASS) && game.objects[mw_tmp.otyp].oc_big)) {
                     mon_hand = makeplural(mon_hand);
@@ -1035,8 +1035,8 @@ export function add_skills_to_menu(win, selectable, speedy) {
     let len = 0;
     let longest = 0;
     let any = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let sklnambuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let sklnambuf = '';
     let prefix = null;
     let clr = 8;
     for (longest = 0 , i = 0; i < P_NUM_SKILLS; i++) {
@@ -1084,15 +1084,15 @@ export function add_skills_to_menu(win, selectable, speedy) {
             skill_level_name(i, sklnambuf);
             if (game.flags.debug) {
                 if (!game.iflags.menu_tab_sep) {
-                    nh_snprintf("add_skills_to_menu", 1282, buf, 256 /* sizeof(char [256]) */, " %s%-*s %-12s %5d(%4d)", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
+                    buf = nh_snprintf("add_skills_to_menu", 1282, buf, 256 /* sizeof(char [256]) */, " %s%-*s %-12s %5d(%4d)", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
                 } else {
-                    nh_snprintf("add_skills_to_menu", 1287, buf, 256 /* sizeof(char [256]) */, " %s%s\t%s\t%5d(%4d)", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
+                    buf = nh_snprintf("add_skills_to_menu", 1287, buf, 256 /* sizeof(char [256]) */, " %s%s\t%s\t%5d(%4d)", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
                 }
             } else {
                 if (!game.iflags.menu_tab_sep) {
-                    nh_snprintf("add_skills_to_menu", 1292, buf, 256 /* sizeof(char [256]) */, " %s %-*s [%s]", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
+                    buf = nh_snprintf("add_skills_to_menu", 1292, buf, 256 /* sizeof(char [256]) */, " %s %-*s [%s]", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
                 } else {
-                    nh_snprintf("add_skills_to_menu", 1296, buf, 256 /* sizeof(char [256]) */, " %s%s\t[%s]", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
+                    buf = nh_snprintf("add_skills_to_menu", 1296, buf, 256 /* sizeof(char [256]) */, " %s%s\t[%s]", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
                 }
             }
             any.a_int = selectable && can_advance(i, speedy) ? i + 1 : 0;
@@ -1126,7 +1126,7 @@ export function enhance_weapon_skill() {
     let to_advance = 0;
     let eventually_advance = 0;
     let maxxed_cnt = 0;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     let selected = null;
     let win = 0;
     let speedy = (0);
@@ -1168,7 +1168,7 @@ export function enhance_weapon_skill() {
         add_skills_to_menu(win, to_advance + eventually_advance + maxxed_cnt > 0, speedy);
         buf = strcpy(buf, (to_advance > 0) ? "Pick a skill to advance:" : "Current skills:");
         if (game.flags.debug && !speedy) {
-            buf = (buf || '') + sprintf('', "  (%d slot%s available)", game.u.weapon_slots, (((game.u.weapon_slots) == 1) ? "" : "s"));
+            buf = __nh_buf_append(buf, sprintf('', "  (%d slot%s available)", game.u.weapon_slots, (((game.u.weapon_slots) == 1) ? "" : "s")));
         }
         (game.windowprocs.win_end_menu)(win, buf);
         n = select_menu(win, to_advance ? 1 : 0, selected);

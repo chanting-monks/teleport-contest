@@ -3,7 +3,7 @@
 /* NetHack may be freely redistributed.  See license for details. */
 import { game } from '../gstate.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { assign_level, depth, dunlev, on_level, single_level_branch, u_on_newpos, u_on_rndspot } from './dungeon.js';
 import { strsubst } from './hacklib.js';
 
@@ -147,7 +147,7 @@ export function stairs_description(sway, outbuf, stcase) {
             /* ordinary stairs or branch stairs to not-yet-visited branch */
             let specialdepth = (tolev.dnum == (game.dungeon_topology.d_quest_dnum) || single_level_branch(tolev));
             let to_dlev = specialdepth ? dunlev(tolev) : depth(tolev);
-            outbuf = (outbuf || '') + sprintf('', " to level %d", to_dlev);
+            outbuf = __nh_buf_append(outbuf, sprintf('', " to level %d", to_dlev));
         }
     } else if (game.u.uz.dnum == 0 && game.u.uz.dlevel == 1 && sway.up) {
         outbuf = sprintf(outbuf, "%s%s %s %s", !game.u.uhave.amulet ? "" : "branch ", stairs, updown, !game.u.uhave.amulet ? "out of the dungeon" : (on_level(tolev, (game.dungeon_topology.d_earth_level)) || on_level(tolev, (game.dungeon_topology.d_air_level)) || on_level(tolev, (game.dungeon_topology.d_fire_level)) || on_level(tolev, (game.dungeon_topology.d_water_level))) ? "to the Elemental Planes" : "to the end game");

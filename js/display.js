@@ -18,6 +18,14 @@ import { def_monsyms, def_oc_syms } from './translated/drawing.js';
 import { stairway_at, known_branch_stairs } from './translated/stairs.js';
 import { In_mines, In_hell } from './translated/dungeon.js';
 import { engr_at } from './translated/engrave.js';
+import { near_capacity } from './translated/hack.js';
+// Property indices for u.uprops[] — used by the bot-status condition
+// indicators (Stoned, Slimed, Blind, Hallu, etc.) per C botl.c:172-205.
+// Names match the C macros (#define STONED 18 etc. in youprop.h).
+import {
+    STUNNED, CONFUSION, BLINDED, DEAF, STONED, STRANGLED,
+    SLIMED, HALLUC, HALLUC_RES, LEVITATION, FLYING,
+} from './translated/nh-constants.js';
 
 // ── ANSI color codes ──
 // Maps CLR_* constants (0-15) to ANSI SGR color codes.
@@ -465,7 +473,86 @@ function _statusLine2() {
     // find_ac.  Allmain sets `_chargen_force_ac_zero = true` while the
     // legacy splash dmore loop is active so JS shows AC:0 to match.
     const acDisplay = game._chargen_force_ac_zero === true ? 0 : (u.uac ?? 10);
-    return `Dlvl:${u.uz?.dlevel || 1} $:${game._goldCount || 0} HP:${u.uhp || 0}(${u.uhpmax || 0}) Pw:${u.uen || 0}(${u.uenmax || 0}) AC:${acDisplay} ${xp}${t}`;
+    // Condition indicators — C ref botl.c:172-205.  Appended in this
+    // exact order (matters: C strncat to the buf, decoded order is
+    // identity).  Each is gated on the C macro from include/youprop.h.
+    // decl.js initializes u.uprops as an array of {intrinsic, extrinsic,
+    // blocked} all 0, so the property accesses are safe (no Proxy-ghost
+    // {} for these).
+    //
+    // The corresponding hu_stat / enc_stat string arrays:
+    //   hu_stat = ["Satiated", "        ", "Hungry  ", "Weak    ",
+    //              "Fainting", "Fainted ", "Starved "]
+    //   enc_stat= ["", "Burdened", "Stressed", "Strained",
+    //              "Overtaxed", "Overloaded"]
+    // (NetHack 5.0: hu_stat NOT_HUNGRY entry is 8 spaces, treated as
+    // "no indicator" by the `uhs != NOT_HUNGRY` guard.)
+    //
+    // Encumbrance (near_capacity) and Flying (which considers steed's
+    // monster type via u.usteed.data) are NOT inlined here — they need
+    // logic the bot status helper doesn't otherwise carry.  Adding them
+    // is a follow-up; the test sessions where they fire (seed0399
+    // " Burdened", seed5006 " Blind"/" Conf") need their underlying
+    // state flows fixed too.
+    const conds = [];
+    const up = u.uprops || [];
+    if (up[STONED]?.intrinsic) conds.push(' Stone');
+    if (up[SLIMED]?.intrinsic) conds.push(' Slime');
+    if (up[STRANGLED]?.intrinsic) conds.push(' Strngl');
+    // SICK_VOMITABLE=0x1, SICK_NONVOMITABLE=0x2 per include/you.h.
+    // Not exported as JS constants, so inline literals match the
+    // translator's convention; the bit-mask comment ties them to C.
+    if (u.usick_type & 0x1) conds.push(' FoodPois');
+    if (u.usick_type & 0x2) conds.push(' TermIll');
+    const huStrings = ['Satiated', null, 'Hungry', 'Weak', 'Fainting', 'Fainted', 'Starved'];
+    if (u.uhs !== 1 && u.uhs !== 0 && huStrings[u.uhs]) conds.push(' ' + huStrings[u.uhs]);
+    else if (u.uhs === 0) conds.push(' Satiated');
+    // Encumbrance: C ref botl.c:187-188 — `if ((cap = near_capacity())
+    // > UNENCUMBERED) Sprintf(nb, " %s", enc_stat[cap])`.
+    // enc_stat = ["", "Burdened", "Stressed", "Strained", "Overtaxed", "Overloaded"]
+    // near_capacity walks game.invent computing weight vs weight_cap;
+    // game.invent is initialized to null in decl.js (g_init_i, line
+    // 302→841 Object.assign), so inv_weight's `while (otmp)` exits
+    // immediately on empty inventory — no Proxy-ghost infinite loop.
+    // weight_cap reads many u fields that could be undefined in
+    // partial init; wrap in try/catch as defensive guard.
+    try {
+        const encStat = ['', 'Burdened', 'Stressed', 'Strained', 'Overtaxed', 'Overloaded'];
+        const cap = near_capacity();
+        if (cap > 0 && encStat[cap]) conds.push(' ' + encStat[cap]);
+    } catch (_) { /* state not fully initialized; skip indicator */ }
+    // Blind = (HBlinded || EBlinded) && !BBlinded; uroleplay.blind too.
+    const blind = ((up[BLINDED]?.intrinsic || up[BLINDED]?.extrinsic) && !up[BLINDED]?.blocked)
+        || u.uroleplay?.blind;
+    if (blind) conds.push(' Blind');
+    // Deaf = HDeaf || EDeaf || u.uroleplay.deaf.
+    if (up[DEAF]?.intrinsic || up[DEAF]?.extrinsic || u.uroleplay?.deaf) conds.push(' Deaf');
+    if (up[STUNNED]?.intrinsic) conds.push(' Stun');
+    if (up[CONFUSION]?.intrinsic) conds.push(' Conf');
+    // Hallucination = HHallucination && !Halluc_resistance.
+    const halluRes = up[HALLUC_RES]?.intrinsic || up[HALLUC_RES]?.extrinsic;
+    if (up[HALLUC]?.intrinsic && !halluRes) conds.push(' Hallu');
+    // Levitation = (HLev || ELev) && !BLev.
+    const lev = (up[LEVITATION]?.intrinsic || up[LEVITATION]?.extrinsic) && !up[LEVITATION]?.blocked;
+    if (lev) conds.push(' Lev');
+    // Flying = ((HFlying || EFlying || (u.usteed && is_flyer(u.usteed.data))) && !BFlying)
+    // The C macro doesn't include `!Levitation`; botl.c's comment
+    // ("levitation and flying are mutually exclusive") notes that the
+    // property setup ensures they don't both fire in practice, but the
+    // emission code at botl.c:200-204 writes both independently if
+    // both are set.  Mirror the macro exactly.  is_flyer macro:
+    // (ptr->mflags1 & M1_FLY) where M1_FLY = 0x1 (monflag.h:85).
+    // u.usteed.data.mflags1 may be undefined/Proxy ghost; `undefined
+    // & 1` = 0, and ghost-coerced `& 1` also = 0 — safe.
+    const steedFlies = u.usteed && u.usteed.data && (u.usteed.data.mflags1 & 1);
+    const fly = ((up[FLYING]?.intrinsic || up[FLYING]?.extrinsic || steedFlies) && !up[FLYING]?.blocked);
+    if (fly) conds.push(' Fly');
+    // C ref botl.c:204 — Ride only when steed is set (and not blocked).
+    // decl.js initializes u.usteed to null and translated mount_steed/
+    // dismount_steed write a real monster ref / null on success — so
+    // the null check is safe (not a Proxy-ghost truthy {}).
+    if (u.usteed) conds.push(' Ride');
+    return `Dlvl:${u.uz?.dlevel || 1} $:${game._goldCount || 0} HP:${u.uhp || 0}(${u.uhpmax || 0}) Pw:${u.uen || 0}(${u.uenmax || 0}) AC:${acDisplay} ${xp}${t}${conds.join('')}`;
 }
 
 // ── Serialize terminal grid for screen comparison ──
@@ -627,8 +714,42 @@ function _buildScreenOutput() {
             const __menuPreserveBg = (menu.kind === 'menu' && !!menu.bgPreserve);
             for (let r = 0; r < lines.length && r < display.rows; r++) {
                 const entry = lines[r];
+                // Segment-based line: { segments: [{ col, text, attr }, ...] }.
+                // Each segment writes consecutively from `col` with its
+                // own attr.  Used by the spell menu hand-port for the
+                // header row where C wintty.c emits inverse-on words
+                // ("    Name", "Level Category", "Fail Retention")
+                // separated by cursor-forward over inverse-off padding
+                // runs.  Reproducing that segment partition exactly is
+                // necessary for cell match at the literal-space cells
+                // BETWEEN words inside a single inverse-on run (col 50
+                // " " in "Level Category", col 68 " " in "Fail
+                // Retention") — those single spaces stay attr=1 in C
+                // because they're inside the inverse-on string.
+                if (entry && Array.isArray(entry.segments)) {
+                    for (const seg of entry.segments) {
+                        const sc = seg.col | 0;
+                        const sAttr = seg.attr | 0;
+                        const sText = String(seg.text ?? '');
+                        for (let k = 0; k < sText.length && (sc + k) < display.cols; k++) {
+                            display.setCell(sc + k, r, sText[k], NO_COLOR, sAttr);
+                        }
+                    }
+                    continue;
+                }
                 const text = (typeof entry === 'string') ? entry : (entry?.text ?? '');
                 const attr = (typeof entry === 'string') ? 0 : (entry?.attr ?? 0);
+                // spaceAttr (optional) lets a menu line specify a
+                // DIFFERENT attribute for internal space characters
+                // than for non-space ones — C wintty.c emits header
+                // text "Name                 Level" with inverse
+                // video only on the words ("Name", "Level"), turning
+                // inverse OFF for the run of inter-word spaces.  When
+                // spaceAttr is omitted, defaults to `attr` (existing
+                // behavior — same attr on every cell).  Used by the
+                // spell menu hand-port (cmd.js buildSpellMenuPages).
+                const spaceAttr = (typeof entry === 'object' && entry && 'spaceAttr' in entry)
+                    ? (entry.spaceAttr | 0) : attr;
                 let __cStart = 0;
                 if (__menuPreserveBg) {
                     while (__cStart < text.length && text[__cStart] === ' ') __cStart++;
@@ -636,7 +757,8 @@ function _buildScreenOutput() {
                     __cStart = Math.max(0, __cStart - 1);    // include 1-col gutter
                 }
                 for (let c = __cStart; c < Math.min(text.length, display.cols); c++) {
-                    display.setCell(c, r, text[c], NO_COLOR, attr);
+                    const ch = text[c];
+                    display.setCell(c, r, ch, NO_COLOR, ch === ' ' ? spaceAttr : attr);
                 }
             }
             // Position cursor to match tty.c's dmore() leave-state.

@@ -8,8 +8,8 @@ import { get_table_int, get_table_int_opt, get_table_option, get_table_str, get_
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, pline } from '../c2js-runtime/pline.js';
-import { fprintf, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, fprintf, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { describe_level } from './botl.js';
 import { isok } from './cmd.js';
 import { db_under_typ, is_drawbridge_wall, is_ice, is_lava, is_pool } from './dbridge.js';
@@ -234,7 +234,7 @@ export function find_branch(s, pd) {
         let dnam = null;
         for (br = game.branches; br; br = br.next) {
             dnam = game.dungeons[br.end2.dnum].dname;
-            if (!strncmpi((dnam), (s), -1) || (!strncmpi(dnam, "The ", 4) && !strncmpi((dnam + 4), (s), -1))) {
+            if (!strncmpi((dnam), (s), -1) || (!strncmpi(dnam, "The ", 4) && !strncmpi((__nh_advance_str(dnam, 4)), (s), -1))) {
                 break;
             }
         }
@@ -614,7 +614,7 @@ export function init_dungeon_levels(L, pd, dngidx) {
             tmpl.chance = lvl_chance;
             tmpl.rndlevs = lvl_nlevels;
             tmpl.flags = lvl_flags | lvl_align;
-            tmpl.boneschar = lvl_bonetag ? lvl_bonetag : 0;
+            tmpl.boneschar = __nh_char_at0(lvl_bonetag) ? __nh_char_at0(lvl_bonetag) : 0;
             free(lvl_bonetag);
             tmpl.chain = -1;
             if (lvl_chain) {
@@ -843,7 +843,7 @@ export function init_dungeon_dungeons(L, pd, dngidx) {
     lua_pop(L, 1);
     pd.tmpdungeon[dngidx].name = dgn_name;
     pd.tmpdungeon[dngidx].protoname = dgn_protoname;
-    pd.tmpdungeon[dngidx].boneschar = dgn_bonetag ? dgn_bonetag : 0;
+    pd.tmpdungeon[dngidx].boneschar = __nh_char_at0(dgn_bonetag) ? __nh_char_at0(dgn_bonetag) : 0;
     pd.tmpdungeon[dngidx].lev.base = dgn_base;
     pd.tmpdungeon[dngidx].lev.rand = dgn_range;
     pd.tmpdungeon[dngidx].flags = dgn_flags;
@@ -856,7 +856,7 @@ export function init_dungeon_dungeons(L, pd, dngidx) {
     game.dungeons[dngidx].themerms = strcpy(game.dungeons[dngidx].themerms, dgn_themerms);
     /* FIXME: these should have length checks */
     /* FIXME: accept "none", convert that to '\0' */
-    game.dungeons[dngidx].boneid = dgn_bonetag ? dgn_bonetag : 0;
+    game.dungeons[dngidx].boneid = __nh_char_at0(dgn_bonetag) ? __nh_char_at0(dgn_bonetag) : 0;
     free(dgn_fill);
     free(dgn_bonetag);
     free(dgn_themerms);
@@ -1645,10 +1645,9 @@ export function lev_by_name(nam) {
         /* no matching annotation, check whether they used a name we know */
         /* allow strings like "the oracle level" to find "oracle" */
         if (!strncmpi(nam, "the ", 4)) {
-            /* Hand-port: C `nam += 4` skips "the " prefix.  Slice in JS. */
-            nam = (typeof nam === 'string') ? nam.slice(4) : nam;
+            nam = __nh_advance_str(nam, 4);
         }
-        if ((p = strstri(nam, " level")) != null && p == eos(nam) - 6) {
+        if ((p = strstri(nam, " level")) != null && p.length == 6) {
             /* Hand-port: C `*p = '\0'` truncates nam at " level" position.
                JS strings are immutable; copy buf and truncate via slice
                using the index of " level". */
@@ -1688,7 +1687,7 @@ export function lev_by_name(nam) {
         /* not a specific level; try branch names */
         idx = find_branch(nam, null);
         if (idx < 0 && (p = strstri(nam, " to ")) != null) {
-            idx = find_branch(p + 4, null);
+            idx = find_branch(__nh_advance_str(p, 4), null);
         }
         if (idx >= 0) {
             idxtoo = (idx >> 8) & 255;
@@ -1832,7 +1831,7 @@ export function print_dungeon(bymenu, rlev, rdgn) {
             if (dptr.entry_lev == nlev) {
                 buf = strcat(buf, ", entrance from below");
             } else {
-                buf = (buf || '') + sprintf('', ", entrance on %d", dptr.depth_start + dptr.entry_lev - 1);
+                buf = __nh_buf_append(buf, sprintf('', ", entrance on %d", dptr.depth_start + dptr.entry_lev - 1));
             }
         }
         if (bymenu) {
@@ -1852,7 +1851,7 @@ export function print_dungeon(bymenu, rlev, rdgn) {
             print_branch(win, i, last_level, slev.dlevel.dlevel, bymenu, lchoices);
             buf = sprintf(buf, "%c %s: %d", chr_u_on_lvl(slev.dlevel), slev.proto, depth(slev.dlevel));
             if ((((((game.dungeon_topology.d_stronghold_level)).dlevel || ((game.dungeon_topology.d_stronghold_level)).dnum) && on_level(slev.dlevel, (game.dungeon_topology.d_stronghold_level))))) {
-                buf = (buf || '') + sprintf('', " (tune %s)", game.tune);
+                buf = __nh_buf_append(buf, sprintf('', " (tune %s)", game.tune));
             }
             if (bymenu) {
                 tport_menu(win, buf, lchoices, slev.dlevel, unreachable_level(slev.dlevel, unplaced));
@@ -2732,7 +2731,7 @@ export function seen_string(x, obj) {
         case 0:
             return "no";
         case 1:
-            return strchr(vowels, obj.value) ? "an" : "a";
+            return strchr(vowels, __nh_char_at0(obj)) ? "an" : "a";
         case 2:
             return "some";
         case 3:
@@ -2779,7 +2778,7 @@ export function endgamelevelname(outbuf, indx) {
     }
     if (planename) {
         outbuf = sprintf(outbuf, "Plane of %s", planename);
-    } else if (!outbuf.value) {
+    } else if (!__nh_char_at0(outbuf)) {
         outbuf = sprintf(outbuf, "unknown plane #%d", indx);
     }
     return outbuf;
@@ -2865,15 +2864,15 @@ export function print_mapseen(win, mptr, final, how, printdun) {
         /* wizmode prints out proto dungeon names for clarity */
         let slev = null;
         if ((slev = Is_special(mptr.lev)) != null) {
-            buf = (buf || '') + sprintf('', " [%s]", slev.proto);
+            buf = __nh_buf_append(buf, sprintf('', " [%s]", slev.proto));
         }
     }
     /* [perhaps print custom annotation on its own line when it's long] */
     if (mptr.custom) {
-        buf = (buf || '') + sprintf('', " \"%s\"", mptr.custom);
+        buf = __nh_buf_append(buf, sprintf('', " \"%s\"", mptr.custom));
     }
     if (on_level(game.u.uz, mptr.lev)) {
-        buf = (buf || '') + sprintf('', " <- You %s here.", (final <= 0 || (final == 1 && how == ASCENDED)) ? "are" : (final == 1 && how == ESCAPED) ? "left from" : "were");
+        buf = __nh_buf_append(buf, sprintf('', " <- You %s here.", (final <= 0 || (final == 1 && how == ASCENDED)) ? "are" : (final == 1 && how == ESCAPED) ? "left from" : "were"));
     }
     any = cg.zeroany;
     if (final == -1) {
@@ -2893,28 +2892,28 @@ export function print_mapseen(win, mptr, final, how, printdun) {
             if (mptr.feat.nshop > 1) {
                 do {
                     if (mptr.feat.nshop) {
-                        buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nshop), ("shop")), ("shop"), (((mptr.feat.nshop) == 1) ? "" : "s"));
+                        buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nshop), ("shop")), ("shop"), (((mptr.feat.nshop) == 1) ? "" : "s")));
                     }
                 } while (0);
             } else {
-                buf = (buf || '') + sprintf('', "%s%s", (i++ > 0 ? ", " : "      "), an(shop_string(mptr.feat.shoptype)));
+                buf = __nh_buf_append(buf, sprintf('', "%s%s", (i++ > 0 ? ", " : "      "), an(shop_string(mptr.feat.shoptype))));
             }
         }
         if (mptr.feat.naltar > 0 || mptr.feat.ntemple > 0) {
             let atmp = 0;
             do {
                 if (mptr.feat.ntemple && mptr.feat.naltar) {
-                    buf = (buf || '') + sprintf('', "%s%s %s%s and %s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ntemple), ("temple")), ("temple"), (((mptr.feat.ntemple) == 1) ? "" : "s"), seen_string((mptr.feat.naltar), ("altar")), ("altar"), (((mptr.feat.naltar) == 1) ? "" : "s"));
+                    buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s and %s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ntemple), ("temple")), ("temple"), (((mptr.feat.ntemple) == 1) ? "" : "s"), seen_string((mptr.feat.naltar), ("altar")), ("altar"), (((mptr.feat.naltar) == 1) ? "" : "s")));
                 } else if (mptr.feat.ntemple) {
                     do {
                         if (mptr.feat.ntemple) {
-                            buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ntemple), ("temple")), ("temple"), (((mptr.feat.ntemple) == 1) ? "" : "s"));
+                            buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ntemple), ("temple")), ("temple"), (((mptr.feat.ntemple) == 1) ? "" : "s")));
                         }
                     } while (0);
                 } else if (mptr.feat.naltar) {
                     do {
                         if (mptr.feat.naltar) {
-                            buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.naltar), ("altar")), ("altar"), (((mptr.feat.naltar) == 1) ? "" : "s"));
+                            buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.naltar), ("altar")), ("altar"), (((mptr.feat.naltar) == 1) ? "" : "s")));
                         }
                     } while (0);
                 }
@@ -2928,36 +2927,40 @@ export function print_mapseen(win, mptr, final, how, printdun) {
             atmp = mptr.feat.msalign;
             atmp = (((atmp) == 3) ? 4 : (atmp));
             if ((((((atmp) & 7) == 0) ? (-128) : (((atmp) & 7) == 4) ? 1 : (((atmp) & 7)) - 2)) == game.u.ualign.type) {
-                buf = (buf || '') + sprintf('', " to %s", align_gname(game.u.ualign.type));
+                buf = __nh_buf_append(buf, sprintf('', " to %s", align_gname(game.u.ualign.type)));
             }
         }
         do {
             if (mptr.feat.nthrone) {
-                buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nthrone), ("throne")), ("throne"), (((mptr.feat.nthrone) == 1) ? "" : "s"));
+                buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nthrone), ("throne")), ("throne"), (((mptr.feat.nthrone) == 1) ? "" : "s")));
             }
         } while (0);
         do {
             if (mptr.feat.nfount) {
-                buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nfount), ("fountain")), ("fountain"), (((mptr.feat.nfount) == 1) ? "" : "s"));
+                buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nfount), ("fountain")), ("fountain"), (((mptr.feat.nfount) == 1) ? "" : "s")));
             }
         } while (0);
         do {
             if (mptr.feat.nsink) {
-                buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nsink), ("sink")), ("sink"), (((mptr.feat.nsink) == 1) ? "" : "s"));
+                buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.nsink), ("sink")), ("sink"), (((mptr.feat.nsink) == 1) ? "" : "s")));
             }
         } while (0);
         do {
             if (mptr.feat.ngrave) {
-                buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ngrave), ("grave")), ("grave"), (((mptr.feat.ngrave) == 1) ? "" : "s"));
+                buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ngrave), ("grave")), ("grave"), (((mptr.feat.ngrave) == 1) ? "" : "s")));
             }
         } while (0);
         do {
             if (mptr.feat.ntree) {
-                buf = (buf || '') + sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ntree), ("tree")), ("tree"), (((mptr.feat.ntree) == 1) ? "" : "s"));
+                buf = __nh_buf_append(buf, sprintf('', "%s%s %s%s", (i++ > 0 ? ", " : "      "), seen_string((mptr.feat.ntree), ("tree")), ("tree"), (((mptr.feat.ntree) == 1) ? "" : "s")));
             }
         } while (0);
         i = strlen("      ");
-        buf[i] = highc(buf[i]);
+        if (typeof buf === 'string' && i < buf.length) {
+            buf = buf.slice(0, i) + String.fromCharCode(highc(buf.charCodeAt(i))) + buf.slice(i + 1);
+        } else if (Array.isArray(buf) && i < buf.length) {
+            buf[i] = highc(buf[i]);
+        }
         buf = strcat(buf, ".");
         /* capitalizing it makes it a sentence; terminate with '.' */
         /* presence of the ludios branch in #overview output indicates that
@@ -3007,7 +3010,7 @@ export function print_mapseen(win, mptr, final, how, printdun) {
          * if the branch goes upwards.  Unless it's the end game.
          */
         if (mptr.br.end1_up && !(((mptr.br.end2)).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
-            buf = (buf || '') + sprintf('', ", level %d", depth((mptr.br.end2)));
+            buf = __nh_buf_append(buf, sprintf('', ", level %d", depth((mptr.br.end2))));
         }
         buf = strcat(buf, ".");
         add_menu_str(win, buf);

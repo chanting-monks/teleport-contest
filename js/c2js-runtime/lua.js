@@ -199,7 +199,7 @@ function install_nh_globals(L) {
 // installThemermsWrappers arg-marshal so transpiled JS-side functions
 // receive the same `rm` / `room` data as a real Lua call would see.  Tables nested deeper than ~10 levels (cycles
 // would also recurse forever) are bounded by a visited Set.
-function luaValueToJs(L, idx, visited = null) {
+export function luaValueToJs(L, idx, visited = null) {
     // Use lua_type for explicit dispatch — lua_isnumber/isstring
     // accept cross-type-convertible values (numbers are stringy,
     // strings are number-y) which silently miscategorize tables.
@@ -471,6 +471,32 @@ export async function nhl_init(_sbi) {
 }
 export function nhl_done(_L) { /* JS GC handles cleanup */ }
 
+// C ref src/nhlua.c load_lua — run a level/script .lua in a fresh
+// sandboxed state: nhl_init, nhl_loadlua, nhl_done; boolean result.
+// nhlua.c is not a translated TU and this helper was never ported:
+// the autostub returned 0, so EVERY special-level load "failed" and
+// makemaz fell back to a random maze (the quest/wizard teleport
+// destinations — the splev_initlev trio; Q9 iteration 27, the same
+// load-bearing-autostub class as splev_chr2typ in iteration 23).
+// nhl_loadlua throws on an unregistered name; C returns FALSE there,
+// so the catch maps to ret = 0 (makemaz then prints its C-faithful
+// "Couldn't load" impossible and mazes).
+export async function load_lua(name, sbi) {
+    let ret = 1;
+    let L = null;
+    try {
+        L = await nhl_init(sbi);
+        if (!L || !(await nhl_loadlua(L, name))) ret = 0;
+    } catch (e) {
+        if (typeof process !== 'undefined' && process.env?.NH_DEBUG_LUA) {
+            console.warn('[load_lua]', name, ':', e?.message || e);
+        }
+        ret = 0;
+    }
+    nhl_done(L);
+    return ret;
+}
+
 // Run the registered .lua content for `filename` in the given state.
 // Pre-parsed declarative data (e.g. dungeon.lua) gets injected as
 // globals; procedural .lua content runs through the transpiled-JS
@@ -506,29 +532,19 @@ export async function nhl_loadlua(L, filename) {
     }
     if (entry.kind === 'templatic') {
         // Pre-parsed `des.X(...)` call sequence (per
-        // tools/c2js/lua-templatic.mjs).  Each call drives
-        // lua_pcall which invokes the registered JS lspo_* (which
-        // may now be async — it stashes its Promise in
-        // globalThis.__nhPendingLuaAsync and returns 0 sync to
-        // the shim; we await the stash after lua_pcall returns).
+        // tools/c2js/lua-templatic.mjs).  Each call is AWAITED
+        // through lua_pcall_async (UNWEDGE_PLAN Q6): an async lspo_*
+        // runs to completion before the next des call fires — the
+        // honest replacement for the retired Promise-stash protocol,
+        // whose return-0-then-stash semantics let handler effects lag
+        // behind the call sequence (the §23.235 fire-and-forget).
         for (const { ns, method, args } of entry.calls) {
             const T = lua.lua_gettop(L);
             lua.lua_getglobal(L, to_lstr(ns));
             lua.lua_getfield(L, -1, to_lstr(method));
             lua.lua_remove(L, -2);
             for (const a of args) push_js_value(L, a);
-            globalThis.__nhPendingLuaAsync = null;
-            const status = lua.lua_pcall(L, args.length, 0, 0);
-            // Await any async work the lspo_* stashed.
-            if (globalThis.__nhPendingLuaAsync) {
-                const p = globalThis.__nhPendingLuaAsync;
-                globalThis.__nhPendingLuaAsync = null;
-                try { await p; }
-                catch (e) {
-                    lua.lua_settop(L, T);
-                    throw new Error(`templatic ${fname}: ${ns}.${method} async: ${e.message || e}`);
-                }
-            }
+            const status = await lua.lua_pcall_async(L, args.length, 0);
             if (status !== lua.LUA_OK) {
                 const err = from_lstr(lua.lua_tostring(L, -1));
                 lua.lua_settop(L, T);
@@ -584,50 +600,25 @@ function push_js_value(L, v) {
 // callback indicated by `errflag` (panic vs impossible vs ignore).
 // Returns LUA_OK (0) on success.
 //
-// **Async support for JS-backed Lua callbacks:** a JS callback
-// registered via `lua_pushjsfunction` may need to do async work
-// (e.g. transpiled themerms.lua's `themerooms_generate` awaits
-// des.X calls).  The shim calls such callbacks SYNC and discards
-// any non-integer return.  The protocol for crossing the
-// boundary:
-//   1. JS callback starts the async work and stashes the Promise
-//      in `globalThis.__nhPendingLuaAsync`.  It returns 0 sync
-//      so lua_pcall sees a normal completion.
-//   2. nhl_pcall_handle (now async) awaits that Promise after
-//      lua_pcall returns.
-//   3. Any error thrown by the awaited Promise is reported via
-//      the configured error handler (panic / impossible).
-//
-// This lets the shim's call path stay sync (no Promises into the
-// Lua stack) while the JS work runs to completion before
-// nhl_pcall_handle's caller continues.
+// **Async support for JS-backed Lua callbacks** (Q6, §23.237):
+// handlers may be async; every call path that can carry one AWAITS
+// it via lua_pcall_async, so the handler runs to completion — with
+// its integer result honored — before the caller continues.  The old
+// Promise-stash protocol (return 0 sync, await the stash later) is
+// retired: its effects-lag-behind-the-call semantics was the
+// §23.235 fire-and-forget, formalized.  The remaining SYNC call
+// paths (lua_call / lua_pcall) carry a tripwire that fails loud if
+// an async handler is ever routed through them.
 // Per-tag failure counter for the loop-safety net below.  Resets
 // when the harness installs a fresh game state.
 const __pcallFailures = new Map();
 export async function nhl_pcall_handle(L, nargs, nresults, errmsg, errflag) {
-    // Clear any stale pending-async marker from a previous caller.
-    globalThis.__nhPendingLuaAsync = null;
-    const status = lua.lua_pcall(L, nargs || 0, nresults || 0, 0);
-    // If the JS callback stashed an async-work Promise, await it
-    // before returning.  Errors thrown by the Promise are reported
-    // through the same error path as Lua errors below.
-    let asyncErr = null;
-    if (globalThis.__nhPendingLuaAsync) {
-        const p = globalThis.__nhPendingLuaAsync;
-        globalThis.__nhPendingLuaAsync = null;
-        try { await p; }
-        catch (e) { asyncErr = e; }
-    }
-    if (asyncErr) {
-        const tag = (typeof errmsg === 'string') ? errmsg : (from_lstr(errmsg) || 'pcall');
-        const handler = (errflag === 'panic' || errflag === 1)
-            ? (typeof globalThis.panic === 'function' ? globalThis.panic : null)
-            : (typeof globalThis.impossible === 'function' ? globalThis.impossible : null);
-        const msg = asyncErr?.message || String(asyncErr);
-        if (handler) handler('lua-async %s: %s', tag, msg);
-        else console.warn('[lua-async] ' + tag + ': ' + msg);
-        return -1;
-    }
+    // Q6: awaited call path — an async handler runs to completion
+    // before this returns, with its integer result honored.  (The
+    // retired Promise-stash protocol's rejection-reporting block was
+    // dead code: the registration wrapper already absorbed handler
+    // rejections before they could reach it.)
+    const status = await lua.lua_pcall_async(L, nargs || 0, nresults || 0);
     if (status !== lua.LUA_OK) {
         const m = from_lstr(lua.lua_tostring(L, -1));
         const tag = (typeof errmsg === 'string') ? errmsg : (from_lstr(errmsg) || 'pcall');
@@ -891,65 +882,107 @@ export function luaL_setfuncs(L, funcs, nupvalues) {
     }
     for (const entry of funcs) {
         if (!entry || !entry.name) break; // C-style null terminator
-        // Wrap each registered function in a sync→async-stash adapter.
-        // The shim calls JS callbacks SYNC and expects an integer
-        // return.  The lspo_* functions are async (they internally
-        // await nhl_pcall_handle for nested Lua calls), so they return
-        // a Promise the shim can't use.  Adapter: if the call returns
-        // a Promise, stash it in globalThis.__nhPendingLuaAsync and
-        // return 0 sync.  The outer caller (nhl_pcall_handle or
-        // templatic-replay in nhl_loadlua) awaits the stash after
-        // lua_pcall returns.
-        lua.lua_pushjsfunction(L, wrapAsyncForLua(entry.func));
+        // Wrap each registered function in an error-absorbing adapter
+        // (sync throws and async rejections both resolve to 0 — the
+        // pre-async behavior the makerooms retry loop depends on).
+        // Async handlers are honored by the awaited call path
+        // (lua_pcall_async); the sync lua_call/lua_pcall path keeps
+        // its Q4 tripwire and fails loud if a Promise reaches it.
+        lua.lua_pushjsfunction(L, wrapForLua(entry.func));
         lua.lua_setfield(L, -2, to_lstr(entry.name));
     }
     void nupvalues; // not used
 }
 
-// Wrap a JS function so a Promise return is stashed and `0` is
-// returned sync to the shim.  Sync returns pass through unchanged.
-function wrapAsyncForLua(fn) {
-    return function syncWrapper(L) {
+// C ref src/nhlua.c char2typ[] + splev_chr2typ + check_mapchr —
+// map-fragment characters to terrain typ values.  nhlua.c is not a
+// translated TU (its helpers live in this runtime), but this one was
+// never ported: sp_lev.js's mapfrag_get autostubbed it to () => 0,
+// so EVERY des.map character loaded as STONE — the maps "loaded"
+// into pure rock, flood_fill_rm escaped across the whole stone
+// field from its in-map seed, and the resulting ~62-wide bogus
+// croom made every themed-fill object placement exhaust
+// get_location (seed0015's somexy spam + stack overflow; Q9
+// iteration 23).  First-match-wins like the C array scan (all the
+// '-' wall variants resolve to HWALL).
+import {
+    STONE, VWALL, HWALL, CROSSWALL, TREE, SDOOR, SCORR, POOL, MOAT,
+    WATER, LAVAPOOL, LAVAWALL, IRONBARS, DOOR, CORR, ROOM, FOUNTAIN,
+    THRONE, SINK, ICE, AIR, CLOUD, MAX_TYPE, MATCH_WALL, INVALID_TYPE,
+} from '../translated/nh-constants.js';
+
+const __char2typ = new Map([
+    [' ', STONE], ['#', CORR], ['.', ROOM], ['-', HWALL], ['|', VWALL],
+    ['+', DOOR], ['A', AIR], ['C', CLOUD], ['S', SDOOR], ['H', SCORR],
+    ['{', FOUNTAIN], ['\\', THRONE], ['K', SINK], ['}', MOAT],
+    ['P', POOL], ['L', LAVAPOOL], ['Z', LAVAWALL], ['I', ICE],
+    ['W', WATER], ['T', TREE], ['F', IRONBARS], ['x', MAX_TYPE],
+    ['B', CROSSWALL], ['w', MATCH_WALL],
+]);
+
+export function splev_chr2typ(c) {
+    const ch = (typeof c === 'number')
+        ? (c ? String.fromCharCode(c) : '')
+        : String(c ?? '').charAt(0);
+    if (!ch) return INVALID_TYPE; // NUL ends the C scan -> no match
+    const typ = __char2typ.get(ch);
+    return (typ === undefined) ? INVALID_TYPE : typ;
+}
+
+export function check_mapchr(s) {
+    const str = (typeof s === 'string') ? s : '';
+    if (str.length === 1) return splev_chr2typ(str.charCodeAt(0));
+    return INVALID_TYPE;
+}
+
+// Error-absorbing adapter for registered handlers (Q6, stash retired).
+// Sync throws absorb to 0; an async handler's rejection absorbs to
+// undefined (→ returned=0 in lua_pcall_async) — identical observable
+// semantics to the pre-async behavior the makerooms retry loop
+// depends on (caller sees an empty result and takes its fallback,
+// e.g. themeroom_failed=1).  A still-pending Promise returned through
+// the SYNC call path is a routing bug — caught by the Q4 tripwire in
+// callJsFunctionOnStack, never silently dropped.
+function wrapForLua(fn) {
+    return function luaHandlerWrapper(L) {
         let result;
         try {
             result = fn(L);
         } catch (e) {
-            // Synchronous JS error inside the registered function.
-            // Matches pre-async behavior: silently absorb so
-            // lua_pcall sees a successful (empty) call.  The Lua-
-            // side caller observes that no values were returned,
-            // often triggering the natural fallback path (e.g.
-            // themeroom_failed=1 in the makerooms retry loop).
-            if (process.env.NH_DEBUG_LUA) {
+            if (typeof process !== 'undefined' && process.env && process.env.NH_DEBUG_LUA) {
+                // Iteration 18 lesson: absorbed exceptions silently
+                // truncate themed-room contents mid-room (the terrain
+                // typedef TypeError hid here).  Print enough stack to
+                // pin the throw site.
                 console.warn('[lua-cb sync err]', e.message || e);
+                console.warn((e.stack || '').split('\n').slice(1, 5).join('\n'));
             }
             return 0;
         }
         if (result && typeof result.then === 'function') {
-            // Async path: stash Promise, return 0 sync.  Convert
-            // rejections to silent resolves — matches pre-async
-            // behavior where a thrown JS error inside lua_pcall
-            // was absorbed silently (and the surrounding safety
-            // net handled the symptom, e.g. setting
-            // themeroom_failed=1 after enough retries).
-            const wrapped = result.catch((e) => {
-                if (process.env.NH_DEBUG_LUA) {
+            return result.catch((e) => {
+                if (typeof process !== 'undefined' && process.env && process.env.NH_DEBUG_LUA) {
                     console.warn('[lua-cb async err]', e.message || e);
+                    console.warn((e.stack || '').split('\n').slice(1, 5).join('\n'));
                 }
-                // Swallow — don't reject the outer await chain.
                 return undefined;
             });
-            const prev = globalThis.__nhPendingLuaAsync;
-            globalThis.__nhPendingLuaAsync = prev
-                ? prev.then(() => wrapped)
-                : wrapped;
-            return 0;
         }
         return result;
     };
 }
 // luaL_newlib(L, funcs) — convenience: create a new table, register
 // `funcs` on it, leave the table on top of stack.
+// Re-export the lua-state luaL_* readers so EXTERNAL_SYMBOLS can map
+// translated imports here (Q9 iteration 29: luaL_checkstring x19 and
+// luaL_checkinteger x23 call sites across the translated TUs were
+// AUTOSTUBBED to () => 0 — every flag string read as 0 ("Unknown
+// level flag 0") and every checked integer read as 0, silently).
+export {
+    luaL_checkstring, luaL_checkinteger, luaL_checknumber,
+    luaL_optinteger, luaL_optstring, luaL_typename,
+} from './lua-state.mjs';
+
 export function luaL_newlib(L, funcs) {
     lua.lua_newtable(L);
     luaL_setfuncs(L, funcs, 0);

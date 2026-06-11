@@ -9,7 +9,7 @@ import { difftime } from '../c2js-runtime/calendar.js';
 import { lua_getglobal, lua_pushstring, lua_settop, nhl_pcall_handle } from '../c2js-runtime/lua.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, pline } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { check_leash, next_to_u } from './apply.js';
 import { init_artifacts, mkot_trap_warn } from './artifact.js';
 import { acurr, change_luck, exerchk } from './attrib.js';
@@ -71,45 +71,43 @@ import { clear_bypasses } from './worn.js';
 import { makewish } from './zap.js';
 
 /*ARGSUSED*/
-export function early_init(argc, argv) {
+export async function early_init(argc, argv) {
     program_state_init();
     /* Do this as early as possible, but let ports do other things first. */
     crashreport_init(argc, argv);
-    decl_globals_init();
+    await decl_globals_init();
     objects_globals_init();
     monst_globals_init();
-    sys_early_init();
+    await sys_early_init();
     runtime_info_init();
 }
-export function moveloop_preamble(resuming) {
+export async function moveloop_preamble(resuming) {
     fnEnter("moveloop_preamble", "allmain.c", 0);
     /* if a save file created in normal mode is now being restored in
        explore mode, treat it as normal restore followed by 'X' command
        to use up the save file and require confirmation for explore mode */
     if (resuming && game.iflags.deferred_X) {
-        enter_explore_mode();
+        await enter_explore_mode();
     }
     /* side-effects from the real world */
     game.flags.moonphase = phase_of_the_moon();
     if (game.flags.moonphase == 4) {
-        You("are lucky!  Full moon tonight.");
+        await You("are lucky!  Full moon tonight.");
         change_luck(1);
     } else if (game.flags.moonphase == 0) {
-        pline("Be careful!  New moon tonight.");
+        await pline("Be careful!  New moon tonight.");
     }
     game.flags.friday13 = friday_13th();
     if (game.flags.friday13) {
-        pline("Watch out!  Bad things can happen on Friday the 13th.");
+        await pline("Watch out!  Bad things can happen on Friday the 13th.");
         change_luck(-1);
     }
     if (!resuming) {
         game.program_state.beyond_savefile_load = 1;
         game.context.rndencode = rnd(9000);
-        /* for side-effects of starting gear */
-        set_wear(null);
+        await set_wear(null);
         reset_justpicked(game.invent);
-        /* autopickup at initial location */
-        pickup(1);
+        await pickup(1);
         /* only matters if someday a character is able to start with
            clairvoyance (wizard with cornuthaum perhaps?); without this,
            first "random" occurrence would always kick in on turn 1 */
@@ -122,14 +120,13 @@ export function moveloop_preamble(resuming) {
     /* make sure welcome messages are given before noticing monsters */
     game.disp.botlx = (1);
     if (resuming) {
-        read_engr_at(game.u.ux, game.u.uy);
-        fix_shop_damage();
+        await read_engr_at(game.u.ux, game.u.uy);
+        await fix_shop_damage();
     }
-    /* in case they auto-picked up something */
-    encumber_msg();
+    await encumber_msg();
     if (game.defer_see_monsters) {
         game.defer_see_monsters = (0);
-        see_monsters();
+        await see_monsters();
     }
     game.u.uz0.dlevel = game.u.uz.dlevel;
     game.context.move = 0;
@@ -191,10 +188,10 @@ export function u_calc_moveamt(wtcap) {
     }
 }
 /* small chance of generating a new random monster */
-export function maybe_generate_rnd_mon() {
+export async function maybe_generate_rnd_mon() {
     fnEnter("maybe_generate_rnd_mon", "allmain.c", 0);
     if (!rn2(game.u.uevent.udemigod ? 25 : (depth(game.u.uz) > depth((game.dungeon_topology.d_stronghold_level))) ? 50 : 70)) {
-        makemon(null, 0, 0, 0);
+        await makemon(null, 0, 0, 0);
     }
 }
 game.mvl_wtcap = 0;
@@ -209,29 +206,23 @@ export async function moveloop_core() {
     if (game.iflags.pending_customizations) {
         maybe_shuffle_customizations();
     }
-    dobjsfree();
+    await dobjsfree();
     if (game.context.bypasses) {
         clear_bypasses();
     }
     if (game.iflags.sanity_check || game.iflags.debug_fuzzer) {
-        sanity_check();
+        await sanity_check();
     }
     if (game.context.resume_wish) {
-        makewish();
+        await makewish();
     }
     if (game.context.move) {
         game.u.umovement -= 12;
         do {
-            /* hero can't move this turn loop */
-            /* although we checked for encumbrance above, we need to
-           check again for message purposes, as the weight of
-           inventory may have changed in, e.g., nh_timeout(); we do
-           need two checks here so that the player gets feedback
-           immediately if their own action encumbered them */
-            encumber_msg();
+            await encumber_msg();
             game.context.mon_moving = (1);
             do {
-                monscanmove = movemon();
+                monscanmove = await movemon();
                 if (game.u.umovement >= 12) {
                     break;
                 }
@@ -252,25 +243,14 @@ export async function moveloop_core() {
                 for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
                     mtmp.movement += mcalcmove(mtmp, (1));
                 }
-                /* occasionally add another monster; since this takes
-                   place after movement has been allotted, the new
-                   monster effectively loses its first turn */
-                maybe_generate_rnd_mon();
+                await maybe_generate_rnd_mon();
                 u_calc_moveamt(game.mvl_wtcap);
                 settrack();
                 game.moves++;
                 if (game.moves >= 1000000000) {
                     (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
-                    /*
-                 * Never allow 'moves' to grow big enough to wrap.
-                 * We don't care what the maximum possible 'long int'
-                 * is for the current configuration, we want a value
-                 * that is the same for all viable configurations.
-                 * When imposing the limit, use a mystic decimal value
-                 * instead of a magic binary one such as 0x7fffffffL.
-                 */
-                    urgent_pline("The dungeon capitulates.");
-                    done(ESCAPED);
+                    await urgent_pline("The dungeon capitulates.");
+                    await done(ESCAPED);
                 }
                 /* 'moves' is misnamed; it represents turns; hero_seq is
                    a value that is distinct every time the hero moves */
@@ -282,10 +262,10 @@ export async function moveloop_core() {
                 /* once-per-turn things go here */
                 l_nhcore_call(NHCORE_MOVELOOP_TURN);
                 if (game.u.uprops[GLIB].intrinsic) {
-                    glibr();
+                    await glibr();
                 }
-                nh_timeout();
-                run_regions();
+                await nh_timeout();
+                await run_regions();
                 if (game.u.ublesscnt) {
                     game.u.ublesscnt--;
                 }
@@ -301,23 +281,22 @@ export async function moveloop_core() {
                     /* for the moment at least, you're in tiptop shape */
                     game.mvl_wtcap = UNENCUMBERED;
                 } else if (!(game.u.umonnum != game.u.umonster) ? (game.u.uhp < game.u.uhpmax) : (game.u.mh < game.u.mhmax || game.youmonst.data.mlet == S_EEL)) {
-                    regen_hp(game.mvl_wtcap);
+                    await regen_hp(game.mvl_wtcap);
                 }
                 if (game.mvl_wtcap > MOD_ENCUMBER && game.u.umoved) {
                     if (!(game.mvl_wtcap < EXT_ENCUMBER ? game.moves % 30 : game.moves % 10)) {
-                        /* moving around while encumbered is hard work */
-                        overexert_hp();
+                        await overexert_hp();
                     }
                 }
-                regen_pw(game.mvl_wtcap);
+                await regen_pw(game.mvl_wtcap);
                 if (!game.u.uinvulnerable) {
                     if ((game.u.uprops[TELEPORT].intrinsic || game.u.uprops[TELEPORT].extrinsic) && !rn2(85)) {
                         let old_ux = game.u.ux;
                         let old_uy = game.u.uy;
-                        tele();
+                        await tele();
                         if (game.u.ux != old_ux || game.u.uy != old_uy) {
                             if (!next_to_u()) {
-                                check_leash(old_ux, old_uy);
+                                await check_leash(old_ux, old_uy);
                             }
                             /* clear doagain keystrokes */
                             cmdq_clear(CQ_CANNED);
@@ -335,45 +314,44 @@ export async function moveloop_core() {
                     }
                     if (game.mvl_change && !(game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic)) {
                         if (game.multi >= 0) {
-                            stop_occupation();
+                            await stop_occupation();
                             if (game.mvl_change == 1) {
-                                polyself(POLY_NOFLAGS);
+                                await polyself(POLY_NOFLAGS);
                             } else {
-                                you_were();
+                                await you_were();
                             }
                             game.mvl_change = 0;
                         }
                     }
                 }
                 if ((game.u.uprops[SEARCHING].intrinsic || game.u.uprops[SEARCHING].extrinsic) && !game.level.flags.noautosearch && game.multi >= 0) {
-                    dosearch0(1);
+                    await dosearch0(1);
                 }
                 if ((game.u.uprops[WARNING].intrinsic || game.u.uprops[WARNING].extrinsic)) {
-                    warnreveal();
+                    await warnreveal();
                 }
                 if (game.were_changes) {
-                    /* update innate intrinsics (mainly Drain_resistance) */
-                    set_uasmon();
+                    await set_uasmon();
                 }
-                mkot_trap_warn();
-                dosounds();
-                do_storms();
-                gethungry();
+                await mkot_trap_warn();
+                await dosounds();
+                await do_storms();
+                await gethungry();
                 age_spells();
-                exerchk();
-                invault();
+                await exerchk();
+                await invault();
                 if (game.u.uhave.amulet) {
-                    amulet();
+                    await amulet();
                 }
                 if (!rn2(40 + ((acurr(A_DEX)) * 3))) {
-                    u_wipe_engr(rnd(3));
+                    await u_wipe_engr(rnd(3));
                 }
                 if (game.u.uevent.udemigod && !game.u.uinvulnerable) {
                     if (game.u.udg_cnt) {
                         game.u.udg_cnt--;
                     }
                     if (!game.u.udg_cnt) {
-                        intervene();
+                        await intervene();
                         game.u.udg_cnt = (rn2(200) + (50));
                     }
                 }
@@ -382,16 +360,14 @@ export async function moveloop_core() {
  * maintained and not a list of special cases. */
                 /* vision will be updated as bubbles move */
                 if ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) || (((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level))))) {
-                    movebubbles();
+                    await movebubbles();
                 } else if (game.level.flags.fumaroles) {
-                    fumaroles();
+                    await fumaroles();
                 }
                 if (game.multi < 0) {
-                    /* when immobile, count is in turns */
-                    runmode_delay_output();
+                    await runmode_delay_output();
                     if (++game.multi == 0) {
-                        unmul(null);
-                        /* if unmul caused a level change, take it now */
+                        await unmul(null);
                         if (game.u.utotype) {
                             await deferred_goto();
                         }
@@ -403,13 +379,13 @@ export async function moveloop_core() {
         /* once-per-hero-took-time things go here */
         /* moves*8 + n for n == 1..7 */
         game.hero_seq++;
-        encumber_msg();
+        await encumber_msg();
         if (game.iflags.hilite_delta) {
             status_eval_next_unhilite();
         }
         if (game.moves >= game.context.seer_turn) {
             if ((game.u.uhave.amulet || ((game.u.uprops[CLAIRVOYANT].intrinsic || game.u.uprops[CLAIRVOYANT].extrinsic) && !game.u.uprops[CLAIRVOYANT].blocked)) && !((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && !game.u.uprops[CLAIRVOYANT].blocked) {
-                do_vicinity_map(null);
+                await do_vicinity_map(null);
             }
             /* we maintain this counter even when clairvoyance isn't
                taking place; on average, go again 30 turns from now */
@@ -423,17 +399,16 @@ export async function moveloop_core() {
         /* [fast hero who gets multiple moves per turn ends up sinking
            multiple times per turn; is that what we really want?] */
         if (game.u.utrap && game.u.utraptype == TT_LAVA) {
-            sink_into_lava();
+            await sink_into_lava();
         } else if (!game.u.umoved) {
-            pooleffects((0));
+            await pooleffects((0));
         }
-        /* vision while buried or underwater is updated here */
         if ((game.u.uinwater)) {
-            under_water(0);
+            await under_water(0);
         } else if (game.u.uburied) {
-            under_ground(0);
+            await under_ground(0);
         }
-        see_nearby_monsters();
+        await see_nearby_monsters();
     }
     /****************************************/
     /* once-per-player-input things go here */
@@ -443,54 +418,49 @@ export async function moveloop_core() {
         /* the Amulet of Yendor gives a wish when initially picked up */
         game.u.uevent.amulet_wish = 1;
         (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
-        urgent_pline("The Amulet is bestowing a wish upon you!");
-        makewish();
+        await urgent_pline("The Amulet is bestowing a wish upon you!");
+        await makewish();
     }
     find_ac();
     if (!game.context.mv || ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
         if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-            /* redo monsters if hallu or wearing a helm of telepathy */
-            /* this is needed for the case where you saw a monster
-                      due to being next to it while it's in a gas cloud
-                      and then you moved away; it should no longer be seen
-                      when that happens, even if it hasn't moved */
-            see_monsters();
-            see_objects();
-            see_traps();
+            await see_monsters();
+            await see_objects();
+            await see_traps();
             if (game.u.uswallow) {
-                swallowed(0);
+                await swallowed(0);
             }
         } else if ((game.u.uprops[TELEPAT].extrinsic) || (game.u.uprops[WARNING].intrinsic || game.u.uprops[WARNING].extrinsic) || (game.u.uprops[WARN_OF_MON].intrinsic || game.u.uprops[WARN_OF_MON].extrinsic) || any_visible_region()) {
-            see_monsters();
+            await see_monsters();
         }
         if (game.vision_full_recalc) {
-            vision_recalc(0);
+            await vision_recalc(0);
         }
     }
     if (game.disp.botl || game.disp.botlx) {
-        bot();
-        curs_on_u();
+        await bot();
+        await curs_on_u();
     } else if (game.disp.time_botl) {
-        timebot();
-        curs_on_u();
+        await timebot();
+        await curs_on_u();
     }
-    m_everyturn_effect(game.youmonst);
+    await m_everyturn_effect(game.youmonst);
     game.context.move = 1;
     if (game.multi >= 0 && game.occupation) {
         if ((game.occupation)() == 0) {
             game.occupation = null;
         }
         if (monster_nearby()) {
-            stop_occupation();
-            reset_eat();
+            await stop_occupation();
+            await reset_eat();
         }
-        runmode_delay_output();
+        await runmode_delay_output();
         return;
     }
     game.u.umoved = (0);
     if (game.multi > 0) {
-        lookaround();
-        runmode_delay_output();
+        await lookaround();
+        await runmode_delay_output();
         if (!game.multi) {
             /* lookaround may clear multi */
             game.context.move = 0;
@@ -500,21 +470,21 @@ export async function moveloop_core() {
             if (game.multi < 80 && !--game.multi) {
                 end_running((1));
             }
-            domove();
+            await domove();
         } else {
             --game.multi;
-            ((!!(game.command_count != 0)) || (nhassert_failed("gc.command_count != 0", "/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/allmain.c", 529) , 0));
-            rhack(game.cmd_key);
+            ((!!(game.command_count != 0)) || (await nhassert_failed("gc.command_count != 0", "/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/allmain.c", 529) , 0));
+            await rhack(game.cmd_key);
         }
     } else if (game.multi == 0) {
         ckmailstatus();
-        rhack(0);
+        await rhack(0);
     }
     if (game.u.utotype) {
         await deferred_goto();
     }
     if (game.vision_full_recalc) {
-        vision_recalc(0);
+        await vision_recalc(0);
     }
     (game.windowprocs.win_cliparound)(game.u.ux, game.u.uy);
     if ((!game.context.run || game.flags.runmode == RUN_TPORT) && (game.multi && (!game.context.travel ? !(game.multi % 7) : !(game.moves % 7)))) {
@@ -539,18 +509,18 @@ export async function maybe_do_tutorial() {
     if (!sp) {
         return;
     }
-    if (ask_do_tutorial()) {
+    if (await ask_do_tutorial()) {
         assign_level(game.u.ucamefrom, game.u.uz);
         game.iflags.nofollowers = (1);
         schedule_goto(sp.dlevel, UTOTYPE_NONE, "Entering the tutorial.", null);
         await deferred_goto();
-        vision_recalc(0);
-        docrt();
+        await vision_recalc(0);
+        await docrt();
         game.iflags.nofollowers = (0);
     }
 }
 export async function moveloop(resuming) {
-    moveloop_preamble(resuming);
+    await moveloop_preamble(resuming);
     if (!resuming) {
         await maybe_do_tutorial();
     }
@@ -558,7 +528,7 @@ export async function moveloop(resuming) {
         await moveloop_core();
     }
 }
-export function regen_pw(wtcap) {
+export async function regen_pw(wtcap) {
     if (game.u.uen < game.u.uenmax && ((wtcap < MOD_ENCUMBER && (!(game.moves % (Math.trunc((30 + 8 - game.u.ulevel) * ((game.urole.mnum == (PM_WIZARD)) ? 3 : 4) / 6))))) || (game.u.uprops[ENERGY_REGENERATION].intrinsic || game.u.uprops[ENERGY_REGENERATION].extrinsic))) {
         let upper = Math.trunc(((acurr(A_WIS)) + (acurr(A_INT))) / 15) + 1;
         if (game.u.uprops[MAGICAL_BREATHING].extrinsic) {
@@ -570,18 +540,18 @@ export function regen_pw(wtcap) {
         }
         game.disp.botl = (1);
         if (game.u.uen == game.u.uenmax) {
-            interrupt_multi("You feel full of energy.");
+            await interrupt_multi("You feel full of energy.");
         }
     }
 }
 /* maybe recover some lost health (or lose some when an eel out of water) */
-export function regen_hp(wtcap) {
+export async function regen_hp(wtcap) {
     let heal = 0;
     let reached_full = (0);
     let encumbrance_ok = (wtcap < MOD_ENCUMBER || !game.u.umoved);
     if ((game.u.umonnum != game.u.umonster)) {
         if (game.u.mh < 1) {
-            rehumanize();
+            await rehumanize();
         } else if (game.youmonst.data.mlet == S_EEL && !is_pool(game.u.ux, game.u.uy) && !(((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) && !(game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 1024) != 0))) {
             /* eel out of water loses hp, similar to monster eels;
                as hp gets lower, rate of further loss slows down */
@@ -623,13 +593,13 @@ export function regen_hp(wtcap) {
         }
     }
     if (reached_full) {
-        interrupt_multi("You are in full health.");
+        await interrupt_multi("You are in full health.");
     }
 }
-export function stop_occupation() {
+export async function stop_occupation() {
     if (game.occupation) {
-        if (!maybe_finished_meal((1))) {
-            You("stop %s.", game.occtxt);
+        if (!await maybe_finished_meal((1))) {
+            await You("stop %s.", game.occtxt);
         }
         game.occupation = null;
         game.disp.botl = (1);
@@ -639,9 +609,9 @@ export function stop_occupation() {
     }
     cmdq_clear(CQ_CANNED);
 }
-export function init_sound_disp_gamewindows() {
+export async function init_sound_disp_gamewindows() {
     let menu_behavior = 0;
-    activate_chosen_soundlib();
+    await activate_chosen_soundlib();
     if (game.iflags.wc_splash_screen && !game.flags.randomall) {
         ;
     } else {
@@ -652,8 +622,7 @@ export function init_sound_disp_gamewindows() {
        palette entries to alter */
     game.WIN_MESSAGE = (game.windowprocs.win_create_nhwindow)(1);
     if (((game.windowprocs.wincap2 & (8 | 128)) != 0)) {
-        /* ToDo: new splash screen invocation will go here */
-        status_initialize((0));
+        await status_initialize((0));
     } else {
         game.WIN_STATUS = (game.windowprocs.win_create_nhwindow)(2);
     }
@@ -694,20 +663,15 @@ export async function newgame() {
     for (i = LOW_PM; i < NUMMONS; i++) {
         game.mvitals[i].mvflags = game.mons[i].geno & 16;
     }
-    init_objects();
+    await init_objects();
     /* role_init() will reset this */
     game.flags.pantheon = -1;
-    /* must be before init_dungeons(), u_init(),
-                          * and init_artifacts() */
-    role_init();
-    /* must be before u_init() to avoid rndmonst()
-                       * creating odd monsters for any tins and eggs
-                       * in hero's initial inventory */
+    await role_init();
     await init_dungeons();
     /* before u_init() in case $WIZKIT specifies
                        * any artifacts */
     init_artifacts();
-    u_init_misc();
+    await u_init_misc();
     /* create a Lua state that lasts until end of game */
     l_nhcore_init();
     reset_glyphmap(gm_newgame);
@@ -715,66 +679,62 @@ export async function newgame() {
     if (game.iflags.news) {
         (game.windowprocs.win_display_file)("news", (0));
     }
-    /* quest_init();  --  Now part of role_init() */
     await mklev();
-    u_on_upstairs();
+    await u_on_upstairs();
     /* set up internals for level (after mklev) */
     vision_reset();
-    check_special_room((0));
+    await check_special_room((0));
     if ((game.level.monsters[game.u.ux][game.u.uy] != null)) {
-        mnexto((game.level.monsters[game.u.ux][game.u.uy]), 4);
+        await mnexto((game.level.monsters[game.u.ux][game.u.uy]), 4);
     }
-    makedog();
-    u_init_inventory_attrs();
-    docrt();
-    flush_screen(1);
-    bot();
-    while (game.u.uroleplay.reroll && reroll_menu()) {
-        u_init_inventory_attrs();
-        bot();
+    await makedog();
+    await u_init_inventory_attrs();
+    await docrt();
+    await flush_screen(1);
+    await bot();
+    while (game.u.uroleplay.reroll && await reroll_menu()) {
+        await u_init_inventory_attrs();
+        await bot();
     }
-    u_init_skills_discoveries();
+    await u_init_skills_discoveries();
     if (game.flags.debug) {
         read_wizkit();
-        obj_delivery((0));
+        await obj_delivery((0));
     }
     if (game.flags.legacy) {
-        com_pager(game.u.uroleplay.pauper ? "pauper_legacy" : "legacy");
+        await com_pager(game.u.uroleplay.pauper ? "pauper_legacy" : "legacy");
     }
     game.urealtime.realtime = 0;
     game.urealtime.start_timing = getnow();
-    save_currentstate();
+    await save_currentstate();
     game.program_state.something_worth_saving++;
-    welcome((1));
+    await welcome((1));
     do {
         if (--game.a11y.mon_notices_blocked < 0) {
-            impossible("mon_notices_blocked<0");
+            await impossible("mon_notices_blocked<0");
             game.a11y.mon_notices_blocked = 0;
         }
     } while (0);
     if (game.a11y.glyph_updates) {
-        dolookaround();
-    /* now we can notice monsters */
+        await dolookaround();
     } else {
-        notice_all_mons((1));
+        await notice_all_mons((1));
     }
     return;
 }
 /* show "welcome [back] to NetHack" message at program startup */
 /* false => restoring an old game */
-export function welcome(new_game) {
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+export async function welcome(new_game) {
+    let buf = '';
     let currentgend = (game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female;
     let adrift = (game.u.ualign.type != game.u.ualignbase[0]);
     l_nhcore_call(new_game ? NHCORE_START_NEW_GAME : NHCORE_RESTORE_OLD_GAME);
     if (!new_game && (game.u.umonnum != game.u.umonster) && ugenocided()) {
-        /* skip "welcome back" if restoring a doomed character */
-        /* death via self-genocide is pending */
-        pline("You're back, but you still feel %s inside.", udeadinside());
+        await pline("You're back, but you still feel %s inside.", udeadinside());
         return;
     }
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-        pline("NetHack is filmed in front of an undead studio audience.");
+        await pline("NetHack is filmed in front of an undead studio audience.");
     }
     /*
      * The "welcome back" message always describes your innate form
@@ -800,22 +760,19 @@ export function welcome(new_game) {
      *  message."
      */
     if (new_game || game.u.ualignbase[1] != game.u.ualignbase[0] || adrift) {
-        buf = (buf || '') + sprintf('', " %s%s", adrift ? "adrift " : "", adrift ? align_str(game.u.ualign.type) : align_str(game.u.ualignbase[0]));
+        buf = __nh_buf_append(buf, sprintf('', " %s%s", adrift ? "adrift " : "", adrift ? align_str(game.u.ualign.type) : align_str(game.u.ualignbase[0])));
     }
     if (!game.urole.name.f && (new_game ? (game.urole.allow & 61440) == (4096 | 8192) : currentgend != game.flags.initgend)) {
-        buf = (buf || '') + sprintf('', " %s", genders[currentgend].adj);
+        buf = __nh_buf_append(buf, sprintf('', " %s", genders[currentgend].adj));
     }
-    buf = (buf || '') + sprintf('', " %s %s", game.urace.adj, (currentgend && game.urole.name.f) ? game.urole.name.f : game.urole.name.m);
-    pline(new_game ? "%s %s, welcome to NetHack!  You are a%s." : "%s %s, the%s, welcome back to NetHack!", Hello(null), game.plname, buf);
+    buf = __nh_buf_append(buf, sprintf('', " %s %s", game.urace.adj, (currentgend && game.urole.name.f) ? game.urole.name.f : game.urole.name.m));
+    await pline(new_game ? "%s %s, welcome to NetHack!  You are a%s." : "%s %s, the%s, welcome back to NetHack!", Hello(null), game.plname, buf);
     if (new_game) {
         /* guarantee that 'major' event category is never empty */
         livelog_printf(2, "%s the%s entered the dungeon", game.plname, buf);
     } else {
-        /* if restoring in Gehennom, give same hot/smoky message as when
-           first entering it */
-        hellish_smoke_mesg();
-        /* remind player of the level annotation, like in goto_level() */
-        print_level_annotation();
+        await hellish_smoke_mesg();
+        await print_level_annotation();
     }
 }
 /* FIXME: this will break if any coordinate is too big for (char);
@@ -829,11 +786,11 @@ export function welcome(new_game) {
 /* FIXME: traversing 'stairs' list ignores mimics that pose as stairs */
 /* hero location */
 /* fence post */
-export function interrupt_multi(msg) {
+export async function interrupt_multi(msg) {
     if (game.multi > 0 && !game.context.travel && !game.context.run) {
         nomul(0);
         if (game.flags.verbose && msg) {
-            Norep("%s", msg);
+            await Norep("%s", msg);
         }
     }
 }
@@ -851,3 +808,46 @@ export function timet_delta(etim, stim) {
     return difftime(etim, stim);
 }
 /*allmain.c*/
+/* for side-effects of starting gear */
+/* autopickup at initial location */
+/* in case they auto-picked up something */
+/* hero can't move this turn loop */
+/* occasionally add another monster; since this takes
+                   place after movement has been allotted, the new
+                   monster effectively loses its first turn */
+/*
+                 * Never allow 'moves' to grow big enough to wrap.
+                 * We don't care what the maximum possible 'long int'
+                 * is for the current configuration, we want a value
+                 * that is the same for all viable configurations.
+                 * When imposing the limit, use a mystic decimal value
+                 * instead of a magic binary one such as 0x7fffffffL.
+                 */
+/* moving around while encumbered is hard work */
+/* update innate intrinsics (mainly Drain_resistance) */
+/* when immobile, count is in turns */
+/* if unmul caused a level change, take it now */
+/* although we checked for encumbrance above, we need to
+           check again for message purposes, as the weight of
+           inventory may have changed in, e.g., nh_timeout(); we do
+           need two checks here so that the player gets feedback
+           immediately if their own action encumbered them */
+/* vision while buried or underwater is updated here */
+/* redo monsters if hallu or wearing a helm of telepathy */
+/* this is needed for the case where you saw a monster
+                      due to being next to it while it's in a gas cloud
+                      and then you moved away; it should no longer be seen
+                      when that happens, even if it hasn't moved */
+/* ToDo: new splash screen invocation will go here */
+/* must be before init_dungeons(), u_init(),
+                          * and init_artifacts() */
+/* must be before u_init() to avoid rndmonst()
+                       * creating odd monsters for any tins and eggs
+                       * in hero's initial inventory */
+/* quest_init();  --  Now part of role_init() */
+/* now we can notice monsters */
+/* skip "welcome back" if restoring a doomed character */
+/* death via self-genocide is pending */
+/* if restoring in Gehennom, give same hot/smoky message as when
+           first entering it */
+/* remind player of the level annotation, like in goto_level() */

@@ -17,7 +17,7 @@
    you might need to define either or both of these to 'long *' in *conf.h */
 import { localtime, time } from '../c2js-runtime/calendar.js';
 import { nh_snprintf } from '../c2js-runtime/stdio.js';
-import { strlen } from '../c2js-runtime/string.js';
+import { atoi, strlen } from '../c2js-runtime/string.js';
 
 export function getnow() {
     let datetime = 0;
@@ -61,7 +61,7 @@ export function hhmmss(date) {
     timenum = lt.tm_hour * 10000 + lt.tm_min * 100 + lt.tm_sec;
     return timenum;
 }
-let __yyyymmddhhmmss_datestr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __yyyymmddhhmmss_datestr = '';
 export function yyyymmddhhmmss(date) {
     let datenum = 0;
     let lt = null;
@@ -75,7 +75,7 @@ export function yyyymmddhhmmss(date) {
     } else {
         datenum = lt.tm_year + 1900;
     }
-    nh_snprintf("yyyymmddhhmmss", 114, __yyyymmddhhmmss_datestr, 15 /* sizeof(char [15]) */, "%04ld%02d%02d%02d%02d%02d", datenum, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec);
+    __yyyymmddhhmmss_datestr = nh_snprintf("yyyymmddhhmmss", 114, __yyyymmddhhmmss_datestr, 15 /* sizeof(char [15]) */, "%04ld%02d%02d%02d%02d%02d", datenum, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec);
     //debugpline1("yyyymmddhhmmss() produced date string %s", datestr);
     return __yyyymmddhhmmss_datestr;
 }
@@ -84,16 +84,16 @@ export function time_from_yyyymmddhhmmss(buf) {
     let timeresult = 0;
     let t = { tm_sec: 0, tm_min: 0, tm_hour: 0, tm_mday: 0, tm_mon: 0, tm_year: 0, tm_wday: 0, tm_yday: 0, tm_isdst: 0, tm_gmtoff: 0, tm_zone: null };
     let lt = null;
-    let __nh_d_idx = 0;
+    let d = null;
     let p = null;
-    let y = [0, 0, 0, 0, 0];
-    let mo = [0, 0, 0];
-    let md = [0, 0, 0];
-    let h = [0, 0, 0];
-    let mi = [0, 0, 0];
-    let s = [0, 0, 0];
+    let y = '';
+    let mo = '';
+    let md = '';
+    let h = '';
+    let mi = '';
+    let s = '';
     if (buf && strlen(buf) == 14) {
-        __nh_d_idx = 0;
+        d = buf;
         y = d.slice(0, 4);
         d = d.slice(4);
         mo = d.slice(0, 2);

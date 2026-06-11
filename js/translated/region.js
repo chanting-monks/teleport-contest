@@ -10,8 +10,8 @@ import { game } from '../gstate.js';
 import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, You_see, Your, pline, pline_The } from '../c2js-runtime/pline.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcpy, strlen } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_char_write, strcpy, strlen } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { c_common_strings, cg } from './decl.js';
 import { newsym, show_glyph } from './display.js';
@@ -551,8 +551,8 @@ export function any_visible_region() {
 /* for the wizard mode #timeout command */
 export function visible_region_summary(win) {
     let reg = null;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let typbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
+    let typbuf = '';
     let i = 0;
     let damg = 0;
     let hdr_done = 0;
@@ -581,8 +581,8 @@ export function visible_region_summary(win) {
         } else {
             typbuf = strcpy(typbuf, "vapor");
         }
-        buf = (buf || '') + sprintf('', "%s%-16s", fldsep, typbuf);
-        buf = (buf || '') + sprintf('', "%s@[%d,%d..%d,%d]", fldsep, reg.bounding_box.lx, reg.bounding_box.ly, reg.bounding_box.hx, reg.bounding_box.hy);
+        buf = __nh_buf_append(buf, sprintf('', "%s%-16s", fldsep, typbuf));
+        buf = __nh_buf_append(buf, sprintf('', "%s@[%d,%d..%d,%d]", fldsep, reg.bounding_box.lx, reg.bounding_box.ly, reg.bounding_box.hx, reg.bounding_box.hy));
         (game.windowprocs.win_putstr)(win, 0, buf);
     }
 }
@@ -657,7 +657,7 @@ export function save_regions(nhfp) {
             }
             sfo_boolean(nhfp, { get value() { return r.visible; }, set value(_v) { r.visible = _v; } }, "region-visible");
             sfo_int(nhfp, { get value() { return r.glyph; }, set value(_v) { r.glyph = _v; } }, "region-glyph");
-            sfo_any(nhfp, r.arg, "region-arg");
+            sfo_any(nhfp, { get value() { return r.arg; }, set value(_v) { r.arg = _v; } }, "region-arg");
         }
     }
     if (((nhfp).mode & 4)) {
@@ -707,7 +707,7 @@ export function rest_regions(nhfp) {
         if (n > 0) {
             msg_buf = alloc(n + 1);
             sfi_char(nhfp, msg_buf, "region-enter_msg", n);
-            msg_buf[n] = 0;
+            msg_buf = __nh_char_write(msg_buf, n, 0);
         } else {
             msg_buf = null;
         }
@@ -717,7 +717,7 @@ export function rest_regions(nhfp) {
         if (n > 0) {
             msg_buf = alloc(n + 1);
             sfi_char(nhfp, msg_buf, "region-leave_msg", n);
-            msg_buf[n] = 0;
+            msg_buf = __nh_char_write(msg_buf, n, 0);
             r.leave_msg = msg_buf;
         } else {
             msg_buf = null;
@@ -756,7 +756,7 @@ export function rest_regions(nhfp) {
         sfi_boolean(nhfp, { get value() { return r.visible; }, set value(_v) { r.visible = _v; } }, "region-visible");
         sfi_int(nhfp, { get value() { return r.glyph; }, set value(_v) { r.glyph = _v; } }, "region-glyph");
         ;
-        sfi_any(nhfp, r.arg, "region-arg");
+        sfi_any(nhfp, { get value() { return r.arg; }, set value(_v) { r.arg = _v; } }, "region-arg");
     }
     for (i = game.n_regions - 1; i >= 0; i--) {
         r = game.regions[i];

@@ -8,8 +8,8 @@ import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, pline, raw_printf } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
-import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strlen, strncat, strncmpi, strrchr, strstri } from '../c2js-runtime/string.js';
+import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmpi, strrchr, strstri } from '../c2js-runtime/string.js';
 import { disp_artifact_discoveries, dump_artifact_info } from './artifact.js';
 import { exercise } from './attrib.js';
 import { yn_function } from './cmd.js';
@@ -186,7 +186,7 @@ export function init_objects() {
        attempting to process non-existent class MAXOCLASSES; the
        [MAXOCLASSES+1] element gives that non-class 0 objects
        when traversing objects[] from bases[X] through bases[X+1]-1 */
-    game.bases[MAXOCLASSES] = game.bases[MAXOCLASSES + 1] = NUM_OBJECTS;
+    (game.bases[MAXOCLASSES + 1] = NUM_OBJECTS, game.bases[MAXOCLASSES] = NUM_OBJECTS);
     /* hypothetically someone might remove all objects of some class,
        or be adding a new class and not populated it yet, leaving gaps
        in bases[]; guarantee that there are no such gaps */
@@ -294,7 +294,7 @@ export function shuffle_all() {
     let idx = 0;
     for (idx = 0; idx < (Math.trunc(7 /* sizeof(char [7]) */ / 1 /* sizeof(char) */)); idx++) {
         /* do whole classes (amulets, &c) */
-        obj_shuffle_range(game.bases[__shuffle_all_shuffle_classes[idx]], { get value() { return first; }, set value(_v) { first = _v; } }, { get value() { return last; }, set value(_v) { last = _v; } });
+        obj_shuffle_range(game.bases[__nh_char_at0(__nh_advance_str(__shuffle_all_shuffle_classes, idx))], { get value() { return first; }, set value(_v) { first = _v; } }, { get value() { return last; }, set value(_v) { last = _v; } });
         shuffle(first, last, (1));
     }
     for (idx = 0; idx < (Math.trunc(8 /* sizeof(short [4]) */ / 2 /* sizeof(short) */)); idx++) {
@@ -470,7 +470,7 @@ export function discovered_cmp(v1, v2) {
     let s1 = v1;
     let s2 = v2;
     /* each element starts with "* " or "  " but we don't sort by those */
-    let res = strncmpi((s1 + 2), (s2 + 2), -1);
+    let res = strncmpi((__nh_advance_str(s1, 2)), (__nh_advance_str(s2, 2)), -1);
     if (res == 0) {
         ;
     }
@@ -519,8 +519,8 @@ export function choose_disco_sort(mode) {
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     any = cg.zeroany;
     for (i = 0; disco_orders_descr[i]; ++i) {
-        any.a_int = disco_order_let[i];
-        add_menu(tmpwin, nul_glyphinfo, any, any.a_int, 0, 0, clr, disco_orders_descr[i], (disco_order_let[i] == game.flags.discosort) ? 1 : 0);
+        any.a_int = __nh_char_at0(__nh_advance_str(disco_order_let, i));
+        add_menu(tmpwin, nul_glyphinfo, any, any.a_int, 0, 0, clr, disco_orders_descr[i], (__nh_char_at0(__nh_advance_str(disco_order_let, i)) == game.flags.discosort) ? 1 : 0);
     }
     if (mode == 2) {
         /* called via 'm `' where full alphabetize doesn't make sense
@@ -549,7 +549,7 @@ export function choose_disco_sort(mode) {
 export function disco_typename(otyp) {
     let result = obj_typename(otyp);
     if ((game.urole.mnum == (PM_SAMURAI)) && Japanese_item_name(otyp, null)) {
-        let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let buf = '';
         let actualn = (((otyp != MAGIC_HARP && otyp != WOODEN_HARP) || game.objects[otyp].oc_name_known) ? (game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name) : "harp");
         if (!actualn) {
             ;
@@ -565,7 +565,7 @@ export function disco_typename(otyp) {
             buf = sprintf(buf, " [%s] (", actualn);
             result = strsubst(result, " (", buf);
         } else {
-            result = (result || '') + sprintf('', " [%s]", actualn);
+            result = __nh_buf_append(result, sprintf('', " [%s]", actualn));
         }
     }
     return result;
@@ -580,20 +580,20 @@ export function disco_append_typename(buf, dis) {
     let eos = null;
     if (len + typnm_len < 256) {
         buf = strcat(buf, typnm);
-        eos = buf + len + typnm_len;
-    } else if ((p = strrchr(typnm, 40)) != null && p > typnm && p[-1] == 32 && strchr(p, 41) != null) {
-        --p;
+        eos = __nh_advance_str(buf, len) + typnm_len;
+    } else if ((p = strrchr(typnm, 40)) != null && p > typnm && __nh_char_at0(__nh_advance_str(p, -1)) == 32 && strchr(p, 41) != null) {
         /* typename() returned "really long user-applied name (actual type)"
            and we want to truncate from "really long user-applied name" while
            keeping " (actual type)" intact */
         /* back up to space in front of open paren */
+        (p = __nh_advance_str(p, -1));
         buf = strncat(buf, typnm, 256 - 1 - (len + strlen(p)));
         buf = strcat(buf, p);
-        eos = buf + strlen(buf);
+        eos = __nh_advance_str(buf, strlen(buf));
     } else {
         /* unexpected; just truncate from end of typename */
         buf = strncat(buf, typnm, 256 - 1 - len);
-        eos = buf + strlen(buf);
+        eos = __nh_advance_str(buf, strlen(buf));
     }
     append_price_quote(buf, eos, dis);
     return buf;
@@ -618,8 +618,8 @@ export function disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort) {
         p = sorted_lines[j];
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
         if (lootsort) {
-            p[6] = p[0];
-            p += 6;
+            p = __nh_char_write(p, 6, __nh_char_at0(p));
+            p = __nh_advance_str(p, 6);
         }
         (game.windowprocs.win_putstr)(tmpwin, 0, p);
         free(sorted_lines[j]) , sorted_lines[j] = null;
@@ -629,11 +629,11 @@ export function disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort) {
 /* free after Robert Viduya */
 export function dodiscovered() {
     let tmpwin = 0;
-    let s = null;
+    let __nh_s_idx = 0;
     let oclass = 0;
     let prev_class = 0;
-    let classes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let classes = '';
+    let buf = '';
     let sorted_lines = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
     let p = null;
     let i = 0;
@@ -719,7 +719,7 @@ export function dodiscovered() {
                 }
                 buf = strcpy(buf, game.objects[dis].oc_encountered ? "  " : "* ");
                 if (lootsort) {
-                    sortloot_descr(dis, { get value() { return buf[2]; }, set value(_v) { buf[2] = _v; } });
+                    sortloot_descr(dis, __nh_char_at0(__nh_advance_str(buf, 2)));
                 }
                 buf = disco_append_typename(buf, dis);
                 if (!alphabetized && !lootsort) {
@@ -750,9 +750,9 @@ export function dodiscovered() {
 }
 /* lower case let_to_name() output, which differs from def_oc_syms[].name */
 export function oclass_to_name(oclass, buf) {
-    let s = null;
+    let __nh_s_idx = 0;
     buf = strcpy(buf, let_to_name(oclass, (0), (0)));
-    for (s = buf; s; ++s) {
+    for (__nh_s_idx = 0; buf[__nh_s_idx]; ++__nh_s_idx) {
         s = (() => { const __s = s; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toLowerCase() + __t.slice(1) : __s; })();
     }
     return buf;
@@ -772,9 +772,9 @@ export function doclassdisco() {
     let c = 0;
     let oclass = 0;
     let menulet = 0;
-    let allclasses = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let discosyms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let allclasses = '';
+    let discosyms = '';
+    let buf = '';
     let sorted_lines = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
     let p = null;
     let i = 0;
@@ -797,7 +797,7 @@ export function doclassdisco() {
     }
     alphabetized = (game.flags.discosort == 97 || game.flags.discosort == 99);
     lootsort = (game.flags.discosort == 115);
-    discosyms[0] = 0;
+    discosyms = '';
     traditional = (game.flags.menu_style == 0 || game.flags.menu_style == 1);
     if (!traditional) {
         tmpwin = (game.windowprocs.win_create_nhwindow)(4);
@@ -833,7 +833,7 @@ export function doclassdisco() {
     if (!strchr(allclasses, VENOM_CLASS)) {
         allclasses = strkitten(allclasses, VENOM_CLASS);
     }
-    for (s = allclasses; s; ++s) {
+    for (s = allclasses; __nh_char_at0(s); (s = __nh_advance_str(s, 1))) {
         /*
      * Skip the "unique objects" section (each will appear within its
      * regular class if it is nameable) and the artifacts section.
@@ -841,7 +841,7 @@ export function doclassdisco() {
      * so we skip venom too.
      */
         /* for each class, show discoveries in that class */
-        oclass = s;
+        oclass = __nh_char_at0(s);
         c = def_oc_syms[oclass].sym;
         for (i = game.bases[oclass]; i < NUM_OBJECTS && game.objects[i].oc_class == oclass; ++i) {
             if ((dis = game.disco[i]) != 0 && interesting_to_discover(dis)) {
@@ -855,7 +855,7 @@ export function doclassdisco() {
             }
         }
     }
-    if (!discosyms[0]) {
+    if (!__nh_char_at0(discosyms)) {
         /* there might not be anything for us to do... */
         You(__doclassdisco_havent_discovered_any, "items");
         if (tmpwin != (-1)) {
@@ -866,13 +866,13 @@ export function doclassdisco() {
     /* have player choose a class */
     c = 0;
     if (traditional) {
-        let allclasses_plustwo = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let allclasses_plustwo = '';
         allclasses_plustwo = sprintf(allclasses_plustwo, "%s%c%c%c", allclasses, 97, 117, 114);
-        for (s = allclasses_plustwo , xtras = 0; s; ++s) {
+        for (s = allclasses_plustwo , xtras = 0; __nh_char_at0(s); (s = __nh_advance_str(s, 1))) {
             /* we'll prompt even if there's only one viable class; we add all
            nonviable classes as unseen acceptable choices so player can ask
            for discoveries of any class whether it has discoveries or not */
-            c = strchr("aur", s) ? s : def_oc_syms[s].sym;
+            c = strchr("aur", __nh_char_at0(s)) ? __nh_char_at0(s) : def_oc_syms[__nh_char_at0(s)].sym;
             if (!strchr(discosyms, c)) {
                 if (!xtras++) {
                     discosyms = strkitten(discosyms, 27);
@@ -886,11 +886,11 @@ export function doclassdisco() {
             (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
         }
     } else {
-        if (!discosyms[1] && game.flags.menu_style == 3) {
+        if (!__nh_char_at0(__nh_advance_str(discosyms, 1)) && game.flags.menu_style == 3) {
             /* menustyle:full or menustyle:partial */
             /* only one class; menustyle:partial normally jumps past class
                filtering straight to final menu so skip class filter here */
-            c = discosyms[0];
+            c = __nh_char_at0(discosyms);
         } else {
             (game.windowprocs.win_end_menu)(tmpwin, __doclassdisco_prompt);
             /* more than one choice, or menustyle:full which normally has
@@ -955,7 +955,7 @@ export function doclassdisco() {
                     ++ct;
                     buf = strcpy(buf, game.objects[dis].oc_encountered ? "  " : "* ");
                     if (lootsort) {
-                        sortloot_descr(dis, { get value() { return buf[2]; }, set value(_v) { buf[2] = _v; } });
+                        sortloot_descr(dis, __nh_char_at0(__nh_advance_str(buf, 2)));
                     }
                     buf = disco_append_typename(buf, dis);
                     if (!alphabetized && !lootsort) {
@@ -973,8 +973,8 @@ export function doclassdisco() {
                     let sl = null;
                     sl = sorted_lines[i];
                     if (lootsort) {
-                        sl[6] = sl[0];
-                        sl += 6;
+                        sl = __nh_char_write(sl, 6, __nh_char_at0(sl));
+                        sl = __nh_advance_str(sl, 6);
                     }
                     (game.windowprocs.win_putstr)(tmpwin, 0, sl);
                     free(sorted_lines[i]) , sorted_lines[i] = null;
@@ -1002,12 +1002,12 @@ export function rename_disco() {
     let any = 0;
     let selected = null;
     let clr = 8;
-    let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buf = '';
     any = cg.zeroany;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
-    for (s = game.flags.inv_order; s; s++) {
-        oclass = s;
+    for (s = game.flags.inv_order; __nh_char_at0(s); (s = __nh_advance_str(s, 1))) {
+        oclass = __nh_char_at0(s);
         prev_class = oclass + 1;
         for (i = game.bases[oclass]; i < NUM_OBJECTS && game.objects[i].oc_class == oclass; i++) {
             dis = game.disco[i];
@@ -1066,7 +1066,7 @@ export function get_sortdisco(opts, cnf) {
     if (cnf) {
         opts = sprintf(opts, "%c", game.flags.discosort);
     } else {
-        opts = strcpy(opts, disco_orders_descr[p - disco_order_let]);
+        opts = strcpy(opts, disco_orders_descr[(disco_order_let.length - p.length)]);
     }
 }
 /*o_init.c*/

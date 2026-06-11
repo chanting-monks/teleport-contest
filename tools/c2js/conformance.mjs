@@ -18,8 +18,8 @@
 //
 // CLI entry: see tools/c2js/build.mjs --conformance.
 
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, basename } from 'node:path';
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { join, dirname, relative, basename } from 'node:path';
 import {
     projectRoot, jsDir, runtimeDir, upstreamDir,
     FROZEN_FILES, SKELETON_FILES, RUNTIME_MODULES,
@@ -366,16 +366,11 @@ function checkBannedCalls(files, sources) {
 // that strips async marks from translated functions would still pass
 // the in-file check while leaving cross-file unawaited calls that
 // crash at runtime (the §23.218 failed regen scenario).
-const RUNTIME_ASYNC_FUNCTIONS = new Set([
-    // js/c2js-runtime/lua.js
-    'nhl_init',
-    'nhl_loadlua',
-    'nhl_pcall_handle',
-    // js/c2js-runtime/nhlsel-bridge.mjs
-    'l_selection_new',
-    // js/c2js-runtime/lua-bootstrap.js
-    'installLuaData',
-]);
+// (UNWEDGE_PLAN Q7) — the hand-curated RUNTIME_ASYNC_FUNCTIONS list
+// is retired: checkAsyncClosure now auto-discovers EVERY
+// `async function NAME` across the whole js/ tree (translated +
+// hand-written + runtime) and uses that as ground truth, so the list
+// can never drift out of sync with reality.
 
 // Known-violation allowlist: call sites where adding `await` would
 // require a sync→async cascade through multiple files that we don't
@@ -433,29 +428,145 @@ function findEnclosingFunction(stripped, idx) {
     return bestName;
 }
 
-function checkAsyncClosure(files, sources) {
+// Input-reading windowprocs whose returns are Promises by contract —
+// calling one without await is always a bug (the caller proceeds
+// without the key).  Mirrors the Q4 tripwire's asyncOk set.
+const INPUT_WINDOWPROCS = ['win_nhgetch', 'win_yn_function', 'win_getlin',
+    'win_get_ext_cmd', 'win_select_menu', 'win_poskey'];
+
+// Async-debt ratchet (Q7): production carries ~2.4k KNOWN unawaited
+// calls to async functions — overwhelmingly sync translated code
+// discarding async pline-family Promises (harmless today only
+// because the current pline body is synchronous; honest-async pline
+// lands with the U3 re-emit, which burns this debt down to zero).
+// Individually allowlisting thousands of entries would be noise, so
+// the check ratchets: violations whose stable key
+// (path:enclosingFn:callee) is recorded in async-debt-baseline.json
+// are reported as a summary count; only NEW violations fail the
+// build.  Regenerate the baseline with
+// NH_UPDATE_ASYNC_BASELINE=1 node tools/c2js/build.mjs --conformance
+// (legitimate only when the U3 burn-down REDUCES it — review the
+// diff).
+const ASYNC_DEBT_BASELINE_PATH = join(projectRoot, 'tools/c2js/async-debt-baseline.json');
+function loadAsyncDebtBaseline() {
+    if (!existsSync(ASYNC_DEBT_BASELINE_PATH)) return new Set();
+    try { return new Set(JSON.parse(readFileSync(ASYNC_DEBT_BASELINE_PATH, 'utf8')).keys); }
+    catch { return new Set(); }
+}
+
+export function checkAsyncClosure(files, sources) {
+    const violations = [];  // { key, msg }
     const errors = [];
-    // Collect the set of async function names declared in each file.
-    const fileAsyncs = new Map();
+    // Q9 iteration-1 fix: BINDING-AWARE resolution.  A bare global
+    // async-name pool produced false positives whenever a hand-
+    // written file's own sync function shares a name with a
+    // translated async one (hand rect.js's split_rects, display.js's
+    // newsym, ...).  JS scoping says a call `name(` in file F refers
+    // to F's OWN binding: a local declaration or an import.  So the
+    // check resolves per-file:
+    //   - local decls:    `function name` (sync) / `async function
+    //                     name` (async) in F itself
+    //   - imports:        `import { a, b as c } from './spec'` — async
+    //                     iff the RESOLVED source module declares the
+    //                     ORIGINAL name as an async function
+    // Calls to names with no known binding (globalThis stubs, node
+    // builtins) are not flagged.
+    const fileDecls = new Map();   // file → Map(name → 'async'|'sync')
     for (const f of files) {
         const stripped = stripCommentsAndStrings(sources.get(f));
-        const re = /\b(?:export\s+)?async\s+function\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
-        const set = new Set();
+        const decls = new Map();
         let m;
-        while ((m = re.exec(stripped)) !== null) set.add(m[1]);
-        fileAsyncs.set(f, set);
+        const re = /\b(?:export\s+)?(async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
+        while ((m = re.exec(stripped)) !== null) {
+            // First declaration wins (redeclaration is a bug anyway).
+            if (!decls.has(m[2])) decls.set(m[2], m[1] ? 'async' : 'sync');
+        }
+        fileDecls.set(f, decls);
     }
-    // For each file, scan for calls to local async functions OR known
-    // runtime-async functions without await.  Local async fns come
-    // from fileAsyncs[f]; cross-file/runtime async fns come from
-    // RUNTIME_ASYNC_FUNCTIONS (hand-curated, must stay in sync with
-    // js/c2js-runtime/'s `export async function` declarations).
+    const byPath = new Map(files.map((f) => [f, f]));
+    function resolveImport(fromFile, spec) {
+        if (!spec.startsWith('.')) return null;  // node:, bare — not ours
+        let p = join(dirname(fromFile), spec);
+        if (byPath.has(p)) return p;
+        if (byPath.has(p + '.js')) return p + '.js';
+        if (byPath.has(p + '.mjs')) return p + '.mjs';
+        return null;
+    }
+    const fileAsyncBindings = new Map();  // file → Set(name)
+    for (const f of files) {
+        const bindings = new Set();
+        for (const [name, kind] of fileDecls.get(f)) {
+            if (kind === 'async') bindings.add(name);
+        }
+        const src = stripCommentsAndStrings(sources.get(f));
+        for (const m of src.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g)) {
+            const target = resolveImport(f, m[2]);
+            if (!target) continue;
+            const targetDecls = fileDecls.get(target);
+            for (const piece of m[1].split(',')) {
+                const parts = piece.trim().split(/\s+as\s+/);
+                const orig = parts[0]?.trim();
+                const local = (parts[1] || parts[0])?.trim();
+                if (orig && local && targetDecls?.get(orig) === 'async') bindings.add(local);
+            }
+        }
+        fileAsyncBindings.set(f, bindings);
+    }
+    // Aggregate (for the ef_funct any-async-target test only).
+    const globalAsyncs = new Set();
+    for (const b of fileAsyncBindings.values()) for (const n of b) globalAsyncs.add(n);
+    // extcmdlist dispatch targets: if ANY registered ef_funct target
+    // is async, every `ef_funct(` call site must be awaited.
+    const extcmdTargets = new Set();
     for (const f of files) {
         const stripped = stripCommentsAndStrings(sources.get(f));
-        const localAsyncs = fileAsyncs.get(f);
-        const allAsyncs = new Set([...localAsyncs, ...RUNTIME_ASYNC_FUNCTIONS]);
-        if (!allAsyncs.size) continue;
-        for (const name of allAsyncs) {
+        for (const m of stripped.matchAll(/ef_funct:\s*([A-Za-z_$][A-Za-z0-9_$]*)/g)) {
+            extcmdTargets.add(m[1]);
+        }
+    }
+    const extcmdHasAsync = [...extcmdTargets].some((n) => globalAsyncs.has(n));
+    for (const f of files) {
+        const stripped = stripCommentsAndStrings(sources.get(f));
+        const src = sources.get(f);
+        // ── indirect pattern 1: input windowprocs ──
+        // Both `(game.windowprocs.win_X)(...)` and
+        // `game.windowprocs.win_X(...)` forms; awaited means an
+        // `await` token shortly before the expression start
+        // (allowing one open paren).
+        for (const wp of INPUT_WINDOWPROCS) {
+            const re = new RegExp(`[A-Za-z_$.]*windowprocs\\s*\\.\\s*${wp}\\s*\\)?\\s*\\(`, 'g');
+            let m;
+            while ((m = re.exec(stripped)) !== null) {
+                const before = stripped.slice(Math.max(0, m.index - 40), m.index);
+                if (/\bawait\s*\(?\s*$/.test(before)) continue;
+                if (/[=:.]\s*$/.test(before)) continue;  // assignment/property, not a call chain start
+                const fnName = findEnclosingFunction(stripped, m.index) || '<top>';
+                const violKey = `${relative(projectRoot, f).replace(/^js\//, '')}:${fnName}:${wp}`;
+                if (ASYNC_VIOLATION_ALLOWLIST.has(violKey)) continue;
+                const { line, col } = locOf(src, m.index);
+                violations.push({ key: violKey, msg: `${relative(projectRoot, f)}:${line}:${col}: indirect call to input proc ${wp} without await` });
+            }
+        }
+        // ── indirect pattern 2: extcmd dispatch ──
+        if (extcmdHasAsync) {
+            const re = /\bef_funct\s*\)?\s*\(/g;
+            let m;
+            while ((m = re.exec(stripped)) !== null) {
+                // Property positions (`ef_funct: fn` in table literals)
+                // don't match because of the trailing `(`.
+                const before = stripped.slice(Math.max(0, m.index - 40), m.index);
+                if (/\bawait\b[^;{}]*$/.test(before)) continue;
+                const fnName = findEnclosingFunction(stripped, m.index) || '<top>';
+                const violKey = `${relative(projectRoot, f).replace(/^js\//, '')}:${fnName}:ef_funct`;
+                if (ASYNC_VIOLATION_ALLOWLIST.has(violKey)) continue;
+                const { line, col } = locOf(src, m.index);
+                violations.push({ key: violKey, msg: `${relative(projectRoot, f)}:${line}:${col}: ef_funct dispatch without await (extcmdlist contains async targets)` });
+            }
+        }
+        // ── direct calls to async-bound names (per-file bindings) ──
+        const asyncBindings = fileAsyncBindings.get(f);
+        if (!asyncBindings.size) continue;
+        for (const name of asyncBindings) {
             // Match `name(` not preceded by 'await ', 'await\n', or '.'
             // or 'function '.  Approximate.
             const re = new RegExp(`(\\W|^)${escapeRegex(name)}\\s*\\(`, 'g');
@@ -477,9 +588,34 @@ function checkAsyncClosure(files, sources) {
                 const fnName = findEnclosingFunction(stripped, idx) || '<top>';
                 const violKey = `${relative(projectRoot, f).replace(/^js\//, '')}:${fnName}:${name}`;
                 if (ASYNC_VIOLATION_ALLOWLIST.has(violKey)) continue;
-                errors.push(`${relative(projectRoot, f)}:${line}:${col}: call to async ${name}() without await`);
+                violations.push({ key: violKey, msg: `${relative(projectRoot, f)}:${line}:${col}: call to async ${name}() without await` });
             }
         }
+    }
+    if (process.env.NH_UPDATE_ASYNC_BASELINE) {
+        const keys = [...new Set(violations.map((v) => v.key))].sort();
+        writeFileSync(ASYNC_DEBT_BASELINE_PATH, JSON.stringify({
+            comment: 'Async-debt ratchet baseline — see checkAsyncClosure in conformance.mjs.  Burned down to zero by the U3 all-async re-emit (UNWEDGE_PLAN).',
+            generated: 'NH_UPDATE_ASYNC_BASELINE=1 node tools/c2js/build.mjs --conformance',
+            count: keys.length,
+            keys,
+        }, null, 1));
+        errors.length = 0;
+        errors.push(`(baseline UPDATED: ${keys.length} debt keys written — review the diff)`);
+        return { ok: true, errors };
+    }
+    const baseline = loadAsyncDebtBaseline();
+    let debtCount = 0;
+    for (const v of violations) {
+        if (baseline.has(v.key)) { debtCount++; continue; }
+        errors.push(v.msg);
+    }
+    if (debtCount > 0 && errors.length === 0) {
+        // Surface the debt without failing: ok stays true, but the
+        // count is visible in every report so the U3 burn-down is
+        // trackable.
+        return { ok: true, errors: [], skipped: undefined,
+            note: `${debtCount} known-debt unawaited calls (ratchet baseline; U3 burns these down)` };
     }
     return { ok: errors.length === 0, errors };
 }
@@ -566,6 +702,29 @@ export function runConformance({
     const files = all ? allFiles : owned;
     const sources = new Map();
     for (const f of files) sources.set(f, readFileSync(f, 'utf8'));
+    // Q7: the async-closure check covers the WHOLE tree — hand-written
+    // engine files, jsmain/rng skeleton files, and the c2js-runtime
+    // (.js AND .mjs) included — because a missed await in cmd.js or
+    // lua.js corrupts state exactly like one in translated code.
+    // listAllJsFiles deliberately excludes runtime+skeleton for the
+    // OTHER checks (they're not translator output); the async
+    // invariant is global, so it gets its own lister.  Only the
+    // frozen judge files are exempt.
+    const asyncFiles = [];
+    {
+        const raw = [];
+        walk(jsDir, raw);
+        for (const f of raw) {
+            if (!/\.(js|mjs)$/.test(f)) continue;
+            if (FROZEN_FILES.includes(basename(f))) continue;
+            asyncFiles.push(f);
+        }
+        asyncFiles.sort();
+    }
+    const asyncSources = new Map();
+    for (const f of asyncFiles) {
+        asyncSources.set(f, sources.get(f) ?? readFileSync(f, 'utf8'));
+    }
 
     const checks = [
         ['1: Tier A DAG',                  checkTierADag(files, sources)],
@@ -574,12 +733,12 @@ export function runConformance({
         ['4: function-name parity',        checkFunctionNameParity(files, sources, fileManifest, fnIndex)],
         ['5: verbatim comment migration',  checkComments(files, sources, fileManifest, commentIndex)],
         ['6: banned calls',                checkBannedCalls(files, sources)],
-        ['7: async closure correctness',   checkAsyncClosure(files, sources)],
+        ['7: async closure correctness',   checkAsyncClosure(asyncFiles, asyncSources)],
         ['8: game object purity',          checkGameFlatten(files, sources)],
         ['9: reserved-word renames',       checkReservedRenames(files, sources)],
     ];
 
-    const results = checks.map(([name, r]) => ({ name, ok: r.ok, errors: r.errors, skipped: r.skipped }));
+    const results = checks.map(([name, r]) => ({ name, ok: r.ok, errors: r.errors, skipped: r.skipped, note: r.note }));
     const ok = results.every((r) => r.ok);
     return {
         ok,
@@ -608,7 +767,7 @@ export function formatReport(report) {
         const suffix = r.skipped
             ? ` (SKIPPED: ${r.skipped})`
             : (r.ok ? '' : ` (${r.errors.length} error${r.errors.length === 1 ? '' : 's'})`);
-        lines.push(`  ${tag} ${r.name}${suffix}`);
+        lines.push(`  ${tag} ${r.name}${suffix}${r.note ? ` — ${r.note}` : ''}`);
         for (const e of r.errors.slice(0, 8)) lines.push(`      ${e}`);
         if (r.errors.length > 8) lines.push(`      ... and ${r.errors.length - 8} more`);
     }
