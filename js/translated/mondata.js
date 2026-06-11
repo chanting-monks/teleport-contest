@@ -864,7 +864,14 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
             if (!strncmpi(str, namep.name, len) && (!__nh_char_at0(__nh_advance_str(str, len)) || __nh_char_at0(__nh_advance_str(str, len)) == 32 || __nh_char_at0(__nh_advance_str(str, len)) == 39)) {
                 /* force full word (which could conceivably be possessive) */
                 if (remainder_p) {
-                    remainder_p.value = __nh_advance_str(in_str, (__nh_advance_str(str, len) - buf));
+                    /* C: in_str + ((str + len) - buf) — a POINTER DIFFERENCE.  JS
+                       string subtraction is NaN, so the remainder came back
+                       garbage and readobjnam's d.bp/d.dn went empty after any
+                       monster-name match (the seed0360/0398 wish cluster,
+                       project_wish_state_corruption).  str is a suffix of the
+                       in_str copy, so (str+len)-buf == strlen(in_str) -
+                       strlen(str) + len. */
+                    remainder_p.value = __nh_advance_str(in_str, strlen(in_str) - strlen(str) + len);
                 }
                 if (gender_name_var) {
                     gender_name_var.value = namep.genderhint;
@@ -903,7 +910,8 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
         mntmp = title_to_mon(str, null, { get value() { return len; }, set value(_v) { len = _v; } });
     }
     if (len && remainder_p) {
-        remainder_p.value = __nh_advance_str(in_str, (__nh_advance_str(str, len) - buf));
+        /* C pointer difference — see comment at the first site. */
+        remainder_p.value = __nh_advance_str(in_str, strlen(in_str) - strlen(str) + len);
     }
     if (gender_name_var && matchgend != -1) {
         /* don't override with neuter if caller has already specified male

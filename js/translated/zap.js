@@ -5979,7 +5979,11 @@ export function makewish() {
         if (game.iflags.menu_requested && game.wish_history[0] && (tries == 0)) {
             wish_history_menu(buf);
         } else {
-            getlin(promptbuf, buf);
+            /* §23.239 VOID_CHAR_OUT_PARAM_RETURNS: getlin returns the
+               buffer; call sites rebind (gate __getlin_returns_buffer).
+               Without the rebind, buf stayed the zero-array and every
+               ^W wish parsed garbage (seed0360/0398 cluster). */
+            buf = getlin(promptbuf, buf);
         }
         if (game.iflags.term_gone) {
             if (!game.iflags.debug_fuzzer) {
