@@ -26,6 +26,7 @@ import { cmdq_add_key as t_cmdq_add_key, do_fight as t_do_fight, do_run as t_do_
 import { dokick as t_dokick } from './translated/dokick.js';
 import { dotelecmd as t_dotelecmd } from './translated/teleport.js';
 import { wiz_level_tele as t_wiz_level_tele } from './translated/wizcmds.js';
+import { makeSyncMenuProcs } from './wp-menus.js';
 import { wiz_wish as t_wiz_wish } from './translated/wizcmds.js';
 import { doapply as t_doapply, apply_ok } from './translated/apply.js';
 import { is_edible, doeat as t_doeat } from './translated/eat.js';
@@ -2315,18 +2316,76 @@ export async function rhack(key) {
         // command".  In debug mode calls level_tele which prompts
         // for level number via getlin then schedule_goto.
         //
-        // Per memory project_wizlevelport_blocked: a working ^V
-        // needs 3 layers: this dispatch (here), deferred_goto post-
-        // rhack in moveloop, and win_mark_synch/create_levelfile
-        // stubs.  Without all 3, level transition can't complete.
-        // This commit lands layer 1 only — non-debug sessions get
-        // the canonical "unavailable" pline; debug sessions try
-        // level_tele but stall at getlin (translator-emitted
-        // getlin can't read async input.js _inputQueue properly).
-        // Score-neutral pending layers 2+3.
+        // Full bridge (Q9 iter 44; layers per memory
+        // project_wizlevelport_blocked, all landed now):
+        //  1. render the level_tele getlin prompt, read the line via
+        //     nhgetch (each key its own captured step, echo like the
+        //     canonical), push chars + \n to cmdq so the translated
+        //     getlin's cmdq path collects it (string-buf return-
+        //     buffer convention in windows.js getlin);
+        //  2. TEMPORARILY install the shared menu windowproc family
+        //     (js/wp-menus.js) so a '?' answer runs print_dungeon's
+        //     level menu — production keeps these uninstalled
+        //     otherwise (the iteration-26 key-eating regression);
+        //  3. deferred_goto after rhack (already in moveloop) +
+        //     create/open/delete_levelfile (iteration 43) complete
+        //     the schedule_goto -> goto_level -> mklev -> getbones
+        //     chain.
+        // GATED OFF pending savelev/getlev (Q9 iter 44 finding): with
+        // the bridge live, every level REVISIT regenerates the level
+        // from scratch (level save/restore is still autostubbed), so
+        // heavy-teleport sessions explode (seed0361: 24 ^Vs, seed4500:
+        // 27 — both ETIMEDOUT at 10x C's call count).  Set
+        // NH_WIZLEVELPORT=1 to develop against it.
+        const __wlp_on = (typeof process !== 'undefined' && process.env?.NH_WIZLEVELPORT);
         let res = 0;
-        try { res = (await t_wiz_level_tele()) || 0; } catch (_e) {
-            if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message);
+        if (!game.flags?.debug || !__wlp_on) {
+            try { res = (await t_wiz_level_tele()) || 0; } catch (_e) {
+                if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message);
+            }
+        } else {
+            const lvPrompt = 'To what level do you want to teleport?';
+            game._pending_message = lvPrompt;
+            game._cursor_override = { x: lvPrompt.length + 1, y: 0 };
+            game._cursor_override_oneshot = true;
+            await flush_screen(1);
+            let lvBuf = '';
+            let lvCancelled = false;
+            for (;;) {
+                const k = await nhgetch();
+                if (k === 0x1b) { lvCancelled = true; break; }
+                if (k === 0x0a || k === 0x0d) break;
+                if (k === 0x08 || k === 0x7f) {
+                    if (lvBuf.length) lvBuf = lvBuf.slice(0, -1);
+                } else {
+                    lvBuf += String.fromCharCode(k);
+                }
+                game._pending_message = lvPrompt + ' ' + lvBuf;
+                game._cursor_override = { x: lvPrompt.length + 1 + lvBuf.length, y: 0 };
+                await flush_screen(1);
+            }
+            game._cursor_override = null;
+            if (lvCancelled) {
+                await pline("Never mind.");
+                game.context.move = 0;
+            } else {
+                for (const ch2 of lvBuf) {
+                    t_cmdq_add_key(0 /* CQ_CANNED */, ch2.charCodeAt(0));
+                }
+                t_cmdq_add_key(0 /* CQ_CANNED */, 10);
+                const __menuProcs = makeSyncMenuProcs(game);
+                const __saved = {};
+                for (const k2 of Object.keys(__menuProcs)) {
+                    __saved[k2] = game.windowprocs[k2];
+                    game.windowprocs[k2] = __menuProcs[k2];
+                }
+                try { res = (await t_wiz_level_tele()) || 0; } catch (_e) {
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message, _e.stack?.split('\n')[1]);
+                }
+                for (const k2 of Object.keys(__menuProcs)) {
+                    game.windowprocs[k2] = __saved[k2];
+                }
+            }
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (key === 0x14) {

@@ -1003,6 +1003,18 @@ export function nhl_add_table_entry_int(L, name, value) {
     lua.lua_pushinteger(L, value);
     lua.lua_settable(L, -3);
 }
+// nhl_push_obj — C ref src/nhlobj.c:89 (l_obj_push): wrap the obj in
+// a lua userdata { state, obj } and push it.  AUTOSTUBBED before:
+// lspo_object's contents-callback invocation pushed NOTHING for the
+// callback's obj argument, so lua_pcall_async found no function at
+// the expected slot ("no function on stack" with a null message) —
+// every des.object({ contents = function() ... end }) silently
+// created an EMPTY container (Q9 iter 52: tower1's candle chests,
+// seed0373 judged 4379).  C also bumps otmp->lua_ref_cnt for free
+// bookkeeping; JS GC makes that moot.
+export function nhl_push_obj(L, otmp) {
+    lua.lua_pushlightuserdata(L, { state: 0, obj: otmp || null });
+}
 export function nhl_add_table_entry_bool(L, name, value) {
     lua.lua_pushstring(L, name);
     lua.lua_pushboolean(L, !!value);
@@ -1013,6 +1025,55 @@ export function nhl_add_table_entry_str(L, name, value) {
     lua.lua_pushstring(L, value == null ? '' : String(value));
     lua.lua_settable(L, -3);
 }
+// nhl_get_xy_params — C ref src/nhlua.c.  Reads positional (x, y)
+// args (or a single {x,y} table) into the out-boxes.  AUTOSTUBBED
+// before: des.stair("down", 9, 9)'s coords stayed -1, so the stair
+// placed RANDOMLY (rn2(76)/rn2(20) pairs C never fires) — the
+// Q9 iter 48 divergence at seed0373's Bar-strt load.
+export function nhl_get_xy_params(L, xBox, yBox) {
+    const argc = lua.lua_gettop(L);
+    let ret = 0;
+    if (argc === 2) {
+        xBox.value = lua.lua_tointeger(L, 1);
+        yBox.value = lua.lua_tointeger(L, 2);
+        ret = 1;
+    } else if (argc === 1 && lua.lua_type(L, 1) === lua.LUA_TTABLE) {
+        // table form {x, y}: read positions 1 and 2 of the table
+        lua.lua_rawgeti ? null : null;
+        lua.lua_pushinteger(L, 1); lua.lua_gettable(L, 1);
+        xBox.value = lua.lua_tointeger(L, -1); lua.lua_pop(L, 1);
+        lua.lua_pushinteger(L, 2); lua.lua_gettable(L, 1);
+        yBox.value = lua.lua_tointeger(L, -1); lua.lua_pop(L, 1);
+        ret = 1;
+    }
+    return ret;
+}
+
+// get_table_mapchr / get_table_mapchr_opt — C ref src/nhlua.c:241.
+// Read a one-char terrain string from the param table and convert
+// via check_mapchr.  AUTOSTUBBED before (() => 0 = STONE for every
+// "toterrain"/"fromterrain"/"fg"/"bg" read — lspo_replace_terrain
+// and des.level_init filled levels with the wrong types, Q9 iter 44).
+export function get_table_mapchr(L, name) {
+    const ter = get_table_str(L, name);
+    const typ = check_mapchr(ter);
+    if (typ === INVALID_TYPE) {
+        nhl_error(L, "Erroneous map char");
+    }
+    return typ;
+}
+export function get_table_mapchr_opt(L, name, defval) {
+    const ter = get_table_str_opt(L, name, '');
+    let typ = defval;
+    if (ter && (typeof ter === 'string' ? ter.length > 0 : !!ter[0])) {
+        typ = check_mapchr(ter);
+        if (typ === INVALID_TYPE) {
+            nhl_error(L, "Erroneous map char");
+        }
+    }
+    return typ;
+}
+
 export function nhl_add_table_entry_region(L, name, x1, y1, x2, y2) {
     lua.lua_pushstring(L, name);
     lua.lua_newtable(L);

@@ -876,7 +876,17 @@ export function init_dungeon_dungeons(L, pd, dngidx) {
     game.dungeons[dngidx].flags.hellish = !!(dgn_flags & 2);
     game.dungeons[dngidx].flags.maze_like = !!(dgn_flags & 4);
     game.dungeons[dngidx].flags.rogue_like = !!(dgn_flags & 8);
-    game.dungeons[dngidx].flags.align = dgn_align;
+    /* C ref dungeon.c:1092 — dgn_align is the SHIFTED D_ALIGN_*
+       value (AM_* << 4, dgn_file.h:63-65) assigned into the 4-bit
+       `Bitfield(align, 4)` WITHOUT the >> 4 unshift that the
+       s_level path (init_level, dungeon.c:588) performs — so the
+       C bitfield silently truncates every dungeon's align to 0 and
+       induced_align never takes the dungeon-align rn2(100) branch.
+       JS has no bitfield truncation; mask to 4 bits to match the
+       C behavior bit-for-bit (Q9 iter 52: Vlad's-Tower "chaotic"
+       survived here as 16, firing an extra rn2(100) at seed0373
+       judged 4167). */
+    game.dungeons[dngidx].flags.align = dgn_align & 0xF;
     game.dungeons[dngidx].flags.unconnected = !!(dgn_flags & 16);
     init_dungeon_set_entry(pd, dngidx);
     if (game.dungeons[dngidx].flags.unconnected) {
@@ -911,7 +921,11 @@ export function fixup_level_locations() {
         if (x) {
             assign_level(lev_map.lev_spec, x.dlevel);
             if (!strncmp(lev_map.lev_name, "x-", 2)) {
-                x.proto = sprintf(x.proto, "%s%s", game.urole.filecode, lev_map.lev_name[1]);
+                /* Hand-port: C passes &lev_name[1] -- the SUFFIX STRING
+                   ("-strt") -- not the single char lev_name[1] ('-');
+                   the emit built quest protos as "Bar-" and every
+                   quest level loaded as all-STONE (Q9 iter 45). */
+                x.proto = sprintf(x.proto, "%s%s", game.urole.filecode, lev_map.lev_name.slice(1));
             } else if (lev_map.lev_spec == (game.dungeon_topology.d_knox_level)) {
                 /* This is where the name substitution on the
                  * levels of the quest dungeon occur.
@@ -1737,12 +1751,12 @@ export function unreachable_level(lvl_p, unplaced) {
 }
 export function tport_menu(win, entry, lchoices, lvl_p, cannotreach) {
     let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let clr = 8;
     lchoices.lev[lchoices.idx] = lvl_p.dlevel;
     lchoices.dgn[lchoices.idx] = lvl_p.dnum;
     lchoices.playerlev[lchoices.idx] = depth(lvl_p);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     if (cannotreach) {
         tmpbuf = sprintf(tmpbuf, "    %s", entry);
         /* not selectable, but still consumes next menuletter;
@@ -1868,7 +1882,7 @@ export function print_dungeon(bymenu, rlev, rdgn) {
         let selected = null;
         let idx = 0;
         (game.windowprocs.win_end_menu)(win, "Level teleport to where:");
-        n = select_menu(win, 1, selected);
+        { const __selbox = { value: null }; n = select_menu(win, 1, __selbox); selected = __selbox.value; }
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (n > 0) {
             idx = selected[0].item.a_int - 1;
@@ -2693,7 +2707,7 @@ export function show_overview(why, reason) {
         traverse_mapseenchn(0, win, why, reason, { get value() { return lastdun; }, set value(_v) { lastdun = _v; } });
     }
     (game.windowprocs.win_end_menu)(win, null);
-    n = select_menu(win, (why != -1) ? 0 : 1, selected);
+    { const __selbox = { value: null }; n = select_menu(win, (why != -1) ? 0 : 1, __selbox); selected = __selbox.value; }
     if (n > 0) {
         let ledger = 0;
         let lev = { dnum: 0, dlevel: 0 };
@@ -2833,7 +2847,7 @@ export function print_mapseen(win, mptr, final, how, printdun) {
     let depthstart = 0;
     let dnum = 0;
     let died_here = (final == 2 && on_level(game.u.uz, mptr.lev));
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     /* The quest and knox should appear to be level 1 to match
      * other text.
      */
@@ -2874,7 +2888,7 @@ export function print_mapseen(win, mptr, final, how, printdun) {
     if (on_level(game.u.uz, mptr.lev)) {
         buf = __nh_buf_append(buf, sprintf('', " <- You %s here.", (final <= 0 || (final == 1 && how == ASCENDED)) ? "are" : (final == 1 && how == ESCAPED) ? "left from" : "were"));
     }
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     if (final == -1) {
         any.a_int = ledger_no((mptr.lev)) + 1;
     }

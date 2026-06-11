@@ -93,9 +93,13 @@ export function buildDesProxy(L, lspoTable) {
             }
             const absBase = L.stack.length;
             L.frameBases.push(absBase);
+            const __opTrace = (typeof process !== 'undefined' && process.env?.NH_OP_TRACE);
+            const __opId = __opTrace ? ((globalThis.__nh_op_seq = (globalThis.__nh_op_seq || 0) + 1)) : 0;
+            if (__opTrace) { const g = globalThis.__nh_gameRef || globalThis.game; console.warn('[op>', __opId, 'des.' + entry.name, 'rng@' + ((g && g._rngLog && g._rngLog.length) || 0), JSON.stringify(args).slice(0, 60)); }
             try {
                 for (const a of args) pushJsValue(L, a);
                 const nresults = await lspoFn(L);
+                if (__opTrace) console.warn('[op<', __opId, 'des.' + entry.name);
                 const top = lua_gettop(L);
                 const ret = [];
                 for (let i = 0; i < (nresults || 0); i++) {

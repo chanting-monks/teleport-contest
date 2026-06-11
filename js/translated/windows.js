@@ -1100,11 +1100,25 @@ export function getlin(query, bufp) {
     let obufp = bufp;
     let got_cmdq = 0;
     let cmdq = null;
+    /* Hand-port (§23.239 return-buffer convention, Q9 iter 44):
+       callers that pass a STRING buf can't receive the line through
+       the array-walker writes below (strict mode even throws on
+       `(string).value = ...`), so collect the line separately and
+       RETURN it; string-buf call sites rebind (teleport.js
+       level_tele).  Array-buf callers (zap.js makewish via #wizwish)
+       keep the original walker writes untouched. */
+    let __line = '';
+    const __arraybuf = (typeof obufp === 'object' && obufp !== null);
     while ((cmdq = cmdq_pop()) != null) {
         if (cmdq.typ == CMDQ_KEY) {
             got_cmdq = 1;
-            bufp.value = (cmdq.key != 10) ? cmdq.key : 0;
-            (bufp = __nh_advance_str(bufp, 1));
+            if (__arraybuf) {
+                bufp.value = (cmdq.key != 10) ? cmdq.key : 0;
+                (bufp = __nh_advance_str(bufp, 1));
+            }
+            if (cmdq.key != 10) {
+                __line += String.fromCharCode(cmdq.key);
+            }
             if (cmdq.key == 10) {
                 break;
             }
@@ -1118,15 +1132,18 @@ export function getlin(query, bufp) {
         free(cmdq);
     }
     if (got_cmdq) {
-        bufp.value = 0;
-        pline("%s %s", query, obufp);
-        return;
+        if (__arraybuf) {
+            bufp.value = 0;
+        }
+        pline("%s %s", query, __arraybuf ? obufp : __line);
+        return __line;
     }
     game.program_state.in_getlin = 1;
     game.bot_disabled = 1;
     (game.windowprocs.win_getlin)(query, bufp);
     game.bot_disabled = old_bot_disabled;
     game.program_state.in_getlin = 0;
+    return obufp;
 }
 /*windows.c*/
 

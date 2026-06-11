@@ -52,13 +52,33 @@ import {
     selection_not, selection_filter_percent, selection_filter_mapchar,
     selection_rndcoord, selection_do_grow, selection_floodfill,
     selection_iterate, selection_recalc_bounds,
+    selection_do_randline,
 } from '../translated/selvar.js';
+import { set_floodfillchk_match_under, get_location_coord } from '../translated/sp_lev.js';
 
 // Direction tags Lua uses for selection:grow().
 const DIR_TAGS = {
     'all': 0, 'random': 1, 'north': 2, 'east': 3, 'south': 4, 'west': 5,
     'northwest': 6, 'northeast': 7, 'southwest': 8, 'southeast': 9,
 };
+
+// C ref nhlsel.c: every coordinate-taking selection binding runs its
+// coords through get_location_coord(ANY_LOC, coder->croom, PACK) —
+// converting croom-relative / map-offset coords to absolute map
+// coords.  The wrappers below mirror that (identity when there's no
+// coder/croom and xstart/ystart are 0, which is why unconverted
+// wrappers matched on some levels and not others).
+function __lcoord(x, y) {
+    const g = globalThis.__nh_gameRef || globalThis.game;
+    const coder = g && g.coder;
+    const croom = (coder && typeof coder.n_subroom === 'number') ? coder.croom : null;
+    const xb = { value: x }, yb = { value: y };
+    try {
+        get_location_coord(xb, yb, 16 /* ANY_LOC */, croom || null,
+            ((x & 255) + ((y & 255) << 16)));
+    } catch (_e) { return [x, y]; }
+    return [xb.value, yb.value];
+}
 
 export class Selection {
     constructor(sv) {
@@ -90,6 +110,8 @@ export class Selection {
     }
 
     static rect(x1, y1, x2, y2) {
+        ([x1, y1] = __lcoord(x1, y1));
+        ([x2, y2] = __lcoord(x2, y2));
         const sv = selection_new();
         const ax = Math.min(x1, x2), bx = Math.max(x1, x2);
         const ay = Math.min(y1, y2), by = Math.max(y1, y2);
@@ -127,13 +149,26 @@ export class Selection {
     // randomly displace.  For now, just draw the straight line (the
     // jitter would require RNG calls that must be PRNG-matched).
     static randline(sel, x1, y1, x2, y2, roughness) {
-        const base = Selection.line(x1, y1, x2, y2);
-        if (sel) {
-            // OR the existing selection in.
-            base.or_(sel.constructor === Selection ? sel : new Selection(sel));
+        // C ref nhlsel.c l_selection_randline: clones the input
+        // selection and runs selection_do_randline(x1,y1,x2,y2,
+        // rough, rec=12, clone) — the recursive midpoint jitter
+        // FIRES rn2(rough) pairs (selvar.c:704).  The old wrapper
+        // drew a straight line with "jitter unimplemented", silently
+        // skipping those calls (seed0373 div @3289, Q9 iter 47).
+        // Numeric-first form (no selection arg) also supported per
+        // the C binding.
+        if (typeof sel === 'number') {
+            // (x1,y1,x2,y2,rough) shifted left one slot
+            const sv = selection_new();
+            selection_do_randline(sel, x1, y1, x2, roughness === undefined ? 7 : y2, 12, sv);
+            return new Selection(sv);
         }
-        void roughness;  // jitter unimplemented; faithful straight line
-        return base;
+        const src = ((sel && sel.sv) || sel) || selection_new();
+        const sv = selection_clone(src);
+        ([x1, y1] = __lcoord(x1, y1));
+        ([x2, y2] = __lcoord(x2, y2));
+        selection_do_randline(x1, y1, x2, y2, roughness === undefined ? 7 : roughness, 12, sv);
+        return new Selection(sv);
     }
 
     static match(pattern) {
@@ -161,6 +196,30 @@ export class Selection {
     }
 
     static floodfill(s, x, y, diagonals) {
+        // C ref nhlsel.c:723 — the documented lua forms are
+        // `selection.floodfill(x, y[, diagonals])` (flood the MAP
+        // from a point into a NEW selection) and the method form
+        // `sel:floodfill(x, y)`.  The old wrapper assumed a
+        // selection first arg, so the numeric form flooded garbage
+        // (s=37 as the selection) and produced an empty selection —
+        // Bar-strt's ogre band picked rndcoord(-1,-1) twelve times
+        // (Q9 iter 47).
+        if (typeof s === 'number') {
+            ([s, x] = __lcoord(s, x));
+            // C ref nhlsel.c l_selection_flood: before flooding, set
+            // the match predicate to "same typ as the start cell" —
+            // without it the stale/unset chk matches nothing and the
+            // flood comes back EMPTY (the ogre band's rndcoord then
+            // fires no rng at all; Q9 iter 50 second half).
+            const g = globalThis.__nh_gameRef || globalThis.game;
+            const sv = selection_new();
+            const cell = g?.level?.locations?.[s]?.[x];
+            if (cell && typeof cell.typ === 'number') {
+                set_floodfillchk_match_under(cell.typ);
+                selection_floodfill(sv, s, x, y ? 1 : 0);
+            }
+            return new Selection(sv);
+        }
         const sv = ((s && s.sv) || s);
         selection_floodfill(sv, x, y, diagonals ? 1 : 0);
         return new Selection(sv);

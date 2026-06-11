@@ -65,6 +65,7 @@ import { objects_globals_init } from './translated/objects.js';
 import { monst_globals_init } from './translated/monst.js';
 import { program_state_init, decl_globals_init } from './translated/decl.js';
 import { installAutoStubs } from './c2js-runtime/autostub.js';
+import { makeMenuProcs } from './wp-menus.js';
 import { tripwireWrapWindowprocs } from './c2js-runtime/tripwire.js';
 import { dupstr as __nh_dupstr } from './c2js-runtime/string.js';
 import { installLuaData } from './c2js-runtime/lua-bootstrap.js';
@@ -168,7 +169,15 @@ if (typeof globalThis.atoi === 'undefined') {
                      // :136, lspo_terrain :4413+) still hit the () => 0
                      // autostub — des.terrain mapchars all parsed as
                      // STONE (Q9 iter 42).
-                     'splev_chr2typ', 'check_mapchr']) {
+                     'splev_chr2typ', 'check_mapchr',
+                     'get_table_mapchr', 'get_table_mapchr_opt',
+                     'nhl_get_xy_params',
+                     // nhl_push_obj (nhlobj.c:89): autostubbed to
+                     // () => 0 it pushes nothing, so lspo_object's
+                     // contents-callback pcall finds no function and
+                     // every des.object contents container comes out
+                     // empty (Q9 iter 52, tower1 candle chests).
+                     'nhl_push_obj']) {
         if (typeof globalThis[k] === 'undefined') globalThis[k] = __luaHub[k];
     }
 }
@@ -192,7 +201,8 @@ if (typeof globalThis.atoi === 'undefined') {
                     'luaL_typename', 'load_lua']],
         [__str, ['dupstr']],
         [__math, ['max', 'min']],
-        [__lvl, ['create_levelfile', 'delete_levelfile', 'open_levelfile']],
+        [__lvl, ['create_levelfile', 'delete_levelfile', 'open_levelfile',
+                 'close_nhfile', 'savelev', 'getlev']],
     ];
     for (const [mod, names] of __pairs) {
         for (const k of names) {
@@ -200,6 +210,30 @@ if (typeof globalThis.atoi === 'undefined') {
                 globalThis[k] = mod[k];
             }
         }
+    }
+    // Non-function shared tables referenced bare by frozen TUs:
+    // seenv_matrix (translated display.js) is used inline by
+    // do.js's goto_level seenv updates (Q9 iter 44 — the ^V
+    // wizlevelport chain ReferenceError'd here after the level
+    // switch).
+    {
+        const __disp = await import('./translated/display.js');
+        if (typeof globalThis.seenv_matrix === 'undefined' && __disp.seenv_matrix) {
+            globalThis.seenv_matrix = __disp.seenv_matrix;
+        }
+    }
+    // Selection-userdata bridge (nhlsel.c counterparts).  The stub
+    // manifest carries l_selection_check/l_selection_push_copy, and
+    // lua-bootstrap's installSelectionGlobals used to defer to any
+    // existing global — so the () => 0 autostub won and EVERY
+    // selection-argument lspo_* silently no-opped (l_selection_check
+    // returned 0, `if (sel)` fell to the coord path; Q9 iter 51:
+    // Bar-strt's des.terrain(randline, ".") never carved the river
+    // through the pool field — 4 extra kelp cells, seed0373 judged
+    // div @4108).
+    {
+        const __nhlsel = await import('./c2js-runtime/nhlsel-bridge.mjs');
+        __nhlsel.installSelectionGlobals();
     }
 }
 // Install no-op stubs for free identifiers in translator output.
@@ -702,65 +736,14 @@ export async function newgame() {
         // ungated, the select proc consumed production session keys
         // whose selection the frozen un-boxed callers discard —
         // sessions died early (P total shrank 792838 → 684563).
-        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_start_menu) {
-            g.windowprocs.win_start_menu = (win, _mbehavior) => {
-                g._wp_menus = g._wp_menus || {};
-                g._wp_menus[win] = { items: [], prompt: null };
-            };
-        }
-        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_add_menu) {
-            g.windowprocs.win_add_menu = (win, _glyphinfo, identifier, ch,
-                gch, _attr, _color, str, _itemflags) => {
-                const m = g._wp_menus?.[win];
-                if (m) m.items.push({ identifier, ch, gch, str });
-            };
-        }
-        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_end_menu) {
-            g.windowprocs.win_end_menu = (win, prompt) => {
-                const m = g._wp_menus?.[win];
-                if (m) m.prompt = (typeof prompt === 'string') ? prompt : null;
-            };
-        }
-        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_select_menu) {
-            g.windowprocs.win_select_menu = async (win, how, box) => {
-                const m = g._wp_menus?.[win];
-                if (!m) return 0;
-                // Selectable letters: explicit ch, else auto a-z like
-                // tty (only for selectable items — identifier != 0).
-                let auto = 97; // 'a'
-                for (const it of m.items) {
-                    const selectable = it.identifier
-                        && (typeof it.identifier !== 'object'
-                            || Object.values(it.identifier).some((v) => v));
-                    if (selectable && !it.ch) it.ch = auto++;
-                    else if (selectable && it.ch) auto = it.ch + 1;
-                }
-                if (m.prompt) {
-                    g._pending_message = m.prompt;
-                    g._cursor_override = { x: m.prompt.length + 1, y: 0 };
-                    g._cursor_override_oneshot = true;
-                    await flush_screen(1);
-                }
-                for (;;) {
-                    const c = await nhgetch();
-                    if (c === 0x1b) return 0;          // cancelled
-                    if (c === 10 || c === 13) return 0; // PICK_ONE: \n with nothing picked
-                    const hit = m.items.find((it) => it.ch === c && it.identifier);
-                    if (hit) {
-                        if (box && typeof box === 'object') {
-                            box.value = [{ item: hit.identifier, count: -1 }];
-                        }
-                        return 1;
-                    }
-                    // unknown key: ignore (tty beeps), keep reading
-                }
-            };
-        }
-        if (g.__getlin_returns_buffer === 1
-            && !g.windowprocs.win_destroy_nhwindow) {
-            g.windowprocs.win_destroy_nhwindow = (win) => {
-                if (g._wp_menus) delete g._wp_menus[win];
-            };
+        if (g.__getlin_returns_buffer === 1) {
+            // Shared menu windowproc family (js/wp-menus.js) — see
+            // that module for semantics; the marker gate and the
+            // don't-overwrite check are preserved verbatim.
+            const __menuProcs = makeMenuProcs(g);
+            for (const __k of Object.keys(__menuProcs)) {
+                if (!g.windowprocs[__k]) g.windowprocs[__k] = __menuProcs[__k];
+            }
         }
         // C ref: tty_print_glyph — paint one map cell (char+color)
         // at (x,y).  Headless keeps the serialized grid in
@@ -2626,7 +2609,7 @@ export async function moveloop_core() {
     // rhack hook.  Layer 2 of project_wizlevelport_blocked.
     if (game.u?.utotype) {
         try { await t_deferred_goto(); } catch (_e) {
-            if (__env.NH_DEBUG_DEFERRED_GOTO) console.error('[deferred_goto]', _e.message);
+            if (__env.NH_DEBUG_DEFERRED_GOTO) console.error('[deferred_goto]', _e.message, '\n', _e.stack?.split('\n').slice(1, 4).join('\n'));
         }
     }
 

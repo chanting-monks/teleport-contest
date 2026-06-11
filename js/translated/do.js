@@ -1830,7 +1830,7 @@ export async function goto_level(newlevel, at_stairs, falling, portal) {
         }
     } else if (In_quest(game.u.uz)) {
         /* might be reaching locate|goal level */
-        onquest();
+        await onquest();
     } else if ((((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level))))) {
         if (new_ || !game.mvitals[PM_CROESUS].died) {
             /* alarm stops working once Croesus has died */

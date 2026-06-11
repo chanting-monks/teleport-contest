@@ -367,7 +367,7 @@ export function wiz_load_lua() {
     return 0;
 }
 /* the #wizloaddes command - load a special level lua file */
-export function wiz_load_splua() {
+export async function wiz_load_splua() {
     if (game.flags.debug) {
         let buf = '';
         buf = '';
@@ -379,7 +379,7 @@ export function wiz_load_splua() {
             buf = strcat(buf, ".lua");
         }
         lspo_reset_level(null);
-        load_special(buf);
+        await load_special(buf);
         lspo_finalize_level(null);
     } else {
         pline(unavailcmd, ecname_from_fn(wiz_load_splua));

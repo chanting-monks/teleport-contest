@@ -663,7 +663,15 @@ export function vision_recalc(control) {
             stop = ((game.viz_rmax[row]) > (next_rmax[row]) ? (game.viz_rmax[row]) : (next_rmax[row]));
             /* col-walk fixed */
             sv = seenv_matrix[dy + 1][start < game.u.ux ? 0 : (start > game.u.ux ? 2 : 1)];
-            for (col = start; col <= stop;) {
+            /* Hand-port: C advances `col++, sv += colbump[col]` -- a
+               pointer bump into seenv_matrix's row when the walk
+               crosses u.ux.  The emit dropped the comma-increment
+               entirely (infinite loop, masked until iter 44's
+               seenv_matrix pre-install let execution reach it).
+               Recompute sv from col each iteration -- semantically
+               identical to the bump. */
+            for (col = start; col <= stop; col++) {
+                sv = seenv_matrix[dy + 1][col < game.u.ux ? 0 : (col > game.u.ux ? 2 : 1)];
                 lev = game.level.locations[col][row];
                 if (next_row[col] & 2) {
                     /*

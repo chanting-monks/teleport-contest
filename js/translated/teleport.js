@@ -1073,7 +1073,9 @@ export function level_tele() {
                             the previous input was invalid so don't use it
                             as getlin()'s preloaded default answer */
             buf = '';
-            getlin(qbuf, buf);
+            /* Hand-port: getlin returns the collected line for
+               string bufs (§23.239 convention) — rebind. */
+            buf = getlin(qbuf, buf);
             if (!strcmp(buf, "*")) {
                 __do_random_levtport = true;
                 break levtport_pick;
@@ -1175,7 +1177,7 @@ export function level_tele() {
         schedule_goto(newlevel, UTOTYPE_NONE, null, null);
         return;
     }
-    game.killer.name[0] = 0;
+    game.killer.name = '';
     if (game.iflags.debug_fuzzer && newlev < 0) {
         newlev = random_teleport_level();
         if (newlev == depth(game.u.uz)) {

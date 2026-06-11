@@ -24,19 +24,19 @@ import { create_gas_cloud } from './region.js';
 import { rn2 } from './rnd.js';
 import { deltrap } from './trap.js';
 
-export function on_start() {
+export async function on_start() {
     if (!(game.quest_status.first_start)) {
-        qt_pager("firsttime");
+        await qt_pager("firsttime");
         (game.quest_status.first_start) = (1);
     } else if ((game.u.uz0.dnum != game.u.uz.dnum) || (game.u.uz0.dlevel < game.u.uz.dlevel)) {
         if ((game.quest_status.not_ready) <= 2) {
-            qt_pager("nexttime");
+            await qt_pager("nexttime");
         } else {
-            qt_pager("othertime");
+            await qt_pager("othertime");
         }
     }
 }
-export function on_locate() {
+export async function on_locate() {
     /* the locate messages are phrased in a manner such that they only
        make sense when arriving on the level from above */
     let from_above = (game.u.uz0.dlevel < game.u.uz.dlevel);
@@ -44,7 +44,7 @@ export function on_locate() {
         return;
     } else if (!(game.quest_status.first_locate)) {
         if (from_above) {
-            qt_pager("locate_first");
+            await qt_pager("locate_first");
         }
         /* if we've arrived from below this will be a lie, but there won't
            be any point in delivering the message upon a return visit from
@@ -52,15 +52,15 @@ export function on_locate() {
         (game.quest_status.first_locate) = (1);
     } else {
         if (from_above) {
-            qt_pager("locate_next");
+            await qt_pager("locate_next");
         }
     }
 }
-export function on_goal() {
+export async function on_goal() {
     if ((game.quest_status.killed_nemesis)) {
         return;
     } else if (!(game.quest_status.made_goal)) {
-        qt_pager("goal_first");
+        await qt_pager("goal_first");
         (game.quest_status.made_goal) = 1;
     } else {
         /*
@@ -73,13 +73,13 @@ export function on_goal() {
          */
         let whichobjchains = ((1 << 1) | (1 << 4) | (1 << 6));
         let qarti = find_quest_artifact(whichobjchains);
-        qt_pager(qarti ? "goal_next" : "goal_alt");
+        await qt_pager(qarti ? "goal_next" : "goal_alt");
         if ((game.quest_status.made_goal) < 7) {
             (game.quest_status.made_goal)++;
         }
     }
 }
-export function onquest() {
+export async function onquest() {
     if (game.u.uevent.qcompleted || (on_level(game.u.uz0, game.u.uz))) {
         return;
     }
@@ -87,11 +87,11 @@ export function onquest() {
         return;
     }
     if ((((((game.dungeon_topology.d_qstart_level)).dlevel || ((game.dungeon_topology.d_qstart_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level))))) {
-        on_start();
+        await on_start();
     } else if ((((((game.dungeon_topology.d_qlocate_level)).dlevel || ((game.dungeon_topology.d_qlocate_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_qlocate_level))))) {
-        on_locate();
+        await on_locate();
     } else if ((((((game.dungeon_topology.d_nemesis_level)).dlevel || ((game.dungeon_topology.d_nemesis_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_nemesis_level))))) {
-        on_goal();
+        await on_goal();
     }
     return;
 }

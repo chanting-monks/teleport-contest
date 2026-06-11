@@ -1129,11 +1129,11 @@ export async function makelevel() {
     slev = Is_special(game.u.uz);
     if (slev && !(((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
         /* check for special levels */
-        makemaz(slev.proto);
+        await makemaz(slev.proto);
     } else if (game.dungeons[game.u.uz.dnum].proto[0]) {
-        makemaz("");
+        await makemaz("");
     } else if (game.dungeons[game.u.uz.dnum].fill_lvl[0]) {
-        makemaz(game.dungeons[game.u.uz.dnum].fill_lvl);
+        await makemaz(game.dungeons[game.u.uz.dnum].fill_lvl);
     } else if (In_quest(game.u.uz)) {
         let fillname = [0, 0, 0, 0, 0, 0, 0, 0, 0];
         let loc_lev = null;
@@ -1141,7 +1141,7 @@ export async function makelevel() {
         loc_lev = find_level(fillname);
         fillname = sprintf(fillname, "%s-fil", game.urole.filecode);
         fillname = strcat(fillname, (game.u.uz.dlevel < loc_lev.dlevel.dlevel) ? "a" : "b");
-        makemaz(fillname);
+        await makemaz(fillname);
     } else if (In_hell(game.u.uz) || (rn2(5) && game.u.uz.dnum == (game.dungeon_topology.d_medusa_level).dnum && depth(game.u.uz) > depth((game.dungeon_topology.d_medusa_level)))) {
         makemaz("");
     } else {

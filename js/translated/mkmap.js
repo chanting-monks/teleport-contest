@@ -107,7 +107,12 @@ export function pass_two(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            game.level.locations[x][y].typ = (__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x));
+            /* Hand-port: C's new_loc(x,y) macro is a BYTE READ
+               `new_locations[y * (WIDTH+1) + x]`; the emit produced
+               advance-then-ADD (string concat / NaN), so typ became
+               ever-growing strings — the mines-style memcpy OOM
+               (Q9 iter 46, Bar-fila). */
+            game.level.locations[x][y].typ = game.new_locations[(y) * ((80 - 2) + 1) + (x)];
         }
     }
 }
@@ -132,7 +137,12 @@ export function pass_three(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            game.level.locations[x][y].typ = (__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x));
+            /* Hand-port: C's new_loc(x,y) macro is a BYTE READ
+               `new_locations[y * (WIDTH+1) + x]`; the emit produced
+               advance-then-ADD (string concat / NaN), so typ became
+               ever-growing strings — the mines-style memcpy OOM
+               (Q9 iter 46, Bar-fila). */
+            game.level.locations[x][y].typ = game.new_locations[(y) * ((80 - 2) + 1) + (x)];
         }
     }
 }

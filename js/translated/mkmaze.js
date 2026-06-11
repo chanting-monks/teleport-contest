@@ -518,11 +518,19 @@ export function fixup_special() {
            before calling place_lregions etc. */
         setup_waterlevel();
     }
-    for (x = 0; x < game.num_lregions; x++ , r++) {
+    /* Hand-port (Q9 iter 50): the emit dropped BOTH the `r++`
+       pointer walk (re-read per index instead) AND the
+       `goto place_it` chain -- LR_BRANCH fell through LR_PORTAL's
+       rname parse into a bare break, so stored sp_lev lregions
+       were NEVER placed via their fixed regions (the branch then
+       placed via the all-zero fallback over the whole map). */
+    for (x = 0; x < game.num_lregions; x++) {
+        r = game.lregions[x];
         switch (r.rtype) {
             case LR_BRANCH:
                 added_branch = (1);
-                /* TODO Phase 5+: goto place_it (label not in scope of break) */
+                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
+                break;
             case LR_PORTAL:
                 if (__nh_char_at0(r.rname.str) >= 48 && __nh_char_at0(r.rname.str) <= 57) {
                     Object.assign(lev, game.u.uz);
@@ -531,10 +539,11 @@ export function fixup_special() {
                     sp = find_level(r.rname.str);
                     Object.assign(lev, sp.dlevel);
                 }
-                ;
+                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
+                break;
             case LR_UPSTAIR:
             case LR_DOWNSTAIR:
-                // TODO LabelStmt place_it not at compound-stmt level
+                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
                 break;
             case LR_TELE:
             case LR_UPTELE:
@@ -1072,7 +1081,7 @@ export function populate_maze() {
         mktrap(0, 2, null, null);
     }
 }
-export function makemaz(s) {
+export async function makemaz(s) {
     fnEnter("makemaz", "mkmaze.c", 0);
     let protofile = '';
     let sp = Is_special(game.u.uz);
@@ -1125,7 +1134,7 @@ export function makemaz(s) {
         check_ransacked(protofile);
         protofile = strcat(protofile, ".lua");
         game.in_mk_themerooms = (0);
-        if (load_special(protofile)) {
+        if (await load_special(protofile)) {
             /* some levels can end up with monsters
                on dead mon list, including light source monsters */
             dmonsfree();
@@ -1284,6 +1293,12 @@ export function get_level_extends(left, top, right, bottom) {
     let ymax = 0;
     found = nonwall = (0);
     for (xmin = 0; !found && xmin <= 80; xmin++) {
+        /* Hand-port: C reads levl[COLNO][.] past the array on an
+           all-STONE level (latent overflow, harmless in C's memory
+           model); JS locations[80] is undefined -- stop the scan
+           instead (found stays 0, same outcome as C's garbage read
+           not matching). */
+        if (!game.level.locations[xmin]) break;
         lev = game.level.locations[xmin][0];
         for (y = 0; y <= 21 - 1; y++) {
             lev = game.level.locations[xmin][y];
@@ -1320,6 +1335,8 @@ export function get_level_extends(left, top, right, bottom) {
     }
     found = nonwall = (0);
     for (ymin = 0; !found && ymin <= 21; ymin++) {        for (x = xmin; x <= xmax; x++) {
+            /* Hand-port: same overflow class as the xmin scan. */
+            if (!game.level.locations[x] || game.level.locations[x][ymin] === undefined) continue;
             typ = game.level.locations[x][ymin].typ;
             if (typ != STONE) {
                 found = (1);

@@ -23,9 +23,15 @@ export function selection_new() {
     tmps.bounds.lx = 80;
     tmps.bounds.ly = 21;
     tmps.bounds.hx = tmps.bounds.hy = 0;
-    tmps.map = alloc((80 * 21) + 1);
-    memset(tmps.map, 1, (80 * 21));
-    tmps.map = __nh_char_write(tmps.map, (80 * 21), 0);
+    /* Hand-port: C allocs a byte buffer and memsets it to 1
+       (map bytes store value+1; 1 = unset).  The emit's alloc()
+       object never received the fill, so UNSET points read
+       char_at0(undefined)-1 = -1 -- TRUTHY -- and every selection
+       built point-by-point behaved as all-1680-points-set
+       (seed0373's ogre band rndcoord fired rn2(1680) where C fires
+       rn2(72); Q9 iter 50).  Build the canonical string map
+       directly. */
+    tmps.map = String.fromCharCode(1).repeat(80 * 21);
     return tmps;
 }
 export function selection_free(sel, freesel) {
@@ -59,6 +65,10 @@ export function selection_clear(sel, val) {
 export function selection_clone(sel) {
     let tmps = alloc(1 /* sizeof(struct selectionvar) */);
     Object.assign(tmps, sel);
+    /* Hand-port: Object.assign aliases the bounds STRUCT -- the
+       clone's recalc was mutating the original's bounds.  C copies
+       the struct by value. */
+    tmps.bounds = { ...sel.bounds };
     tmps.map = dupstr(sel.map);
     return tmps;
 }

@@ -515,20 +515,26 @@ export async function qt_pager(msgid) {
         await com_pager_core("common", msgid, 1, null);
     }
 }
-export async function qt_montype() {
+/* SYNC: every callee (rn2, mkclass) is sync, and the one caller --
+   makemon.js rndmonst_adj -- is sync.  An earlier async coloring made
+   this return a Promise into rndmonst_adj's `(ptr = qt_montype())`,
+   so rndmonnum() yielded Promise.pmidx === undefined and the egg/tin
+   corpse-type loops died on mons[undefined] (silently absorbed;
+   Q9 iter 54, seed0373 judged 6814). */
+export function qt_montype() {
     let qpm = 0;
     if (rn2(5)) {
         qpm = game.urole.enemy1num;
         if (qpm != NON_PM && rn2(5) && !(game.mvitals[qpm].mvflags & 2)) {
             return game.mons[qpm];
         }
-        return await mkclass(game.urole.enemy1sym, 0);
+        return mkclass(game.urole.enemy1sym, 0);
     }
     qpm = game.urole.enemy2num;
     if (qpm != NON_PM && rn2(5) && !(game.mvitals[qpm].mvflags & 2)) {
         return game.mons[qpm];
     }
-    return await mkclass(game.urole.enemy2sym, 0);
+    return mkclass(game.urole.enemy2sym, 0);
 }
 /* special levels can include a custom arrival message; display it */
 export async function deliver_splev_message() {

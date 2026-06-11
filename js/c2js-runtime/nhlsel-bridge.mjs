@@ -74,12 +74,32 @@ export async function l_selection_new(L) {
     return 1;
 }
 
+// l_selection_push_copy — JS counterpart of nhlsel.c:112.  C
+// allocs a fresh selection userdata, struct-copies *tmp into it
+// and dupstr()s the map:
+//     *sel = *tmp;
+//     sel->map = dupstr(tmp->map);
+// Our map is an immutable JS string, so a shallow spread plus a
+// bounds copy gives the same value semantics; push as light
+// userdata like pushSelection.  (lspo_map returns the selection
+// of map locations this way — sp_lev.js:5514.)
+export function l_selection_push_copy(L, tmp) {
+    const sel = { ...tmp, bounds: { ...tmp.bounds } };
+    lua.lua_pushlightuserdata(L, sel);
+}
+
 // Install the JS-side l_selection_check etc. as globalThis
 // references so translated code that calls them resolves.
-// Idempotent.
+// Idempotent — but must WIN over a previously-installed autostub
+// (Q9 iter 51: the stub-manifest carries l_selection_check, so a
+// bare-truthiness guard left the `() => 0` autostub in place and
+// every selection-arg lspo_* silently no-opped: Bar-strt's
+// des.terrain(randline, ".") never carved the river, 4 extra kelp
+// cells, seed0373 div @4108).
 export function installSelectionGlobals() {
-    if (globalThis.l_selection_check) return;
+    if (globalThis.l_selection_check === l_selection_check) return;
     globalThis.l_selection_check = l_selection_check;
     globalThis.l_selection_new = l_selection_new;
+    globalThis.l_selection_push_copy = l_selection_push_copy;
     globalThis.pushSelection = pushSelection;
 }

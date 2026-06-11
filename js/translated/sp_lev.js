@@ -2896,7 +2896,11 @@ export function get_table_monclass(L) {
     let s = get_table_str_opt(L, "class", null);
     let ret = -1;
     if (s && strlen(s) == 1) {
-        ret = s;
+        /* C: ret = (int) *s — the CHAR CODE, not the string; a JS
+           string here fails create_monster's `m.class >= 0` check
+           and the class monster degrades to a classless random
+           placement (hellfill's class-table monsters; Q9 iter 53). */
+        ret = __nh_char_at0(s);
     }
     do {
         if (s) {
@@ -3077,7 +3081,10 @@ export async function lspo_monster(L) {
             } else {
                 nhl_error(L, "Unknown appear_as type");
             }
-            tmpmons.appear_as.str = dupstr(mappear[4]);
+            /* C: dupstr(&mappear[4]) — the string PAST the 4-char
+               "obj:"/"mon:"/"ter:" prefix, not the single char at
+               index 4 ("obj:boulder" became "b"; Q9 iter 52). */
+            tmpmons.appear_as.str = dupstr(mappear.slice(4));
             do {
                 if (mappear) {
                     free((mappear));
@@ -3186,7 +3193,9 @@ export function get_table_objclass(L) {
     let s = get_table_str_opt(L, "class", null);
     let ret = -1;
     if (s && strlen(s) == 1) {
-        ret = s;
+        /* C: ret = (int) *s — the CHAR CODE (same fix as
+           get_table_monclass, Q9 iter 53/55). */
+        ret = __nh_char_at0(s);
     }
     do {
         if (s) {
@@ -4718,22 +4727,28 @@ export function levregion_add(lregion) {
         get_location({ get value() { return lregion.delarea.x1; }, set value(_v) { lregion.delarea.x1 = _v; } }, { get value() { return lregion.delarea.y1; }, set value(_v) { lregion.delarea.y1 = _v; } }, 16, null);
         get_location({ get value() { return lregion.delarea.x2; }, set value(_v) { lregion.delarea.x2 = _v; } }, { get value() { return lregion.delarea.y2; }, set value(_v) { lregion.delarea.y2 = _v; } }, 16, null);
     }
-    if (game.num_lregions) {
+    /* Hand-port: C reallocs a lev_region ARRAY; the emit alloc'd an
+       object whose [i] slots were undefined, so the final memcpy
+       no-op'd and NO LEVREGION WAS EVER STORED -- place_lregions
+       then placed branch/portal regions over the FULL MAP
+       (rn2(79)/rn2(21) where C fires rn2(1)/rn2(1) for a fixed
+       region; Q9 iter 50). */
+    if (game.num_lregions && Array.isArray(game.lregions)) {
         /* realloc the lregion space to add the new one */
-        let newl = alloc(1 /* sizeof(lev_region) */ * (1 + game.num_lregions));
-        memcpy((newl), game.lregions, 1 /* sizeof(lev_region) */ * game.num_lregions);
-        do {
-            if (game.lregions) {
-                free((game.lregions));
-            }
-        } while (0);
         game.num_lregions++;
-        game.lregions = newl;
     } else {
         game.num_lregions = 1;
-        game.lregions = alloc(1 /* sizeof(lev_region) */);
+        game.lregions = [];
     }
-    memcpy(game.lregions[game.num_lregions - 1], lregion, 1 /* sizeof(lev_region) */);
+    game.lregions[game.num_lregions - 1] = {
+        inarea: { ...lregion.inarea },
+        delarea: { ...lregion.delarea },
+        in_islev: lregion.in_islev,
+        del_islev: lregion.del_islev,
+        rtype: lregion.rtype,
+        padding: lregion.padding,
+        rname: { str: lregion.rname?.str ?? null, len: lregion.rname?.len ?? 0 },
+    };
 }
 /* get params from topmost lua hash:
    - region = {x1,y1,x2,y2}
@@ -5563,14 +5578,20 @@ export function create_des_coder() {
 /*
  * General loader
  */
-export function load_special(name) {
+/* Hand-port async coloring (Q9 iter 47): load_lua is ASYNC; the
+   sync emit treated its Promise as truthy, so load_special
+   wallified/flipped a still-STONE level while the des module's ops
+   ran DETACHED -- they resumed during whatever level loaded next
+   (bigrm-2's des.object() firing inside the sokoban load; every
+   all-STONE GLOC + the early dmonsfree complaint). */
+export async function load_special(name) {
     let result = 0;
     let sbi = { flags: 0, memlimit: 0, steps: 0, perpcall: 0 };
     give_up: {
         result = (0);
         sbi = { flags: 2147483648, memlimit: 1 * 1024 * 1024, steps: 0, perpcall: 1 * 1024 * 1024 };
         create_des_coder();
-        if (!load_lua(name, sbi)) {
+        if (!(await load_lua(name, sbi))) {
             break give_up;
         }
         link_doors_rooms();

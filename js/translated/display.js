@@ -1842,7 +1842,12 @@ export function show_glyph(x, y, glyph) {
  * Reset the changed glyph borders so that none of the 3rd screen has
  * changed.
  */
-game.nul_gbuf = [0, { glyph: GLYPH_UNEXPLORED_OFF, ttychar: 32, framecolor: 8, gm: { glyphflags: 2048, sym: { color: 8, symidx: 0 }, customcolor: 0, color256idx: 0, tileidx: 0, u: null } }];
+/* Hand-port: C gbuf_entry struct initializer { gnew, glyphinfo }
+   (display.c:2088) — the emit flattened it to a bare array, so
+   nul_gbuf.glyphinfo read undefined and clear_glyph_buffer threw
+   on every cls (Q9 iter 52: the ^V goto_level redraw aborted,
+   silently skipping onquest's quest-text com_pager rolls). */
+game.nul_gbuf = { gnew: 0, glyphinfo: { glyph: GLYPH_UNEXPLORED_OFF, ttychar: 32, framecolor: 8, gm: { glyphflags: 2048, sym: { color: 8, symidx: 0 }, customcolor: 0, color256idx: 0, tileidx: 0, u: null } } };
 /* gnew */
 /* glyphinfo.glyph, glyphinfo.ttychar */
 /* glyphinfo.gm */
@@ -1857,9 +1862,11 @@ export function clear_glyph_buffer() {
     game.nul_gbuf.gnew = (giptr.ttychar != game.nul_gbuf.glyphinfo.ttychar || giptr.gm.sym.color != game.nul_gbuf.glyphinfo.gm.sym.color || giptr.gm.glyphflags != game.nul_gbuf.glyphinfo.gm.glyphflags || giptr.gm.customcolor != game.nul_gbuf.glyphinfo.gm.customcolor || giptr.gm.tileidx != game.nul_gbuf.glyphinfo.gm.tileidx) ? 1 : 0;
     for (y = 0; y < 21; y++) {
         for (x = 0; x < 80; x++) {
-            if (typeof game.gbuf[y][x] === 'object' && game.gbuf[y][x] !== null) {
-                Object.assign(game.gbuf[y][x], game.nul_gbuf);
-            }
+            /* C: *gptr++ = nul_gbuf — struct VALUE copy; a shared
+               glyphinfo reference would let print_glyph's writes
+               mutate every cell (and nul_gbuf itself). */
+            game.gbuf[y][x].gnew = game.nul_gbuf.gnew;
+            game.gbuf[y][x].glyphinfo = { ...game.nul_gbuf.glyphinfo, gm: { ...game.nul_gbuf.glyphinfo.gm, sym: { ...game.nul_gbuf.glyphinfo.gm.sym } } };
         }
         game.gbuf_start[y] = 1;
         game.gbuf_stop[y] = 80 - 1;

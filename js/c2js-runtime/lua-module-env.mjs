@@ -164,6 +164,27 @@ export function buildLuaModuleEnv(L, lspoTable, helpers = {}) {
             // ice-melt timing.  No-op stub for now; the real impl
             // routes through start_timer in timeout.c.
             start_timer_at: () => 0,
+            // is_genocided(name): C nhlua.c nhl_is_genocided —
+            // name_to_mon + mvitals[i].mvflags & G_GENOD (0x02).
+            // tower1.lua keys its vampire-naming on it.  Local name
+            // scan over game.mons (exact pmnames match) instead of
+            // name_to_mon to keep this module import-cycle-free;
+            // the des callers pass canonical monster names.
+            is_genocided: (name) => {
+                const g = globalThis.__nh_gameRef || globalThis.game;
+                const mons = g && g.mons;
+                if (!Array.isArray(mons) || !Array.isArray(g.mvitals)) return false;
+                const want = String(name ?? '').toLowerCase();
+                if (!want) return false;
+                for (let i = 0; i < mons.length; i++) {
+                    const nm = mons[i] && mons[i].pmnames;
+                    if (!nm) continue;
+                    if (nm[0] === want || nm[1] === want || nm[2] === want) {
+                        return !!(g.mvitals[i] && (g.mvitals[i].mvflags & 2));
+                    }
+                }
+                return false;
+            },
         },
         level_difficulty: helpers.level_difficulty || (() => 1),
         pline: helpers.pline || (() => {}),
