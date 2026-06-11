@@ -499,6 +499,12 @@ function callJsFunctionOnStack(L, nargs, nresults) {
         assertNotThenable(r, `lua handler ${f.value.name || '(anon)'}`);
         returned = (typeof r === 'number' && r >= 0) ? r : 0;
     } catch (e) {
+        // Loud mode (UNWEDGE re-land checklist): the lua bridge
+        // absorbs JS exceptions into LUA_ERRRUN strings, losing the
+        // stack.  NH_DEBUG_LUA surfaces it before conversion.
+        if (typeof process !== 'undefined' && process.env?.NH_DEBUG_LUA) {
+            console.warn('[lua C-fn threw]', f.value?.name || '(anon)', '\n', e?.stack || e);
+        }
         L.frameBases.pop();
         L.error = String(e?.message || e);
         L.stack.length = fnIdx;
@@ -557,6 +563,9 @@ export async function lua_pcall_async(L, nargs, nresults) {
         const r = await f.value(L);
         returned = (typeof r === 'number' && r >= 0) ? r : 0;
     } catch (e) {
+        if (typeof process !== 'undefined' && process.env?.NH_DEBUG_LUA) {
+            console.warn('[lua C-fn threw]', f.value?.name || '(anon)', '\n', e?.stack || e);
+        }
         L.frameBases.pop();
         L.error = String(e?.message || e);
         L.stack.length = fnIdx;

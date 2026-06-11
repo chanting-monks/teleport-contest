@@ -1175,7 +1175,7 @@ export function is_ok_location(x, y, humidity) {
 export function pm_good_location(x, y, pm) {
     return is_ok_location(x, y, pm_to_humidity(pm));
 }
-let __get_unpacked_coord_c = 0;
+let __get_unpacked_coord_c = { is_random: 0, getloc_flags: 0, x: 0, y: 0 };
 export function get_unpacked_coord(loc, defhumidity) {
     if (loc & 16777216) {
         __get_unpacked_coord_c.x = __get_unpacked_coord_c.y = -1;
@@ -2967,7 +2967,7 @@ export function get_table_xy_or_coord(L, x, y) {
 /* monster({ class = "H", peaceful = 0 }); */
 export async function lspo_monster(L) {
     let argc = lua_gettop(L);
-    let tmpmons = 0;
+    let tmpmons = { name: { str: null, len: 0 }, appear_as: { str: null, len: 0 }, id: 0, sp_amask: 0, coord: 0, x: 0, y: 0, class: 0, appear: 0, peaceful: 0, asleep: 0, female: 0, invis: 0, cancelled: 0, revived: 0, avenge: 0, fleeing: 0, blinded: 0, paralyzed: 0, stunned: 0, confused: 0, waiting: 0, m_lev_adj: 0, seentraps: 0, has_invent: 0, mm_flags: 0 };
     let mx = -1;
     let my = -1;
     let mgend = NEUTRAL;
@@ -3267,17 +3267,17 @@ export function get_table_objtype(L) {
 /* object({ id = "boulder", coord = {03,12} }); */
 /* eroded, locked, trapped, tknown, recharged */
 /* invis, greased, broken, achievement */
-let __lspo_object_zeroobject = [[null], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let __lspo_object_zeroobject = { name: { str: null, len: 0 }, corpsenm: 0, id: 0, spe: 0, coord: 0, x: 0, y: 0, class: 0, containment: 0, curse_state: 0, quan: 0, buried: 0, lit: 0, eroded: 0, locked: 0, trapped: 0, tknown: 0, recharged: 0, invis: 0, greased: 0, broken: 0, achievement: 0 };
 export async function lspo_object(L) {
     let quancnt = 0;
-    let tmpobj = 0;
+    let tmpobj = { name: { str: null, len: 0 }, corpsenm: 0, id: 0, spe: 0, coord: 0, x: 0, y: 0, class: 0, containment: 0, curse_state: 0, quan: 0, buried: 0, lit: 0, eroded: 0, locked: 0, trapped: 0, tknown: 0, recharged: 0, invis: 0, greased: 0, broken: 0, achievement: 0 };
     let ox = -1;
     let oy = -1;
     let argc = lua_gettop(L);
     let maybe_contents = 0;
     let otmp = null;
     create_des_coder();
-    tmpobj = __lspo_object_zeroobject;
+    Object.assign(tmpobj, __lspo_object_zeroobject);
     tmpobj.name.str = null;
     tmpobj.spe = -127;
     tmpobj.quan = -1;
@@ -3503,7 +3503,7 @@ export function lspo_level_flags(L) {
 const __lspo_level_init_initstyles = ["solidfill", "mazegrid", "maze", "rogue", "mines", "swamp", null];
 const __lspo_level_init_initstyles2i = [LVLINIT_SOLIDFILL, LVLINIT_MAZEGRID, LVLINIT_MAZE, LVLINIT_ROGUE, LVLINIT_MINES, LVLINIT_SWAMP, 0];
 export function lspo_level_init(L) {
-    let init_lev = 0;
+    let init_lev = { init_style: 0, flags: 0, filling: 0, init_present: 0, padding: 0, fg: 0, bg: 0, smoothed: 0, joined: 0, lit: 0, walled: 0, icedpools: 0, corrwid: 0, wallthick: 0, rm_deadends: 0 };
     create_des_coder();
     lcheck_param_table(L);
     game.splev_init_present = (1);
@@ -3858,7 +3858,7 @@ export function lspo_grave(L) {
 const __lspo_altar_shrines = ["altar", "shrine", "sanctum", null];
 const __lspo_altar_shrines2i = [0, 1, 2, 0];
 export function lspo_altar(L) {
-    let tmpaltar = 0;
+    let tmpaltar = { coord: 0, x: 0, y: 0, sp_amask: 0, shrine: 0 };
     let x = 0;
     let y = 0;
     let acoord = 0;
@@ -3925,7 +3925,7 @@ export function get_traptype_byname(trapname) {
 /* trap("rust") */
 /* trap(); */
 export function lspo_trap(L) {
-    let tmptrap = 0;
+    let tmptrap = { coord: 0, x: 0, y: 0, type: 0, spider_on_web: 0, seen: 0, novictim: 0 };
     let x = 0;
     let y = 0;
     let argc = lua_gettop(L);
@@ -4080,7 +4080,7 @@ export function floodfillchk_match_accessible(x, y) {
 }
 /* change map location terrain type during level creation */
 export function sel_set_ter(x, y, arg) {
-    let terr = 0;
+    let terr = { ter: 0, tlit: 0 };
     terr = arg;
     if (!set_levltyp_lit(x, y, terr.ter, terr.tlit)) {
         return;
@@ -4160,7 +4160,7 @@ export function lspo_door(L) {
     if (x == -1 && y == -1) {
         /* Note that "random" is also W_ANY, because create_door just wants a
          * mask of acceptable walls */
-        let tmpd = 0;
+        let tmpd = { wall: 0, pos: 0, secret: 0, mask: 0 };
         tmpd.secret = (typ == 32) ? 1 : 0;
         tmpd.mask = msk;
         tmpd.pos = get_table_int_opt(L, "pos", -1);
@@ -4386,7 +4386,7 @@ export function lspo_gas_cloud(L) {
  * terrain(x,y, MAPCHAR);
  */
 export function lspo_terrain(L) {
-    let tmpterrain = 0;
+    let tmpterrain = { ter: 0, tlit: 0 };
     let x = 0;
     let y = 0;
     let sel = null;
@@ -4773,7 +4773,7 @@ export function l_get_lregion(L, tmplregion) {
 const __lspo_teleport_region_teledirs = ["both", "down", "up", null];
 const __lspo_teleport_region_teledirs2i = [LR_TELE, LR_DOWNTELE, LR_UPTELE, -1];
 export function lspo_teleport_region(L) {
-    let tmplregion = 0;
+    let tmplregion = { inarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, delarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, in_islev: 0, del_islev: 0, rtype: 0, padding: 0, rname: { str: null, len: 0 } };
     create_des_coder();
     lcheck_param_table(L);
     l_get_lregion(L, tmplregion);
@@ -4795,7 +4795,7 @@ export function lspo_teleport_region(L) {
 const __lspo_levregion_regiontypes = ["stair-down", "stair-up", "portal", "branch", "teleport", "teleport-up", "teleport-down", null];
 const __lspo_levregion_regiontypes2i = [LR_DOWNSTAIR, LR_UPSTAIR, LR_PORTAL, LR_BRANCH, LR_TELE, LR_UPTELE, LR_DOWNTELE, 0];
 export function lspo_levregion(L) {
-    let tmplregion = 0;
+    let tmplregion = { inarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, delarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, in_islev: 0, del_islev: 0, rtype: 0, padding: 0, rname: { str: null, len: 0 } };
     create_des_coder();
     lcheck_param_table(L);
     l_get_lregion(L, tmplregion);
@@ -4938,7 +4938,7 @@ export async function lspo_region(L) {
      */
     room_not_needed = (rtype == OROOM && !irregular && !do_arrival_room && !game.in_mk_themerooms);
     if (room_not_needed || game.nroom >= 40) {
-        let tmpregion = 0;
+        let tmpregion = { x1: 0, y1: 0, x2: 0, y2: 0, rtype: 0, rlit: 0, rirreg: 0 };
         if (!room_not_needed) {
             impossible("Too many rooms on new level!");
         }
@@ -5422,7 +5422,7 @@ export async function lspo_map(L) {
             reset_xystart_size();
         } else {
             let mptyp = 0;
-            let terr = 0;
+            let terr = { ter: 0, tlit: 0 };
             if (game.in_mk_themerooms) {
                 /* Themed rooms should never overwrite anything */
                 let isokp = (1);

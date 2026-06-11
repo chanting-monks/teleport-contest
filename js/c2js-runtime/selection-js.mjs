@@ -166,13 +166,45 @@ export class Selection {
         return new Selection(sv);
     }
 
-    static rndcoord(s) {
+    static rndcoord(s, removeit) {
+        // C ref nhlsel.c l_selection_rndcoord.  The translated
+        // selection_rndcoord takes FOUR args — (ov, xBox, yBox,
+        // removeit) with {value} out-boxes; the old wrapper passed
+        // (sv, {x,y}, 0), so the y box was the NUMBER 0 ("Cannot
+        // create property 'value' on number '0'" — pcall-swallowed,
+        // aborting themed-room contents) and removeit was dropped
+        // (rndcoord(1) callers in themerms rely on it to deplete
+        // the selection between picks).  C then converts the hit to
+        // ROOM-RELATIVE coords — update_croom(), subtract croom
+        // lx/ly when the coder is in a room, else xstart/ystart —
+        // and ALWAYS returns a table ({x:-1,y:-1} on miss, not nil).
         const sv = ((s && s.sv) || s);
-        const out = { x: 0, y: 0 };
-        if (selection_rndcoord(sv, out, 0)) {
-            return { x: out.x, y: out.y };
+        const game = globalThis.__nh_gameRef || globalThis.game;
+        const xb = { value: -1 }, yb = { value: -1 };
+        selection_rndcoord(sv, xb, yb, removeit ? 1 : 0);
+        let x = xb.value, y = yb.value;
+        if (!(x === -1 && y === -1)) {
+            // update_croom (translated sp_lev.js): croom :=
+            // tmproomlist[n_subroom-1] or null.  Inlined to avoid an
+            // import cycle; concrete-shape guards per the gstate
+            // Proxy-ghost rule.
+            const coder = game?.coder;
+            const hasCoder = !!coder && typeof coder.n_subroom === 'number';
+            if (hasCoder) {
+                coder.croom = coder.n_subroom
+                    ? (coder.tmproomlist?.[coder.n_subroom - 1] ?? null)
+                    : null;
+            }
+            const croom = hasCoder ? coder.croom : null;
+            if (croom && typeof croom.lx === 'number') {
+                x -= croom.lx;
+                y -= croom.ly;
+            } else {
+                x -= (typeof game?.xstart === 'number' ? game.xstart : 0);
+                y -= (typeof game?.ystart === 'number' ? game.ystart : 0);
+            }
         }
-        return null;
+        return { x, y };
     }
 
     static percentage(s, p) {
@@ -202,7 +234,7 @@ export class Selection {
     negate() { return Selection.negate(this); }
     grow(dir) { return Selection.grow(this, dir); }
     floodfill(x, y, diagonals) { return Selection.floodfill(this, x, y, diagonals); }
-    rndcoord() { return Selection.rndcoord(this); }
+    rndcoord(removeit) { return Selection.rndcoord(this, removeit); }
     percentage(p) { return Selection.percentage(this, p); }
     set(x, y) { return Selection.set(this, x, y); }
     filter_mapchar(typ, lit) {

@@ -153,6 +153,55 @@ if (typeof globalThis.atoi === 'undefined') {
     if (typeof globalThis.atol === 'undefined') globalThis.atol = __libcShims.atol;
     if (typeof globalThis.__nh_char_at0 === 'undefined') globalThis.__nh_char_at0 = __libcShims.__nh_char_at0;
 }
+// Pre-install the real nhl_add_table_entry_* family (C nhlua.c) for
+// the translated sp_lev.js's bare references — autostubbing them to
+// () => 0 left l_push_mkroom_table's rm table EMPTY, so themerms'
+// lit-dependent fill-eligibility checks diverged from C (seed2600
+// room-chain cluster, Q9 iter 41).
+{
+    const __luaHub = await import('./c2js-runtime/lua.js');
+    for (const k of ['nhl_add_table_entry_int', 'nhl_add_table_entry_bool',
+                     'nhl_add_table_entry_str', 'nhl_add_table_entry_region',
+                     // splev_chr2typ/check_mapchr: the iteration-23 port
+                     // covered lua.js's internal map loader only; the
+                     // production sp_lev.js bare references (mapfrag_get
+                     // :136, lspo_terrain :4413+) still hit the () => 0
+                     // autostub — des.terrain mapchars all parsed as
+                     // STONE (Q9 iter 42).
+                     'splev_chr2typ', 'check_mapchr']) {
+        if (typeof globalThis[k] === 'undefined') globalThis[k] = __luaHub[k];
+    }
+}
+// Q9 iter 43 — stub-vs-export audit batch.  These names have REAL
+// implementations in the runtime but production translated files
+// reference them bare (the import only arrives with regen), so the
+// () => 0 autostub won: luaL_check*/load_lua corrupted every
+// lspo_* string/int argument read in sp_lev.js; dupstr returned 0
+// instead of the string across ~20 TUs; max/min returned 0 in
+// apply.js/botl.js arithmetic; the levelfile trio blocked do.js's
+// goto_level save/restore path (the getbones cluster's substrate).
+// Output-side printf/snprintf/raw_print intentionally NOT batched
+// here — different risk class, gate separately.
+{
+    const __luaHub = await import('./c2js-runtime/lua.js');
+    const __str = await import('./c2js-runtime/string.js');
+    const __math = await import('./c2js-runtime/math.js');
+    const __lvl = await import('./c2js-runtime/levelfile.js');
+    const __pairs = [
+        [__luaHub, ['luaL_checkinteger', 'luaL_checkstring', 'luaL_optinteger',
+                    'luaL_typename', 'load_lua']],
+        [__str, ['dupstr']],
+        [__math, ['max', 'min']],
+        [__lvl, ['create_levelfile', 'delete_levelfile', 'open_levelfile']],
+    ];
+    for (const [mod, names] of __pairs) {
+        for (const k of names) {
+            if (typeof globalThis[k] === 'undefined' && typeof mod[k] === 'function') {
+                globalThis[k] = mod[k];
+            }
+        }
+    }
+}
 // Install no-op stubs for free identifiers in translator output.
 // Manifest-first (works in node AND browser — see autostub.js /
 // UNWEDGE_PLAN Q2); legacy node-only source scan as warned fallback.

@@ -988,6 +988,41 @@ export function luaL_newlib(L, funcs) {
     luaL_setfuncs(L, funcs, 0);
 }
 
+// nhl_add_table_entry_* — C ref src/nhlua.c.  Build-table helpers the
+// translated sp_lev.js/nhlua.js call to populate the lua tables they
+// pass to script callbacks (l_push_mkroom_table's rm for des.room
+// contents, nh.gt_core results, etc.).  These were AUTOSTUBBED to
+// () => 0, so the rm table reaching themerms' fill-eligibility
+// checks was EMPTY — rm.lit was undefined, so BOTH lit-dependent
+// fills ("Garden" lit==true, "Light source" lit==false) read
+// ineligible and the weighted pick diverged from C (seed2600
+// div=394, the room-chain cluster).  Same load-bearing-autostub
+// class as splev_chr2typ (iteration 23) and luaL_check* (iter 29).
+export function nhl_add_table_entry_int(L, name, value) {
+    lua.lua_pushstring(L, name);
+    lua.lua_pushinteger(L, value);
+    lua.lua_settable(L, -3);
+}
+export function nhl_add_table_entry_bool(L, name, value) {
+    lua.lua_pushstring(L, name);
+    lua.lua_pushboolean(L, !!value);
+    lua.lua_settable(L, -3);
+}
+export function nhl_add_table_entry_str(L, name, value) {
+    lua.lua_pushstring(L, name);
+    lua.lua_pushstring(L, value == null ? '' : String(value));
+    lua.lua_settable(L, -3);
+}
+export function nhl_add_table_entry_region(L, name, x1, y1, x2, y2) {
+    lua.lua_pushstring(L, name);
+    lua.lua_newtable(L);
+    nhl_add_table_entry_int(L, "x1", x1);
+    nhl_add_table_entry_int(L, "y1", y1);
+    nhl_add_table_entry_int(L, "x2", x2);
+    nhl_add_table_entry_int(L, "y2", y2);
+    lua.lua_settable(L, -3);
+}
+
 // lua_pushcfunction / lua_pushjsfunction passthroughs
 export function lua_pushcfunction(L, fn) { lua.lua_pushjsfunction(L, fn); }
 export function lua_pushjsfunction(L, fn) { lua.lua_pushjsfunction(L, fn); }

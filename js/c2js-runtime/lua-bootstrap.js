@@ -64,10 +64,15 @@ JS_MODULE_REPLACEMENTS.set('nhlib.lua', {
         // not resolve them at the Lua level.
         installNhlibLuaGlobals(L);
         // Fire the PRNG calls nhlib.lua's top-level shuffle(align)
-        // would have fired (rn2(3), rn2(2)).  The shuffled `align`
-        // array is dead code in current sessions (the Lua-side
-        // global isn't read), so we don't publish it.
-        try { mod.bootstrapNhlib(); } catch (_e) {}
+        // would have fired (rn2(3), rn2(2)) AND publish the shuffled
+        // `align` table as the global the transpiled themerms reads
+        // ("Temple of the gods" fill: des.altar({align = align[1]})).
+        // It was being discarded as "dead code" — seed2600's themed
+        // fill crashed on globalThis.align[0] (Q9 iter 41).
+        try {
+            const r = mod.bootstrapNhlib();
+            if (r && Array.isArray(r.align)) globalThis.align = r.align;
+        } catch (_e) {}
         return 1;
     },
 });
