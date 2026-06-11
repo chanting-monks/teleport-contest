@@ -137,6 +137,18 @@ class Ctx {
         // of `break LABEL` or TODO.  Populated by compoundStmt's
         // forward-into-if path (A4 recognizer).
         this.forwardGotoFlags = new Map();
+        // Stack of enclosing breakable constructs, innermost last.
+        // Frames: { kind: 'loop'|'switch'|'synthetic', labelable,
+        // label, outerLabel }.  Loop/switch emitters push real
+        // frames; the back-jump label hoist (emitPureBackJump)
+        // pushes 'synthetic' frames so bare continue/break that
+        // bound to the ENCLOSING C loop can be re-pointed at it.
+        // C labels are transparent to break/continue; the synthetic
+        // `LABEL: while (true)` wrappers are NOT — invent.c getobj's
+        // redo_menu region spun forever on "You don't have that
+        // object." because its `continue` re-entered the synthetic
+        // loop instead of re-reading the prompt (seed0101 OOM).
+        this.breakFrames = [];
         // Function-scope `char *p = buf;` walks where every use of p
         // is `*p = X` or `*p++ = X`.  Map from p's name → {bufRef,
         // idxName}.  Replaces p with an index variable + indexed
@@ -1722,8 +1734,8 @@ function stmt(node, ctx) {
         case 'DoStmt':               return doStmt(node, ctx);
         case 'SwitchStmt':           return switchStmt(node, ctx);
         case 'NullStmt':             return ctx.pad() + ';';
-        case 'BreakStmt':            return ctx.pad() + 'break;';
-        case 'ContinueStmt':         return ctx.pad() + 'continue;';
+        case 'BreakStmt':            return ctx.pad() + bareBreakJs(ctx);
+        case 'ContinueStmt':         return ctx.pad() + bareContinueJs(ctx);
         case 'GotoStmt':             return gotoStmt(node, ctx);
         case 'LabelStmt':            return labelStmtFreestanding(node, ctx);
         case 'SyntheticText':        return ctx.pad() + node.text;
@@ -1739,6 +1751,37 @@ function stmt(node, ctx) {
             if (isExpr(node)) return ctx.pad() + exprStmt(node, ctx) + ';';
             return ctx.pad() + `// TODO unhandled stmt ${node.kind}\n`;
     }
+}
+
+// Bare `break;` emission, frame-aware.  In C a bare break binds to
+// the innermost loop OR switch; in JS likewise — EXCEPT when the
+// innermost JS construct is a synthetic back-jump `LABEL: while
+// (true)` wrapper that doesn't exist in C.  There the break must be
+// re-pointed at the enclosing real loop's generated label.
+function bareBreakJs(ctx) {
+    const frames = ctx.breakFrames;
+    const top = frames[frames.length - 1];
+    if (top && top.kind === 'synthetic' && top.outerLabel) {
+        return `break ${top.outerLabel};`;
+    }
+    return 'break;';
+}
+
+// Bare `continue;` emission, frame-aware.  Continue is transparent
+// to switch in both languages, so walk down past switch frames; if
+// the first loop-like frame reached is a synthetic back-jump
+// wrapper, re-point at the enclosing real loop's label.
+function bareContinueJs(ctx) {
+    const frames = ctx.breakFrames;
+    for (let i = frames.length - 1; i >= 0; i--) {
+        const f = frames[i];
+        if (f.kind === 'switch') continue;
+        if (f.kind === 'synthetic' && f.outerLabel) {
+            return `continue ${f.outerLabel};`;
+        }
+        break;
+    }
+    return 'continue;';
 }
 
 // Names of libc / NetHack functions that look like
@@ -2307,6 +2350,26 @@ function classifyAllBackward(stmts, labelIndices, ctx) {
 //       }
 //   }
 function emitPureBackJump(stmts, labelIndices, ctx, lines) {
+    // C labels are transparent to break/continue: bare continue/
+    // break in the post-label segment bind to the ENCLOSING loop.
+    // The synthetic `LABEL: while (true)` wrapper below would
+    // capture them (invent.c getobj redo_menu: the "You don't have
+    // that object." `continue` must re-read the prompt via the
+    // outer for(;;), not respin the wrapper).  If the innermost
+    // enclosing breakable frame is a labelable plain loop, give it
+    // a generated label and re-point bare continue/break at it via
+    // synthetic frames (see bareBreakJs/bareContinueJs).  When the
+    // enclosing frame is a switch or a restructured recognizer
+    // loop, fall back to today's emit (outerLabel stays null).
+    let outerLabel = null;
+    const enclFrame = ctx.breakFrames[ctx.breakFrames.length - 1];
+    if (enclFrame && enclFrame.kind === 'loop' && enclFrame.labelable) {
+        if (!enclFrame.label) {
+            enclFrame.label =
+                `__outer_${renameIfReserved(stmts[labelIndices[0]].name)}`;
+        }
+        outerLabel = enclFrame.label;
+    }
     // Pre-(first-label) segment: emit unchanged.
     const firstLabelIdx = labelIndices[0];
     // Track prevEndLine for inside-body comment capture (§23.122).
@@ -2331,6 +2394,10 @@ function emitPureBackJump(stmts, labelIndices, ctx, lines) {
         ctx.reachableLabels.add(labelName);
         lines.push(`${ctx.pad()}${labelName}: while (true) {`);
         ctx.indent++;
+        // Synthetic frame: bare continue/break emitted inside this
+        // wrapper re-point at the enclosing real loop's label (no-op
+        // when outerLabel is null).  Nested labels push their own.
+        ctx.breakFrames.push({ kind: 'synthetic', outerLabel });
         // Emit the LabelStmt's inner (the C source's stmt immediately
         // following the label declaration).
         const inner = labelStmt.inner?.[0];
@@ -2352,6 +2419,7 @@ function emitPureBackJump(stmts, labelIndices, ctx, lines) {
         if (i + 1 < labelIndices.length) {
             openLabel(i + 1);
         }
+        ctx.breakFrames.pop();
         lines.push(`${ctx.pad()}break;`);
         if (!hadBack) ctx.backJumpLabels.delete(labelName);
         if (!hadReach) ctx.reachableLabels.delete(labelName);
@@ -5558,12 +5626,23 @@ function ifStmt(node, ctx) {
 
 function whileStmt(node, ctx) {
     const [cond, body] = (node.inner || []);
-    return ctx.pad() + `while (${expr(cond, ctx)}) ${stmtBlockOrBraced(body, ctx)}`;
+    const condJs = expr(cond, ctx);
+    const frame = { kind: 'loop', labelable: true, label: null };
+    ctx.breakFrames.push(frame);
+    const bodyJs = stmtBlockOrBraced(body, ctx);
+    ctx.breakFrames.pop();
+    const lbl = frame.label ? `${frame.label}: ` : '';
+    return ctx.pad() + lbl + `while (${condJs}) ${bodyJs}`;
 }
 
 function doStmt(node, ctx) {
     const [body, cond] = (node.inner || []);
-    return ctx.pad() + `do ${stmtBlockOrBraced(body, ctx)} while (${expr(cond, ctx)});`;
+    const frame = { kind: 'loop', labelable: true, label: null };
+    ctx.breakFrames.push(frame);
+    const bodyJs = stmtBlockOrBraced(body, ctx);
+    ctx.breakFrames.pop();
+    const lbl = frame.label ? `${frame.label}: ` : '';
+    return ctx.pad() + lbl + `do ${bodyJs} while (${expr(cond, ctx)});`;
 }
 
 // SwitchStmt: clang gives us [cond, CompoundStmt-body].  Inside the
@@ -5585,6 +5664,7 @@ function switchStmt(node, ctx) {
     // compoundStmt's no-label path.  prevEndLine threads through
     // emitSwitchChild's recursion.
     let prevEndLine = body.range?.begin?.line ?? null;
+    ctx.breakFrames.push({ kind: 'switch', labelable: false, label: null });
     for (const child of body.inner || []) {
         const beforeLineCount = lines.length;
         emitSwitchChild(child, ctx, lines);
@@ -5593,6 +5673,7 @@ function switchStmt(node, ctx) {
         const anchorLine = lines[beforeLineCount] || lines[lines.length - 1];
         prevEndLine = captureInsideComments(ctx, prevEndLine, child, anchorLine);
     }
+    ctx.breakFrames.pop();
     ctx.indent--;
     lines.push(`${ctx.pad()}}`);
     // Compound-residual capture for switch bodies (mirrors the
@@ -5723,7 +5804,28 @@ function attributedStmt(node, ctx) {
     return '';
 }
 
+// Frame-managing wrapper: every ForStmt pushes a loop frame so the
+// back-jump label hoist can see its enclosing-loop nesting.  Only
+// the plain fallback emit path marks the frame labelable (the
+// pointer-walk recognizer paths restructure the loop and haven't
+// been audited for label placement); a non-labelable frame simply
+// means bare continue/break keep today's emit.
 function forStmt(node, ctx) {
+    const frame = { kind: 'loop', labelable: false, label: null };
+    ctx.breakFrames.push(frame);
+    let out;
+    try {
+        out = forStmtInner(node, ctx, frame);
+    } finally {
+        ctx.breakFrames.pop();
+    }
+    if (frame.label) {
+        out = out.replace(/^(\s*)/, `$1${frame.label}: `);
+    }
+    return out;
+}
+
+function forStmtInner(node, ctx, __loopFrame) {
     // ForStmt children, per clang: [init, ?, cond, inc, body]
     // The ? slot can be missing (some clangs emit a NullStmt placeholder)
     const inner = node.inner || [];
@@ -5867,6 +5969,9 @@ function forStmt(node, ctx) {
         : '';
     const condJs = cond && isExpr(cond) ? expr(cond, ctx) : '';
     const incJs = inc && isExpr(inc) ? expr(inc, ctx) : '';
+    // Plain emit preserves the C loop structure 1:1, so a label on
+    // the JS `for` binds exactly where the C loop bound.
+    __loopFrame.labelable = true;
     return ctx.pad() + `for (${initJs}; ${condJs}; ${incJs}) ${stmtBlockOrBraced(body, ctx)}`;
 }
 
@@ -8212,6 +8317,29 @@ function unaryOp(node, ctx) {
             && (innerStripped.opcode === '+' || innerStripped.opcode === '-')) {
             const exprType = (innerStripped.type?.qualType || '').trim();
             if (/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(exprType)) {
+                ctx.externalRefs?.set?.('__nh_char_at0',
+                    EXTERNAL_SYMBOLS['__nh_char_at0']);
+                return `__nh_char_at0(${arg})`;
+            }
+        }
+        // `*++p` / `*--p` as a VALUE on a char* — C reads the BYTE at
+        // the advanced position; the inner prefix-inc renders as
+        // `(p = __nh_advance_str(p, ±1))` whose value is the advanced
+        // SUFFIX (string or array slice) — truthy even when empty for
+        // arrays ([] is truthy!), so display_pickinv's
+        // `if (*++invlet) goto nextclass` over flags.inv_order spun
+        // forever once the menu flows made it live (Q9 iteration 31,
+        // the seed4500 census hang).  Wrap with the byte read; the
+        // assignment side effect is preserved inside.  (Postfix
+        // `*p++`-as-value reads the OLD byte and is handled by the
+        // charBufferRewrites walker path, not here.)
+        if (innerStripped
+            && innerStripped.kind === 'UnaryOperator'
+            && !innerStripped.isPostfix
+            && (innerStripped.opcode === '++' || innerStripped.opcode === '--')) {
+            const operand = stripCasts(innerStripped.inner?.[0]);
+            const opType = (operand?.type?.qualType || '').trim();
+            if (/^(?:const\s+)?(?:signed\s+|unsigned\s+)?char\s*\*\s*$/.test(opType)) {
                 ctx.externalRefs?.set?.('__nh_char_at0',
                     EXTERNAL_SYMBOLS['__nh_char_at0']);
                 return `__nh_char_at0(${arg})`;

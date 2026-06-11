@@ -408,6 +408,52 @@ export async function newgame() {
     // all moves up-front).  Pre-capture hook only fires for the
     // outer rhack nhgetch; intra-command sync reads skip the hook.
     if (g.windowprocs) {
+        if (g.__getlin_returns_buffer === 1 && !g.windowprocs.win_yn_function) {
+            // ASYNC twin of the sync win_yn_function below, installed
+            // only in REGEN builds (the __getlin_returns_buffer
+            // marker, like win_getlin/menu procs).  Intra-command
+            // prompt keys live in the DISPLAY queue; readKeySync's
+            // separate queue is always empty in sessions, so the sync
+            // read answered ESC and translated doeat's floorfood /
+            // getobj prompts silently aborted while C ate and split
+            // the stack (the next_ident x5 cluster, Q9 iteration 35).
+            // Same formatting as the sync version; each prompt key is
+            // its own captured step like C.
+            g.windowprocs.win_yn_function = async (q, resp, def) => {
+                const __coerceStr = (v) => (typeof v === 'string') ? v
+                    : (v && typeof v.value === 'string') ? v.value
+                    : (Array.isArray(v) ? (() => {
+                        let s2 = '';
+                        for (let i2 = 0; i2 < v.length && v[i2]; i2++) s2 += String.fromCharCode(v[i2]);
+                        return s2;
+                    })() : '');
+                const qs = __coerceStr(q);
+                const rs = __coerceStr(resp);
+                let formatted = qs;
+                if (rs) {
+                    const respDisp = rs.replace(/\x1b/g, '');
+                    if (respDisp) formatted += ` [${respDisp}]`;
+                    const defChar = (typeof def === 'number')
+                        ? (def > 0 && def < 0x7f ? String.fromCharCode(def) : '')
+                        : (typeof def === 'string' ? def : '');
+                    if (defChar && respDisp.includes(defChar)) {
+                        formatted += ` (${defChar})`;
+                    }
+                }
+                if (formatted) {
+                    g._pending_message = formatted;
+                    g._cursor_override = { x: formatted.length + 1, y: 0 };
+                    g._cursor_override_oneshot = true;
+                    await flush_screen(1);
+                }
+                const __ynKey = await nhgetch();
+                if (g._cursor_override_oneshot) {
+                    g._cursor_override = null;
+                    g._cursor_override_oneshot = false;
+                }
+                return __ynKey;
+            };
+        }
         if (!g.windowprocs.win_yn_function) {
             // C ref win/tty/getline.c tty_yn_function — emits the query
             // to the message line before reading the response.  Without
@@ -1968,7 +2014,11 @@ export async function newgame() {
                 if (r < 2) {
                     for (let c = 0; c < 80; c++) disp.setCell(c, r, ' ', 8, 0);
                 } else {
-                    for (let c = PAD; c < 80; c++) disp.setCell(c, r, ' ', 8, 0);
+                    // C's NHW_MENU owns a 1-col left gutter at PAD-1:
+                    // canonical seed0101 step 2 blanks col 20 where its
+                    // room wall would otherwise show (rows 3-6); the
+                    // map keeps showing at col 19 and left.
+                    for (let c = PAD - 1; c < 80; c++) disp.setCell(c, r, ' ', 8, 0);
                 }
                 for (let c = 0; c < text.length && (PAD + c) < 80; c++) {
                     disp.setCell(PAD + c, r, text[c], 8, attr);

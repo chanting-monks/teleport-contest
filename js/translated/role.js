@@ -27,6 +27,7 @@ import { game } from '../gstate.js';
 import { free } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { yn_function } from './cmd.js';
@@ -788,6 +789,7 @@ export function race_alignmentcount(racenum) {
     return aligncount;
 }
 let __root_plselection_prompt_err_ret = " character's";
+__nh_register_static(() => { __root_plselection_prompt_err_ret = " character's"; });
 export function root_plselection_prompt(suppliedbuf, buflen, rolenum, racenum, gendnum, alignnum) {
     let k = 0;
     let gendercount = 0;
@@ -1004,7 +1006,7 @@ export function plnamesuffix() {
     if (game.sysopt.genericusers) {
         if (__nh_char_at0(game.sysopt.genericusers) == 42) {
             /* some generic user names will be ignored in favor of prompting */
-            game.plname[0] = 0;
+            game.plname = '';
         } else {
             /* need to ignore appended '-role-race-gender-alignment';
                'plnamelen' is non-zero when dealing with plname[] value that
@@ -1012,7 +1014,7 @@ export function plnamesuffix() {
             i = ((eptr = strchr(game.plname + game.plnamelen, 45)) != null) ? ((game.plname.length - eptr.length)) : Strlen_(game.plname, "plnamesuffix", 1680);
             /* look for plname[] in the 'genericusers' space-separated list */
             if (findword(game.sysopt.genericusers, game.plname, i, (0))) {
-                game.plname[0] = 0;
+                game.plname = '';
             }
         }
         if (!game.plname[0]) {
@@ -1133,7 +1135,7 @@ export function role_selection_prolog(which, where) {
 /* add a "pick alignment first"-type entry to the specified menu */
 const __role_menu_extra_RS_menu_let = [61, 63, 47, 34, 91];
 export function role_menu_extra(which, where, preselect) {
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let buf = '';
     let what = null;
     let constrainer = null;
@@ -1250,7 +1252,7 @@ export function role_menu_extra(which, where, preselect) {
             }
             break;
     }
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     if (constrainer) {
         any.a_int = 0;
         buf = sprintf(buf, "%4s%s forces %s", "", constrainer, forcedvalue);
@@ -1329,8 +1331,8 @@ export function role_init() {
     }
     alignmnt = aligns[game.flags.initalign].value;
     /* Initialize gu.urole and gu.urace */
-    game.urole = roles[game.flags.initrole];
-    game.urace = races[game.flags.initrace];
+    Object.assign(game.urole, roles[game.flags.initrole]);
+    Object.assign(game.urace, races[game.flags.initrace]);
     if (game.urole.ldrnum != NON_PM) {
         /* Note that there is no way to check for an unspecified gender. */
         pm = game.mons[game.urole.ldrnum];
@@ -1459,7 +1461,7 @@ export function genl_player_selection() {
 /* guts of tty's player_selection() */
 export function genl_player_setup(screenheight) {
     let pbuf = '';
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let k = 0;
     let n = 0;
@@ -1541,7 +1543,7 @@ export function genl_player_setup(screenheight) {
                         setup_rolemenu(win, (1), game.flags.initrace, game.flags.initgend, game.flags.initalign);
                         /* add miscellaneous menu entries */
                         role_menu_extra((-2), win, (1));
-                        any = cg.zeroany;
+                        Object.assign(any, cg.zeroany);
                         if (excess < 1 || excess > 2) {
                             add_menu_str(win, "");
                         }
@@ -1635,7 +1637,7 @@ export function genl_player_setup(screenheight) {
                         if (n > 1) {
                             /* Permit the user to pick, if there is more than one */
                             win = plsel_startmenu(screenheight, 2);
-                            any = cg.zeroany;
+                            Object.assign(any, cg.zeroany);
                             setup_racemenu(win, (1), game.flags.initrole, game.flags.initgend, game.flags.initalign);
                             role_menu_extra((-2), win, (1));
                             any.a_int = 0;
@@ -1723,7 +1725,7 @@ export function genl_player_setup(screenheight) {
                         }
                         if (n > 1) {
                             win = plsel_startmenu(screenheight, 3);
-                            any = cg.zeroany;
+                            Object.assign(any, cg.zeroany);
                             /* populate the menu with gender choices */
                             setup_gendmenu(win, (1), game.flags.initrole, game.flags.initrace, game.flags.initalign);
                             role_menu_extra((-2), win, (1));
@@ -1811,7 +1813,7 @@ export function genl_player_setup(screenheight) {
                         }
                         if (n > 1) {
                             win = plsel_startmenu(screenheight, 4);
-                            any = cg.zeroany;
+                            Object.assign(any, cg.zeroany);
                             setup_algnmenu(win, (1), game.flags.initrole, game.flags.initrace, game.flags.initgend);
                             role_menu_extra((-2), win, (1));
                             any.a_int = 0;
@@ -1888,7 +1890,7 @@ export function genl_player_setup(screenheight) {
         getconfirmation = (picksomething && pick4u != 97 && !game.flags.randomall);
         while (getconfirmation) {
             win = plsel_startmenu(screenheight, 5);
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             any.a_int = 1;
             add_menu(win, nul_glyphinfo, any, 121, 0, 0, clr, "Yes; start game", 1);
             any.a_int = 2;
@@ -1928,7 +1930,7 @@ export function genl_player_setup(screenheight) {
                         /* plnamesuffix() can change any or all of ROLE, RACE,
                GEND, ALGN; we'll override that and honor only the name */
                         saveROLE = game.flags.initrole , saveRACE = game.flags.initrace , saveGEND = game.flags.initgend , saveALGN = game.flags.initalign;
-                        game.plname[0] = 0;
+                        game.plname = '';
                         /* calls askname() when svp.plname[] is empty */
                         plnamesuffix();
                         game.flags.initrole = saveROLE , game.flags.initrace = saveRACE , game.flags.initgend = saveGEND , game.flags.initalign = saveALGN;
@@ -2050,14 +2052,14 @@ export function plsel_startmenu(ttyrows, aspect) {
                         * False => filter reset */
 /* all ROLE_NONE for !filtering case */
 export function setup_rolemenu(win, filtering, race, gend, algn) {
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let role_ok = 0;
     let thisch = 0;
     let lastch = 0;
     let rolenamebuf = '';
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; roles[i].name.m; i++) {
         /* role can be constrained by any of race, gender, or alignment */
         role_ok = (ok_role(i, race, gend, algn) && ok_race(i, race, gend, algn) && ok_gend(i, race, gend, algn) && ok_align(i, race, gend, algn));
@@ -2090,12 +2092,12 @@ export function setup_rolemenu(win, filtering, race, gend, algn) {
     }
 }
 export function setup_racemenu(win, filtering, role, gend, algn) {
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let race_ok = 0;
     let i = 0;
     let this_ch = 0;
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; races[i].noun; i++) {
         /* no ok_gend(); race isn't constrained by gender */
         race_ok = (ok_race(role, i, gend, algn) && ok_role(role, i, gend, algn) && ok_align(role, i, gend, algn));
@@ -2116,12 +2118,12 @@ export function setup_racemenu(win, filtering, role, gend, algn) {
     }
 }
 export function setup_gendmenu(win, filtering, role, race, algn) {
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let gend_ok = 0;
     let i = 0;
     let this_ch = 0;
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; i < 2; i++) {
         /* no ok_align(); gender isn't constrained by alignment */
         gend_ok = (ok_gend(role, race, i, algn) && ok_role(role, race, i, algn) && ok_race(role, race, i, algn));
@@ -2140,12 +2142,12 @@ export function setup_gendmenu(win, filtering, role, race, algn) {
     }
 }
 export function setup_algnmenu(win, filtering, role, race, gend) {
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let algn_ok = 0;
     let i = 0;
     let this_ch = 0;
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; i < 3; i++) {
         /* no ok_gend(); alignment isn't constrained by gender */
         algn_ok = (ok_align(role, race, gend, i) && ok_role(role, race, gend, i) && ok_race(role, race, gend, i));

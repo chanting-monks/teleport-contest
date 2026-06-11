@@ -192,6 +192,18 @@ function screensVisuallyEqual(a, b) {
     return true;
 }
 
+// Cursor positions for the recorded C-side and the JS-side both come as
+// [col, row, visible] triples. A screen with the cursor in the wrong
+// position is considered a missed screen — the cursor is *part* of the
+// screen as far as scoring is concerned. If the recorded cursor is
+// absent (older legacy sessions, e.g.), we skip the cursor portion of
+// the check — only the screen cells matter.
+function cursorsEqual(c, j) {
+    if (!Array.isArray(c)) return true; // canonical has no cursor → don't fail
+    if (!Array.isArray(j)) return false; // JS produced no cursor but C did
+    return c[0] === j[0] && c[1] === j[1] && c[2] === j[2];
+}
+
 function normalizeScreen(s) {
     let cur = String(s);
     for (const re of STARTUP_VARIANT_LINES) {
@@ -238,9 +250,11 @@ function replayInputFor(segment) {
 }
 
 // Run one full session: normalize, loop segments, call the
-// contestant's runSegment(input, prevGame) for each. The contestant's
-// game accumulates screens/RNG across segments; we read them back at
-// the end and compare to what C recorded.
+// contestant's runSegment(input) for each. Each call returns a
+// self-contained per-segment game; we concatenate per-segment outputs
+// harness-side and compare to what C recorded. Cross-segment state
+// (save files, bones, record) flows through `input.storage`, a
+// Web-Storage-shaped Map shared across all segments of the session.
 async function runSession(sessionPath) {
     const sessionData = JSON.parse(readFileSync(sessionPath, 'utf8'));
     const { normalizeSession } = await import('./session_loader.mjs');
@@ -250,33 +264,71 @@ async function runSession(sessionPath) {
     // ({seed, datetime, nethackrc, moves, steps}).
     const segments = normalizeSession(sessionData).segments;
 
-    // Flatten C-side RNG + screens across all segments (judge totals).
+    // Flatten C-side RNG + screens + cursors across all segments (judge
+    // totals). cCursors is indexed identically to cScreens — entry [i]
+    // is the recorded cursor position for the boundary that produced
+    // cScreens[i]. Steps without a cursor field push `null` so the
+    // index stays aligned.
     const cRng = [];
     const cScreens = [];
+    const cCursors = [];
+    // Per-step canonical animation frames, flat across segments,
+    // indexed identically to cScreens.  Used for the SUPPLEMENTAL
+    // animFrames metric (not folded into pass/fail).
+    const cAnimByStep = [];
     for (const seg of segments) {
         for (const step of seg.steps || []) {
             cRng.push(...extractRngCalls(step.rng));
-            if (step.screen) cScreens.push(step.screen);
+            if (step.screen) {
+                cScreens.push(step.screen);
+                cCursors.push(Array.isArray(step.cursor) ? step.cursor : null);
+            }
+            cAnimByStep.push(Array.isArray(step.animation_frames)
+                ? step.animation_frames
+                : []);
         }
     }
 
-    let game = null;
+    // One shared Web-Storage-shaped Map per session.
+    const storage = new Map();
+    const storageHandle = {
+        getItem(k) { return storage.has(k) ? storage.get(k) : null; },
+        setItem(k, v) { storage.set(k, String(v)); },
+        removeItem(k) { storage.delete(k); },
+        get length() { return storage.size; },
+        key(i) {
+            let n = 0;
+            for (const k of storage.keys()) { if (n === i) return k; n++; }
+            return null;
+        },
+    };
+
+    // Per-segment outputs accumulated harness-side.
+    let jsRng = [];
+    let jsScreens = [];
+    let jsAnimByStep = [];
+    let jsCursors = [];
+    let lastGame = null;
     let jsError = null;
     try {
         for (const seg of segments) {
-            game = await runSegment(replayInputFor(seg), game);
+            const input = { ...replayInputFor(seg), storage: storageHandle };
+            const segGame = await runSegment(input);
+            const segRng = (segGame.getRngLog?.() || []).map(e =>
+                typeof e === 'string' ? e.replace(/^\d+\s+/, '') : String(e)
+            ).filter(isRngCall);
+            jsRng.push(...segRng);
+            jsScreens.push(...(segGame.getScreens?.() || []));
+            jsCursors.push(...(segGame.getCursors?.() || []));
+            if (typeof segGame.getAnimationFramesByStep === 'function') {
+                jsAnimByStep.push(...segGame.getAnimationFramesByStep());
+            }
+            lastGame = segGame;
         }
     } catch (e) {
         jsError = e.message;
     }
-
-    let jsRng = [];
-    let jsScreens = [];
-    if (game) {
-        const rngLog = game.getRngLog() || [];
-        jsRng = rngLog.map(e => e.replace(/^\d+\s+/, '')).filter(isRngCall);
-        jsScreens = game.getScreens() || [];
-    }
+    const game = lastGame;
 
     const rngTotal = cRng.length;
     let rngMatched = 0;
@@ -284,10 +336,40 @@ async function runSession(sessionPath) {
         if (normalizeRng(cRng[i] || '') === normalizeRng(jsRng[i] || '')) rngMatched++;
     }
 
+    // A screen counts as matched only when BOTH the cell grid AND the
+    // cursor position agree. A correctly-rendered screen with the
+    // cursor in the wrong place is a missed screen — the visible
+    // terminal state isn't faithful unless the cursor lines up. We
+    // also surface the cell-only and cursor-only counts in metrics
+    // so contestants can tell which side of the check is failing.
     const screenTotal = cScreens.length;
     let screenMatched = 0;
+    let cellsOnlyMatched = 0;
+    let cursorsMatched = 0;
     for (let i = 0; i < screenTotal; i++) {
-        if (screensVisuallyEqual(jsScreens[i] || '', cScreens[i] || '')) screenMatched++;
+        const cellsOk = screensVisuallyEqual(jsScreens[i] || '', cScreens[i] || '');
+        const cursorOk = cursorsEqual(cCursors[i], jsCursors[i]);
+        if (cellsOk) cellsOnlyMatched++;
+        if (cursorOk) cursorsMatched++;
+        if (cellsOk && cursorOk) screenMatched++;
+    }
+
+    // SUPPLEMENTAL: per-step animation frames.  Same comparator as the
+    // boundary screens; total = canonical frame count; matched =
+    // positional cell-equal frames.  Does NOT influence `passed`.
+    let animMatched = 0;
+    let animTotal = 0;
+    const animLimit = Math.min(cAnimByStep.length, screenTotal);
+    for (let i = 0; i < animLimit; i++) {
+        const cFrames = cAnimByStep[i] || [];
+        const jFrames = jsAnimByStep[i] || [];
+        animTotal += cFrames.length;
+        for (let f = 0; f < cFrames.length; f++) {
+            const jf = jFrames[f];
+            if (jf && screensVisuallyEqual(jf.screen || '', cFrames[f].screen || '')) {
+                animMatched++;
+            }
+        }
     }
 
     return {
@@ -295,7 +377,16 @@ async function runSession(sessionPath) {
         passed: !jsError && rngMatched === rngTotal && screenMatched === screenTotal,
         metrics: {
             rngCalls: { matched: rngMatched, total: rngTotal },
+            // Combined cell-grid + cursor match. Folded into `passed`.
             screens: { matched: screenMatched, total: screenTotal },
+            // Diagnostic sub-counts: how many of the screen misses were
+            // due to cells vs cursor. Not folded into `passed` (the
+            // combined `screens` count covers it) but useful when
+            // triaging failures.
+            cellsOnly: { matched: cellsOnlyMatched, total: screenTotal },
+            cursors: { matched: cursorsMatched, total: screenTotal },
+            // Supplemental — never combined with rngCalls/screens for ranking.
+            animFrames: { matched: animMatched, total: animTotal },
         },
         error: jsError,
     };
@@ -356,7 +447,7 @@ async function main() {
             result = {
                 session: basename(sf),
                 passed: false,
-                metrics: { rngCalls: { matched: 0, total: 0 }, screens: { matched: 0, total: 0 } },
+                metrics: { rngCalls: { matched: 0, total: 0 }, screens: { matched: 0, total: 0 }, animFrames: { matched: 0, total: 0 } },
                 error: err,
             };
         } else {
@@ -366,7 +457,7 @@ async function main() {
                 result = {
                     session: basename(sf),
                     passed: false,
-                    metrics: { rngCalls: { matched: 0, total: 0 }, screens: { matched: 0, total: 0 } },
+                    metrics: { rngCalls: { matched: 0, total: 0 }, screens: { matched: 0, total: 0 }, animFrames: { matched: 0, total: 0 } },
                     error: 'worker output missing __RESULT_ONE__ marker',
                 };
             } else {
@@ -375,11 +466,21 @@ async function main() {
         }
         results.push(result);
 
-        const r = result.metrics?.rngCalls || {};
-        const s = result.metrics?.screens || {};
+        const r  = result.metrics?.rngCalls  || {};
+        const s  = result.metrics?.screens   || {};
+        const co = result.metrics?.cellsOnly || {};
+        const cu = result.metrics?.cursors   || {};
         const status = result.passed ? 'PASS' : 'FAIL';
+        // Show cursor sub-count only when it doesn't already match the
+        // combined screen count — i.e. when the cursor is what's
+        // dragging Screen down. Keeps the happy-path line compact.
+        const detail = (s.matched !== co.matched)
+            ? ` (cells ${co.matched}/${co.total}, cursors ${cu.matched}/${cu.total})`
+            : (s.matched !== cu.matched
+                ? ` (cursors ${cu.matched}/${cu.total})`
+                : '');
         process.stderr.write(
-            `  ${status}: ${result.session} (RNG ${r.matched}/${r.total}, Screen ${s.matched}/${s.total})\n`
+            `  ${status}: ${result.session} (RNG ${r.matched}/${r.total}, Screen ${s.matched}/${s.total}${detail})\n`
         );
     }
 

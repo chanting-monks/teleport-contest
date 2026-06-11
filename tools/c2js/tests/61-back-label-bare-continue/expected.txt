@@ -1,0 +1,4 @@
+key=1 miss
+key=2 menu
+key=3 hit
+done ilet=3 reads=3

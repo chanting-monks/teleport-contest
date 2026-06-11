@@ -472,6 +472,12 @@ export async function runSegment(input) {
     const { seed, nethackrc, storage, datetime } = input;
     const moves = input.moves || '';
 
+    // Session epoch — bump per segment so stale cross-session async
+    // chains (parked on promises when the previous session ended)
+    // die at the des-bridge guard instead of spending this session's
+    // PRNG (Q9 iteration 33, the seed0108 pollution).
+    globalThis.__nh_session_epoch = (globalThis.__nh_session_epoch || 0) + 1;
+
     // Q9.5(b) — restore fresh-process module state (translator-
     // hoisted C statics) so back-to-back sessions in one process
     // match fresh-process-per-session runs.  No-op on the frozen

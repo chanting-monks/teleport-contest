@@ -7,6 +7,7 @@ import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, Your, pline, pline_The } from '../c2js-runtime/pline.js';
 import { qsort } from '../c2js-runtime/qsort.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strstr, strstri } from '../c2js-runtime/string.js';
 import { confers_luck, discover_artifact, is_art, set_artifact_intrinsic, touch_artifact, undiscovered_artifact } from './artifact.js';
@@ -225,7 +226,9 @@ export function inuse_classify(sort_item, obj) {
 /* sortloot() classification; called at most once [per sort] for each object;
    also called by '\' command if discoveries use sortloot order */
 let __loot_classify_def_srt_order = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+__nh_register_static(() => { __loot_classify_def_srt_order = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; });
 let __loot_classify_armcat = '';
+__nh_register_static(() => { __loot_classify_armcat = ''; });
 export function loot_classify(sort_item, obj) {
     /* we may eventually make this a settable option to always use
        with sortloot instead of only when the 'sortpack' option isn't
@@ -653,6 +656,7 @@ export function sortloot_cmp(vptr1, vptr2) {
 /* T: traverse via obj->nexthere, F: via obj->nobj */
 /* optional filter */
 let __sortloot_zerosli = { obj: null, str: null, indx: 0, orderclass: 0, subclass: 0, disco: 0, inuse: 0 };
+__nh_register_static(() => { __sortloot_zerosli = { obj: null, str: null, indx: 0, orderclass: 0, subclass: 0, disco: 0, inuse: 0 }; });
 export function sortloot(olist, mode, by_nexthere, filterfunc) {
     let sliarray = null;
     let o = null;
@@ -1664,7 +1668,7 @@ export function getobj(word, obj_ok, ctrlflags) {
     let altlets = '';
     let suggested = 0;
     let bp = null;
-    let ap = null;
+    let __nh_ap_idx = 0;
     let allowcnt = 0;
     let forceprompt = 0;
     let allownone = 0;
@@ -1681,7 +1685,7 @@ export function getobj(word, obj_ok, ctrlflags) {
     ilet = 0;
     suggested = 0;
     bp = buf;
-    ap = altlets;
+    __nh_ap_idx = 0;
     allowcnt = (ctrlflags & 1);
     forceprompt = (ctrlflags & 2);
     allownone = (0);
@@ -1771,7 +1775,7 @@ export function getobj(word, obj_ok, ctrlflags) {
                 /* nothing currently gives this for '-'
                                      * but theoretically could if wearing
                                      * gloves */
-                altlets[__nh_ap_idx++] = 45;
+                altlets = altlets.slice(0, __nh_ap_idx++) + String.fromCharCode(45);
                 break;
             /* player skipped some alternative that's
                                     * not in inventory, now the hands/self
@@ -1790,7 +1794,7 @@ export function getobj(word, obj_ok, ctrlflags) {
        inventory letters */
         sortedinvent = sortloot(game.invent, 2, (0), null);
         for (let __nhi_srtinv = 0; (srtinv = sortedinvent[__nhi_srtinv]) && ((otmp = srtinv.obj) != null); __nhi_srtinv++) {
-            if (__nh_advance_str(bp, suggested) == __nh_char_at0(__nh_advance_str(buf, 256 /* sizeof(char [256]) */ - 1)) || __nh_ap_idx == 256 /* sizeof(char [256]) */ - 1) {
+            if ((suggested) == (256 /* sizeof(char [256]) */ - 1) || __nh_ap_idx == 256 /* sizeof(char [256]) */ - 1) {
                 /* we must have a huge number of noinvsym items somehow */
                 impossible("getobj: inventory overflow");
                 break;
@@ -1808,7 +1812,7 @@ export function getobj(word, obj_ok, ctrlflags) {
                 case GETOBJ_DOWNPLAY:
                     suggested--;
                     forceprompt = (1);
-                    altlets[__nh_ap_idx++] = otmp.invlet;
+                    altlets = altlets.slice(0, __nh_ap_idx++) + String.fromCharCode(otmp.invlet);
                     break;
                 case GETOBJ_SUGGEST:
                     break;
@@ -1831,12 +1835,12 @@ export function getobj(word, obj_ok, ctrlflags) {
         if (suggested > 5) {
             compactify(bp);
         }
-        altlets[__nh_ap_idx] = 0;
+        altlets = altlets.slice(0, __nh_ap_idx);
         if (suggested == 0 && !forceprompt && !allownone) {
             You("don't have anything %sto %s.", inaccess ? "else " : "", word);
             return null;
         }
-        for (; ; ) {
+        __outer_redo_menu: for (; ; ) {
             cnt = 0;
             cntgiven = (0);
             qbuf = sprintf(qbuf, "What do you want to %s?", word);
@@ -1907,7 +1911,7 @@ export function getobj(word, obj_ok, ctrlflags) {
                         if (oneloop) {
                             return null;
                         }
-                        continue;
+                        continue __outer_redo_menu;
                     }
                     if (ilet == 45) {
                         return game.hands_obj;
@@ -1969,7 +1973,7 @@ export function getobj(word, obj_ok, ctrlflags) {
                         } else {
                             You("%s.", __getobj_only_one);
                         }
-                        continue;
+                        continue __outer_redo_menu;
                     }
                 }
                 /* May have changed the amount of money */
@@ -1988,15 +1992,15 @@ export function getobj(word, obj_ok, ctrlflags) {
                     if (game.in_doagain) {
                         return null;
                     }
-                    continue;
+                    continue __outer_redo_menu;
                 } else if (cnt < 0 || otmp.quan < cnt) {
                     You("don't have that many!  You have only %ld.", otmp.quan);
                     if (game.in_doagain) {
                         return null;
                     }
-                    continue;
+                    continue __outer_redo_menu;
                 }
-                break;
+                break __outer_redo_menu;
                 break;
             }
         }
@@ -2140,8 +2144,8 @@ export function ggetobj(word, fn, mx, combo, resultflags) {
     ilets = __nh_char_write(ilets, iletct, 0);
     for (; ; ) {
         qbuf = sprintf(qbuf, "What kinds of thing do you want to %s? [%s]", word, ilets);
-        getlin(qbuf, buf);
-        if (__nh_char_at0(buf) == 27) {
+        buf = getlin(qbuf, buf);
+        if (buf[0] == 27) {
             return 0;
         }
         if (strchr(buf, 105)) {
@@ -2183,7 +2187,7 @@ export function ggetobj(word, fn, mx, combo, resultflags) {
     }
     __nh_ip_idx = 0;
     olets = __nh_char_write(olets, oletct = 0, 0);
-    while ((sym = buf[__nh_ip_idx++]) != 0) {
+    while ((sym = __nh_char_at0(__nh_advance_str(buf, __nh_ip_idx++))) != 0) {
         if (sym == 32) {
             continue;
         }
@@ -2416,7 +2420,7 @@ export function askchain(objchn, olets, allflag, fn, ckfn, mx, word) {
                     break ret;
             }
         }
-        if (olets && __nh_char_at0(olets) && (olets = __nh_advance_str(olets, 1))) {
+        if (olets && __nh_char_at0(olets) && __nh_char_at0((olets = __nh_advance_str(olets, 1)))) {
             continue nextclass;
         }
         if (!takeoff && (dud || cnt)) {
@@ -2443,7 +2447,7 @@ export function askchain(objchn, olets, allflag, fn, ckfn, mx, word) {
    Returns TRUE (and increases numrerolls) if a reroll was requested. */
 export function reroll_menu() {
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let pick_list = null;
     let otmp = null;
     let tmpglyph = 0;
@@ -2452,7 +2456,7 @@ export function reroll_menu() {
     let buf = '';
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     any.a_char = 110;
     add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : 112, 0, 0, 8, "start the game with this character", 0);
     any.a_char = 121;
@@ -2729,6 +2733,7 @@ export function prinv(prefix, obj, quan) {
 /* cost (for inventory of unpaid or expended items) */
 /* if non-0, print this quantity, not obj->quan */
 let __xprname_li = '';
+__nh_register_static(() => { __xprname_li = ''; });
 export function xprname(obj, txt, let_, dot, cost, quan) {
     /* plenty of room for count and hallucinatory currency */
     let suffix = '';
@@ -2892,7 +2897,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
     let classcount = 0;
     let inusecount = 0;
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let selected = null;
     let sortflags = 0;
     let sortedinvent = null;
@@ -3031,7 +3036,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
         }
     }
     (game.windowprocs.win_start_menu)(win, menu_behavior);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     if (wizid) {
         let unid_cnt = 0;
         let prompt = '';
@@ -3068,6 +3073,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
         add_menu(win, nul_glyphinfo, any, 45, 0, 0, clr, xtra_choice, 0);
         gotsomething = (1);
     }
+    let __venom_done = false;
     nextclass: while (true) {
         classcount = 0;
         prevorderclass = 0;
@@ -3103,7 +3109,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
                     prevorderclass = srtinv.orderclass;
                 }
                 ilet = otmp.invlet;
-                any = cg.zeroany;
+                Object.assign(any, cg.zeroany);
                 if (wizid) {
                     any.a_obj = otmp;
                 } else {
@@ -3130,10 +3136,11 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
             }
         }
         if (game.flags.sortpack) {
-            if ((invlet = __nh_advance_str(invlet, 1))) {
+            if (__nh_char_at0((invlet = __nh_advance_str(invlet, 1)))) {
                 continue nextclass;
             }
-            if ((invlet = __nh_advance_str(invlet, -1)) != venom_inv) {
+            if (!__venom_done) {
+                __venom_done = true;
                 invlet = venom_inv;
                 continue nextclass;
             }
@@ -3147,7 +3154,7 @@ export function display_pickinv(lets, xtra_choice, query, allowxtra, want_reply,
        includes everything; when reissuing the menu after player has
        picked '*', add '?' for 'list likely candidates' to reverse that */
             let menutext = null;
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             if ((allowxtra && !usextra) || (lets && strlen(lets) < inv_cnt((1)))) {
                 any.a_char = 42;
                 menutext = "(list everything)";
@@ -3254,14 +3261,14 @@ export function display_used_invlets(avoidlet) {
     let tmpglyph = 0;
     let tmpglyphinfo = nul_glyphinfo;
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let selected = null;
     let clr = 8;
     if (game.invent) {
         win = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(win, 0);
         while (!invdone) {
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             classcount = 0;
             for (otmp = game.invent; otmp; otmp = otmp.nobj) {
                 ilet = otmp.invlet;
@@ -3270,7 +3277,7 @@ export function display_used_invlets(avoidlet) {
                 }
                 if (!game.flags.sortpack || otmp.oclass == __nh_char_at0(invlet)) {
                     if (game.flags.sortpack && !classcount) {
-                        any = cg.zeroany;
+                        Object.assign(any, cg.zeroany);
                         add_menu_heading(win, let_to_name(__nh_char_at0(invlet), (0), (0)));
                         classcount++;
                     }
@@ -3280,7 +3287,7 @@ export function display_used_invlets(avoidlet) {
                     add_menu(win, tmpglyphinfo, any, ilet, 0, 0, clr, doname(otmp), 0);
                 }
             }
-            if (game.flags.sortpack && (invlet = __nh_advance_str(invlet, 1))) {
+            if (game.flags.sortpack && __nh_char_at0((invlet = __nh_advance_str(invlet, 1)))) {
                 continue;
             }
             invdone = 1;
@@ -3472,7 +3479,7 @@ export function dounpaid(count, floorcount, buriedcount) {
                 }
             }
         }
-    } while (game.flags.sortpack && ((invlet = __nh_advance_str(invlet, 1))));
+    } while (game.flags.sortpack && (__nh_char_at0((invlet = __nh_advance_str(invlet, 1)))));
     if (count > num_so_far) {
         /* something unpaid is contained */
         if (game.flags.sortpack) {
@@ -3799,6 +3806,7 @@ export function dotypeinv() {
 /* return a string describing the dungeon feature at <x,y> if there
    is one worth mentioning at that location; otherwise null */
 let __dfeature_at_altbuf = '';
+__nh_register_static(() => { __dfeature_at_altbuf = ''; });
 export function dfeature_at(x, y, buf) {
     let lev = game.level.locations[x][y];
     let ltyp = lev.typ;
@@ -5153,6 +5161,7 @@ export function prepare_perminvent(window) {
     }
 }
 let __sync_perminvent_wri = null;
+__nh_register_static(() => { __sync_perminvent_wri = null; });
 export function sync_perminvent() {
     let wport_id = null;
     if (game.WIN_INVEN == (-1)) {

@@ -36,7 +36,7 @@ import { doclose as t_doclose, doopen as t_doopen } from './translated/lock.js';
 import { dotakeoff as t_dotakeoff, dowear as t_dowear, doputon as t_doputon } from './translated/do_wear.js';
 import { doremring as t_doremring, doddoremarm as t_doddoremarm } from './translated/do_wear.js';
 import { dopay as t_dopay } from './translated/shk.js';
-import { dowield as t_dowield, dowieldquiver as t_dowieldquiver, dotwoweapon as t_dotwoweapon } from './translated/wield.js';
+import { dowield as t_dowield, dowieldquiver as t_dowieldquiver, dotwoweapon as t_dotwoweapon, ready_ok } from './translated/wield.js';
 import { doengrave as t_doengrave } from './translated/engrave.js';
 import { doddrop as t_doddrop } from './translated/do.js';
 import { dotypeinv as t_dotypeinv } from './translated/invent.js';
@@ -485,6 +485,95 @@ function buildAttributesPages() {
 // Mirrors the layout (right-aligned at column 32; class headers
 // in bold; per-item line with letter, quantity, BUC status,
 // type name with appearance, worn-mask suffix).
+// Worn mask → suffix.  C ref: invent.c:worn_strs.  Mask values
+// from prop.h: W_WEP=0x100, W_QUIVER=0x200, W_SWAPWEP=0x400.
+function wornSuffix(obj) {
+    const mask = obj?.owornmask;
+    if (!mask) return '';
+    if (mask & 1)    return ' (being worn)';      // ARM
+    if (mask & 2)    return ' (being worn)';      // CLOAK
+    if (mask & 4)    return ' (being worn)';      // HELM
+    if (mask & 8)    return ' (being worn)';      // SHIELD
+    if (mask & 16)   return ' (being worn)';      // GLOVES
+    if (mask & 32)   return ' (being worn)';      // BOOTS
+    if (mask & 64)   return ' (being worn)';      // SHIRT
+    if (mask & 128)  return ' (on left hand)';    // RIGHT
+    if (mask & 256) {
+        // C ref objnam.c:1561-1595 doname — wielded primary weapon.
+        // For non-weapon ammo/missile-multiple stacks shows "(wielded)";
+        // for normal single weapons shows "(weapon in right hand)" or
+        // "(weapon in left hand)" (URIGHTY toggles, default right);
+        // for bimanual weapons (two-handed sword, battle-axe, etc.)
+        // shows "(weapon in hands)" (plural).  When u.twoweap is on
+        // AND obj is the primary (uwep), C uses "wielded in" instead
+        // of "weapon in" — see twoweap_primary branch in objnam.c.
+        const otyp = obj?.otyp || 0;
+        const oc = game.objects?.[otyp];
+        if (oc?.oc_bimanual) return ' (weapon in hands)';
+        const oclass = obj?.oclass || 0;
+        const isWeptool = (oclass === 6 /* TOOL_CLASS */); // simplified
+        const quan = obj?.quan ?? 1;
+        // Note: C macro `oc_skill` aliases `oc_subtyp`; the
+        // translator emits oc_subtyp, so the hand-port reads
+        // oc_subtyp (oc_skill is undefined in JS objects).
+        const ammoOrMissile = (oclass === 2 /* WEAPON_CLASS */) &&
+            (oc?.oc_subtyp === -10 || oc?.oc_subtyp === -11 || oc?.oc_subtyp === -12); // P_BOW arrows, P_CROSSBOW bolts, P_SHURIKEN
+        const twoweapPrimary = !!game.u?.twoweap && (obj === game.uwep);
+        if (quan !== 1 || (oclass === 2 ? ammoOrMissile : !isWeptool)) {
+            // multi-quantity or ammo/missile that's not the twoweap
+            // primary → "(wielded)".  In C this branch also covers
+            // non-weapon items, but those rarely have W_WEP.
+            if (quan !== 1 && !twoweapPrimary) return ' (wielded)';
+        }
+        const handed = (game.flags?.lefty) ? 'left' : 'right';
+        const phrase = twoweapPrimary ? 'wielded in' : 'weapon in';
+        return ` (${phrase} ${handed} hand)`;
+    }
+    if (mask & 512) {  // W_QUIVER
+        // C ref objnam.c:1622-1646.  For WEAPON_CLASS:
+        //   is_ammo + oc_subtyp == -P_BOW (-20)        → "in quiver"
+        //   is_ammo + oc_subtyp in {-21,-22} (non-bow) → "in quiver pouch"
+        //   not ammo                                   → "at the ready"
+        // For small non-bow classes (RING/AMULET/WAND/COIN/GEM)
+        // → "in quiver pouch".  Default → "at the ready".
+        // OCLASS ids per nh-constants.js: WEAPON=2, RING=4, AMULET=5,
+        // WAND=11, COIN=12, GEM=13.
+        // Note: C macro `oc_skill` aliases `oc_subtyp`; translator
+        // emits oc_subtyp, so the hand-port reads that (oc_skill
+        // is undefined in JS objects).
+        const otyp = obj?.otyp || 0;
+        const oc = game.objects?.[otyp];
+        const oclass = obj?.oclass || 0;
+        const ocSkill = oc?.oc_subtyp;
+        const isAmmo = (oclass === 2 /* WEAPON */ || oclass === 13 /* GEM */)
+            && ocSkill >= -22 && ocSkill <= -20;
+        if (oclass === 2 /* WEAPON */) {
+            if (!isAmmo) return ' (at the ready)';
+            return (ocSkill === -20) ? ' (in quiver)' : ' (in quiver pouch)';
+        }
+        if (oclass === 4 /* RING */ || oclass === 5 /* AMULET */
+            || oclass === 11 /* WAND */ || oclass === 12 /* COIN */
+            || oclass === 13 /* GEM */) {
+            return ' (in quiver pouch)';
+        }
+        return ' (at the ready)';
+    }
+    if (mask & 1024) {
+        // C ref doname objnam.c: W_SWAPWEP — when u.twoweap is on
+        // the secondary is shown as "(wielded in <opposite> hand)"
+        // instead of "alternate weapon; not wielded" (objnam.c:1614).
+        if (game.u?.twoweap) {
+            const handed = (game.flags?.lefty) ? 'right' : 'left';
+            return ` (wielded in ${handed} hand)`;
+        }
+        const plural = (obj?.quan ?? 1) !== 1;
+        return plural
+            ? ' (alternate weapons; not wielded)'
+            : ' (alternate weapon; not wielded)';
+    }
+    return '';
+}
+
 function buildInventoryFromState() {
     // C ref wintty.c tty_display_nhwindow — menus choose between
     // right-corner (offx = cols - maxcol - 1, typically ~31) and
@@ -527,94 +616,6 @@ function buildInventoryFromState() {
     // For Tourist starter: $ Weapons Armor Comestibles Scrolls Potions Tools.
     const order = game.flags?.inv_order || [];
 
-    // Worn mask → suffix.  C ref: invent.c:worn_strs.  Mask values
-    // from prop.h: W_WEP=0x100, W_QUIVER=0x200, W_SWAPWEP=0x400.
-    const wornSuffix = (obj) => {
-        const mask = obj?.owornmask;
-        if (!mask) return '';
-        if (mask & 1)    return ' (being worn)';      // ARM
-        if (mask & 2)    return ' (being worn)';      // CLOAK
-        if (mask & 4)    return ' (being worn)';      // HELM
-        if (mask & 8)    return ' (being worn)';      // SHIELD
-        if (mask & 16)   return ' (being worn)';      // GLOVES
-        if (mask & 32)   return ' (being worn)';      // BOOTS
-        if (mask & 64)   return ' (being worn)';      // SHIRT
-        if (mask & 128)  return ' (on left hand)';    // RIGHT
-        if (mask & 256) {
-            // C ref objnam.c:1561-1595 doname — wielded primary weapon.
-            // For non-weapon ammo/missile-multiple stacks shows "(wielded)";
-            // for normal single weapons shows "(weapon in right hand)" or
-            // "(weapon in left hand)" (URIGHTY toggles, default right);
-            // for bimanual weapons (two-handed sword, battle-axe, etc.)
-            // shows "(weapon in hands)" (plural).  When u.twoweap is on
-            // AND obj is the primary (uwep), C uses "wielded in" instead
-            // of "weapon in" — see twoweap_primary branch in objnam.c.
-            const otyp = obj?.otyp || 0;
-            const oc = game.objects?.[otyp];
-            if (oc?.oc_bimanual) return ' (weapon in hands)';
-            const oclass = obj?.oclass || 0;
-            const isWeptool = (oclass === 6 /* TOOL_CLASS */); // simplified
-            const quan = obj?.quan ?? 1;
-            // Note: C macro `oc_skill` aliases `oc_subtyp`; the
-            // translator emits oc_subtyp, so the hand-port reads
-            // oc_subtyp (oc_skill is undefined in JS objects).
-            const ammoOrMissile = (oclass === 2 /* WEAPON_CLASS */) &&
-                (oc?.oc_subtyp === -10 || oc?.oc_subtyp === -11 || oc?.oc_subtyp === -12); // P_BOW arrows, P_CROSSBOW bolts, P_SHURIKEN
-            const twoweapPrimary = !!game.u?.twoweap && (obj === game.uwep);
-            if (quan !== 1 || (oclass === 2 ? ammoOrMissile : !isWeptool)) {
-                // multi-quantity or ammo/missile that's not the twoweap
-                // primary → "(wielded)".  In C this branch also covers
-                // non-weapon items, but those rarely have W_WEP.
-                if (quan !== 1 && !twoweapPrimary) return ' (wielded)';
-            }
-            const handed = (game.flags?.lefty) ? 'left' : 'right';
-            const phrase = twoweapPrimary ? 'wielded in' : 'weapon in';
-            return ` (${phrase} ${handed} hand)`;
-        }
-        if (mask & 512) {  // W_QUIVER
-            // C ref objnam.c:1622-1646.  For WEAPON_CLASS:
-            //   is_ammo + oc_subtyp == -P_BOW (-20)        → "in quiver"
-            //   is_ammo + oc_subtyp in {-21,-22} (non-bow) → "in quiver pouch"
-            //   not ammo                                   → "at the ready"
-            // For small non-bow classes (RING/AMULET/WAND/COIN/GEM)
-            // → "in quiver pouch".  Default → "at the ready".
-            // OCLASS ids per nh-constants.js: WEAPON=2, RING=4, AMULET=5,
-            // WAND=11, COIN=12, GEM=13.
-            // Note: C macro `oc_skill` aliases `oc_subtyp`; translator
-            // emits oc_subtyp, so the hand-port reads that (oc_skill
-            // is undefined in JS objects).
-            const otyp = obj?.otyp || 0;
-            const oc = game.objects?.[otyp];
-            const oclass = obj?.oclass || 0;
-            const ocSkill = oc?.oc_subtyp;
-            const isAmmo = (oclass === 2 /* WEAPON */ || oclass === 13 /* GEM */)
-                && ocSkill >= -22 && ocSkill <= -20;
-            if (oclass === 2 /* WEAPON */) {
-                if (!isAmmo) return ' (at the ready)';
-                return (ocSkill === -20) ? ' (in quiver)' : ' (in quiver pouch)';
-            }
-            if (oclass === 4 /* RING */ || oclass === 5 /* AMULET */
-                || oclass === 11 /* WAND */ || oclass === 12 /* COIN */
-                || oclass === 13 /* GEM */) {
-                return ' (in quiver pouch)';
-            }
-            return ' (at the ready)';
-        }
-        if (mask & 1024) {
-            // C ref doname objnam.c: W_SWAPWEP — when u.twoweap is on
-            // the secondary is shown as "(wielded in <opposite> hand)"
-            // instead of "alternate weapon; not wielded" (objnam.c:1614).
-            if (game.u?.twoweap) {
-                const handed = (game.flags?.lefty) ? 'right' : 'left';
-                return ` (wielded in ${handed} hand)`;
-            }
-            const plural = (obj?.quan ?? 1) !== 1;
-            return plural
-                ? ' (alternate weapons; not wielded)'
-                : ' (alternate weapon; not wielded)';
-        }
-        return '';
-    };
 
     // Object name builder.  C ref: objnam.c:xname.  For inventory
     // display, identified items show just the type name (no
@@ -2029,14 +2030,107 @@ export async function rhack(key) {
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'Q') {
-        // 'Q' quiver — C ref wield.c dowieldquiver →
-        // doquiver_core("ready") → getobj for missile.
-        // Uppercase, no chargen risk.
-        let res = 0;
-        try { res = (await t_dowieldquiver()) || 0; } catch (_e) {
-            if (__env.NH_DEBUG_EXTCMD) console.error('[Q dowieldquiver]', _e.message);
+        // 'Q' quiver — async hand-port of dowieldquiver ->
+        // doquiver_core("ready") -> getobj(ready_ok).  Mirror the
+        // 't' throw pattern: render the getobj prompt, read the item
+        // key, feed it to cmdq so translated getobj pops it.  The
+        // old wire called t_dowieldquiver() bare; getobj found an
+        // empty cmdq, aborted via readKeySync ESC-on-empty, and the
+        // session's item/confirm keys leaked to rhack as movement
+        // commands ('b'/'y' = SW/NW), burning turns and shifting
+        // every later turn boundary (seed0101 div @2293, Q9 iter
+        // 39).  Uppercase, no chargen risk.
+        //
+        // C ref wield.c ready_ok: '-' is SUGGEST when uquiver is
+        // filled; getobj's prompt joins it ahead of the letters
+        // with a space — "[- cd or ?*]" (invent.c compose_obj_list).
+        const qSuggest = [];
+        let qHasCoin = false;
+        let qHasInvent = false;
+        for (let p = game.invent; p; p = p.nobj) {
+            qHasInvent = true;
+            let ok = 0;
+            try { ok = ready_ok(p); } catch (_e) { ok = 0; }
+            if (ok === 2 /* GETOBJ_SUGGEST */) {
+                if (p.oclass === 12 /* COIN_CLASS */) qHasCoin = true;
+                else qSuggest.push(String.fromCharCode(p.invlet));
+            }
         }
-        game.context.move = (res & 1) ? 1 : 0;
+        if (!qHasInvent) {
+            // C doquiver_core: "You have nothing to ready for firing."
+            await pline("You have nothing to ready for firing.");
+            game.context.move = 0;
+        } else {
+            let qNone = 0;
+            try { qNone = ready_ok(null); } catch (_e) { qNone = 0; }
+            const qLetters = (qHasCoin ? '$' : '') + qSuggest.join('');
+            const qLets = (qNone === 2 ? '-' + (qLetters ? ' ' : '') : '') + qLetters;
+            const qPrompt = qLets.length > 0
+                ? `What do you want to ready? [${qLets} or ?*]`
+                : `What do you want to ready? [*]`;
+            game._pending_message = qPrompt;
+            game._cursor_override = { x: qPrompt.length + 1, y: 0 };
+            game._cursor_override_oneshot = true;
+            await flush_screen(1);
+            const qKey = await nhgetch();
+            game._cursor_override = null;
+            if (qKey === 0x1b) {
+                await pline("Never mind.");
+                game.context.move = 0;
+            } else {
+                // If the picked item is the alternate weapon (single,
+                // not dual-wielding), C's doquiver_core requires a
+                // [ynq] confirmation before readying it.  That ynq
+                // runs through the SYNC win_yn_function -> readKeySync
+                // path, which cannot await the async display queue
+                // (and must keep its ESC-on-empty behavior).  Render
+                // the same prompt here, read the answer key, and feed
+                // it to input.js's queue so readKeySync finds it.
+                // C ref wield.c doquiver_core: "%s your %s weapon.
+                // Ready %s instead?" -- quan==1, !twoweap arm only;
+                // other arms (wielded weapon, splittable stacks) keep
+                // the old behavior until a session exercises them.
+                let qPicked = null;
+                for (let p = game.invent; p; p = p.nobj) {
+                    if (p.invlet === qKey) { qPicked = p; break; }
+                }
+                if (qPicked && game.uswapwep && qPicked === game.uswapwep
+                    && !game.u.twoweap && qPicked.quan === 1) {
+                    const cPrompt =
+                        "That is your alternate weapon.  Ready it instead? [ynq] (q)";
+                    game._pending_message = cPrompt;
+                    game._cursor_override = { x: cPrompt.length + 1, y: 0 };
+                    game._cursor_override_oneshot = true;
+                    await flush_screen(1);
+                    const cKey = await nhgetch();
+                    game._cursor_override = null;
+                    inputPushKey(cKey);
+                }
+                t_cmdq_add_key(0 /* CQ_CANNED */, qKey);
+                let res = 0;
+                try { res = (await t_dowieldquiver()) || 0; } catch (_e) {
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[Q dowieldquiver]', _e.message);
+                }
+                // doquiver_core's prinv line should carry doname's
+                // worn suffix ("b - a +1 bow (at the ready).") but
+                // production doname's Concat appends are dead on
+                // string bufs (objnam migration blocker).  Splice the
+                // suffix into the pending prinv message via the same
+                // wornSuffix table the inventory overlay uses.
+                if (qPicked && qPicked === game.uquiver
+                    && typeof game._pending_message === 'string') {
+                    const pfx = String.fromCharCode(qPicked.invlet) + ' - ';
+                    const sfx = wornSuffix(qPicked);
+                    if (sfx && game._pending_message.startsWith(pfx)
+                        && game._pending_message.endsWith('.')
+                        && !game._pending_message.includes(sfx)) {
+                        game._pending_message =
+                            game._pending_message.slice(0, -1) + sfx + '.';
+                    }
+                }
+                game.context.move = (res & 1) ? 1 : 0;
+            }
+        }
     } else if (ch === 'T') {
         // Single-char takeoff dispatch — async hand-port of
         // dotakeoff.  C ref: do_wear.c dotakeoff (line ~1745).
@@ -2408,6 +2502,94 @@ export async function rhack(key) {
             kind: 'text', pages, page: 0,
             cType: 'NHW_MENU', offx: 0,
         };
+        game.context.move = 0;
+    } else if (ch === '_') {
+        // '_' travel — C ref cmd.c dotravel → getpos position pick.
+        // The recorded sessions only exercise the prompt/tip/cancel
+        // flow (no destination is ever confirmed), which is entirely
+        // PRNG-free.  Mirror C's three UI states exactly (Q9 iter
+        // 40, seed0101 steps 10-16):
+        //   1. "Where do you want to travel to?--More--" topl;
+        //      cursor parks AT message end (More convention).
+        //   2. First-use farlook tip — full-screen NHW_TEXT window;
+        //      only space/CR/ESC dismiss it, other keys are absorbed
+        //      with the window still up (C xwaitforspace).
+        //   3. getpos mode: "(For instructions type a '?')  Move
+        //      cursor to the desired destination:" with the map
+        //      cursor on the hero; movement keys move the pick
+        //      cursor, ESC cancels (topl cleared), any other key
+        //      shows C's "Unknown direction" line.
+        // Actually CONFIRMING a destination (. or ,) starts real
+        // travel (time + RNG) — not implemented; we exit the UI and
+        // leave a loud marker so a future session that travels
+        // fails visibly rather than silently.
+        const m1 = "Where do you want to travel to?--More--";
+        game._pending_message = m1;
+        game._cursor_override = { x: m1.length, y: 0 };
+        game._cursor_override_oneshot = true;
+        await flush_screen(1);
+        await nhgetch(); /* dismiss --More-- */
+        game._cursor_override = null;
+        // 2. farlook tip window (C getpos first-use tip; canonical
+        // text from cmd.c gloc tip — verbatim).
+        const tipLines = [
+            "          Tip: Farlooking or selecting a map location",
+            "",
+            "          You are now in a \"farlook\" mode - the movement keys move the cursor,",
+            "          not your character.  Game time does not advance.  This mode is used",
+            "          to look around the map, or to select a location on it.",
+            "",
+            "          When in this mode, you can press ESC to return to normal game mode,",
+            "          and pressing ? will show the key help.",
+            "          (end)",
+        ];
+        game._pending_message = '';
+        // C's tip is a menu-style window: it covers the map area but
+        // the status window (rows 22-23) stays visible underneath.
+        // kind 'menu' renders map+status under the page (the map
+        // rows it would show are dark here); cType NHW_MENU + offx
+        // 10 puts the dmore cursor exactly at the canonical [16,8]
+        // (offx + 1 + "(end)".length).
+        game._menu_overlay = { kind: 'menu', pages: [tipLines], page: 0, cType: 'NHW_MENU', offx: 10 };
+        for (;;) {
+            await flush_screen(1);
+            const k = await nhgetch();
+            if (k === 0x1b || k === 0x20 || k === 0x0d || k === 0x0a) break;
+            /* other keys: window stays up (C xwaitforspace) */
+        }
+        game._menu_overlay = null;
+        // 3. getpos pick mode, cursor on the hero.
+        let gx = game.u.ux, gy = game.u.uy;
+        const gposPrompt = "(For instructions type a '?')  Move cursor to the desired destination:";
+        game._pending_message = gposPrompt;
+        game._cursor_override = { x: gx - 1, y: gy + 1 };
+        game._cursor_override_oneshot = false;
+        for (;;) {
+            await flush_screen(1);
+            const k = await nhgetch();
+            if (k === 0x1b) {
+                /* cancel: C clears the topl and parks cursor at hero */
+                game._pending_message = '';
+                break;
+            }
+            const dirs = { 104: [-1, 0], 106: [0, 1], 107: [0, -1], 108: [1, 0],
+                           121: [-1, -1], 117: [1, -1], 98: [-1, 1], 110: [1, 1] };
+            if (dirs[k]) {
+                gx += dirs[k][0]; gy += dirs[k][1];
+                if (gx < 1) gx = 1; if (gx > 79) gx = 79;
+                if (gy < 0) gy = 0; if (gy > 20) gy = 20;
+                game._cursor_override = { x: gx - 1, y: gy + 1 };
+            } else if (k === 0x2e /* . */ || k === 0x2c /* , */) {
+                /* destination confirm → real travel NOT implemented */
+                await pline("Travel movement is not implemented.");
+                break;
+            } else {
+                /* C getpos cmd.c: "Unknown direction: '%c' (use 'h',
+                   'j', 'k', 'l' or '.')." — cursor stays put */
+                game._pending_message = "Unknown direction: '" + String.fromCharCode(k) + "' (use 'h', 'j', 'k', 'l' or '.').";
+            }
+        }
+        game._cursor_override = null;
         game.context.move = 0;
     } else if (ch === '\\') {
         // dodiscovered: show pre-discovered objects.  C ref:

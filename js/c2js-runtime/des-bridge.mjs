@@ -53,6 +53,9 @@ import { Selection } from './selection-js.mjs';
 // `lspoTable` is the array-of-{name, func} from sp_lev.js
 // (nhl_functions).  We iterate it once to build the proxy.
 export function buildDesProxy(L, lspoTable) {
+    // Stamp the state with the creating session's epoch (see the
+    // stale-chain guard below).
+    L.__nh_epoch = globalThis.__nh_session_epoch;
     const proxy = {};
     for (const entry of lspoTable) {
         if (!entry?.name || !entry?.func) continue;
@@ -70,6 +73,24 @@ export function buildDesProxy(L, lspoTable) {
             // percent cluster never reached its litstate_rnd rolls).
             // Mirror lua_pcall_async: push a frame base at the current
             // absolute top, pop it in finally.
+            // Session-epoch guard (Q9 iteration 33): a detached async
+            // chain from a PREVIOUS session can resume after its
+            // session ended (seed0108's level-gen chain woke during
+            // the next session and spent its PRNG — rn2(26) from
+            // get_location landing at the victim's call 203,
+            // re-introducing the 23.143 pollution in the one-process
+            // runner).  Sessions bump globalThis.__nh_session_epoch
+            // at start; a des.* call against a state created in an
+            // older epoch throws here — absorbed by ITS OWN pcall
+            // layers, dying in the old context instead of polluting
+            // the new session.
+            const __epoch = globalThis.__nh_session_epoch;
+            if (L.__nh_epoch !== undefined && __epoch !== undefined
+                && L.__nh_epoch !== __epoch) {
+                throw new Error('stale-session des.' + entry.name
+                    + ' (cross-session chain, epoch ' + L.__nh_epoch
+                    + ' vs ' + __epoch + ')');
+            }
             const absBase = L.stack.length;
             L.frameBases.push(absBase);
             try {

@@ -581,6 +581,17 @@ patchFile('worn.js', (s) => {
         /void 0 \/\* TODO Phase 5\+: pointer-mutation lvalue \(C: \*p = null\) \*\/;/g,
         `{ const __f = ${fieldMap}[wp.w_mask]; if (__f) game[__f] = null; }`
     );
+    // READ side of the same gap (Q9 iter 40): C's worn[] stores
+    // `&uarm`-style POINTERS; the emit captured `game.uarm` VALUES
+    // at module load, so every `wp.w_obj` read returned the stale
+    // load-time value forever.  Concrete symptom: setworn(null,
+    // W_SWAPWEP) found oobj=null and never cleared the bow's old
+    // W_SWAPWEP bit (seed0101 mask 1536 after Q-ready).  Rewrite
+    // each table entry to a getter so reads resolve the live slot.
+    s = s.replace(
+        /w_obj: (game\.(?:uarm|uarmc|uarmh|uarms|uarmg|uarmf|uarmu|uleft|uright|uwep|uswapwep|uquiver|uamul|ublindf|uball|uchain)),/g,
+        'get w_obj() { return $1; },'
+    );
     return s;
 });
 
@@ -3196,8 +3207,8 @@ patchFile('invent.js', (s) => {
     // 1 unmatched open-brace per file → "Unexpected token 'export'" in
     // invent.js + objnam.js downstream.
     s = s.replace(
-        /        if \(olets && (?:olets\.value && \+\+olets|__nh_char_at0\(olets\) && \(olets = __nh_advance_str\(olets, 1\)\))\) \{\n            \/\* TODO Phase 5\+: goto nextclass \(label not in scope of break\) \*\/\n        \}\n        if \(!takeoff && \(dud \|\| cnt\)\) \{\n            (?:await )?pline\("That was all\."\);\n        \} else if \(!dud && !cnt\) \{\n            (?:await )?pline\("No applicable objects\."\);\n        \}\n    \}\n    unsortloot/,
-        `        if (olets && __nh_char_at0(olets) && (olets = __nh_advance_str(olets, 1))) {
+        /        if \(olets && (?:olets\.value && \+\+olets|__nh_char_at0\(olets\) && \(olets = __nh_advance_str\(olets, 1\)\)|__nh_char_at0\(olets\) && __nh_char_at0\(\(olets = __nh_advance_str\(olets, 1\)\)\))\) \{\n            \/\* TODO Phase 5\+: goto nextclass \(label not in scope of break\) \*\/\n        \}\n        if \(!takeoff && \(dud \|\| cnt\)\) \{\n            (?:await )?pline\("That was all\."\);\n        \} else if \(!dud && !cnt\) \{\n            (?:await )?pline\("No applicable objects\."\);\n        \}\n    \}\n    unsortloot/,
+        `        if (olets && __nh_char_at0(olets) && __nh_char_at0((olets = __nh_advance_str(olets, 1)))) {
             continue nextclass;
         }
         if (!takeoff && (dud || cnt)) {
@@ -3217,27 +3228,34 @@ patchFile('invent.js', (s) => {
     {
         invlet = game.flags.inv_order;`
     );
+    // RETIRED 2026-06-11 (iteration 31): while-creator sub-replace —
+    // the translator emits the labeled while natively now.
+    // Declare the venom one-shot flag before display_pickinv's
+    // NATIVE labeled loop (the translator now emits the backward
+    // goto as `nextclass: while (true)` itself; askchain's
+    // same-named loop has no classcount line, so this anchor is
+    // display_pickinv-specific).
     s = s.replace(
-        /    classcount = 0;\n    prevorderclass = 0;\n    for \(let __nhi_srtinv = 0; \(srtinv = sortedinvent\[__nhi_srtinv\]\) && \(\(otmp = srtinv\.obj\) != null\); __nhi_srtinv\+\+\) \{/,
-        `    nextclass: while (true) {
-    classcount = 0;
-    prevorderclass = 0;
-    for (let __nhi_srtinv = 0; (srtinv = sortedinvent[__nhi_srtinv]) && ((otmp = srtinv.obj) != null); __nhi_srtinv++) {`
+        /    nextclass: while \(true\) \{\n        classcount = 0;/,
+        `    let __venom_done = false;
+    nextclass: while (true) {
+        classcount = 0;`
     );
+    // VENOM pass: C's `if (--invlet != venom_inv)` is a POINTER
+    // IDENTITY check (did the venom pass already run?).  String/array
+    // slices can never reproduce it: advance(invlet,-1) of an
+    // exhausted walk is never === the venom_inv module const, so the
+    // venom pass repeated FOREVER (the seed4500 census spin's second
+    // half, Q9 iteration 31; the first was the *++invlet byte read,
+    // fixed at the translator).  One-shot flag = C's identity
+    // semantics exactly: main walk -> one venom pass -> exit.
     s = s.replace(
-        /    if \(game\.flags\.sortpack\) \{\n        if \(\+\+invlet\) \{\n            \/\* TODO Phase 5\+: goto nextclass \(label not in scope of break\) \*\/\n        \}\n        if \(--invlet != venom_inv\) \{\n            invlet = venom_inv;\n            \/\* TODO Phase 5\+: goto nextclass \(label not in scope of break\) \*\/\n        \}\n    \}\n    if \(save_flags_sortpack != game\.flags\.sortpack\) \{/,
-        `    if (game.flags.sortpack) {
-        if (++invlet) {
-            continue nextclass;
-        }
-        if (--invlet != venom_inv) {
-            invlet = venom_inv;
-            continue nextclass;
-        }
-    }
-    break nextclass;
-    }
-    if (save_flags_sortpack != game.flags.sortpack) {`
+        /            if \(\(invlet = __nh_advance_str\(invlet, -1\)\) != venom_inv\) \{\n                invlet = venom_inv;\n                continue nextclass;\n            \}/,
+        `            if (!__venom_done) {
+                __venom_done = true;
+                invlet = venom_inv;
+                continue nextclass;
+            }`
     );
     // noadjust: 3 forward goto sites — inline the body
     const NOADJUST_BODY = `if (splitting) {
@@ -6846,13 +6864,18 @@ patchFile('sp_lev.js', (s) => {
 // unblocks print_dungeon's wizard level-teleport menu (the `?`
 // sub-path of the getbones x7 cluster).
 patchFile('dungeon.js', (s) => {
+    // `await` is valid only in the async emit — the enclosing
+    // functions stay sync in default builds (a hardcoded await here
+    // made every SYNC sandbox build die at module load with
+    // "Unexpected reserved word" in dungeon.js).
+    const aw = process.env.NH_EMIT_ASYNC ? 'await ' : '';
     s = s.replace(
         /n = (?:await )?select_menu\(win, 1, selected\);/g,
-        '{ const __selbox = { value: null }; n = await select_menu(win, 1, __selbox); selected = __selbox.value; }'
+        `{ const __selbox = { value: null }; n = ${aw}select_menu(win, 1, __selbox); selected = __selbox.value; }`
     );
     s = s.replace(
         /n = (?:await )?select_menu\(win, \(why != -1\) \? 0 : 1, selected\);/g,
-        '{ const __selbox = { value: null }; n = await select_menu(win, (why != -1) ? 0 : 1, __selbox); selected = __selbox.value; }'
+        `{ const __selbox = { value: null }; n = ${aw}select_menu(win, (why != -1) ? 0 : 1, __selbox); selected = __selbox.value; }`
     );
     return s;
 });
