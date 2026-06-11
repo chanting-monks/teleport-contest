@@ -2143,11 +2143,69 @@ export async function rhack(key) {
         // needed.  dotakeoff is sync.  When prompt is needed,
         // getobj reads from input.js _inputQueue via readKeySync
         // for the pre-buffered armor letter key.
-        let res = 0;
-        try { res = (await t_dotakeoff()) || 0; } catch (_e) {
-            if (__env.NH_DEBUG_EXTCMD) console.error('[T dotakeoff]', _e.message);
+        // Q9 iter 59 (seed0367 @1933): with 2+ worn pieces C's
+        // getobj prompt consumes the next keys; the bare call's
+        // translated getobj read an EMPTY _inputQueue and aborted
+        // via readKeySync ESC-on-empty, leaking the answer keys to
+        // rhack (a ^W became the wish bridge and swallowed the
+        // following keys as wish text).  Same class and fix shape
+        // as the 'Q' quiver bridge above: render C's prompt, read
+        // keys via nhgetch with C's invalid-letter "You don't have
+        // that object.--More--" loop, push the accepted letter to
+        // input.js's queue so the translated getobj pops it.
+        // W_ARMOR = 0x7f (prop.h:108).
+        const tWorn = [];
+        for (let p = game.invent; p; p = p.nobj) {
+            if ((p.owornmask & 0x7f) !== 0) tWorn.push(p.invlet);
         }
-        game.context.move = (res & 1) ? 1 : 0;
+        if (tWorn.length <= 1) {
+            let res = 0;
+            try { res = (await t_dotakeoff()) || 0; } catch (_e) {
+                if (__env.NH_DEBUG_EXTCMD) console.error('[T dotakeoff]', _e.message);
+            }
+            game.context.move = (res & 1) ? 1 : 0;
+        } else {
+            const tLets = tWorn.map((c) => String.fromCharCode(c)).join('');
+            const tPrompt = `What do you want to take off? [${tLets} or ?*]`;
+            let tDone = false;
+            let tAccepted = -1;
+            while (!tDone) {
+                game._pending_message = tPrompt;
+                game._cursor_override = { x: tPrompt.length + 1, y: 0 };
+                game._cursor_override_oneshot = true;
+                await flush_screen(1);
+                const tKey = await nhgetch();
+                game._cursor_override = null;
+                if (tKey === 0x1b) {
+                    await pline("Never mind.");
+                    tDone = true;
+                } else if (tWorn.includes(tKey)) {
+                    tAccepted = tKey;
+                    tDone = true;
+                } else {
+                    // C getobj: unknown letter -> "You don't have that
+                    // object." with --More--; the next key dismisses
+                    // and the prompt re-renders.
+                    const tErr = "You don't have that object.--More--";
+                    game._pending_message = tErr;
+                    game._cursor_override = { x: tErr.length, y: 0 };
+                    game._cursor_override_oneshot = true;
+                    await flush_screen(1);
+                    await nhgetch();
+                    game._cursor_override = null;
+                }
+            }
+            if (tAccepted >= 0) {
+                inputPushKey(tAccepted);
+                let res = 0;
+                try { res = (await t_dotakeoff()) || 0; } catch (_e) {
+                    if (__env.NH_DEBUG_EXTCMD) console.error('[T dotakeoff]', _e.message);
+                }
+                game.context.move = (res & 1) ? 1 : 0;
+            } else {
+                game.context.move = 0;
+            }
+        }
     } else if (ch === 'W') {
         // 'W' wear — C ref do_wear.c dowear → getobj("wear",
         // wear_ok, 0).  If nothing wearable, fires its own
