@@ -67,7 +67,7 @@ game.mcast_data = [{ level: 0, flags: 4 | 2 }, { level: 0, flags: 4 | 2 }, { lev
 game.mon_cleric_spells = [MCAST_OPEN_WOUNDS, MCAST_CURE_SELF, MCAST_CONFUSE_YOU, MCAST_PARALYZE, MCAST_BLIND_YOU, MCAST_INSECTS, MCAST_CURSE_ITEMS, MCAST_LIGHTNING, MCAST_FIRE_PILLAR, MCAST_GEYSER];
 game.mon_wizard_spells = [MCAST_PSI_BOLT, MCAST_CURE_SELF, MCAST_HASTE_SELF, MCAST_STUN_YOU, MCAST_DISAPPEAR, MCAST_WEAKEN_YOU, MCAST_DESTRY_ARMR, MCAST_CURSE_ITEMS, MCAST_AGGRAVATION, MCAST_SUMMON_MONS, MCAST_CLONE_WIZ, MCAST_DEATH_TOUCH];
 /* feedback when frustrated monster couldn't cast a spell */
-export function cursetxt(mtmp, undirected) {
+export async function cursetxt(mtmp, undirected) {
     if (canseemon(mtmp) && ((game.viz_array[mtmp.my][mtmp.mx] & 1) != 0)) {
         /* spellcasting monsters are impolite */
         let point_msg = null;
@@ -80,15 +80,15 @@ export function cursetxt(mtmp, undirected) {
         } else {
             point_msg = "at you, then curses";
         }
-        pline_mon(mtmp, "%s points %s.", Monnam(mtmp), point_msg);
+        await pline_mon(mtmp, "%s points %s.", await Monnam(mtmp), point_msg);
     } else if ((!(game.moves % 4) || !rn2(4))) {
         if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-            Norep("You hear a mumbled curse.");
+            await Norep("You hear a mumbled curse.");
         }
     }
 }
 /* choose a spell for monster to cast */
-export function choose_monster_spell(mtmp, adtyp) {
+export async function choose_monster_spell(mtmp, adtyp) {
     let list = null;
     let i = 0;
     let spellval = 0;
@@ -112,9 +112,8 @@ export function choose_monster_spell(mtmp, adtyp) {
     if (spellval > maxlev && rn2(maxlev)) {
         spellval = rn2(maxlev);
     }
-    /* find the highest spell in the list we could cast */
     for (i = len - 1; i >= 0; i--) {
-        if (game.mcast_data[list[i]].level <= spellval && !spell_would_be_useless(mtmp, list[i])) {
+        if (game.mcast_data[list[i]].level <= spellval && !await spell_would_be_useless(mtmp, list[i])) {
             return list[i];
         }
     }
@@ -129,7 +128,7 @@ export function choose_monster_spell(mtmp, adtyp) {
 /* caster's current attack */
 /* might be mistaken if displaced */
 /* knows hero's precise location */
-export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
+export async function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
     let dmg = 0;
     let ml = mtmp.m_lev;
     let ret = 0;
@@ -149,12 +148,11 @@ export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
      */
         let cnt = 40;
         do {
-            spellnum = choose_monster_spell(mtmp, mattk.adtyp);
+            spellnum = await choose_monster_spell(mtmp, mattk.adtyp);
             if (!thinks_it_foundyou) {
-                if (!is_undirected_spell(spellnum) || spell_would_be_useless(mtmp, spellnum)) {
-                    /* not trying to attack?  don't allow directed spells */
+                if (!is_undirected_spell(spellnum) || await spell_would_be_useless(mtmp, spellnum)) {
                     if (foundyou) {
-                        impossible("spellcasting monster found you and doesn't know it?");
+                        await impossible("spellcasting monster found you and doesn't know it?");
                     }
                     return 0;
                 }
@@ -168,20 +166,19 @@ export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
                 /* healing when already healed */
                 break;
             }
-        } while (--cnt > 0 && spell_would_be_useless(mtmp, spellnum));
+        } while (--cnt > 0 && await spell_would_be_useless(mtmp, spellnum));
         if (cnt == 0) {
             return 0;
         }
     }
     if (mtmp.mcan || mtmp.mspec_used || !ml || ((mtmp).seen_resistance & (cvt_adtyp_to_mseenres(mattk.adtyp)))) {
-        /* monster unable to cast spells? */
-        cursetxt(mtmp, is_undirected_spell(spellnum));
+        await cursetxt(mtmp, is_undirected_spell(spellnum));
         return 0;
     }
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/mcastu.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("castmu:%s,lvl:%i,spell:%i", noit_Monnam(mtmp), ml, spellnum);
+            await pline("castmu:%s,lvl:%i,spell:%i", await noit_Monnam(mtmp), ml, spellnum);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -190,17 +187,7 @@ export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
         mtmp.mspec_used = ((mtmp.m_lev < 8) ? (10 - mtmp.m_lev) : 2);
     }
     if (!foundyou && thinks_it_foundyou && !is_undirected_spell(spellnum)) {
-        /* Monster can cast spells, but is casting a directed spell at the
-     * wrong place?  If so, give a message, and return.
-     * Do this *after* penalizing mspec_used.
-     *
-     * FIXME?
-     *  Shouldn't wall of lava have a case similar to wall of water?
-     *  And should cold damage hit water or lava instead of missing
-     *  even when the caster has targeted the wrong spot?  Likewise
-     *  for fire mis-aimed at ice.
-     */
-        pline_mon(mtmp, "%s casts a spell at %s!", canseemon(mtmp) ? Monnam(mtmp) : "Something", is_waterwall(mtmp.mux, mtmp.muy) ? "empty water" : "thin air");
+        await pline_mon(mtmp, "%s casts a spell at %s!", canseemon(mtmp) ? await Monnam(mtmp) : "Something", is_waterwall(mtmp.mux, mtmp.muy) ? "empty water" : "thin air");
         return 0;
     }
     nomul(0);
@@ -208,12 +195,12 @@ export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
         ;
         if (canseemon(mtmp) && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
             set_msg_xy(mtmp.mx, mtmp.my);
-            pline_The("air crackles around %s.", mon_nam(mtmp));
+            await pline_The("air crackles around %s.", await mon_nam(mtmp));
         }
         return 0;
     }
     if ((canseemon(mtmp) || sensemon(mtmp)) || !is_undirected_spell(spellnum)) {
-        pline_mon(mtmp, "%s casts a spell%s!", (canseemon(mtmp) || sensemon(mtmp)) ? Monnam(mtmp) : "Something", is_undirected_spell(spellnum) ? "" : (((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !(((mtmp.data).mflags1 & 16777216) != 0) && !((mtmp.mux) == game.u.ux && (mtmp.muy) == game.u.uy)) ? " at a spot near you" : ((game.u.uprops[DISPLACED].intrinsic || game.u.uprops[DISPLACED].extrinsic) && !((mtmp.mux) == game.u.ux && (mtmp.muy) == game.u.uy)) ? " at your displaced image" : " at you");
+        await pline_mon(mtmp, "%s casts a spell%s!", (canseemon(mtmp) || sensemon(mtmp)) ? await Monnam(mtmp) : "Something", is_undirected_spell(spellnum) ? "" : (((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !(((mtmp.data).mflags1 & 16777216) != 0) && !((mtmp.mux) == game.u.ux && (mtmp.muy) == game.u.uy)) ? " at a spot near you" : ((game.u.uprops[DISPLACED].intrinsic || game.u.uprops[DISPLACED].extrinsic) && !((mtmp.mux) == game.u.ux && (mtmp.muy) == game.u.uy)) ? " at your displaced image" : " at you");
     }
     if (!foundyou) {
         /*
@@ -222,7 +209,7 @@ export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
      */
         dmg = 0;
         if (mattk.adtyp != 241 && mattk.adtyp != 240) {
-            impossible("%s casting non-hand-to-hand version of hand-to-hand spell %d?", Monnam(mtmp), mattk.adtyp);
+            await impossible("%s casting non-hand-to-hand version of hand-to-hand spell %d?", await Monnam(mtmp), mattk.adtyp);
             return 0;
         }
     } else if (mattk.damd) {
@@ -240,42 +227,36 @@ export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
      *  they inflict damage on carried items.
      */
         case 2:
-            pline("You're enveloped in flames.");
+            await pline("You're enveloped in flames.");
             if ((game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic)) {
-                /* prior to 3.4.0 Antimagic was setting the damage to 1--this
-       made the spell virtually harmless to players with magic res. */
-                shieldeff(game.u.ux, game.u.uy);
-                pline("But you resist the effects.");
+                await shieldeff(game.u.ux, game.u.uy);
+                await pline("But you resist the effects.");
                 monstseesu(M_SEEN_FIRE);
                 /* done by the spell casting functions */
                 dmg = 0;
             } else {
                 monstunseesu(M_SEEN_FIRE);
             }
-            burn_away_slime();
-            /* burn up flammable items on the floor, melt ice terrain */
-            mon_spell_hits_spot(mtmp, 2, game.u.ux, game.u.uy);
+            await burn_away_slime();
+            await mon_spell_hits_spot(mtmp, 2, game.u.ux, game.u.uy);
             break;
         case 3:
-            pline("You're covered in frost.");
+            await pline("You're covered in frost.");
             if ((game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                pline("But you resist the effects.");
+                await shieldeff(game.u.ux, game.u.uy);
+                await pline("But you resist the effects.");
                 monstseesu(M_SEEN_COLD);
                 dmg = 0;
             } else {
                 monstunseesu(M_SEEN_COLD);
             }
-            /* freeze water or lava terrain */
-            /* FIXME: mon_spell_hits_spot() uses zap_over_floor(); unlike with
-         * fire, it does not target susceptible floor items with cold */
-            mon_spell_hits_spot(mtmp, 3, game.u.ux, game.u.uy);
+            await mon_spell_hits_spot(mtmp, 3, game.u.ux, game.u.uy);
             break;
         case 1:
-            You("are hit by a shower of missiles!");
+            await You("are hit by a shower of missiles!");
             if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                pline_The("missiles bounce off!");
+                await shieldeff(game.u.ux, game.u.uy);
+                await pline_The("missiles bounce off!");
                 monstseesu(M_SEEN_MAGR);
                 dmg = 0;
             } else {
@@ -284,27 +265,25 @@ export function castmu(mtmp, mattk, thinks_it_foundyou, foundyou) {
            actually destroyed */
                 monstunseesu(M_SEEN_MAGR);
             }
-            /* shower of magic missiles scuffs an engraving */
-            mon_spell_hits_spot(mtmp, 1, game.u.ux, game.u.uy);
+            await mon_spell_hits_spot(mtmp, 1, game.u.ux, game.u.uy);
             break;
         case 241:
         case 240:
-            mcast_spell(mtmp, dmg, spellnum);
+            await mcast_spell(mtmp, dmg, spellnum);
             dmg = 0;
             break;
     }
     if (dmg) {
-        mdamageu(mtmp, dmg);
+        await mdamageu(mtmp, dmg);
     }
     return ret;
 }
-export function m_cure_self(mtmp, dmg) {
+export async function m_cure_self(mtmp, dmg) {
     if (mtmp.mhp < mtmp.mhpmax) {
         if (canseemon(mtmp)) {
-            pline_mon(mtmp, "%s looks better.", Monnam(mtmp));
+            await pline_mon(mtmp, "%s looks better.", await Monnam(mtmp));
         }
-        /* note: player healing does 6d4; this used to do 1d8 */
-        healmon(mtmp, d(3, 6), 0);
+        await healmon(mtmp, d(3, 6), 0);
         dmg = 0;
     }
     /* since inventory items aren't affected, don't include this */
@@ -312,21 +291,19 @@ export function m_cure_self(mtmp, dmg) {
 }
 /* unlike the finger of death spell which behaves like a wand of death,
    this monster spell only attacks the hero */
-export function touch_of_death(mtmp) {
+export async function touch_of_death(mtmp) {
     let kbuf = '';
     let dmg = 50 + d(8, 6);
     let drain = Math.trunc(dmg / 2);
-    /* if we get here, we know that hero isn't magic resistant and isn't
-       poly'd into an undead or demon */
-    You_feel("drained...");
-    death_inflicted_by(kbuf, "the touch of death", mtmp);
+    await You_feel("drained...");
+    await death_inflicted_by(kbuf, "the touch of death", mtmp);
     if ((game.u.umonnum != game.u.umonster)) {
         game.u.mh = 0;
-        rehumanize();
+        await rehumanize();
     } else if (drain >= game.u.uhpmax) {
         game.killer.format = 1;
         game.killer.name = strcpy(game.killer.name, kbuf);
-        done(DIED);
+        await done(DIED);
     } else {
         /* HP manipulation similar to poisoned(attrib.c) */
         let olduhp = game.u.uhp;
@@ -337,16 +314,16 @@ export function touch_of_death(mtmp) {
                                         * already been reduced due to drop
                                         * in uhpmax */
         dmg = adjuhploss(dmg, olduhp);
-        losehp(dmg, kbuf, 1);
+        await losehp(dmg, kbuf, 1);
     }
     /* not killed if we get here... */
-    game.killer.name[0] = 0;
+    game.killer.name = '';
 }
 /* give a reason for death by some monster spells */
 /* assumed big enough; pm_names are short */
 /* cause of death */
 /* monster who caused it */
-export function death_inflicted_by(outbuf, deathreason, mtmp) {
+export async function death_inflicted_by(outbuf, deathreason, mtmp) {
     outbuf = strcpy(outbuf, deathreason);
     if (mtmp) {
         let mptr = mtmp.data;
@@ -358,11 +335,11 @@ export function death_inflicted_by(outbuf, deathreason, mtmp) {
            shape changed, it won't be a vampshifter or mimic since they
            can't cast spells */
         if (!(((champtr).mflags2 & 524288) != 0) && !the_unique_pm(mptr)) {
-            realnm = an(realnm);
+            realnm = await an(realnm);
         }
         outbuf = __nh_buf_append(outbuf, sprintf('', " inflicted by %s%s", the_unique_pm(mptr) ? "the " : "", realnm));
         if (champtr != mptr) {
-            outbuf = __nh_buf_append(outbuf, sprintf('', " imitating %s", an(fakenm)));
+            outbuf = __nh_buf_append(outbuf, sprintf('', " imitating %s", await an(fakenm)));
         }
     }
     return outbuf;
@@ -370,73 +347,73 @@ export function death_inflicted_by(outbuf, deathreason, mtmp) {
 /*
  * Monster wizard and cleric spellcasting functions.
  */
-export function mcast_death_touch(mtmp) {
-    pline("Oh no, %s's using the touch of death!", (genders[pronoun_gender(mtmp, 2)].he));
+export async function mcast_death_touch(mtmp) {
+    await pline("Oh no, %s's using the touch of death!", (genders[pronoun_gender(mtmp, 2)].he));
     if (((((game.youmonst.data).mflags2 & 2) != 0) || (game.youmonst.data) == game.mons[PM_MANES] || (((game.youmonst.data).mlet == S_GOLEM) || (game.youmonst.data).mlet == S_VORTEX)) || (((game.youmonst.data).mflags2 & 256) != 0)) {
-        You("seem no deader than before.");
+        await You("seem no deader than before.");
     } else if (!(game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) && rn2(mtmp.m_lev) > 12) {
         if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-            You("have an out of body experience.");
+            await You("have an out of body experience.");
         } else {
-            touch_of_death(mtmp);
+            await touch_of_death(mtmp);
         }
         monstunseesu(M_SEEN_MAGR);
     } else {
         if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-            shieldeff(game.u.ux, game.u.uy);
+            await shieldeff(game.u.ux, game.u.uy);
             monstseesu(M_SEEN_MAGR);
         }
-        pline("Lucky for you, it didn't work!");
+        await pline("Lucky for you, it didn't work!");
     }
 }
-export function mcast_clone_wiz(mtmp) {
+export async function mcast_clone_wiz(mtmp) {
     if (mtmp.iswiz && game.context.no_of_wizards == 1) {
-        pline("Double Trouble...");
-        clonewiz();
+        await pline("Double Trouble...");
+        await clonewiz();
     } else {
-        impossible("bad wizard cloning?");
+        await impossible("bad wizard cloning?");
     }
 }
-export function mcast_summon_mons(mtmp) {
-    let count = nasty(mtmp);
+export async function mcast_summon_mons(mtmp) {
+    let count = await nasty(mtmp);
     if (!count) {
         ;
     } else if (mtmp.iswiz) {
         ;
-        verbalize("Destroy the thief, my pet%s!", (((count) == 1) ? "" : "s"));
+        await verbalize("Destroy the thief, my pet%s!", (((count) == 1) ? "" : "s"));
     } else {
         let one = (count == 1);
         let mappear = one ? "A monster appears" : "Monsters appear";
         /* messages not quite right if plural monsters created but
            only a single monster is seen */
         if (((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !(((mtmp.data).mflags1 & 16777216) != 0) && (mtmp.mux != game.u.ux || mtmp.muy != game.u.uy)) {
-            pline("%s %s a spot near you!", mappear, one ? "at" : "around");
+            await pline("%s %s a spot near you!", mappear, one ? "at" : "around");
         } else if ((game.u.uprops[DISPLACED].intrinsic || game.u.uprops[DISPLACED].extrinsic) && (mtmp.mux != game.u.ux || mtmp.muy != game.u.uy)) {
-            pline("%s %s your displaced image!", mappear, one ? "by" : "around");
+            await pline("%s %s your displaced image!", mappear, one ? "by" : "around");
         } else {
-            pline("%s from nowhere!", mappear);
+            await pline("%s from nowhere!", mappear);
         }
     }
 }
-export function mcast_destroy_armor() {
+export async function mcast_destroy_armor() {
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_MAGR);
-        pline("A field of force surrounds you!");
-    } else if (!destroy_arm()) {
-        Your("skin itches.");
+        await pline("A field of force surrounds you!");
+    } else if (!await destroy_arm()) {
+        await Your("skin itches.");
     } else {
         monstunseesu(M_SEEN_MAGR);
     }
 }
-export function mcast_weaken_you(mtmp, dmg) {
+export async function mcast_weaken_you(mtmp, dmg) {
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_MAGR);
-        You_feel("momentarily weakened.");
+        await You_feel("momentarily weakened.");
     } else {
         let kbuf = '';
-        You("suddenly feel weaker!");
+        await You("suddenly feel weaker!");
         dmg = mtmp.m_lev - 6;
         /* paranoia since only chosen when m_lev is high */
         if (dmg < 1) {
@@ -446,59 +423,56 @@ export function mcast_weaken_you(mtmp, dmg) {
         if ((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic)) {
             dmg = Math.trunc((dmg + 1) / 2);
         }
-        losestr(rnd(dmg), death_inflicted_by(kbuf, "strength loss", mtmp), 1);
-        game.killer.name[0] = 0;
+        await losestr(rnd(dmg), await death_inflicted_by(kbuf, "strength loss", mtmp), 1);
+        game.killer.name = '';
         monstunseesu(M_SEEN_MAGR);
     }
 }
-export function mcast_disappear(mtmp) {
+export async function mcast_disappear(mtmp) {
     if (!mtmp.minvis && !mtmp.invis_blkd) {
         if (canseemon(mtmp)) {
-            pline_mon(mtmp, "%s suddenly %s!", Monnam(mtmp), !(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic) ? "disappears" : "becomes transparent");
+            await pline_mon(mtmp, "%s suddenly %s!", await Monnam(mtmp), !(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic) ? "disappears" : "becomes transparent");
         }
-        mon_set_minvis(mtmp, (0));
+        await mon_set_minvis(mtmp, (0));
         if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0) && !(canseemon(mtmp) || sensemon(mtmp))) {
-            map_invisible(mtmp.mx, mtmp.my);
+            await map_invisible(mtmp.mx, mtmp.my);
         }
     } else {
-        impossible("no reason for monster to cast disappear spell?");
+        await impossible("no reason for monster to cast disappear spell?");
     }
 }
-export function mcast_stun_you(dmg) {
+export async function mcast_stun_you(dmg) {
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) || game.u.uprops[FREE_ACTION].extrinsic) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_MAGR);
         if (!game.u.uprops[STUNNED].intrinsic) {
-            You_feel("momentarily disoriented.");
+            await You_feel("momentarily disoriented.");
         }
-        make_stunned(1, (0));
+        await make_stunned(1, (0));
     } else {
-        You(game.u.uprops[STUNNED].intrinsic ? "struggle to keep your balance." : "reel...");
+        await You(game.u.uprops[STUNNED].intrinsic ? "struggle to keep your balance." : "reel...");
         dmg = d((acurr(A_DEX)) < 12 ? 6 : 4, 4);
         if ((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic)) {
             dmg = Math.trunc((dmg + 1) / 2);
         }
-        make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + dmg, (0));
+        await make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + dmg, (0));
         monstunseesu(M_SEEN_MAGR);
     }
 }
-export function mcast_geyser(dmg) {
-    /* this is physical damage (force not heat),
-     * not magical damage or fire damage
-     */
-    pline("A sudden geyser slams into you from nowhere!");
+export async function mcast_geyser(dmg) {
+    await pline("A sudden geyser slams into you from nowhere!");
     dmg = d(8, 6);
     if ((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) {
         dmg = Math.trunc((dmg + 1) / 2);
     }
     return dmg;
 }
-export function mcast_fire_pillar(mtmp, dmg) {
+export async function mcast_fire_pillar(mtmp, dmg) {
     let orig_dmg = 0;
-    pline("A pillar of fire strikes all around you!");
+    await pline("A pillar of fire strikes all around you!");
     orig_dmg = dmg = d(8, 6);
     if ((game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_FIRE);
         dmg = 0;
     } else {
@@ -507,22 +481,22 @@ export function mcast_fire_pillar(mtmp, dmg) {
     if ((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic)) {
         dmg = Math.trunc((dmg + 1) / 2);
     }
-    burn_away_slime();
-    burnarmor(game.youmonst);
-    destroy_items(game.youmonst, 2, orig_dmg);
-    ignite_items(game.invent);
-    mon_spell_hits_spot(mtmp, 2, game.u.ux, game.u.uy);
+    await burn_away_slime();
+    await burnarmor(game.youmonst);
+    await destroy_items(game.youmonst, 2, orig_dmg);
+    await ignite_items(game.invent);
+    await mon_spell_hits_spot(mtmp, 2, game.u.ux, game.u.uy);
     return dmg;
 }
-export function mcast_lightning(mtmp, dmg) {
+export async function mcast_lightning(mtmp, dmg) {
     let orig_dmg = 0;
     let reflects = 0;
     ;
-    pline("A bolt of lightning strikes down at you from above!");
-    reflects = ureflects("It bounces off your %s%s.", "");
+    await pline("A bolt of lightning strikes down at you from above!");
+    reflects = await ureflects("It bounces off your %s%s.", "");
     orig_dmg = dmg = d(8, 6);
     if (reflects || (game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         dmg = 0;
         if (reflects) {
             monstseesu(M_SEEN_REFL);
@@ -536,58 +510,51 @@ export function mcast_lightning(mtmp, dmg) {
     if ((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic)) {
         dmg = Math.trunc((dmg + 1) / 2);
     }
-    destroy_items(game.youmonst, 6, orig_dmg);
-    /* lightning might destroy iron bars if hero is on such a spot;
-       reflection protects terrain here [execution won't get here due
-       to 'if (reflects) break' above] but hero resistance doesn't;
-       do this before maybe blinding the hero via flashburn() */
-    mon_spell_hits_spot(mtmp, 6, game.u.ux, game.u.uy);
-    /* blind hero; no effect if already blind */
-    flashburn(rnd(100), (1));
+    await destroy_items(game.youmonst, 6, orig_dmg);
+    await mon_spell_hits_spot(mtmp, 6, game.u.ux, game.u.uy);
+    await flashburn(rnd(100), (1));
     return dmg;
 }
-export function mcast_psi_bolt(dmg) {
+export async function mcast_psi_bolt(dmg) {
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_MAGR);
         dmg = Math.trunc((dmg + 1) / 2);
     } else {
         monstunseesu(M_SEEN_MAGR);
     }
     if (dmg <= 5) {
-        You("get a slight %sache.", body_part(HEAD));
+        await You("get a slight %sache.", await body_part(HEAD));
     } else if (dmg <= 10) {
-        Your("brain is on fire!");
+        await Your("brain is on fire!");
     } else if (dmg <= 20) {
-        Your("%s suddenly aches painfully!", body_part(HEAD));
+        await Your("%s suddenly aches painfully!", await body_part(HEAD));
     } else {
-        Your("%s suddenly aches very painfully!", body_part(HEAD));
+        await Your("%s suddenly aches very painfully!", await body_part(HEAD));
     }
     return dmg;
 }
-export function mcast_open_wounds(dmg) {
+export async function mcast_open_wounds(dmg) {
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_MAGR);
         dmg = Math.trunc((dmg + 1) / 2);
     } else {
         monstunseesu(M_SEEN_MAGR);
     }
     if (dmg <= 5) {
-        Your("skin itches badly for a moment.");
+        await Your("skin itches badly for a moment.");
     } else if (dmg <= 10) {
-        pline("Wounds appear on your body!");
+        await pline("Wounds appear on your body!");
     } else if (dmg <= 20) {
-        pline("Severe wounds appear on your body!");
+        await pline("Severe wounds appear on your body!");
     } else {
-        Your("body is covered with painful wounds!");
+        await Your("body is covered with painful wounds!");
     }
     return dmg;
 }
-export function mcast_insects(mtmp) {
-    /* Try for insects, and if there are none
-       left, go for (sticks to) snakes.  -3. */
-    let pm = mkclass(S_ANT, 0);
+export async function mcast_insects(mtmp) {
+    let pm = await mkclass(S_ANT, 0);
     let mtmp2 = null;
     let whatbuf = '';
     let let_ = (pm ? S_ANT : S_SNAKE);
@@ -606,10 +573,10 @@ export function mcast_insects(mtmp) {
         quan = 3;
     }
     for (i = 0; i <= quan; i++) {
-        if (!enexto(bypos, mtmp.mux, mtmp.muy, mtmp.data)) {
+        if (!await enexto(bypos, mtmp.mux, mtmp.muy, mtmp.data)) {
             return;
         }
-        if ((pm = mkclass(let_, 0)) != null && (mtmp2 = makemon(pm, bypos.x, bypos.y, 32 | 131072)) != null) {
+        if ((pm = await mkclass(let_, 0)) != null && (mtmp2 = await makemon(pm, bypos.x, bypos.y, 32 | 131072)) != null) {
             success = (1);
             mtmp2.msleeping = mtmp2.mpeaceful = mtmp2.mtame = 0;
             set_malign(mtmp2);
@@ -620,7 +587,7 @@ export function mcast_insects(mtmp) {
     seecaster = canseemon(mtmp) || tp_sensemon(mtmp) || (game.u.uprops[DETECT_MONSTERS].intrinsic || game.u.uprops[DETECT_MONSTERS].extrinsic);
     what = (let_ == S_SNAKE) ? "snakes" : "insects";
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-        what = makeplural(bogusmon(whatbuf, null));
+        what = await makeplural(await bogusmon(whatbuf, null));
     }
     fmt = null;
     if (!seecaster) {
@@ -630,21 +597,18 @@ export function mcast_insects(mtmp) {
            words, no need to fuss with visibility or singularization;
            player is told what's happening even if hero is unconscious) */
         if (newseen <= oldseen || (game.multi < 0 && (unconscious() || is_fainted()))) {
-            /* unseen caster fails or summons unseen critters,
-               or unconscious hero ("You dream that you hear...") */
-            You_hear("someone summoning %s.", what);
+            await You_hear("someone summoning %s.", what);
         } else {
             let arg = null;
             if (what != whatbuf) {
                 what = strcpy(whatbuf, what);
             }
-            /* unseen caster summoned seen critter(s) */
-            arg = (newseen == oldseen + 1) ? an(makesingular(what)) : whatbuf;
+            arg = (newseen == oldseen + 1) ? await an(await makesingular(what)) : whatbuf;
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
                 ;
-                You_hear("someone summoning something, and %s %s.", arg, vtense(arg, "appear"));
+                await You_hear("someone summoning something, and %s %s.", arg, await vtense(arg, "appear"));
             } else {
-                pline("%s %s.", upstart(arg), vtense(arg, "appear"));
+                await pline("%s %s.", upstart(arg), await vtense(arg, "appear"));
             }
         }
     } else if (!success) {
@@ -661,35 +625,35 @@ export function mcast_insects(mtmp) {
     }
     if (fmt) {
         ;
-        pline_mon(mtmp, fmt, Monnam(mtmp), what);
+        await pline_mon(mtmp, fmt, await Monnam(mtmp), what);
         ;
     }
 }
-export function mcast_blind_you() {
+export async function mcast_blind_you() {
     if (!(game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked)) {
         /* note: resists_blnd() doesn't apply here */
         let num_eyes = (!(((game.youmonst.data).mflags1 & 4096) == 0) ? 0 : ((game.youmonst.data) == game.mons[PM_CYCLOPS] || (game.youmonst.data) == game.mons[PM_FLOATING_EYE]) ? 1 : 2);
-        pline("Scales cover your %s!", (num_eyes == 1) ? body_part(EYE) : makeplural(body_part(EYE)));
-        make_blinded((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic) ? 100 : 200, (0));
+        await pline("Scales cover your %s!", (num_eyes == 1) ? await body_part(EYE) : await makeplural(await body_part(EYE)));
+        await make_blinded((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic) ? 100 : 200, (0));
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            Your("%s", c_common_strings.c_vision_clears);
+            await Your("%s", c_common_strings.c_vision_clears);
         }
     } else {
-        impossible("no reason for monster to cast blindness spell?");
+        await impossible("no reason for monster to cast blindness spell?");
     }
 }
-export function mcast_paralyze(mtmp) {
+export async function mcast_paralyze(mtmp) {
     let dmg = 0;
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) || game.u.uprops[FREE_ACTION].extrinsic) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_MAGR);
         if (game.multi >= 0) {
-            You("stiffen briefly.");
+            await You("stiffen briefly.");
         }
         dmg = 1;
     } else {
         if (game.multi >= 0) {
-            You("are frozen in place!");
+            await You("are frozen in place!");
         }
         dmg = 4 + mtmp.m_lev;
         if ((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic)) {
@@ -702,22 +666,22 @@ export function mcast_paralyze(mtmp) {
     game.nomovemsg = null;
     return dmg;
 }
-export function mcast_confuse_you(mtmp) {
+export async function mcast_confuse_you(mtmp) {
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         monstseesu(M_SEEN_MAGR);
-        You_feel("momentarily dizzy.");
+        await You_feel("momentarily dizzy.");
     } else {
         let oldprop = !!game.u.uprops[CONFUSION].intrinsic;
         let dmg = mtmp.m_lev;
         if ((game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic)) {
             dmg = Math.trunc((dmg + 1) / 2);
         }
-        make_confused(game.u.uprops[CONFUSION].intrinsic + dmg, (1));
+        await make_confused(game.u.uprops[CONFUSION].intrinsic + dmg, (1));
         if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-            You_feel("%s!", oldprop ? "trippier" : "trippy");
+            await You_feel("%s!", oldprop ? "trippier" : "trippy");
         } else {
-            You_feel("%sconfused!", oldprop ? "more " : "");
+            await You_feel("%sconfused!", oldprop ? "more " : "");
         }
         monstunseesu(M_SEEN_MAGR);
     }
@@ -730,98 +694,98 @@ export function mcast_confuse_you(mtmp) {
    If you modify either of these, be sure to change is_undirected_spell()
    and spell_would_be_useless().
  */
-export function mcast_spell(mtmp, dmg, spellnum) {
+export async function mcast_spell(mtmp, dmg, spellnum) {
     if (dmg < 0) {
-        impossible("monster cast spell (%d) with negative dmg (%d)?", spellnum, dmg);
+        await impossible("monster cast spell (%d) with negative dmg (%d)?", spellnum, dmg);
         return;
     }
     if (dmg == 0 && !is_undirected_spell(spellnum)) {
-        impossible("cast directed wizard spell (%d) with dmg=0?", spellnum);
+        await impossible("cast directed wizard spell (%d) with dmg=0?", spellnum);
         return;
     }
     switch (spellnum) {
         case MCAST_DEATH_TOUCH:
-            mcast_death_touch(mtmp);
+            await mcast_death_touch(mtmp);
             dmg = 0;
             break;
         case MCAST_CLONE_WIZ:
-            mcast_clone_wiz(mtmp);
+            await mcast_clone_wiz(mtmp);
             dmg = 0;
             break;
         case MCAST_SUMMON_MONS:
-            mcast_summon_mons(mtmp);
+            await mcast_summon_mons(mtmp);
             dmg = 0;
             break;
         case MCAST_AGGRAVATION:
-            You_feel("that monsters are aware of your presence.");
-            aggravate();
+            await You_feel("that monsters are aware of your presence.");
+            await aggravate();
             dmg = 0;
             break;
         case MCAST_CURSE_ITEMS:
-            You_feel("as if you need some help.");
-            rndcurse();
+            await You_feel("as if you need some help.");
+            await rndcurse();
             dmg = 0;
             break;
         case MCAST_DESTRY_ARMR:
-            mcast_destroy_armor();
+            await mcast_destroy_armor();
             dmg = 0;
             break;
         case MCAST_WEAKEN_YOU:
-            mcast_weaken_you(mtmp, dmg);
+            await mcast_weaken_you(mtmp, dmg);
             dmg = 0;
             break;
         case MCAST_DISAPPEAR:
-            mcast_disappear(mtmp);
+            await mcast_disappear(mtmp);
             dmg = 0;
             break;
         case MCAST_STUN_YOU:
-            mcast_stun_you(dmg);
+            await mcast_stun_you(dmg);
             dmg = 0;
             break;
         case MCAST_HASTE_SELF:
-            mon_adjust_speed(mtmp, 1, null);
+            await mon_adjust_speed(mtmp, 1, null);
             dmg = 0;
             break;
         case MCAST_CURE_SELF:
-            dmg = m_cure_self(mtmp, dmg);
+            dmg = await m_cure_self(mtmp, dmg);
             break;
         case MCAST_PSI_BOLT:
-            dmg = mcast_psi_bolt(dmg);
+            dmg = await mcast_psi_bolt(dmg);
             break;
         case MCAST_GEYSER:
-            dmg = mcast_geyser(dmg);
+            dmg = await mcast_geyser(dmg);
             break;
         case MCAST_FIRE_PILLAR:
-            dmg = mcast_fire_pillar(mtmp, dmg);
+            dmg = await mcast_fire_pillar(mtmp, dmg);
             break;
         case MCAST_LIGHTNING:
-            dmg = mcast_lightning(mtmp, dmg);
+            dmg = await mcast_lightning(mtmp, dmg);
             break;
         case MCAST_INSECTS:
-            mcast_insects(mtmp);
+            await mcast_insects(mtmp);
             dmg = 0;
             break;
         case MCAST_BLIND_YOU:
-            mcast_blind_you();
+            await mcast_blind_you();
             dmg = 0;
             break;
         case MCAST_PARALYZE:
-            dmg = mcast_paralyze(mtmp);
+            dmg = await mcast_paralyze(mtmp);
             break;
         case MCAST_CONFUSE_YOU:
-            mcast_confuse_you(mtmp);
+            await mcast_confuse_you(mtmp);
             dmg = 0;
             break;
         case MCAST_OPEN_WOUNDS:
-            dmg = mcast_open_wounds(dmg);
+            dmg = await mcast_open_wounds(dmg);
             break;
         default:
-            impossible("mcastu: invalid magic spell (%d)", spellnum);
+            await impossible("mcastu: invalid magic spell (%d)", spellnum);
             dmg = 0;
             break;
     }
     if (dmg) {
-        mdamageu(mtmp, dmg);
+        await mdamageu(mtmp, dmg);
     }
 }
 export function is_undirected_spell(spellnum) {
@@ -831,7 +795,7 @@ export function is_undirected_spell(spellnum) {
     return (0);
 }
 /* Some spells are useless under some circumstances. */
-export function spell_would_be_useless(mtmp, spellnum) {
+export async function spell_would_be_useless(mtmp, spellnum) {
     if ((game.mcast_data[spellnum].flags & 4) != 0) {
         /* Some spells don't require the player to really be there and can be cast
      * by the monster when you're invisible, yet still shouldn't be cast when
@@ -868,7 +832,7 @@ export function spell_would_be_useless(mtmp, spellnum) {
             }
             break;
         case MCAST_AGGRAVATION:
-            if (!has_aggravatables(mtmp)) {
+            if (!await has_aggravatables(mtmp)) {
                 return rn2(100) ? (1) : (0);
             }
             break;
@@ -907,26 +871,62 @@ export function spell_would_be_useless(mtmp, spellnum) {
     return (0);
 }
 /* monster uses spell (ranged) */
-export function buzzmu(mtmp, mattk) {
+export async function buzzmu(mtmp, mattk) {
     /* don't print constant stream of curse messages for 'normal'
        spellcasting monsters at range */
     if (!((mattk.adtyp) >= 1 && (mattk.adtyp) <= 10)) {
         return 0;
     }
     if (mtmp.mcan || ((mtmp).seen_resistance & (cvt_adtyp_to_mseenres(mattk.adtyp)))) {
-        cursetxt(mtmp, (0));
+        await cursetxt(mtmp, (0));
         return 0;
     }
     if (lined_up(mtmp) && rn2(3)) {
         nomul(0);
         if (canseemon(mtmp)) {
-            pline_mon(mtmp, "%s zaps you with a %s!", Monnam(mtmp), flash_str((abs((mattk.adtyp) - 1) % 10), (0)));
+            await pline_mon(mtmp, "%s zaps you with a %s!", await Monnam(mtmp), flash_str((abs((mattk.adtyp) - 1) % 10), (0)));
         }
         game.buzzer = mtmp;
-        buzz((-10 - ((abs((mattk.adtyp) - 1) % 10))), mattk.damn, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby));
+        await buzz((-10 - ((abs((mattk.adtyp) - 1) % 10))), mattk.damn, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby));
         game.buzzer = null;
         return 1;
     }
     return 0;
 }
 /*mcastu.c*/
+/* find the highest spell in the list we could cast */
+/* not trying to attack?  don't allow directed spells */
+/* monster unable to cast spells? */
+/* Monster can cast spells, but is casting a directed spell at the
+     * wrong place?  If so, give a message, and return.
+     * Do this *after* penalizing mspec_used.
+     *
+     * FIXME?
+     *  Shouldn't wall of lava have a case similar to wall of water?
+     *  And should cold damage hit water or lava instead of missing
+     *  even when the caster has targeted the wrong spot?  Likewise
+     *  for fire mis-aimed at ice.
+     */
+/* burn up flammable items on the floor, melt ice terrain */
+/* freeze water or lava terrain */
+/* FIXME: mon_spell_hits_spot() uses zap_over_floor(); unlike with
+         * fire, it does not target susceptible floor items with cold */
+/* shower of magic missiles scuffs an engraving */
+/* note: player healing does 6d4; this used to do 1d8 */
+/* if we get here, we know that hero isn't magic resistant and isn't
+       poly'd into an undead or demon */
+/* this is physical damage (force not heat),
+     * not magical damage or fire damage
+     */
+/* lightning might destroy iron bars if hero is on such a spot;
+       reflection protects terrain here [execution won't get here due
+       to 'if (reflects) break' above] but hero resistance doesn't;
+       do this before maybe blinding the hero via flashburn() */
+/* blind hero; no effect if already blind */
+/* prior to 3.4.0 Antimagic was setting the damage to 1--this
+       made the spell virtually harmless to players with magic res. */
+/* Try for insects, and if there are none
+       left, go for (sticks to) snakes.  -3. */
+/* unseen caster fails or summons unseen critters,
+               or unconscious hero ("You dream that you hear...") */
+/* unseen caster summoned seen critter(s) */

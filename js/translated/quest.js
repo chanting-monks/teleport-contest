@@ -95,10 +95,10 @@ export async function onquest() {
     }
     return;
 }
-export function nemdead() {
+export async function nemdead() {
     if (!(game.quest_status.killed_nemesis)) {
         (game.quest_status.killed_nemesis) = (1);
-        qt_pager("killed_nemesis");
+        await qt_pager("killed_nemesis");
     }
 }
 export function leaddead() {
@@ -106,35 +106,32 @@ export function leaddead() {
         (game.quest_status.killed_leader) = (1);
     }
 }
-export function artitouch(obj) {
+export async function artitouch(obj) {
     if (!(game.quest_status.touched_artifact)) {
-        /* in case we haven't seen the item yet (ie, currently blinded),
-           this quest message describes it by name so mark it as seen */
-        observe_object(obj);
+        await observe_object(obj);
         (game.quest_status.touched_artifact) = (1);
-        /* only give this message once */
-        qt_pager("gotit");
-        exercise(A_WIS, (1));
+        await qt_pager("gotit");
+        await exercise(A_WIS, (1));
     }
 }
 /* external hook for do.c (level change check) */
-export function ok_to_quest() {
-    return ((((game.quest_status.got_quest) || (game.quest_status.got_thanks)) && is_pure((0)) > 0) || (game.quest_status.killed_leader));
+export async function ok_to_quest() {
+    return ((((game.quest_status.got_quest) || (game.quest_status.got_thanks)) && await is_pure((0)) > 0) || (game.quest_status.killed_leader));
 }
 export function not_capable() {
     return (game.u.ulevel < 14);
 }
-export function is_pure(talk) {
+export async function is_pure(talk) {
     let purity = 0;
     let original_alignment = game.u.ualignbase[1];
     if (game.flags.debug && talk) {
         if (game.u.ualign.type != original_alignment) {
-            You("are currently %s instead of %s.", align_str(game.u.ualign.type), align_str(original_alignment));
+            await You("are currently %s instead of %s.", align_str(game.u.ualign.type), align_str(original_alignment));
         } else if (game.u.ualignbase[0] != original_alignment) {
-            You("have converted.");
+            await You("have converted.");
         } else if (game.u.ualign.record < 20) {
-            You("are currently %d and require %d.", game.u.ualign.record, 20);
-            if (yn_function("adjust?", null, 121, (1)) == 121) {
+            await You("are currently %d and require %d.", game.u.ualign.record, 20);
+            if (await yn_function("adjust?", null, 121, (1)) == 121) {
                 game.u.ualign.record = 20;
             }
         }
@@ -148,12 +145,12 @@ export function is_pure(talk) {
  * This assumes that the hero is currently _in_ the quest dungeon and that
  * there is a single branch to and from it.
  */
-export function expulsion(seal) {
+export async function expulsion(seal) {
     let br = null;
     let dest = null;
     let t = null;
     let portal_flag = game.u.uevent.qexpelled ? UTOTYPE_NONE : UTOTYPE_PORTAL;
-    br = dungeon_branch("The Quest");
+    br = await dungeon_branch("The Quest");
     dest = (br.end1.dnum == game.u.uz.dnum) ? br.end2 : br.end1;
     if (seal) {
         portal_flag |= UTOTYPE_RMPORTAL;
@@ -175,9 +172,9 @@ export function expulsion(seal) {
             }
         }
         if (t) {
-            deltrap(t);
+            await deltrap(t);
         } else if (!reexpelled) {
-            impossible("quest portal already gone?");
+            await impossible("quest portal already gone?");
         }
     }
 }
@@ -190,58 +187,45 @@ export function expulsion(seal) {
    at the leader. */
 /* quest artifact or thrown unique item or faux
                                * AoY; possibly null if carrying the Amulet */
-export function finish_quest(obj) {
+export async function finish_quest(obj) {
     let otmp = null;
     if (obj && !is_quest_artifact(obj)) {
         /* tossed an invocation item (or [fake] AoY) at the quest leader */
         if ((game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
             return;
         }
-        /* optional (unlike quest completion) so skip if deaf */
-        /* do ID first so that the message identifying the item will refer to
-           it by name (and so justify the ID we already gave...) */
-        /* behave as if leader imparts sufficient info about the
-           quest artifact */
-        fully_identify_obj(obj);
+        await fully_identify_obj(obj);
         if (obj.otyp == AMULET_OF_YENDOR) {
-            /* update_inventory() is not necessary or helpful here because item
-           was thrown, so isn't currently in inventory anyway */
-            /* has the amulet in inventory -- most likely the player has already
-           completed the quest and stopped in on her way back up, but it's not
-           impossible to have gotten the amulet before formally presenting the
-           quest artifact to the leader. */
-            qt_pager("hasamulet");
+            await qt_pager("hasamulet");
         } else if (obj.otyp == FAKE_AMULET_OF_YENDOR) {
-            verbalize("Sorry to say, this is a mere imitation of the true Amulet of Yendor.");
+            await verbalize("Sorry to say, this is a mere imitation of the true Amulet of Yendor.");
         } else {
-            verbalize("Ah, I see you've found %s.", the(xname(obj)));
+            await verbalize("Ah, I see you've found %s.", await the(await xname(obj)));
         }
         return;
     }
     if (game.u.uhave.amulet) {
-        qt_pager("hasamulet");
+        await qt_pager("hasamulet");
         if ((otmp = carrying(AMULET_OF_YENDOR)) != null) {
-            /* leader IDs the real amulet but ignores any fakes */
-            fully_identify_obj(otmp);
+            await fully_identify_obj(otmp);
             update_inventory();
         }
     } else {
-        /* normal quest completion; threw artifact or walked up carrying it */
-        qt_pager(!(game.quest_status.got_thanks) ? "offeredit" : "offeredit2");
+        await qt_pager(!(game.quest_status.got_thanks) ? "offeredit" : "offeredit2");
         /* should have obtained bell during quest;
            if not, suggest returning for it now */
         if ((otmp = carrying(BELL_OF_OPENING)) == null) {
-            com_pager("quest_complete_no_bell");
+            await com_pager("quest_complete_no_bell");
         }
     }
     (game.quest_status.got_thanks) = (1);
     if (obj) {
         game.u.uevent.qcompleted = 1;
-        fully_identify_obj(obj);
+        await fully_identify_obj(obj);
         update_inventory();
     }
 }
-export function chat_with_leader(mtmp) {
+export async function chat_with_leader(mtmp) {
     if (!mtmp.mpeaceful || (game.quest_status.pissed_off)) {
         return;
     }
@@ -250,16 +234,10 @@ export function chat_with_leader(mtmp) {
         (game.quest_status.cheater) = (1);
     }
     if ((game.quest_status.got_thanks)) {
-        /* Rule 3: You've got the artifact and are back to return it. */
         if (game.u.uhave.amulet) {
-            finish_quest(null);
-        /*  It is possible for you to get the amulet without completing
-     *  the quest.  If so, try to induce the player to quest.
-     */
-        /* Rule 1: You've gone back with/without the amulet. */
-        /* Rule 2: You've gone back before going for the amulet. */
+            await finish_quest(null);
         } else {
-            qt_pager("posthanks");
+            await qt_pager("posthanks");
         }
     } else if (game.u.uhave.questart) {
         let otmp = null;
@@ -268,19 +246,17 @@ export function chat_with_leader(mtmp) {
                 break;
             }
         }
-        /* Rule 4: You haven't got the artifact yet. */
-        finish_quest(otmp);
+        await finish_quest(otmp);
     } else if ((game.quest_status.got_quest)) {
-        /* Rule 5: You aren't yet acceptable - or are you? */
-        qt_pager("encourage");
+        await qt_pager("encourage");
     } else {
         let purity = 0;
         if (!(game.quest_status.met_leader)) {
-            qt_pager("leader_first");
+            await qt_pager("leader_first");
             (game.quest_status.met_leader) = (1);
             (game.quest_status.not_ready) = 0;
         } else {
-            qt_pager("leader_next");
+            await qt_pager("leader_next");
         }
         /* the quest leader might have passed through the portal into
            the regular dungeon; none of the remaining make sense there */
@@ -290,43 +266,33 @@ export function chat_with_leader(mtmp) {
             return;
         }
         if (not_capable()) {
-            qt_pager("badlevel");
-            exercise(A_WIS, (1));
-            expulsion((0));
-        } else if ((purity = is_pure((1))) < 0) {
+            await qt_pager("badlevel");
+            await exercise(A_WIS, (1));
+            await expulsion((0));
+        } else if ((purity = await is_pure((1))) < 0) {
             if (!(game.quest_status.pissed_off)) {
-                com_pager("banished");
+                await com_pager("banished");
                 (game.quest_status.pissed_off) = (1);
-                expulsion((0));
-                /* being expelled is hardly an achievement but none of the
-                   other livelog classifications fit */
-                livelog_printf(2, "%s has expelled you from the quest", noit_mon_nam(mtmp));
+                await expulsion((0));
+                livelog_printf(2, "%s has expelled you from the quest", await noit_mon_nam(mtmp));
             }
         } else if (purity == 0) {
-            qt_pager("badalign");
+            await qt_pager("badalign");
             (game.quest_status.not_ready) = 1;
-            exercise(A_WIS, (1));
-            expulsion((0));
+            await exercise(A_WIS, (1));
+            await expulsion((0));
         } else {
-            qt_pager("assignquest");
-            exercise(A_WIS, (1));
+            await qt_pager("assignquest");
+            await exercise(A_WIS, (1));
             (game.quest_status.got_quest) = (1);
-            /* phrasing is a bit clumsy but allows #chronicle to provide a
-               clue to players who are reaching the quest for first time;
-               matters most for Home 1 that has stairs down which aren't
-               easily found */
-            livelog_printf(2, "%s has granted access to proceed deeper into the quest", noit_mon_nam(mtmp));
+            livelog_printf(2, "%s has granted access to proceed deeper into the quest", await noit_mon_nam(mtmp));
         }
     }
 }
-export function leader_speaks(mtmp) {
+export async function leader_speaks(mtmp) {
     if (!mtmp.mpeaceful) {
         if (!(game.quest_status.pissed_off)) {
-            /* maybe you attacked leader? */
-            /* again, don't end it permanently if the leader gets angry
-             * since you're going to have to kill him to go questing... :)
-             * ...but do only show this crap once. */
-            qt_pager("leader_last");
+            await qt_pager("leader_last");
         }
         (game.quest_status.pissed_off) = (1);
         mtmp.mstrategy &= ~(268435456 | 536870912);
@@ -335,39 +301,38 @@ export function leader_speaks(mtmp) {
         return;
     }
     if (!(game.quest_status.pissed_off)) {
-        chat_with_leader(mtmp);
+        await chat_with_leader(mtmp);
     }
 }
-export function chat_with_nemesis() {
-    /*  The nemesis will do most of the talking, but... */
-    qt_pager("discourage");
+export async function chat_with_nemesis() {
+    await qt_pager("discourage");
     if (!(game.quest_status.met_nemesis)) {
         (game.quest_status.met_nemesis++);
     }
 }
-export function nemesis_speaks() {
+export async function nemesis_speaks() {
     if (!(game.quest_status.in_battle)) {
         if (game.u.uhave.questart) {
-            qt_pager("nemesis_wantsit");
+            await qt_pager("nemesis_wantsit");
         } else if ((game.quest_status.made_goal) == 1 || !(game.quest_status.met_nemesis)) {
-            qt_pager("nemesis_first");
+            await qt_pager("nemesis_first");
         } else if ((game.quest_status.made_goal) < 4) {
-            qt_pager("nemesis_next");
+            await qt_pager("nemesis_next");
         } else if ((game.quest_status.made_goal) < 7) {
-            qt_pager("nemesis_other");
+            await qt_pager("nemesis_other");
         } else if (!rn2(5)) {
-            qt_pager("discourage");
+            await qt_pager("discourage");
         }
         if ((game.quest_status.made_goal) < 7) {
             (game.quest_status.made_goal)++;
         }
         (game.quest_status.met_nemesis) = (1);
     } else if (!rn2(5)) {
-        qt_pager("discourage");
+        await qt_pager("discourage");
     }
 }
 /* create cloud of stinking gas around dying nemesis */
-export function nemesis_stinks(mx, my) {
+export async function nemesis_stinks(mx, my) {
     let save_mon_moving = game.context.mon_moving;
     /*
      * Some nemeses (determined by caller) release a cloud of noxious
@@ -375,63 +340,60 @@ export function nemesis_stinks(mx, my) {
      * a cloud even if hero has just killed nemesis.
      */
     game.context.mon_moving = (1);
-    create_gas_cloud(mx, my, 5, 8);
+    await create_gas_cloud(mx, my, 5, 8);
     game.context.mon_moving = save_mon_moving;
 }
-export function chat_with_guardian() {
+export async function chat_with_guardian() {
     if (game.u.uhave.questart && (game.quest_status.killed_nemesis)) {
-        qt_pager("guardtalk_after");
-    /*  These guys/gals really don't have much to say... */
+        await qt_pager("guardtalk_after");
     } else {
-        qt_pager("guardtalk_before");
+        await qt_pager("guardtalk_before");
     }
 }
-export function prisoner_speaks(mtmp) {
+export async function prisoner_speaks(mtmp) {
     if (mtmp.data == game.mons[PM_PRISONER] && (mtmp.mstrategy & (268435456 | 536870912))) {
         if (canseemon(mtmp)) {
-            pline("%s speaks:", Monnam(mtmp));
+            await pline("%s speaks:", await Monnam(mtmp));
         }
         ;
-        verbalize("I'm finally free!");
+        await verbalize("I'm finally free!");
         mtmp.mstrategy &= ~(268435456 | 536870912);
         mtmp.mpeaceful = 1;
         adjalign(3);
-        /* ...But the guards are not */
-        angry_guards((0));
+        await angry_guards((0));
     }
     return;
 }
-export function quest_chat(mtmp) {
+export async function quest_chat(mtmp) {
     if (mtmp.m_id == (game.quest_status.leader_m_id)) {
-        chat_with_leader(mtmp);
-        /* leader might have become pissed during the chat */
+        await chat_with_leader(mtmp);
         if ((game.quest_status.pissed_off)) {
-            setmangry(mtmp, (0));
+            await setmangry(mtmp, (0));
         }
         return;
     }
     switch (mtmp.data.msound) {
         case MS_NEMESIS:
-            chat_with_nemesis();
+            await chat_with_nemesis();
             break;
         case MS_GUARDIAN:
-            chat_with_guardian();
+            await chat_with_guardian();
             break;
         default:
-            impossible("quest_chat: Unknown quest character %s.", mon_nam(mtmp));
+            await impossible("quest_chat: Unknown quest character %s.", await mon_nam(mtmp));
     }
 }
-export function quest_talk(mtmp) {
+export async function quest_talk(mtmp) {
     if (mtmp.m_id == (game.quest_status.leader_m_id)) {
-        leader_speaks(mtmp);
+        await leader_speaks(mtmp);
         return;
     }
     switch (mtmp.data.msound) {
         case MS_NEMESIS:
-            nemesis_speaks();
+            await nemesis_speaks();
             break;
         case MS_DJINNI:
-            prisoner_speaks(mtmp);
+            await prisoner_speaks(mtmp);
             break;
         default:
             break;
@@ -444,5 +406,43 @@ export function quest_stat_check(mtmp) {
 }
 /*quest.c*/
 /* TODO: qt_pager("killed_leader"); ? */
+/* in case we haven't seen the item yet (ie, currently blinded),
+           this quest message describes it by name so mark it as seen */
+/* only give this message once */
 /* (display might be briefly out of sync) */
+/* optional (unlike quest completion) so skip if deaf */
+/* do ID first so that the message identifying the item will refer to
+           it by name (and so justify the ID we already gave...) */
+/* update_inventory() is not necessary or helpful here because item
+           was thrown, so isn't currently in inventory anyway */
+/* has the amulet in inventory -- most likely the player has already
+           completed the quest and stopped in on her way back up, but it's not
+           impossible to have gotten the amulet before formally presenting the
+           quest artifact to the leader. */
+/* leader IDs the real amulet but ignores any fakes */
+/* normal quest completion; threw artifact or walked up carrying it */
+/* behave as if leader imparts sufficient info about the
+           quest artifact */
+/*  It is possible for you to get the amulet without completing
+     *  the quest.  If so, try to induce the player to quest.
+     */
+/* Rule 1: You've gone back with/without the amulet. */
+/* Rule 2: You've gone back before going for the amulet. */
+/* Rule 3: You've got the artifact and are back to return it. */
+/* Rule 4: You haven't got the artifact yet. */
+/* Rule 5: You aren't yet acceptable - or are you? */
+/* being expelled is hardly an achievement but none of the
+                   other livelog classifications fit */
+/* phrasing is a bit clumsy but allows #chronicle to provide a
+               clue to players who are reaching the quest for first time;
+               matters most for Home 1 that has stairs down which aren't
+               easily found */
+/* maybe you attacked leader? */
+/* again, don't end it permanently if the leader gets angry
+             * since you're going to have to kill him to go questing... :)
+             * ...but do only show this crap once. */
+/*  The nemesis will do most of the talking, but... */
 /* he will spit out random maledictions */
+/*  These guys/gals really don't have much to say... */
+/* ...But the guards are not */
+/* leader might have become pissed during the chat */

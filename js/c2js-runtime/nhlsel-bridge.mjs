@@ -58,6 +58,13 @@ export function pushSelection(L, sel) {
 export function l_selection_check(L, index) {
     const sv = lua.lua_touserdata(L, index);
     if (sv == null) {
+        if (typeof process !== 'undefined' && process.env?.NH_DEBUG_LUA) {
+            try {
+                const t = lua.lua_type(L, index);
+                console.warn('[selcheck] idx', index, 'lua_type', t,
+                    'gettop', lua.lua_gettop(L));
+            } catch (_e) {}
+        }
         // Match C: nhl_error(L, "Selection error")
         throw new Error('l_selection_check: not a selection at index ' + index);
     }

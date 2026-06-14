@@ -11,6 +11,7 @@ import { abs } from '../c2js-runtime/math.js';
 import { free, memcpy } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { cmd_from_func, cmdname_from_func, cmdq_clear, cmdq_pop, do_reqmenu, doextlist, dokeylist, getdir, isok, key2extcmddesc, key2txt, yn_function } from './cmd.js';
@@ -69,7 +70,7 @@ export function is_swallow_sym(c) {
    as a substring of buf.  Return 1 if the string was appended, 0 otherwise.
    It is expected that buf is of size BUFSZ. */
 const __append_str_sep = " or ";
-export function append_str(buf, new_str) {
+export async function append_str(buf, new_str) {
     let oldlen = 0;
     let space_left = 0;
     if (strstri(buf, new_str)) {
@@ -78,7 +79,7 @@ export function append_str(buf, new_str) {
     oldlen = strlen(buf);
     if (oldlen >= 256 - 1) {
         if (oldlen > 256 - 1) {
-            impossible("append_str: 'buf' contains %lu characters.", oldlen);
+            await impossible("append_str: 'buf' contains %lu characters.", oldlen);
         }
         return 0;
     }
@@ -92,7 +93,7 @@ export function append_str(buf, new_str) {
     return 1;
 }
 /* shared by monster probing (via query_objlist!) as well as lookat() */
-export function self_lookat(outbuf) {
+export async function self_lookat(outbuf) {
     let race = '';
     let trapbuf = '';
     /* include race with role unless polymorphed */
@@ -102,17 +103,16 @@ export function self_lookat(outbuf) {
     }
     outbuf = sprintf(outbuf, "%s%s%s called %s", (((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && (((game.u.uprops[TELEPAT].extrinsic) || (game.u.uprops[DETECT_MONSTERS].intrinsic || game.u.uprops[DETECT_MONSTERS].extrinsic)) || !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked))) ? "invisible " : "", race, pmname(game.mons[game.u.umonnum], (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname);
     if (game.u.usteed) {
-        outbuf = __nh_buf_append(outbuf, sprintf('', ", mounted on %s", y_monnam(game.u.usteed)));
+        outbuf = __nh_buf_append(outbuf, sprintf('', ", mounted on %s", await y_monnam(game.u.usteed)));
     }
     if (game.u.uundetected || ((game.u.umonnum != game.u.umonster) && (game.youmonst.m_ap_type & 7)) || visible_region_at(game.u.ux, game.u.uy)) {
-        mhidden_description(game.youmonst, 1 | 2 | 8, eos(outbuf));
+        await mhidden_description(game.youmonst, 1 | 2 | 8, eos(outbuf));
     }
     if ((game.uball != null)) {
-        outbuf = __nh_buf_append(outbuf, sprintf('', ", chained to %s", game.uball ? ansimpleoname(game.uball) : "nothing?"));
+        outbuf = __nh_buf_append(outbuf, sprintf('', ", chained to %s", game.uball ? await ansimpleoname(game.uball) : "nothing?"));
     }
-    /* bear trap, pit, web, in-floor, in-lava, tethered */
     if (game.u.utrap) {
-        outbuf = __nh_buf_append(outbuf, sprintf('', ", %s", trap_predicament(trapbuf, 0, (0))));
+        outbuf = __nh_buf_append(outbuf, sprintf('', ", %s", await trap_predicament(trapbuf, 0, (0))));
     }
     return outbuf;
 }
@@ -146,7 +146,7 @@ export function trap_description(outbuf, tnum, x, y) {
 /* hidden monster to describe */
 /* controls optional aspects of description */
 /* output buffer */
-export function mhidden_description(mon, mhid_flags, outbuf) {
+export async function mhidden_description(mon, mhid_flags, outbuf) {
     let otmp = null;
     let what = null;
     let reg = null;
@@ -168,7 +168,7 @@ export function mhidden_description(mon, mhid_flags, outbuf) {
         if (((mon).m_ap_type & 7) == M_AP_FURNITURE) {
             what = defsyms[mon.mappearance].explanation;
             if (incl_article) {
-                what = an(what);
+                what = await an(what);
             }
             outbuf = strcat(outbuf, what);
         } else if (((mon).m_ap_type & 7) == M_AP_OBJECT && (((glyph) == GLYPH_OBJ_OFF || ((glyph) >= GLYPH_OBJ_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_OFF + NUM_OBJECTS)) || ((glyph) == GLYPH_OBJ_PILETOP_OFF || ((glyph) > GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_PILETOP_OFF + NUM_OBJECTS)))) || (((glyph) > GLYPH_OBJ_OFF && (glyph) < GLYPH_OBJ_OFF + FIRST_OBJECT - 1) || ((glyph) > GLYPH_OBJ_PILETOP_OFF && (glyph) < GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1)) || (((((glyph) >= GLYPH_STATUE_MALE_OFF) && ((glyph) < (GLYPH_STATUE_MALE_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_MALE_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_MALE_PILETOP_OFF + NUMMONS)))) || ((((glyph) >= GLYPH_STATUE_FEM_OFF) && ((glyph) < (GLYPH_STATUE_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_FEM_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_FEM_PILETOP_OFF + NUMMONS))))) || ((((glyph) >= GLYPH_BODY_OFF) && ((glyph) < (GLYPH_BODY_OFF + NUMMONS))) || (((glyph) >= GLYPH_BODY_PILETOP_OFF) && ((glyph) < (GLYPH_BODY_PILETOP_OFF + NUMMONS)))))) {
@@ -177,18 +177,17 @@ export function mhidden_description(mon, mhid_flags, outbuf) {
             /* if not an object, probably a detected chest trap */
             /* assume trapped chest|door */
             otmp = null;
-            /* remembered glyph, not glyph_at() which is 'mon' */
-            fakeobj = object_from_map(glyph, x, y, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
-            what = (otmp && otmp.otyp != STRANGE_OBJECT) ? simpleonames(otmp) : game.obj_descr[STRANGE_OBJECT].oc_name;
+            fakeobj = await object_from_map(glyph, x, y, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
+            what = (otmp && otmp.otyp != STRANGE_OBJECT) ? await simpleonames(otmp) : game.obj_descr[STRANGE_OBJECT].oc_name;
             if (incl_article && (!otmp || otmp.quan == 1)) {
-                what = an(what);
+                what = await an(what);
             }
             outbuf = strcat(outbuf, what);
             if (fakeobj && otmp) {
                 /* object_from_map set to OBJ_FLOOR */
                 /* object_from_map set it to OBJ_FLOOR */
                 otmp.where = 0;
-                dealloc_obj(otmp);
+                await dealloc_obj(otmp);
             }
         } else {
             outbuf = strcat(outbuf, c_common_strings.c_something);
@@ -200,7 +199,7 @@ export function mhidden_description(mon, mhid_flags, outbuf) {
             }
             what = pmname(game.mons[mon.mappearance], Mgender(mon));
             if (incl_prefix) {
-                what = an(what);
+                what = await an(what);
             }
             outbuf = strcat(outbuf, what);
         }
@@ -210,15 +209,15 @@ export function mhidden_description(mon, mhid_flags, outbuf) {
             outbuf = strcat(outbuf, " under ");
             if ((((glyph) == GLYPH_OBJ_OFF || ((glyph) >= GLYPH_OBJ_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_OFF + NUM_OBJECTS)) || ((glyph) == GLYPH_OBJ_PILETOP_OFF || ((glyph) > GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_PILETOP_OFF + NUM_OBJECTS)))) || (((glyph) > GLYPH_OBJ_OFF && (glyph) < GLYPH_OBJ_OFF + FIRST_OBJECT - 1) || ((glyph) > GLYPH_OBJ_PILETOP_OFF && (glyph) < GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1)) || (((((glyph) >= GLYPH_STATUE_MALE_OFF) && ((glyph) < (GLYPH_STATUE_MALE_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_MALE_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_MALE_PILETOP_OFF + NUMMONS)))) || ((((glyph) >= GLYPH_STATUE_FEM_OFF) && ((glyph) < (GLYPH_STATUE_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_FEM_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_FEM_PILETOP_OFF + NUMMONS))))) || ((((glyph) >= GLYPH_BODY_OFF) && ((glyph) < (GLYPH_BODY_OFF + NUMMONS))) || (((glyph) >= GLYPH_BODY_PILETOP_OFF) && ((glyph) < (GLYPH_BODY_PILETOP_OFF + NUMMONS)))))) {
                 otmp = null;
-                fakeobj = object_from_map(glyph, x, y, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
-                what = (otmp && otmp.otyp != STRANGE_OBJECT) ? simpleonames(otmp) : game.obj_descr[STRANGE_OBJECT].oc_name;
+                fakeobj = await object_from_map(glyph, x, y, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
+                what = (otmp && otmp.otyp != STRANGE_OBJECT) ? await simpleonames(otmp) : game.obj_descr[STRANGE_OBJECT].oc_name;
                 if (incl_article && (!otmp || otmp.quan == 1)) {
-                    what = an(what);
+                    what = await an(what);
                 }
                 outbuf = strcat(outbuf, what);
                 if (fakeobj && otmp) {
                     otmp.where = 0;
-                    dealloc_obj(otmp);
+                    await dealloc_obj(otmp);
                 }
             } else {
                 outbuf = strcat(outbuf, c_common_strings.c_something);
@@ -247,7 +246,7 @@ export function mhidden_description(mon, mhid_flags, outbuf) {
     }
 }
 /* extracted from lookat(); also used by namefloorobj() */
-export function object_from_map(glyph, x, y, obj_p) {
+export async function object_from_map(glyph, x, y, obj_p) {
     let fakeobj = (0);
     let mimic_obj = (0);
     let mtmp = null;
@@ -272,19 +271,9 @@ export function object_from_map(glyph, x, y, obj_p) {
     }
     if (!otmp || otmp.otyp != glyphotyp) {
         if ((game.obj_descr[(game.objects[glyphotyp]).oc_name_idx].oc_name)) {
-            /* this used to exclude STRANGE_OBJECT; now caller deals with it */
-            /* map shows a regular object, but one that's not actually here */
-            otmp = mksobj(glyphotyp, (0), (0));
+            otmp = await mksobj(glyphotyp, (0), (0));
         } else {
-            /* map shows a non-item that holds an extra object type (shown
-               on map due to hallucination) for a name which might have been
-               shuffled into play but wasn't (or was shuffled out of play);
-               pick another item that is a regular one in same object class */
-            /* mkobj() doesn't provide any no-init option; however, there
-               aren't any extra tool items (or statues) so we won't get here
-               for tools and don't need to check for and delete container
-               contents or extinguish lights on the temporary object */
-            otmp = mkobj(game.objects[glyphotyp].oc_class, (0));
+            otmp = await mkobj(game.objects[glyphotyp].oc_class, (0));
         }
         /* even though we pass False for mksobj()'s 'init' arg, corpse-rot,
            egg-hatch, and figurine-transform timers get initialized */
@@ -317,13 +306,13 @@ export function object_from_map(glyph, x, y, obj_p) {
         /* extra fields needed for shop price with doname() formatting */
         otmp.where = 1;
         otmp.ox = x , otmp.oy = y;
-        otmp.no_charge = (otmp.otyp == STRANGE_OBJECT && costly_spot(x, y));
+        otmp.no_charge = (otmp.otyp == STRANGE_OBJECT && await costly_spot(x, y));
     }
     /* if located at adjacent spot, mark it as having been seen up close
        (corpse type will be known even if dknown is 0, so we don't need a
        touch check for cockatrice corpse--we're looking without touching) */
     if (otmp && (dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && (fakeobj || otmp.where == 1) && !game.iflags.terrainmode) {
-        observe_object(otmp);
+        await observe_object(otmp);
     }
     if (fakeobj && mtmp && mimic_obj && (otmp.dknown || (((mtmp).m_ap_type & ~7) & 8))) {
         /* redundant: we only look for an object which matches current
@@ -334,21 +323,21 @@ export function object_from_map(glyph, x, y, obj_p) {
         /* so don't set dknown when in terrain mode */
         /* if a pile, clearly see the top item only */
         mtmp.m_ap_type |= 8;
-        observe_object(otmp);
+        await observe_object(otmp);
     }
     obj_p.value = otmp;
     /* when True, caller needs to dealloc *obj_p */
     return fakeobj;
 }
 /* output buffer */
-export function look_at_object(buf, x, y, glyph) {
+export async function look_at_object(buf, x, y, glyph) {
     let otmp = null;
-    let fakeobj = object_from_map(glyph, x, y, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
+    let fakeobj = await object_from_map(glyph, x, y, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
     if (otmp) {
-        buf = strcpy(buf, (otmp.otyp != STRANGE_OBJECT) ? distant_name(otmp, otmp.dknown ? doname_with_price : doname_vague_quan) : game.obj_descr[STRANGE_OBJECT].oc_name);
+        buf = strcpy(buf, (otmp.otyp != STRANGE_OBJECT) ? await distant_name(otmp, otmp.dknown ? doname_with_price : doname_vague_quan) : game.obj_descr[STRANGE_OBJECT].oc_name);
         if (fakeobj) {
             otmp.where = 0;
-            dealloc_obj(otmp) , otmp = null;
+            await dealloc_obj(otmp) , otmp = null;
         }
     } else {
         buf = strcpy(buf, c_common_strings.c_something);
@@ -371,12 +360,12 @@ export function look_at_object(buf, x, y, glyph) {
     return;
 }
 /* buf: output, monbuf: optional output */
-export function look_at_monster(buf, monbuf, mtmp, x, y) {
+export async function look_at_monster(buf, monbuf, mtmp, x, y) {
     let name = null;
     let monnambuf = '';
     let healthbuf = '';
     let accurate = !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic));
-    name = (mtmp.data == game.mons[PM_COYOTE] && accurate) ? coyotename(mtmp, monnambuf) : distant_monnam(mtmp, 0, monnambuf);
+    name = (mtmp.data == game.mons[PM_COYOTE] && accurate) ? await coyotename(mtmp, monnambuf) : await distant_monnam(mtmp, 0, monnambuf);
     buf = sprintf(buf, "%s%s%s%s", (mtmp.mx != x || mtmp.my != y) ? ((mtmp.isshk && accurate) ? "tail of " : "tail of a ") : "", accurate ? monhealthdescr(mtmp, (1), healthbuf) : "", (mtmp.mtame && accurate) ? "tame " : (mtmp.mpeaceful && accurate) ? "peaceful " : "", name);
     if (game.u.ustuck == mtmp) {
         if (game.u.uswallow || game.iflags.save_uswallow) {
@@ -406,7 +395,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
         let t = t_at(mtmp.mx, mtmp.my);
         let tt = t ? t.ttyp : NO_TRAP;
         if (tt == BEAR_TRAP || ((tt) == PIT || (tt) == SPIKED_PIT) || tt == WEB) {
-            buf = __nh_buf_append(buf, sprintf('', ", trapped in %s", an(trapname(tt, (0)))));
+            buf = __nh_buf_append(buf, sprintf('', ", trapped in %s", await an(trapname(tt, (0)))));
             /* newsym lets you know of the trap, so mention it here */
             t.tseen = 1;
         }
@@ -414,7 +403,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
     /* we know the hero sees a monster at this location, but if it's shown
        due to persistent monster detection he might remember something else */
     if (mtmp.mundetected || ((mtmp).m_ap_type & 7) || visible_region_at(x, y)) {
-        mhidden_description(mtmp, 1 | 2 | 8, eos(buf));
+        await mhidden_description(mtmp, 1 | 2 | 8, eos(buf));
     }
     if (monbuf) {
         let how_seen = howmonseen(mtmp);
@@ -470,7 +459,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
                     let mW = (game.context.warntype.obj | game.context.warntype.polyd);
                     let m2 = mtmp.data.mflags2;
                     let whom = ((mW & 8 & m2) ? "human" : (mW & 16 & m2) ? "elf" : (mW & 128 & m2) ? "orc" : (mW & 256 & m2) ? "demon" : pmname(mtmp.data, Mgender(mtmp)));
-                    monbuf = __nh_buf_append(monbuf, sprintf('', "warned of %s", makeplural(whom)));
+                    monbuf = __nh_buf_append(monbuf, sprintf('', "warned of %s", await makeplural(whom)));
                 }
                 how_seen &= ~64;
                 if (how_seen) {
@@ -478,8 +467,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
                 }
             }
             if (how_seen) {
-                /* should have used up all the how_seen bits by now */
-                impossible("lookat: unknown method of seeing monster");
+                await impossible("lookat: unknown method of seeing monster");
                 monbuf = __nh_buf_append(monbuf, sprintf('', "(%u)", how_seen));
             }
         }
@@ -489,6 +477,7 @@ export function look_at_monster(buf, monbuf, mtmp, x, y) {
    caller should use it or copy it before calling waterbody_name() again
    [5.0: moved here from mkmaze.c] */
 let __waterbody_name_pooltype = '';
+__nh_register_static(() => { __waterbody_name_pooltype = ''; });
 export function waterbody_name(x, y) {
     let ltyp = 0;
     let hallucinate = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !game.program_state.gameover;
@@ -566,7 +555,7 @@ export function ice_descr(x, y, outbuf) {
  * Return the name of the glyph found at (x,y).
  * If not hallucinating and the glyph is a monster, also monster data.
  */
-export function lookat(x, y, buf, monbuf) {
+export async function lookat(x, y, buf, monbuf) {
     let mtmp = null;
     let pm = null;
     let glyph = 0;
@@ -577,7 +566,7 @@ export function lookat(x, y, buf, monbuf) {
        sees them but player might be using '^' while the hero is blind */
     glyph = glyph_at(x, y);
     if (((x) == game.u.ux && (y) == game.u.uy) && ((((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || game.u.uswallow || (!(((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic)) && !game.u.uundetected)) || ((game.u.uprops[TELEPAT].extrinsic) || (game.u.uprops[DETECT_MONSTERS].intrinsic || game.u.uprops[DETECT_MONSTERS].extrinsic))) && !(game.iflags.save_uswallow && glyph == (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? ((rn2_on_display_rng)(NUMMONS)) : (((game.u.ustuck).data).pmidx)) + (((game.u.ustuck).female == 0) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF))) && (!game.iflags.terrainmode || (game.iflags.terrainmode & 8) != 0)) {
-        self_lookat(buf);
+        await self_lookat(buf);
         /* file lookup can't distinguish between "gnomish wizard" monster
            and correspondingly named player character, always picking the
            former; force it to find the general "wizard" entry instead */
@@ -604,7 +593,7 @@ export function lookat(x, y, buf, monbuf) {
             }
         }
     } else if (game.u.uswallow) {
-        buf = sprintf(buf, "interior of %s", mon_nam(game.u.ustuck));
+        buf = sprintf(buf, "interior of %s", await mon_nam(game.u.ustuck));
         /* add comma if telep and infrav */
         /* add comma if detect and (infrav or telep or both) */
         /* when swallowed, we're only called for spots adjacent to hero,
@@ -612,14 +601,13 @@ export function lookat(x, y, buf, monbuf) {
         pm = game.u.ustuck.data;
     } else if (((((glyph) >= GLYPH_MON_MALE_OFF && (glyph) < (GLYPH_MON_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_MON_FEM_OFF && (glyph) < (GLYPH_MON_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_PET_MALE_OFF && (glyph) < (GLYPH_PET_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_PET_FEM_OFF && (glyph) < (GLYPH_PET_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_RIDDEN_MALE_OFF && (glyph) < (GLYPH_RIDDEN_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_RIDDEN_FEM_OFF && (glyph) < (GLYPH_RIDDEN_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_DETECT_MALE_OFF && (glyph) < (GLYPH_DETECT_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_DETECT_FEM_OFF && (glyph) < (GLYPH_DETECT_FEM_OFF + NUMMONS))))) {
         if ((mtmp = (game.level.monsters[x][y])) != null) {
-            look_at_monster(buf, monbuf, mtmp, x, y);
+            await look_at_monster(buf, monbuf, mtmp, x, y);
             pm = mtmp.data;
         } else if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-            buf = strcpy(buf, rndmonnam(null));
+            buf = strcpy(buf, await rndmonnam(null));
         }
     } else if ((((glyph) == GLYPH_OBJ_OFF || ((glyph) >= GLYPH_OBJ_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_OFF + NUM_OBJECTS)) || ((glyph) == GLYPH_OBJ_PILETOP_OFF || ((glyph) > GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_PILETOP_OFF + NUM_OBJECTS)))) || (((glyph) > GLYPH_OBJ_OFF && (glyph) < GLYPH_OBJ_OFF + FIRST_OBJECT - 1) || ((glyph) > GLYPH_OBJ_PILETOP_OFF && (glyph) < GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1)) || (((((glyph) >= GLYPH_STATUE_MALE_OFF) && ((glyph) < (GLYPH_STATUE_MALE_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_MALE_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_MALE_PILETOP_OFF + NUMMONS)))) || ((((glyph) >= GLYPH_STATUE_FEM_OFF) && ((glyph) < (GLYPH_STATUE_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_FEM_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_FEM_PILETOP_OFF + NUMMONS))))) || ((((glyph) >= GLYPH_BODY_OFF) && ((glyph) < (GLYPH_BODY_OFF + NUMMONS))) || (((glyph) >= GLYPH_BODY_PILETOP_OFF) && ((glyph) < (GLYPH_BODY_PILETOP_OFF + NUMMONS)))))) {
-        /* 'monster' must actually be a statue */
-        look_at_object(buf, x, y, glyph);
+        await look_at_object(buf, x, y, glyph);
     } else if (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1)))) {
         let tnum = (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1))) ? (((((glyph) - (GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + S_arrow_trap) - S_arrow_trap + 1)) : MAX_GLYPH);
         trap_description(buf, tnum, x, y);
@@ -700,11 +688,10 @@ export function lookat(x, y, buf, monbuf) {
 }
 /* used to decide whether the context-sensitive inventory action menu for
    item 'otmp' should include the "/ - look up this item" choice */
-export function ia_checkfile(otmp) {
+export async function ia_checkfile(otmp) {
     let itemnam = '';
-    itemnam = strcpy(itemnam, singular(otmp, xname));
-    /* singular() of xname() of otmp is what "/i" looks up */
-    return checkfile(itemnam, null, chkfilIaCheck | chkfilDontAsk, null);
+    itemnam = strcpy(itemnam, await singular(otmp, xname));
+    return await checkfile(itemnam, null, chkfilIaCheck | chkfilDontAsk, null);
 }
 /*
  * Look in the "data" file for more info.  Called if the user typed in the
@@ -720,7 +707,7 @@ export function ia_checkfile(otmp) {
  */
 /* string to look up */
 /* monster type to look up (overrides 'inp') */
-export function checkfile(inp, pm, chkflags, supplemental_name) {
+export async function checkfile(inp, pm, chkflags, supplemental_name) {
     let fp = null;
     let buf = '';
     let newstr = '';
@@ -744,12 +731,11 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
         res = (0);
         fp = fopen("data", "r");
         if (!fp) {
-            pline("Cannot open 'data' file!");
+            await pline("Cannot open 'data' file!");
             return res;
         }
         if (!inp || strlen(inp) > (256 - 1)) {
-            /* If someone passed us garbage, prevent fault. */
-            impossible("bad do_look buffer passed (%s)!", !inp ? "null" : "too long");
+            await impossible("bad do_look buffer passed (%s)!", !inp ? "null" : "too long");
             __skip_impossible = (1); break bad_data_file;
         }
         if (pm != null && !user_typed_name) {
@@ -897,14 +883,10 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
             if (alt && (ap = strstri(alt, " (")) != null && ap > alt) {
                 alt = nh_strchr_truncate(alt, " (", 'stri');
             }
-            /* If the object's name matches the player-specified fruitname,
-           then "fruit" is the alternate description. We do this here so that
-           if the fruit name is an extant object, looking at the fruit yields
-           that object's description. */
-            if (!alt && fruit_from_name(dbase_str, (1), null)) {
+            if (!alt && await fruit_from_name(dbase_str, (1), null)) {
                 alt = strcpy(newstr, game.obj_descr[SLIME_MOLD].oc_name);
             } else if (!alt) {
-                alt = makesingular(dbase_str);
+                alt = await makesingular(dbase_str);
             }
             pass1found_in_file = (0);
             for (pass = !strcmp(alt, dbase_str) ? 0 : 1; pass >= 0; --pass) {
@@ -918,12 +900,11 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                 found_in_file = skipping_entry = (0);
                 txt_offset = 0;
                 if (fseek(fp, txt_offset, 0) < 0) {
-                    impossible("can't get to start of 'data' file");
+                    await impossible("can't get to start of 'data' file");
                     __skip_impossible = (1); break bad_data_file;
                 }
                 if (!fgets(buf, 256, fp) || !fgets(buf, 256, fp)) {
-                    /* skip first record; read second */
-                    impossible("can't read 'data' file");
+                    await impossible("can't read 'data' file");
                     __skip_impossible = (1); break bad_data_file;
                 } else if (sscanf(buf, "%8lx\n", txt_offset) < 1 || txt_offset == 0) {
                     break bad_data_file;
@@ -945,7 +926,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                         /* if we match a key that begins with "~", skip
                        this entry */
                         chk_skip = (buf == 126) ? 1 : 0;
-                        if ((pass == 0 && pmatch(buf[chk_skip], dbase_str)) || (pass == 1 && alt && pmatch(buf[chk_skip], alt))) {
+                        if ((pass == 0 && pmatch(__nh_char_at0(__nh_advance_str(buf, chk_skip)), dbase_str)) || (pass == 1 && alt && pmatch(__nh_char_at0(__nh_advance_str(buf, chk_skip)), alt))) {
                             if (chk_skip) {
                                 skipping_entry = (1);
                                 continue;
@@ -984,15 +965,15 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                         let entrytext = pass ? alt : dbase_str;
                         let question = '';
                         question = strcpy(question, "More info about \"");
-                        copynchars(eos(question), entrytext, (128 /* sizeof(char [128]) */ - 1 - (strlen(question) + 2)));
+                        question = __nh_buf_append(question, String(entrytext).slice(0, Math.max(0, 128 - 1 - (strlen(question) + 2))));
                         question = strcat(question, "\"?");
-                        if (yn_function(question, ynchars, 110, (1)) == 121) {
+                        if (await yn_function(question, ynchars, 110, (1)) == 121) {
                             yes_to_moreinfo = (1);
                         }
                     }
                     if (user_typed_name || without_asking || yes_to_moreinfo) {
                         if (fseek(fp, fseekoffset, 0) < 0) {
-                            pline("? Seek error on 'data' file!");
+                            await pline("? Seek error on 'data' file!");
                             __skip_impossible = (1); break bad_data_file;
                         }
                         res = (1);
@@ -1022,7 +1003,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                                something else so we don't require it) */
                                 do {
                                     (tp = __nh_advance_str(tp, 1));
-                                } while (tp < tabbuf[8] && __nh_char_at0(tp) == 32);
+                                } while (tp < __nh_char_at0(__nh_advance_str(tabbuf, 8)) && __nh_char_at0(tp) == 32);
                             } else if (__nh_char_at0(tp)) {
                                 break bad_data_file;
                             }
@@ -1034,18 +1015,18 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
                             }
                             (game.windowprocs.win_putstr)(datawin, 0, tp);
                         }
-                        (game.windowprocs.win_display_nhwindow)(datawin, (0));
+                        await (game.windowprocs.win_display_nhwindow)(datawin, (0));
                         (game.windowprocs.win_destroy_nhwindow)(datawin) , datawin = (-1);
                     }
                 } else if (user_typed_name && pass == 0 && !pass1found_in_file) {
-                    pline("You don't have any information on those things.");
+                    await pline("You don't have any information on those things.");
                 }
             }
         }
         __skip_impossible = (1); break bad_data_file;
     }
     if (!__skip_impossible) {
-        impossible("'data' file in wrong format or corrupted");
+        await impossible("'data' file in wrong format or corrupted");
     }
     checkfile_done: {
     }
@@ -1067,7 +1048,7 @@ export function checkfile(inp, pm, chkflags, supplemental_name) {
 /* input/output: True if a trap has been described */
 /* output: pointer to 1st matching description */
 /* input/output: current description gets appended */
-export function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hit_trap, firstmatch, out_str) {
+export async function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hit_trap, firstmatch, out_str) {
     let __nh_firstmatch_idx = 0;
     let mbuf = null;
     let p = null;
@@ -1090,9 +1071,7 @@ export function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hi
         /* replace some descriptions (x_str) with waterbody_name() */
         let save_ltyp = game.level.locations[cc.x][cc.y].typ;
         let save_prop = game.u.uprops[HALLUC_RES].extrinsic;
-        /* grab a scratch buffer we can safely return (via *firstmatch
-           when applicable) */
-        mbuf = mon_nam(game.youmonst);
+        mbuf = await mon_nam(game.youmonst);
         if (absidx == S_pool) {
             game.level.locations[cc.x][cc.y].typ = (idx == S_pool) ? POOL : MOAT;
             idx = S_pool;
@@ -1121,15 +1100,12 @@ export function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hi
             /* thawing ice ("solid ice", "thin ice", &c) */
             hit_trap.value = (1);
         } else {
-            out_str = sprintf(out_str, "%s%s", prefix, (article == 2) ? the(x_str) : (article == 1) ? an(x_str) : x_str);
+            out_str = sprintf(out_str, "%s%s", prefix, (article == 2) ? await the(x_str) : (article == 1) ? await an(x_str) : x_str);
         }
         firstmatch.value = x_str;
         found = 1;
     } else if (!(hit_trap.value && ((idx) >= S_arrow_trap && (idx) < S_arrow_trap + (TRAPNUM - 1))) && !(found >= 3 && ((idx) >= S_vodbridge && (idx) <= S_hcdbridge)) && (idx != S_vibrating_square || In_hell(game.u.uz) || (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1))) && (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1))) ? (((((glyph) - (GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + S_arrow_trap) - S_arrow_trap + 1)) : MAX_GLYPH) == VIBRATING_SQUARE))) {
-        /* don't mention vibrating square outside of Gehennom
-                  unless this happens to be one (hallucination?) */
-        /* append unless out_str already contains the string to append */
-        found += append_str(out_str, (article == 2) ? the(x_str) : (article == 1) ? an(x_str) : x_str);
+        found += await append_str(out_str, (article == 2) ? await the(x_str) : (article == 1) ? await an(x_str) : x_str);
         if (((idx) >= S_arrow_trap && (idx) < S_arrow_trap + (TRAPNUM - 1)) && idx != S_vibrating_square) {
             hit_trap.value = (1);
         }
@@ -1139,7 +1115,8 @@ export function add_cmap_descr(found, idx, glyph, article, cc, x_str, prefix, hi
 const __do_screen_description_mon_interior = "the interior of a monster";
 const __do_screen_description_unreconnoitered = "unreconnoitered";
 let __do_screen_description_look_buf = '';
-export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_supplement) {
+__nh_register_static(() => { __do_screen_description_look_buf = ''; });
+export async function do_screen_description(cc, looked, sym, out_str, firstmatch, for_supplement) {
     let prefix = '';
     let i = 0;
     let j = 0;
@@ -1214,7 +1191,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                 firstmatch.value = x_str;
                 found++;
             } else {
-                found += append_str(out_str, x_str);
+                found += await append_str(out_str, x_str);
             }
             /* for is_swallow_sym(), we want to list the current symbol's
            other possibilities (wand for '/', throne for '\\', &c) so
@@ -1238,11 +1215,11 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
             if (sym == (looked ? game.showsyms[i + (((0) + MAXPCHARS) + MAXOCLASSES)] : def_monsyms[i].sym) && def_monsyms[i].explain && def_monsyms[i].explain) {
                 need_to_look = (1);
                 if (!found) {
-                    out_str = sprintf(out_str, "%s%s", prefix, an(def_monsyms[i].explain));
+                    out_str = sprintf(out_str, "%s%s", prefix, await an(def_monsyms[i].explain));
                     firstmatch.value = def_monsyms[i].explain;
                     found++;
                 } else {
-                    found += append_str(out_str, an(def_monsyms[i].explain));
+                    found += await append_str(out_str, await an(def_monsyms[i].explain));
                 }
             }
         }
@@ -1250,7 +1227,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
            playing a character which isn't normally displayed by that
            symbol; firstmatch is assumed to already be set for '@' */
         if ((looked ? (sym == game.showsyms[S_HUMAN + (((0) + MAXPCHARS) + MAXOCLASSES)] && ((cc.x) == game.u.ux && (cc.y) == game.u.uy)) : (sym == def_monsyms[S_HUMAN].sym && !game.flags.showrace)) && !((game.urace.mnum == (PM_HUMAN)) || (game.urace.mnum == (PM_ELF))) && !(game.u.umonnum != game.u.umonster)) {
-            found += append_str(out_str, "you");
+            found += await append_str(out_str, "you");
         }
     }
     didlook: {
@@ -1285,7 +1262,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                         continue;
                     }
                     if (!found) {
-                        out_str = sprintf(out_str, "%s%s", prefix, an(oc_ptr));
+                        out_str = sprintf(out_str, "%s%s", prefix, await an(oc_ptr));
                         /* note: if the value assigned to *firstmatch ever
                        becomes dynamically constructed, it will need to be
                        copied into a static buffer; as of now, all alternate
@@ -1293,7 +1270,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                         firstmatch.value = oc_ptr;
                         found++;
                     } else {
-                        found += append_str(out_str, an(oc_ptr));
+                        found += await append_str(out_str, await an(oc_ptr));
                     }
                 }
             }
@@ -1303,11 +1280,11 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
             let usealt = (game.u.uprops[DETECT_MONSTERS].extrinsic & 536870912) != 0;
             let unseen_explain = (usealt || ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) ? altinvisexplain : invisexplain;
             if (!found) {
-                out_str = sprintf(out_str, "%s%s", prefix, an(unseen_explain));
+                out_str = sprintf(out_str, "%s%s", prefix, await an(unseen_explain));
                 firstmatch.value = unseen_explain;
                 found++;
             } else {
-                found += append_str(out_str, an(unseen_explain));
+                found += await append_str(out_str, await an(unseen_explain));
             }
         }
         if ((glyph && ((glyph) == GLYPH_NOTHING_OFF)) || (looked && sym == game.showsyms[SYM_NOTHING + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)])) {
@@ -1317,7 +1294,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                 firstmatch.value = x_str;
                 found++;
             } else {
-                found += append_str(out_str, x_str);
+                found += await append_str(out_str, x_str);
             }
         }
         if ((glyph && ((glyph) == GLYPH_UNEXPLORED_OFF)) || (looked && sym == game.showsyms[SYM_UNEXPLORED + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6)])) {
@@ -1330,7 +1307,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                 firstmatch.value = x_str;
                 found++;
             } else {
-                found += append_str(out_str, x_str);
+                found += await append_str(out_str, x_str);
             }
         }
         for (hit_trap = (0) , i = 0; i < MAXPCHARS; i++) {
@@ -1370,13 +1347,9 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                 /* avoid "an unexplored", "an stone", "an air",
                "a floor of a room", "a dark part of a room" */
                 article = strstri(x_str, " of a room") ? 2 : !(alt_i == S_stone || strcmp(x_str, "air") == 0 || strcmp(x_str, "land") == 0);
-                found = add_cmap_descr(found, alt_i, glyph, article, cc, x_str, prefix, { get value() { return hit_trap; }, set value(_v) { hit_trap = _v; } }, firstmatch, out_str);
+                found = await add_cmap_descr(found, alt_i, glyph, article, cc, x_str, prefix, { get value() { return hit_trap; }, set value(_v) { hit_trap = _v; } }, firstmatch, out_str);
                 if (alt_i == S_pool) {
-                    /* "pool of water" and "moat" use the same symbol and glyph
-                   but have different descriptions; when handling pool, add
-                   it a second time for moat but pass an alternate symbol;
-                   skip incrementing 'found' to avoid "can be many things" */
-                    add_cmap_descr(found, -S_pool, glyph, 1, cc, "moat", prefix, { get value() { return hit_trap; }, set value(_v) { hit_trap = _v; } }, firstmatch, out_str);
+                    await add_cmap_descr(found, -S_pool, glyph, 1, cc, "moat", prefix, { get value() { return hit_trap; }, set value(_v) { hit_trap = _v; } }, firstmatch, out_str);
                     need_to_look = (1);
                 }
                 /* 'need_to_look' to report engraving */
@@ -1395,7 +1368,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                     ;
                     found++;
                 } else {
-                    found += append_str(out_str, x_str);
+                    found += await append_str(out_str, x_str);
                 }
                 /* Kludge: warning trumps boulders on the display.
                Reveal the boulder too or player can get confused */
@@ -1409,11 +1382,11 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
             /* if we ignored venom and list turned out to be short, put it back */
             x_str = def_oc_syms[VENOM_CLASS].explain;
             if (!found) {
-                out_str = sprintf(out_str, "%s%s", prefix, an(x_str));
+                out_str = sprintf(out_str, "%s%s", prefix, await an(x_str));
                 firstmatch.value = x_str;
                 found++;
             } else {
-                found += append_str(out_str, an(x_str));
+                found += await append_str(out_str, await an(x_str));
             }
         }
         for (j = (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6); j < ((((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6) + MAXOTHER); ++j) {
@@ -1456,17 +1429,17 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
         if (found > 1 || need_to_look) {
             let monbuf = '';
             let temp_buf = '';
-            pm = lookat(cc.x, cc.y, __do_screen_description_look_buf, monbuf);
+            pm = await lookat(cc.x, cc.y, __do_screen_description_look_buf, monbuf);
             if (pm && for_supplement) {
                 for_supplement.value = pm;
             }
             if (!strcmp(__do_screen_description_look_buf, "ice")) {
                 ice_descr(cc.x, cc.y, __do_screen_description_look_buf);
             }
-            if (!strcmp(__do_screen_description_look_buf, "staircase down") && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level)) && !ok_to_quest()) {
+            if (!strcmp(__do_screen_description_look_buf, "staircase down") && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level)) && !await ok_to_quest()) {
                 __do_screen_description_look_buf = strcpy(__do_screen_description_look_buf, "blocked staircase down");
             }
-            if (__do_screen_description_look_buf[0] != 0) {
+            if (__nh_char_at0(__do_screen_description_look_buf) != 0) {
                 firstmatch.value = __do_screen_description_look_buf;
             }
             if ((firstmatch.value)) {
@@ -1477,7 +1450,7 @@ export function do_screen_description(cc, looked, sym, out_str, firstmatch, for_
                 /* we have something to look up */
                 found = 1;
             }
-            if (monbuf[0]) {
+            if (__nh_char_at0(monbuf)) {
                 temp_buf = nh_snprintf("do_screen_description", 1619, temp_buf, 256 /* sizeof(char [256]) */, " [seen: %s]", monbuf);
                 out_str = strncat(out_str, temp_buf, 256 - strlen(out_str) - 1);
             }
@@ -1518,7 +1491,7 @@ export function add_quoted_engraving(x, y, buf, force) {
 }
 /* also used by getpos hack in getpos.c */
 export const what_is_a_location = "a monster, object or location";
-export function do_look(mode, click_cc) {
+export async function do_look(mode, click_cc) {
     /* use cursor; don't search for "more info" */
     let quick = (mode == 1);
     /* right mouse-click method */
@@ -1561,8 +1534,8 @@ export function do_look(mode, click_cc) {
             } else {
                 let pick_list = null;
                 let win = 0;
-                let any = 0;
-                any = cg.zeroany;
+                let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
+                Object.assign(any, cg.zeroany);
                 win = (game.windowprocs.win_create_nhwindow)(4);
                 (game.windowprocs.win_start_menu)(win, 0);
                 /*
@@ -1582,16 +1555,16 @@ export function do_look(mode, click_cc) {
              * favor of newer '/' and '?' compatibility instead.
              */
                 any.a_char = 47;
-                add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? 47 : 121, 0, clr, "something on the map", 0);
+                await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? 47 : 121, 0, clr, "something on the map", 0);
                 any.a_char = 105;
-                add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, 0, 0, clr, "something you're carrying", 0);
+                await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, 0, 0, clr, "something you're carrying", 0);
                 any.a_char = 63;
-                add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? 63 : 110, 0, clr, "something else (by symbol or name)", 0);
+                await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? 63 : 110, 0, clr, "something else (by symbol or name)", 0);
                 if (!game.u.uswallow && !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
                     /* [don't use 'i' as lootabc group accelerator because
                         it will make the regular 'i' choice inaccessible] */
-                    any = cg.zeroany;
-                    add_menu_str(win, "");
+                    Object.assign(any, cg.zeroany);
+                    await add_menu_str(win, "");
                     /* these options work sensibly for swallowed case, but
                    there's no reason for player to use them then because
                    the swallowed display hides all applicable targets;
@@ -1599,24 +1572,24 @@ export function do_look(mode, click_cc) {
                    symbol/monster class letter doesn't match up with
                    bogus monster type, so suppress when hallucinating */
                     any.a_char = 109;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "nearby monsters", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "nearby monsters", 0);
                     any.a_char = 77;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "all monsters shown on map", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "all monsters shown on map", 0);
                     any.a_char = 111;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "nearby objects", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "nearby objects", 0);
                     any.a_char = 79;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "all objects shown on map", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 0, 0, clr, "all objects shown on map", 0);
                     any.a_char = 116;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 94, 0, clr, "nearby traps", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 94, 0, clr, "nearby traps", 0);
                     any.a_char = 84;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 34, 0, clr, "all seen or remembered traps", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 34, 0, clr, "all seen or remembered traps", 0);
                     any.a_char = 101;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? 0 : 96, 0, clr, "nearby engravings", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? 0 : 96, 0, clr, "nearby engravings", 0);
                     any.a_char = 69;
-                    add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 124, 0, clr, "all seen or remembered engravings", 0);
+                    await add_menu(win, nul_glyphinfo, any, game.flags.lootabc ? 0 : any.a_char, game.flags.lootabc ? any.a_char : 124, 0, clr, "all seen or remembered engravings", 0);
                 }
                 (game.windowprocs.win_end_menu)(win, "What do you want to look at:");
-                if (select_menu(win, 1, pick_list) > 0) {
+                if (await select_menu(win, 1, pick_list) > 0) {
                     /* [don't use 'e' as lootabc group accelerator] */
                     i = pick_list.item.a_char;
                     free(pick_list);
@@ -1642,28 +1615,25 @@ export function do_look(mode, click_cc) {
 {
                     let invlet = 0;
                     let invobj = null;
-                    invlet = display_inventory(null, (1));
+                    invlet = await display_inventory(null, (1));
                     if (!invlet || invlet == 27) {
                         return 0;
                     }
-                    out_str = '';
+                    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
                     for (invobj = game.invent; invobj; invobj = invobj.nobj) {
                         if (invobj.invlet == invlet) {
-                            out_str = strcpy(out_str, singular(invobj, xname));
+                            out_str = strcpy(out_str, await singular(invobj, xname));
                             break;
                         }
                     }
                     if (out_str) {
-                        /* remove leading and trailing whitespace and
-                   condense consecutive internal whitespace */
-                        /* user typed in a complete string */
-                        checkfile(out_str, pm, chkfilUsrTyped | chkfilDontAsk, null);
+                        await checkfile(out_str, pm, chkfilUsrTyped | chkfilDontAsk, null);
                     }
                     return 0;
                 }
             case 63:
                 from_screen = (0);
-                getlin("Specify what? (type the word)", out_str);
+                out_str = await getlin("Specify what? (type the word)", out_str);
                 if (strcmp(out_str, " ")) {
                     out_str = mungspaces(out_str);
                 }
@@ -1671,34 +1641,34 @@ export function do_look(mode, click_cc) {
                     return 0;
                 }
                 if (out_str[1]) {
-                    checkfile(out_str, pm, chkfilUsrTyped | chkfilDontAsk, null);
+                    await checkfile(out_str, pm, chkfilUsrTyped | chkfilDontAsk, null);
                     return 0;
                 }
                 sym = out_str[0];
                 break;
             case 109:
-                look_all((1), (1));
+                await look_all((1), (1));
                 return 0;
             case 77:
-                look_all((0), (1));
+                await look_all((0), (1));
                 return 0;
             case 111:
-                look_all((1), (0));
+                await look_all((1), (0));
                 return 0;
             case 79:
-                look_all((0), (0));
+                await look_all((0), (0));
                 return 0;
             case 116:
-                look_traps((1));
+                await look_traps((1));
                 return 0;
             case 84:
-                look_traps((0));
+                await look_traps((0));
                 return 0;
             case 101:
-                look_engrs((1));
+                await look_engrs((1));
                 return 0;
             case 69:
-                look_engrs((0));
+                await look_engrs((0));
                 return 0;
         }
     } else {
@@ -1712,18 +1682,15 @@ export function do_look(mode, click_cc) {
     game.flags.verbose = game.flags.verbose && !quick;
     do {
         pm = null;
-        out_str = '';
+        out_str[0] = 0;
         if (from_screen || clicklook) {
             if (from_screen) {
-                /*
-     * The user typed one letter, or we're identifying from the screen.
-     */
                 if (game.flags.verbose) {
-                    pline("Please move the cursor to %s.", what_is_a_location);
+                    await pline("Please move the cursor to %s.", what_is_a_location);
                 } else {
-                    pline("Pick %s.", what_is_a_location);
+                    await pline("Pick %s.", what_is_a_location);
                 }
-                ans = getpos(cc, quick, what_is_a_location);
+                ans = await getpos(cc, quick, what_is_a_location);
                 if (ans < 0 || cc.x < 0) {
                     break;
                 }
@@ -1731,7 +1698,7 @@ export function do_look(mode, click_cc) {
                 game.flags.verbose = (0);
             }
         }
-        found = do_screen_description(cc, (from_screen || clicklook), sym, out_str, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, { get value() { return supplemental_pm; }, set value(_v) { supplemental_pm = _v; } });
+        found = await do_screen_description(cc, (from_screen || clicklook), sym, out_str, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, { get value() { return supplemental_pm; }, set value(_v) { supplemental_pm = _v; } });
         if (found) {
             (game.windowprocs.win_putmixed)(game.WIN_MESSAGE, 0, out_str);
 /* Finally, print out our explanation. */
@@ -1744,8 +1711,8 @@ export function do_look(mode, click_cc) {
                    at present, force space, but we ought to use defsyms[]
                    value for the glyph the graphics character came from */
                 decode_mixed(dmpbuf, out_str);
-                if (dmpbuf[0] < 32 || dmpbuf[0] >= 127) {
-                    dmpbuf[0] = 32;
+                if (__nh_char_at0(dmpbuf) < 32 || __nh_char_at0(dmpbuf) >= 127) {
+                    dmpbuf = __nh_char_write(dmpbuf, 0, 32);
                 }
                 dumplogmsg(dmpbuf);
             }
@@ -1755,13 +1722,13 @@ export function do_look(mode, click_cc) {
                 let supplemental_name = '';
                 supplemental_name = '';
                 temp_buf = strcpy(temp_buf, firstmatch);
-                checkfile(temp_buf, pm, (ans == LOOK_VERBOSE) ? chkfilDontAsk : chkfilNone, supplemental_name);
+                await checkfile(temp_buf, pm, (ans == LOOK_VERBOSE) ? chkfilDontAsk : chkfilNone, supplemental_name);
                 if (supplemental_pm) {
-                    do_supplemental_info(supplemental_name, supplemental_pm, (ans == LOOK_VERBOSE));
+                    await do_supplemental_info(supplemental_name, supplemental_pm, (ans == LOOK_VERBOSE));
                 }
             }
         } else {
-            pline("I've never heard of such things.");
+            await pline("I've never heard of such things.");
         }
     } while (from_screen && !quick && ans != LOOK_ONCE && !clicklook);
     game.flags.verbose = save_verbose;
@@ -1776,7 +1743,7 @@ export function look_region_nearby(lo_x, lo_y, hi_x, hi_y, nearby) {
 /* RESTORE is after do_supplemental_info() */
 /* True => within BOLTLIM, False => entire map */
 /* True => monsters, False => objects */
-export function look_all(nearby, do_mons) {
+export async function look_all(nearby, do_mons) {
     let win = 0;
     let glyph = 0;
     let count = 0;
@@ -1799,12 +1766,12 @@ export function look_all(nearby, do_mons) {
                 if (((((glyph) >= GLYPH_MON_MALE_OFF && (glyph) < (GLYPH_MON_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_MON_FEM_OFF && (glyph) < (GLYPH_MON_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_PET_MALE_OFF && (glyph) < (GLYPH_PET_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_PET_FEM_OFF && (glyph) < (GLYPH_PET_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_RIDDEN_MALE_OFF && (glyph) < (GLYPH_RIDDEN_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_RIDDEN_FEM_OFF && (glyph) < (GLYPH_RIDDEN_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_DETECT_MALE_OFF && (glyph) < (GLYPH_DETECT_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_DETECT_FEM_OFF && (glyph) < (GLYPH_DETECT_FEM_OFF + NUMMONS))))) {
                     let mtmp = null;
                     if (((x) == game.u.ux && (y) == game.u.uy) && ((((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || game.u.uswallow || (!(((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic)) && !game.u.uundetected)) || ((game.u.uprops[TELEPAT].extrinsic) || (game.u.uprops[DETECT_MONSTERS].intrinsic || game.u.uprops[DETECT_MONSTERS].extrinsic)))) {
-                        self_lookat(lookbuf);
+                        await self_lookat(lookbuf);
                         /* remembered, unseen, creature */
                         /* engraving or grave+headstone shown on the map */
                         ++count;
                     } else if ((mtmp = (game.level.monsters[x][y])) != null) {
-                        look_at_monster(lookbuf, null, mtmp, x, y);
+                        await look_at_monster(lookbuf, null, mtmp, x, y);
                         ++count;
                     }
                 } else if (((glyph) == GLYPH_INVIS_OFF)) {
@@ -1817,7 +1784,7 @@ export function look_all(nearby, do_mons) {
                 }
             } else {
                 if ((((glyph) == GLYPH_OBJ_OFF || ((glyph) >= GLYPH_OBJ_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_OFF + NUM_OBJECTS)) || ((glyph) == GLYPH_OBJ_PILETOP_OFF || ((glyph) > GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_PILETOP_OFF + NUM_OBJECTS)))) || (((glyph) > GLYPH_OBJ_OFF && (glyph) < GLYPH_OBJ_OFF + FIRST_OBJECT - 1) || ((glyph) > GLYPH_OBJ_PILETOP_OFF && (glyph) < GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1)) || (((((glyph) >= GLYPH_STATUE_MALE_OFF) && ((glyph) < (GLYPH_STATUE_MALE_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_MALE_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_MALE_PILETOP_OFF + NUMMONS)))) || ((((glyph) >= GLYPH_STATUE_FEM_OFF) && ((glyph) < (GLYPH_STATUE_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_FEM_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_FEM_PILETOP_OFF + NUMMONS))))) || ((((glyph) >= GLYPH_BODY_OFF) && ((glyph) < (GLYPH_BODY_OFF + NUMMONS))) || (((glyph) >= GLYPH_BODY_PILETOP_OFF) && ((glyph) < (GLYPH_BODY_PILETOP_OFF + NUMMONS)))))) {
-                    look_at_object(lookbuf, x, y, glyph);
+                    await look_at_object(lookbuf, x, y, glyph);
                     ++count;
                 }
             }
@@ -1854,22 +1821,21 @@ export function look_all(nearby, do_mons) {
                 outbuf = sprintf(outbuf, (cmode == 115) ? "%s  " : (cmode == 109) ? "%8s  " : "%12s  ", coordbuf);
                 outbuf = __nh_buf_append(outbuf, sprintf('', "%s  ", encglyph(glyph)));
                 /* guard against potential overflow */
-                lookbuf[256 /* sizeof(char [256]) */ - 1 - strlen(outbuf)] = 0;
+                lookbuf = __nh_char_write(lookbuf, 256 /* sizeof(char [256]) */ - 1 - strlen(outbuf), 0);
                 outbuf = strcat(outbuf, lookbuf);
                 (game.windowprocs.win_putmixed)(win, 0, outbuf);
             }
         }
     }
     if (count) {
-        (game.windowprocs.win_display_nhwindow)(win, (1));
-    /* prefix: "coords  C  " where 'C' is mon or obj symbol */
+        await (game.windowprocs.win_display_nhwindow)(win, (1));
     } else {
-        pline("No %s are currently shown %s.", do_mons ? "monsters" : "objects", nearby ? "nearby" : "on the map");
+        await pline("No %s are currently shown %s.", do_mons ? "monsters" : "objects", nearby ? "nearby" : "on the map");
     }
     (game.windowprocs.win_destroy_nhwindow)(win);
 }
 /* give a /M style display of discovered traps, even when they're covered */
-export function look_traps(nearby) {
+export async function look_traps(nearby) {
     let win = 0;
     let t = null;
     let glyph = 0;
@@ -1912,23 +1878,22 @@ export function look_traps(nearby) {
                 }
                 outbuf = sprintf(outbuf, (cmode == 115) ? "%s  " : (cmode == 109) ? "%8s  " : "%12s  ", coord_desc(x, y, coordbuf, cmode));
                 outbuf = __nh_buf_append(outbuf, sprintf('', "%s  ", encglyph(glyph)));
-                lookbuf[256 /* sizeof(char [256]) */ - 1 - strlen(outbuf)] = 0;
+                lookbuf = __nh_char_write(lookbuf, 256 /* sizeof(char [256]) */ - 1 - strlen(outbuf), 0);
                 outbuf = strcat(outbuf, lookbuf);
                 (game.windowprocs.win_putmixed)(win, 0, outbuf);
             }
         }
     }
     if (count) {
-        (game.windowprocs.win_display_nhwindow)(win, (1));
-    /* prefix: "coords  C  " where 'C' is trap symbol */
+        await (game.windowprocs.win_display_nhwindow)(win, (1));
     } else {
-        pline("No traps seen or remembered%s.", nearby ? " nearby" : "");
+        await pline("No traps seen or remembered%s.", nearby ? " nearby" : "");
     }
     (game.windowprocs.win_destroy_nhwindow)(win);
 }
 /* display of discovered engravings including headstones, even when they're
    covered provided they've been read */
-export function look_engrs(nearby) {
+export async function look_engrs(nearby) {
     let win = 0;
     let e = null;
     let lookbuf = '';
@@ -1992,23 +1957,22 @@ export function look_engrs(nearby) {
                 }
                 outbuf = sprintf(outbuf, (cmode == 115) ? "%s  " : (cmode == 109) ? "%8s  " : "%12s  ", coord_desc(x, y, coordbuf, cmode));
                 outbuf = __nh_buf_append(outbuf, sprintf('', "%s ", encglyph(glyph)));
-                lookbuf[256 /* sizeof(char [256]) */ - 1 - strlen(outbuf)] = 0;
+                lookbuf = __nh_char_write(lookbuf, 256 /* sizeof(char [256]) */ - 1 - strlen(outbuf), 0);
                 outbuf = strcat(outbuf, lookbuf);
                 (game.windowprocs.win_putmixed)(win, 0, outbuf);
             }
         }
     }
     if (count) {
-        (game.windowprocs.win_display_nhwindow)(win, (1));
-    /* prefix: "coords  C  " where 'C' is engrvng|grave symbol */
+        await (game.windowprocs.win_display_nhwindow)(win, (1));
     } else {
-        pline("No engravings seen or remembered%s.", nearby ? " nearby" : "");
+        await pline("No engravings seen or remembered%s.", nearby ? " nearby" : "");
     }
     (game.windowprocs.win_destroy_nhwindow)(win);
 }
 const suptext1 = ["%s is a member of a marauding horde of orcs", "rumored to have brutally attacked and plundered", "the ordinarily sheltered town that is located ", "deep within The Gnomish Mines.", "", "The members of that vicious horde proudly and ", "defiantly acclaim their allegiance to their", "leader %s in their names.", null];
 const suptext2 = ["\"%s\" is the common dungeon name of", "a nefarious orc who is known to acquire property", "from thieves and sell it off for profit.", "", "The perpetrator was last seen hanging around the", "stairs leading to the Gnomish Mines.", null];
-export function do_supplemental_info(name, pm, without_asking) {
+export async function do_supplemental_info(name, pm, without_asking) {
     let textp = null;
     let datawin = (-1);
     let entrytext = name;
@@ -2030,9 +1994,9 @@ export function do_supplemental_info(name, pm, without_asking) {
             fullname = strcpy(fullname, name);
             if (!without_asking) {
                 question = strcpy(question, "More info about \"");
-                copynchars(eos(question), entrytext, (128 /* sizeof(char [128]) */ - 1 - (strlen(question) + 2)));
+                question = __nh_buf_append(question, String(entrytext).slice(0, Math.max(0, 128 - 1 - (strlen(question) + 2))));
                 question = strcat(question, "\"?");
-                if (yn_function(question, ynchars, 110, (1)) == 121) {
+                if (await yn_function(question, ynchars, 110, (1)) == 121) {
                     yes_to_moreinfo = (1);
                 }
             }
@@ -2060,28 +2024,28 @@ export function do_supplemental_info(name, pm, without_asking) {
                     }
                     (game.windowprocs.win_putstr)(datawin, 0, txt);
                 }
-                (game.windowprocs.win_display_nhwindow)(datawin, (0));
+                await (game.windowprocs.win_display_nhwindow)(datawin, (0));
                 (game.windowprocs.win_destroy_nhwindow)(datawin) , datawin = (-1);
             }
         }
     }
 }
 /* the #whatis command */
-export function dowhatis() {
-    return do_look(0, null);
+export async function dowhatis() {
+    return await do_look(0, null);
 }
 /* the #glance command */
-export function doquickwhatis() {
-    return do_look(1, null);
+export async function doquickwhatis() {
+    return await do_look(1, null);
 }
 /* the #showtrap command */
-export function doidtrap() {
+export async function doidtrap() {
     let trap = null;
     let tt = 0;
     let glyph = 0;
     let x = 0;
     let y = 0;
-    if (!getdir("^")) {
+    if (!await getdir("^")) {
         return 2;
     }
     x = game.u.ux + game.u.dx;
@@ -2090,7 +2054,7 @@ export function doidtrap() {
     if (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1))) && ((tt = (((glyph) >= ((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) && (glyph) < (((GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + (TRAPNUM - 1))) ? (((((glyph) - (GLYPH_CMAP_B_OFF + (S_arrow_trap - S_grave))) + S_arrow_trap) - S_arrow_trap + 1)) : MAX_GLYPH)) == BEAR_TRAP || tt == TRAPPED_DOOR || tt == TRAPPED_CHEST)) {
         let chesttrap = trapped_chest_at(tt, x, y);
         if (chesttrap || trapped_door_at(tt, x, y)) {
-            pline("That is a trapped %s.", chesttrap ? "chest" : "door");
+            await pline("That is a trapped %s.", chesttrap ? "chest" : "door");
             return 0;
         }
     }
@@ -2105,11 +2069,11 @@ export function doidtrap() {
                     break;
                 }
             }
-            pline("That is %s%s%s.", an(trapname(tt, (0))), !trap.madeby_u ? "" : (tt == WEB) ? " woven" : (tt == HOLE || tt == PIT) ? " dug" : " set", !trap.madeby_u ? "" : " by you");
+            await pline("That is %s%s%s.", await an(trapname(tt, (0))), !trap.madeby_u ? "" : (tt == WEB) ? " woven" : (tt == HOLE || tt == PIT) ? " dug" : " set", !trap.madeby_u ? "" : " by you");
             return 0;
         }
     }
-    pline("I can't see a trap there.");
+    await pline("I can't see a trap there.");
     return 0;
 }
 /*
@@ -2140,15 +2104,15 @@ export function doidtrap() {
     supported option that has a value; the few others (wizard/debug,
     rest_on_space, #if SHELL, #if SUSPEND) are booleans.
 */
-export function whatdoes_help() {
+export async function whatdoes_help() {
     let fp = null;
     let p = null;
     let buf = '';
     let tmpwin = 0;
     fp = fopen("keyhelp", "r");
     if (!fp) {
-        pline("Cannot open \"%s\" data file!", "keyhelp");
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+        await pline("Cannot open \"%s\" data file!", "keyhelp");
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
         return;
     }
     tmpwin = (game.windowprocs.win_create_nhwindow)(5);
@@ -2164,7 +2128,7 @@ export function whatdoes_help() {
         (game.windowprocs.win_putstr)(tmpwin, 0, p);
     }
     fclose(fp);
-    (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
+    await (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
 }
 /* lint suppression */
@@ -2202,22 +2166,19 @@ export function dowhatdoes_core(q, cbuf) {
 }
 /* the whatdoes command */
 let __dowhatdoes_once = (0);
-export function dowhatdoes() {
+__nh_register_static(() => { __dowhatdoes_once = (0); });
+export async function dowhatdoes() {
     let bufr = '';
     let q = 0;
     let reslt = null;
     if (!__dowhatdoes_once) {
-        pline("Ask about '&' or '?' to get more info.%s", game.iflags.altmeta ? "  (For ESC, type it twice.)" : "");
+        await pline("Ask about '&' or '?' to get more info.%s", game.iflags.altmeta ? "  (For ESC, type it twice.)" : "");
         __dowhatdoes_once = (1);
     }
     introff();
-    q = yn_function("What command?", null, 0, (1));
+    q = await yn_function("What command?", null, 0, (1));
     if (q == 27 && game.iflags.altmeta) {
-        /* in an ideal world, we would know whether another keystroke
-           was already pending, but this is not an ideal world...
-           if user typed ESC, we'll essentially hang until another
-           character is typed */
-        q = yn_function("]", null, 0, (1));
+        q = await yn_function("]", null, 0, (1));
         if (q != 27) {
             q = (q | 128);
         }
@@ -2228,24 +2189,21 @@ export function dowhatdoes() {
         /* 'm' prefix has two lines of output */
         let p = strchr(reslt, 10);
         if (q == 38 || q == 63) {
-            whatdoes_help();
+            await whatdoes_help();
         }
         if (!p) {
-            /* normal usage; 'reslt' starts with key, some indentation, and
-               then explanation followed by '.' for sentence punctuation */
-            pline("%s", reslt);
+            await pline("%s", reslt);
         } else {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-            pline("%s,", reslt);
-            /* cheat by knowing how dowhatdoes_core() handles key portion */
-            pline("%8.8s%s", reslt, __nh_advance_str(p, 1));
+            await pline("%s,", reslt);
+            await pline("%8.8s%s", reslt, __nh_advance_str(p, 1));
         }
     } else {
-        pline("No such command '%s', char code %d (0%03o or 0x%02x).", visctrl(q), q, q, q);
+        await pline("No such command '%s', char code %d (0%03o or 0x%02x).", visctrl(q), q, q, q);
     }
     return 0;
 }
-export function docontact() {
+export async function docontact() {
     let cwin = (game.windowprocs.win_create_nhwindow)(5);
     let buf = '';
     if (game.sysopt.support) {
@@ -2264,7 +2222,7 @@ export function docontact() {
     (game.windowprocs.win_putstr)(cwin, 0, "For more information on NetHack, or to report a bug,");
     buf = sprintf(buf, "visit our website \"%s\".", "https://www.nethack.org/");
     (game.windowprocs.win_putstr)(cwin, 0, buf);
-    (game.windowprocs.win_display_nhwindow)(cwin, (0));
+    await (game.windowprocs.win_display_nhwindow)(cwin, (0));
     (game.windowprocs.win_destroy_nhwindow)(cwin);
 }
 export function dispfile_help() {
@@ -2288,41 +2246,41 @@ export function dispfile_debughelp() {
 export function dispfile_usagehelp() {
     (game.windowprocs.win_display_file)("usagehlp", (1));
 }
-export function hmenu_doextversion() {
-    doextversion();
+export async function hmenu_doextversion() {
+    await doextversion();
 }
 export function hmenu_dohistory() {
     dohistory();
 }
-export function hmenu_dowhatis() {
-    dowhatis();
+export async function hmenu_dowhatis() {
+    await dowhatis();
 }
-export function hmenu_dowhatdoes() {
-    dowhatdoes();
+export async function hmenu_dowhatdoes() {
+    await dowhatdoes();
 }
-export function hmenu_doextlist() {
-    doextlist();
+export async function hmenu_doextlist() {
+    await doextlist();
 }
-export function domenucontrols() {
+export async function domenucontrols() {
     let cwin = (game.windowprocs.win_create_nhwindow)(5);
     show_menu_controls(cwin, (0));
-    (game.windowprocs.win_display_nhwindow)(cwin, (0));
+    await (game.windowprocs.win_display_nhwindow)(cwin, (0));
     (game.windowprocs.win_destroy_nhwindow)(cwin);
 }
 /* data for dohelp() */
 const help_menu_items = [{ f: hmenu_doextversion, text: "About NetHack (version information)." }, { f: dispfile_help, text: "Long description of the game and commands." }, { f: dispfile_shelp, text: "List of game commands." }, { f: hmenu_dohistory, text: "Concise history of NetHack." }, { f: hmenu_dowhatis, text: "Info on a character in the game display." }, { f: hmenu_dowhatdoes, text: "Info on what a given key does." }, { f: option_help, text: "List of game options." }, { f: dispfile_optionfile, text: "Longer explanation of game options." }, { f: dispfile_optmenu, text: "Using the %s command to set options." }, { f: dokeylist, text: "Full list of keyboard commands." }, { f: hmenu_doextlist, text: "List of extended commands." }, { f: domenucontrols, text: "List menu control keys." }, { f: dispfile_usagehelp, text: "Description of NetHack's command line." }, { f: dispfile_license, text: "The NetHack license." }, { f: docontact, text: "Support information." }, { f: dispfile_debughelp, text: "List of wizard-mode commands." }, { f: null, text: null }];
 /* the #help command */
-export function dohelp() {
+export async function dohelp() {
     let tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     let helpbuf = '';
     let tmpbuf = '';
     let i = 0;
     let n = 0;
     let selected = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let sel = 0;
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     for (i = 0; help_menu_items[i].text; i++) {
         if (!game.flags.debug && help_menu_items[i].f == dispfile_debughelp) {
@@ -2334,20 +2292,20 @@ export function dohelp() {
         if (help_menu_items[i].text[0] == 37) {
             helpbuf = sprintf(helpbuf, help_menu_items[i].text, "Unix");
         } else if (help_menu_items[i].f == dispfile_optmenu) {
-            helpbuf = sprintf(helpbuf, help_menu_items[i].text, setopt_cmd(tmpbuf));
+            helpbuf = sprintf(helpbuf, help_menu_items[i].text, await setopt_cmd(tmpbuf));
         } else {
             helpbuf = strcpy(helpbuf, help_menu_items[i].text);
         }
         any.a_int = i + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, helpbuf, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, helpbuf, 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Select one item:");
-    n = select_menu(tmpwin, 1, selected);
+    n = await select_menu(tmpwin, 1, selected);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (n > 0) {
         sel = selected[0].item.a_int - 1;
         free(selected);
-        (help_menu_items[sel].f)();
+        await (help_menu_items[sel].f)();
     }
     return 0;
 }
@@ -2355,7 +2313,7 @@ export function dohelp() {
    normally 'O' but could be bound to something else, or not bound at all;
    with the implementation of a simple options subset, now need 'mO' to get
    the full options command; format it as 'm O' */
-export function setopt_cmd(outbuf) {
+export async function setopt_cmd(outbuf) {
     let cmdbuf = '';
     let cmdnm = null;
     let key = 0;
@@ -2364,8 +2322,7 @@ export function setopt_cmd(outbuf) {
     if (key) {
         outbuf = strcat(outbuf, visctrl(key));
     } else {
-        /* extended command name, with leading "#" */
-        cmdnm = cmdname_from_func(doset, cmdbuf, (1));
+        cmdnm = await cmdname_from_func(doset, cmdbuf, (1));
         if (!cmdnm) {
             cmdnm = "optionsfull";
         }
@@ -2376,8 +2333,7 @@ export function setopt_cmd(outbuf) {
         if (key) {
             outbuf = strcat(outbuf, visctrl(key));
         } else {
-            /* extended command name for 'm' prefix */
-            cmdnm = cmdname_from_func(do_reqmenu, cmdbuf, (1));
+            cmdnm = await cmdname_from_func(do_reqmenu, cmdbuf, (1));
             if (!cmdnm) {
                 cmdnm = "reqmenu";
             }
@@ -2391,7 +2347,7 @@ export function setopt_cmd(outbuf) {
         if (key) {
             outbuf = strcat(outbuf, visctrl(key));
         } else {
-            cmdnm = cmdname_from_func(doset_simple, cmdbuf, (1));
+            cmdnm = await cmdname_from_func(doset_simple, cmdbuf, (1));
             if (!cmdnm) {
                 cmdnm = "options";
             }
@@ -2407,20 +2363,68 @@ export function dohistory() {
     return 0;
 }
 /*pager.c*/
+/* bear trap, pit, web, in-floor, in-lava, tethered */
 /* being blinded may hide invisibility from self */
 /* might actually be a large box */
+/* remembered glyph, not glyph_at() which is 'mon' */
+/* this used to exclude STRANGE_OBJECT; now caller deals with it */
+/* map shows a regular object, but one that's not actually here */
+/* map shows a non-item that holds an extra object type (shown
+               on map due to hallucination) for a name which might have been
+               shuffled into play but wasn't (or was shuffled out of play);
+               pick another item that is a regular one in same object class */
+/* mkobj() doesn't provide any no-init option; however, there
+               aren't any extra tool items (or statues) so we won't get here
+               for tools and don't need to check for and delete container
+               contents or extinguish lights on the temporary object */
 /* check TREE before STONE due to level.flags.arboreal */
 /* "dangling": "hanging" could imply that it's growing on this tree */
+/* should have used up all the how_seen bits by now */
 /* seen by something other than normal vision */
 /* "ice" or "frozen <liquid>" */
+/* 'monster' must actually be a statue */
 /* like endgame high priests, endgame high altars
                        are only recognizable when immediately adjacent */
+/* singular() of xname() of otmp is what "/i" looks up */
+/* If someone passed us garbage, prevent fault. */
+/* If the object's name matches the player-specified fruitname,
+           then "fruit" is the alternate description. We do this here so that
+           if the fruit name is an extant object, looking at the fruit yields
+           that object's description. */
+/* skip first record; read second */
+/* grab a scratch buffer we can safely return (via *firstmatch
+           when applicable) */
 /* we might be examining a pool location but trying to match
                water or lava; override the terrain with what we're matching
                because that's what waterbody_name() bases its result on;
                it's not pool so must be one of water/lava/ice to get here */
+/* don't mention vibrating square outside of Gehennom
+                  unless this happens to be one (hallucination?) */
+/* append unless out_str already contains the string to append */
+/* "pool of water" and "moat" use the same symbol and glyph
+                   but have different descriptions; when handling pool, add
+                   it a second time for moat but pass an alternate symbol;
+                   skip incrementing 'found' to avoid "can be many things" */
+/* remove leading and trailing whitespace and
+                   condense consecutive internal whitespace */
+/* user typed in a complete string */
+/*
+     * The user typed one letter, or we're identifying from the screen.
+     */
+/* prefix: "coords  C  " where 'C' is mon or obj symbol */
+/* prefix: "coords  C  " where 'C' is trap symbol */
+/* prefix: "coords  C  " where 'C' is engrvng|grave symbol */
 /* trap doors & spiked pits can't be made by
                            player, and should be considered at least
                            as much "set" as "dug" anyway */
 /* NUL -> '@', ^A -> 'A', ... ^Z -> 'Z', ^[ -> '[', ... */
+/* in an ideal world, we would know whether another keystroke
+           was already pending, but this is not an ideal world...
+           if user typed ESC, we'll essentially hang until another
+           character is typed */
+/* normal usage; 'reslt' starts with key, some indentation, and
+               then explanation followed by '.' for sentence punctuation */
+/* cheat by knowing how dowhatdoes_core() handles key portion */
 /*XXX overflow possibilities*/
+/* extended command name, with leading "#" */
+/* extended command name for 'm' prefix */

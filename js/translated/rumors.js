@@ -111,12 +111,12 @@ export function init_rumors(fp) {
  */
 /* 1=true, -1=false, 0=either */
 const __getrumor_cookie_marker = "[cookie] ";
-export function getrumor(truth, rumor_buf, exclude_cookie) {
+export async function getrumor(truth, rumor_buf, exclude_cookie) {
     return __runtime_getrumor(truth, rumor_buf, exclude_cookie);
 }
 /* test that the true/false rumor boundaries are valid and show the first
    two and very last epitaphs, engravings, and bogus monsters */
-export function rumor_check() {
+export async function rumor_check() {
     let rumors = null;
     let tmpwin = (-1);
     let endp = null;
@@ -186,19 +186,17 @@ export function rumor_check() {
         fclose(rumors);
     }
     if (__rumors_failed || (!rumors && game.true_rumor_size < 0)) {
-        pline("rumors not accessible.");
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+        await pline("rumors not accessible.");
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
     } else if (!rumors && !__rumors_failed) {
-        couldnt_open_file("rumors");
+        await couldnt_open_file("rumors");
         game.true_rumor_size = -1;
     }
-    /* initial implementation of default epitaph/engraving/bogusmon
-       contained an error; check those along with rumors */
-    others_check("Engravings:", "engrave", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
-    others_check("Epitaphs:", "epitaph", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
-    others_check("Bogus monsters:", "bogusmon", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
+    await others_check("Engravings:", "engrave", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
+    await others_check("Epitaphs:", "epitaph", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
+    await others_check("Bogus monsters:", "bogusmon", { get value() { return tmpwin; }, set value(_v) { tmpwin = _v; } });
     if (tmpwin != (-1)) {
-        (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
+        await (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
         (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     }
 }
@@ -207,7 +205,7 @@ export function rumor_check() {
 /* filename: {ENGRAVEFILE|EPITAPHFILE|BOGUSMONFILE} */
 /* text window for output; created here if necessary */
 const __others_check_errfmt = "others_check(\"%s\"): %s";
-export function others_check(ftype, fname, winptr) {
+export async function others_check(ftype, fname, winptr) {
     let fh = null;
     let line = '';
     let xbuf = '';
@@ -220,8 +218,7 @@ export function others_check(ftype, fname, winptr) {
             if (tmpwin == (-1)) {
                 winptr.value = tmpwin = (game.windowprocs.win_create_nhwindow)(5);
                 if (tmpwin == (-1)) {
-                    /* should panic, but won't for wizard mode check operation */
-                    impossible(__others_check_errfmt, fname, "can't create temporary window");
+                    await impossible(__others_check_errfmt, fname, "can't create temporary window");
                     break closeit;
                 }
             }
@@ -299,10 +296,7 @@ export function others_check(ftype, fname, winptr) {
         }
         fclose(fh);
     } else {
-        /* since this comes out via impossible(), it won't be integrated
-           with the text window of values, but it shouldn't ever happen
-           so we won't waste effort integrating it */
-        couldnt_open_file(fname);
+        await couldnt_open_file(fname);
     }
 }
 /* load one randomly chosen line from a section of a file; undoes
@@ -320,7 +314,7 @@ export function others_check(ftype, fname, winptr) {
 /* location one byte past last line of interest;
                          * if 0, end-of-file will be used */
 /* expected line length; 0 if no expectations */
-export function get_rnd_line(fh, buf, bufsiz, rng, startpos, endpos, padlength) {
+export async function get_rnd_line(fh, buf, bufsiz, rng, startpos, endpos, padlength) {
     let newl = null;
     let xbufp = null;
     let xbuf = '';
@@ -339,7 +333,7 @@ export function get_rnd_line(fh, buf, bufsiz, rng, startpos, endpos, padlength) 
     if (filechunksize < 1) {
         return buf;
     }
-    ((!!(filechunksize <= 2147483647)) || (nhassert_failed("filechunksize <= INT_MAX", "/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/rumors.c", 449) , 0));
+    ((!!(filechunksize <= 2147483647)) || (await nhassert_failed("filechunksize <= INT_MAX", "/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/rumors.c", 449) , 0));
     for (trylimit = 10; trylimit > 0; --trylimit) {
         /* 'rumors' is about 3/4 of the way to the limit on a 16-bit config
        for the whole, roughly 3/8 of the way for either half; all active
@@ -392,7 +386,7 @@ export function get_rnd_line(fh, buf, bufsiz, rng, startpos, endpos, padlength) 
 }
 /* Gets a random line of text from file 'fname', and returns it.
    rng is the random number generator to use, and should act like rn2 does. */
-export function get_rnd_text(fname, buf, rng, padlength) {
+export async function get_rnd_text(fname, buf, rng, padlength) {
     let fh = fopen(fname, "r");
     buf = __nh_char_write(buf, 0, 0);
     if (fh) {
@@ -402,16 +396,16 @@ export function get_rnd_text(fname, buf, rng, padlength) {
         /* obtain current file position */
         fseek(fh, 0, 1);
         starttxt = ftell(fh);
-        buf = strcpy(buf, get_rnd_line(fh, line, 256 /* sizeof(char [256]) */, rng, starttxt, 0, padlength));
+        buf = strcpy(buf, await get_rnd_line(fh, line, 256 /* sizeof(char [256]) */, rng, starttxt, 0, padlength));
         fclose(fh);
     } else {
-        couldnt_open_file(fname);
+        await couldnt_open_file(fname);
     }
     return buf;
 }
 /* 1=true, -1=false, 0=either */
 const __outrumor_fortune_msg = "This cookie has a scrap of paper inside.";
-export function outrumor(truth, mechanism) {
+export async function outrumor(truth, mechanism) {
     let line = null;
     let buf = '';
     let reading = (mechanism == 1 || mechanism == 2);
@@ -422,30 +416,30 @@ export function outrumor(truth, mechanism) {
             return;
         } else if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
             if (mechanism == 1) {
-                pline(__outrumor_fortune_msg);
+                await pline(__outrumor_fortune_msg);
             }
-            pline("What a pity that you cannot read it!");
+            await pline("What a pity that you cannot read it!");
             return;
         }
     }
-    line = getrumor(truth, buf, reading ? (0) : (1));
+    line = await getrumor(truth, buf, reading ? (0) : (1));
     if (!__nh_char_at0(line)) {
         line = "NetHack rumors file closed for renovation.";
     }
     switch (mechanism) {
         case 0:
-            pline("True to her word, the Oracle %ssays: ", (!rn2(4) ? "offhandedly " : (!rn2(3) ? "casually " : (rn2(2) ? "nonchalantly " : ""))));
+            await pline("True to her word, the Oracle %ssays: ", (!rn2(4) ? "offhandedly " : (!rn2(3) ? "casually " : (rn2(2) ? "nonchalantly " : ""))));
             ;
-            verbalize("%s", line);
+            await verbalize("%s", line);
             return;
         case 1:
-            pline(__outrumor_fortune_msg);
+            await pline(__outrumor_fortune_msg);
             ;
         case 2:
-            pline("It reads:");
+            await pline("It reads:");
             break;
     }
-    pline("%s", line);
+    await pline("%s", line);
 }
 export function init_oracles(fp) {
     let i = 0;
@@ -499,7 +493,7 @@ export function restore_oracles(nhfp) {
         game.oracle_flg = 1;
     }
 }
-export function outoracle(special, delphi) {
+export async function outoracle(special, delphi) {
     let tmpwin = 0;
     let oracles = null;
     let oracle_idx = 0;
@@ -546,16 +540,16 @@ export function outoracle(special, delphi) {
                 }
                 (game.windowprocs.win_putstr)(tmpwin, 0, xcrypt(line, xbuf));
             }
-            (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
+            await (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
             (game.windowprocs.win_destroy_nhwindow)(tmpwin);
         }
         fclose(oracles);
     } else {
-        couldnt_open_file("oracles");
+        await couldnt_open_file("oracles");
         game.oracle_flg = -1;
     }
 }
-export function doconsult(oracl) {
+export async function doconsult(oracl) {
     let umoney = 0;
     let u_pay = 0;
     let minor_cost = 50;
@@ -565,23 +559,23 @@ export function doconsult(oracl) {
     game.multi = 0;
     umoney = money_cnt(game.invent);
     if (!oracl) {
-        There("is no one here to consult.");
+        await There("is no one here to consult.");
         return 0;
     } else if (!oracl.mpeaceful) {
-        pline("%s is in no mood for consultations.", Monnam(oracl));
+        await pline("%s is in no mood for consultations.", await Monnam(oracl));
         return 0;
     } else if (!umoney) {
-        You("have no gold.");
+        await You("have no gold.");
         return 0;
     }
-    qbuf = sprintf(qbuf, "\"Wilt thou settle for a minor consultation?\" (%d %s)", minor_cost, currency(minor_cost));
-    switch (yn_function(qbuf, ynqchars, 113, (1))) {
+    qbuf = sprintf(qbuf, "\"Wilt thou settle for a minor consultation?\" (%d %s)", minor_cost, await currency(minor_cost));
+    switch (await yn_function(qbuf, ynqchars, 113, (1))) {
         default:
         case 113:
             return 0;
         case 121:
             if (umoney < minor_cost) {
-                You("don't even have enough gold for that!");
+                await You("don't even have enough gold for that!");
                 return 0;
             }
             u_pay = minor_cost;
@@ -590,22 +584,22 @@ export function doconsult(oracl) {
             if (umoney <= minor_cost || (game.oracle_cnt == 1 || game.oracle_flg < 0)) {
                 return 0;
             }
-            qbuf = sprintf(qbuf, "\"Then dost thou desire a major one?\" (%d %s)", major_cost, currency(major_cost));
-            if (yn_function(qbuf, ynchars, 110, (1)) != 121) {
+            qbuf = sprintf(qbuf, "\"Then dost thou desire a major one?\" (%d %s)", major_cost, await currency(major_cost));
+            if (await yn_function(qbuf, ynchars, 110, (1)) != 121) {
                 return 0;
             }
             u_pay = (umoney < major_cost) ? umoney : major_cost;
             break;
     }
-    money2mon(oracl, u_pay);
+    await money2mon(oracl, u_pay);
     game.disp.botl = (1);
     if (!game.u.uevent.major_oracle && !game.u.uevent.minor_oracle) {
-        record_achievement(ACH_ORCL);
+        await record_achievement(ACH_ORCL);
     }
     /* first oracle of each type gives experience points */
     add_xpts = 0;
     if (u_pay == minor_cost) {
-        outrumor(1, 0);
+        await outrumor(1, 0);
         if (!game.u.uevent.minor_oracle) {
             add_xpts = Math.trunc(u_pay / ((game.u.uevent.major_oracle ? 25 : 10)));
         }
@@ -613,21 +607,21 @@ export function doconsult(oracl) {
         game.u.uevent.minor_oracle = (1);
     } else {
         let cheapskate = u_pay < major_cost;
-        outoracle(cheapskate, (1));
+        await outoracle(cheapskate, (1));
         if (!cheapskate && !game.u.uevent.major_oracle) {
             add_xpts = Math.trunc(u_pay / ((game.u.uevent.minor_oracle ? 25 : 10)));
         }
         /* ~100 pts if very 1st, ~40 pts if minor already done */
         game.u.uevent.major_oracle = (1);
-        exercise(A_WIS, !cheapskate);
+        await exercise(A_WIS, !cheapskate);
     }
     if (add_xpts) {
-        more_experienced(add_xpts, Math.trunc(u_pay / 50));
-        newexplevel();
+        await more_experienced(add_xpts, Math.trunc(u_pay / 50));
+        await newexplevel();
     }
     return 1;
 }
-export function couldnt_open_file(filename) {
+export async function couldnt_open_file(filename) {
     let save_something = game.program_state.something_worth_saving;
     /* most likely the file is missing, so suppress impossible()'s
        "saving and restoring might fix this" (unless the fuzzer,
@@ -635,7 +629,7 @@ export function couldnt_open_file(filename) {
     if (!game.iflags.debug_fuzzer) {
         game.program_state.something_worth_saving = 0;
     }
-    impossible("Can't open '%s' file.", filename);
+    await impossible("Can't open '%s' file.", filename);
     game.program_state.something_worth_saving = save_something;
 }
 /* is 'word' a capitalized monster name that should be preceded by "the"?
@@ -646,7 +640,7 @@ export function couldnt_open_file(filename) {
    entries and 20 hallucination entries) */
 /* potential monster name; a name might be followed by
                        * something like " corpse" */
-export function CapitalMon(word) {
+export async function CapitalMon(word) {
     let nam = null;
     let i = 0;
     let wln = 0;
@@ -654,9 +648,8 @@ export function CapitalMon(word) {
     if (!word || !__nh_char_at0(word) || __nh_char_at0(word) == lowc(__nh_char_at0(word))) {
         return (0);
     }
-    /* 'word' is not a capitalized monster name */
     if (!CapMons) {
-        init_CapMons();
+        await init_CapMons();
     }
     (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
     wln = strlen(word);
@@ -683,7 +676,7 @@ export function CapitalMon(word) {
    having a capitalized type name like Green-elf or Archon, plus unique
    monsters whose "name" is a title rather than a personal name, plus
    hallucinatory monster names that fall into either of those categories */
-export function init_CapMons() {
+export async function init_CapMons() {
     let pass = 0;
     let bogonfile = fopen("bogusmon", "r");
     if (CapMons) {
@@ -780,7 +773,7 @@ export function init_CapMons() {
             buf = sprintf(buf, "  %.77s", CapMons[i]);
             (game.windowprocs.win_putstr)(tmpwin, 0, buf);
         }
-        (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
+        await (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
         (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     }
     return;
@@ -814,6 +807,8 @@ export function free_CapMons() {
 /* avoid exercising wisdom for graffiti */
 /* remove cookie_marker from the string */
 /* terminator wasn't copied */
+/* initial implementation of default epitaph/engraving/bogusmon
+       contained an error; check those along with rumors */
 /*
          * reveal the values.
          */
@@ -821,5 +816,10 @@ export function free_CapMons() {
 /* engravings, epitaphs, and bogus monsters will still be shown,
            and in tmpwin rather than via additional pline() calls */
 /* first attempt to open file has just failed */
+/* should panic, but won't for wizard mode check operation */
+/* since this comes out via impossible(), it won't be integrated
+           with the text window of values, but it shouldn't ever happen
+           so we won't waste effort integrating it */
 /* get a randomly chosen line; it comes back decrypted and unpadded */
 /* Oracle delivers the rumor */
+/* 'word' is not a capitalized monster name */

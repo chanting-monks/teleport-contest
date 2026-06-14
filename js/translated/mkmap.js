@@ -6,7 +6,7 @@ import { game } from '../gstate.js';
 import { abs } from '../c2js-runtime/math.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
-import { __nh_advance_str } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0 } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { depth } from './dungeon.js';
 import { add_room } from './mklev.js';
@@ -107,12 +107,7 @@ export function pass_two(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            /* Hand-port: C's new_loc(x,y) macro is a BYTE READ
-               `new_locations[y * (WIDTH+1) + x]`; the emit produced
-               advance-then-ADD (string concat / NaN), so typ became
-               ever-growing strings — the mines-style memcpy OOM
-               (Q9 iter 46, Bar-fila). */
-            game.level.locations[x][y].typ = game.new_locations[(y) * ((80 - 2) + 1) + (x)];
+            game.level.locations[x][y].typ = __nh_char_at0((__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x)));
         }
     }
 }
@@ -137,12 +132,7 @@ export function pass_three(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            /* Hand-port: C's new_loc(x,y) macro is a BYTE READ
-               `new_locations[y * (WIDTH+1) + x]`; the emit produced
-               advance-then-ADD (string concat / NaN), so typ became
-               ever-growing strings — the mines-style memcpy OOM
-               (Q9 iter 46, Bar-fila). */
-            game.level.locations[x][y].typ = game.new_locations[(y) * ((80 - 2) + 1) + (x)];
+            game.level.locations[x][y].typ = __nh_char_at0((__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x)));
         }
     }
 }
@@ -254,7 +244,7 @@ export function join_map_cleanup() {
     game.nroom = game.nsubroom = 0;
     game.rooms[game.nroom].hx = game.subrooms[game.nsubroom].hx = -1;
 }
-export function join_map(bg_typ, fg_typ) {
+export async function join_map(bg_typ, fg_typ) {
     fnEnter("join_map", "mkmap.c", 0);
     let croom = null;
     let croom2 = null;
@@ -275,7 +265,7 @@ export function join_map(bg_typ, fg_typ) {
                     game.n_loc_filled = 0;
                     flood_fill_rm(x, y, game.nroom + 3, (0), (0));
                     if (game.n_loc_filled > 3) {
-                        add_room(game.min_rx, game.min_ry, game.max_rx, game.max_ry, (0), OROOM, (1));
+                        await add_room(game.min_rx, game.min_ry, game.max_rx, game.max_ry, (0), OROOM, (1));
                         game.rooms[game.nroom - 1].irregular = (1);
                         if (game.nroom >= (40 * 2)) {
                             break joinm;
@@ -305,22 +295,13 @@ export function join_map(bg_typ, fg_typ) {
             croom2 = game.rooms[__croom2Idx];
             if (!croom || !croom2) continue;
         if (!somexy(croom, sm) || !somexy(croom2, em)) {
-            /*
-     * Ok, now we can actually join the regions with fg_typ's.
-     * The rooms are already sorted due to the previous loop,
-     * so don't call sort_rooms(), which can screw up the roomno's
-     * validity in the levl structure.
-     */
-            /* pick random starting and end locations for "corridor" */
-            /* ack! -- the level is going to be busted */
-            /* arbitrarily pick centers of both rooms and hope for the best */
-            impossible("No start/end room loc in join_map.");
+            await impossible("No start/end room loc in join_map.");
             sm.x = croom.lx + (Math.trunc((croom.hx - croom.lx) / 2));
             sm.y = croom.ly + (Math.trunc((croom.hy - croom.ly) / 2));
             em.x = croom2.lx + (Math.trunc((croom2.hx - croom2.lx) / 2));
             em.y = croom2.ly + (Math.trunc((croom2.hy - croom2.ly) / 2));
         }
-        dig_corridor(sm, em, null, (0), fg_typ, bg_typ);
+        await dig_corridor(sm, em, null, (0), fg_typ, bg_typ);
         if (croom2.lx > croom.hx || ((croom2.ly > croom.hy || croom2.hy < croom.ly) && rn2(3))) {
             /* choose next region to join */
             /* only increment croom if croom and croom2 are non-overlapping */
@@ -376,7 +357,7 @@ export function finish_map(fg_typ, bg_typ, lit, walled, icedpools) {
  * region are already cleared, and roomno and irregular fields outside the
  * region are all set.
  */
-export function remove_rooms(lx, ly, hx, hy) {
+export async function remove_rooms(lx, ly, hx, hy) {
     let i = 0;
     let croom = null;
     for (i = game.nroom - 1; i >= 0; --i) {
@@ -385,9 +366,8 @@ export function remove_rooms(lx, ly, hx, hy) {
             continue;
         }
         if (croom.lx < lx || croom.hx >= hx || croom.ly < ly || croom.hy >= hy) {
-            /* TODO: ensure remaining parts of room are still joined */
             if (!croom.irregular) {
-                impossible("regular room in joined map");
+                await impossible("regular room in joined map");
             }
         } else {
             /* total overlap, remove the room */
@@ -436,7 +416,7 @@ export function litstate_rnd(litstate) {
     }
     return litstate;
 }
-export function mkmap(init_lev) {
+export async function mkmap(init_lev) {
     fnEnter("mkmap", "mkmap.c", 0);
     let bg_typ = init_lev.bg;
     let fg_typ = init_lev.fg;
@@ -461,7 +441,7 @@ export function mkmap(init_lev) {
         }
     }
     if (join) {
-        join_map(bg_typ, fg_typ);
+        await join_map(bg_typ, fg_typ);
     }
     finish_map(fg_typ, bg_typ, lit, walled, init_lev.icedpools);
     if (walled && join) {
@@ -472,4 +452,14 @@ export function mkmap(init_lev) {
     free(game.new_locations);
 }
 /*mkmap.c*/
+/*
+     * Ok, now we can actually join the regions with fg_typ's.
+     * The rooms are already sorted due to the previous loop,
+     * so don't call sort_rooms(), which can screw up the roomno's
+     * validity in the levl structure.
+     */
+/* pick random starting and end locations for "corridor" */
+/* ack! -- the level is going to be busted */
+/* arbitrarily pick centers of both rooms and hope for the best */
 /* always increment the next room */
+/* TODO: ensure remaining parts of room are still joined */

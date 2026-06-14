@@ -9,7 +9,8 @@ import { game } from '../gstate.js';
 import { __builtin_va_end, __builtin_va_start } from '../c2js-runtime/builtins.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { panic } from '../c2js-runtime/panic.js';
-import { fprintf, vsnprintf } from '../c2js-runtime/stdio.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
+import { fprintf, vsnprintf , vsnprintf_str } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncpy, strrchr } from '../c2js-runtime/string.js';
 import { dirtocoord, isok, yn_function } from './cmd.js';
 import { ynchars } from './decl.js';
@@ -87,39 +88,40 @@ export function set_msg_xy(x, y) {
     game.a11y.msg_loc.x = x;
     game.a11y.msg_loc.y = y;
 }
-export function pline(line) {
+export async function pline(line, ...__nh_va_rest) {
     let the_args = 0;
-    __builtin_va_start(the_args, line);
-    vpline(line, the_args);
+    the_args = __nh_va_rest;
+    await vpline(line, the_args);
     __builtin_va_end(the_args);
 }
-export function pline_dir(dir, line) {
+export async function pline_dir(dir, line, ...__nh_va_rest) {
     let the_args = 0;
     set_msg_dir(dir);
-    __builtin_va_start(the_args, line);
-    vpline(line, the_args);
+    the_args = __nh_va_rest;
+    await vpline(line, the_args);
     __builtin_va_end(the_args);
 }
-export function pline_xy(x, y, line) {
+export async function pline_xy(x, y, line, ...__nh_va_rest) {
     let the_args = 0;
     set_msg_xy(x, y);
-    __builtin_va_start(the_args, line);
-    vpline(line, the_args);
+    the_args = __nh_va_rest;
+    await vpline(line, the_args);
     __builtin_va_end(the_args);
 }
-export function pline_mon(mtmp, line) {
+export async function pline_mon(mtmp, line, ...__nh_va_rest) {
     let the_args = 0;
     if (mtmp == game.youmonst) {
         set_msg_xy(0, 0);
     } else {
         set_msg_xy(mtmp.mx, mtmp.my);
     }
-    __builtin_va_start(the_args, line);
-    vpline(line, the_args);
+    the_args = __nh_va_rest;
+    await vpline(line, the_args);
     __builtin_va_end(the_args);
 }
 let __vpline_in_pline = 0;
-export function vpline(line, the_args) {
+__nh_register_static(() => { __vpline_in_pline = 0; });
+export async function vpline(line, the_args) {
     /* will be chopped down to BUFSZ-1 if longer */
     let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let ln = 0;
@@ -132,7 +134,7 @@ export function vpline(line, the_args) {
         Object.assign(a11y_mesgxy, game.a11y.msg_loc);
         /* always reset a11y.msg_loc whether we end up using it or not */
         game.a11y.msg_loc.x = game.a11y.msg_loc.y = 0;
-        if (!line || !line.value) {
+        if (!line || !__nh_char_at0(line)) {
             return;
         }
         if (game.program_state.done_hup) {
@@ -152,7 +154,7 @@ export function vpline(line, the_args) {
             tmp = strcpy(tmp, dirstr);
             tmp = strcat(tmp, ": ");
             tmp = strcat(tmp, line);
-            vpline(tmp, the_args);
+            await vpline(tmp, the_args);
             free(tmp);
             return;
         }
@@ -160,22 +162,17 @@ export function vpline(line, the_args) {
             /* format does not specify any substitutions; use it as-is */
             ln = strlen(line);
         } else if (__nh_char_at0(line) == 37 && __nh_char_at0(__nh_advance_str(line, 1)) == 115 && !__nh_char_at0(__nh_advance_str(line, 2))) {
-            /* "%s" => single string; skip format and use its first argument;
-           unlike with the format, it is irrelevant whether the argument
-           contains any percent signs */
-            /*VA_NEXT(line,const char *);*/
-            line = /* unhandled expr VAArgExpr */ 0;
+            line = String((the_args && the_args[0]) != null ? the_args[0] : '');
             ln = strlen(line);
         } else {
-            /* perform printf() formatting */
-            ln = vsnprintf(pbuf, 1280 /* sizeof(char [1280]) */, line, the_args);
+            pbuf = vsnprintf_str(line, the_args); ln = strlen(pbuf);
             /* note: 'ln' is number of characters attempted, not necessarily
            strlen(line); that matters for the overflow check; if we avoid
            the extremely-too-long panic then 'ln' will be actual length */
             line = pbuf;
         }
         if (ln > 1280 /* sizeof(char [1280]) */ - 1) {
-            panic("pline attempting to print %d characters!", ln);
+            await panic("pline attempting to print %d characters!", ln);
         }
         if (ln > 256 - 1) {
             /* too long but modestly so; allow but truncate, preserving final
@@ -185,11 +182,11 @@ export function vpline(line, the_args) {
             if (line != pbuf) {
                 pbuf = strncpy(pbuf, line, 256 - 1);
             }
-            pbuf[256 - 1 - 6] = pbuf[256 - 1 - 5] = pbuf[256 - 1 - 4] = 46;
+            ((pbuf[256 - 1 - 4] = 46, pbuf[256 - 1 - 5] = 46), pbuf[256 - 1 - 6] = 46);
             /* avoid strncpy; buffers could overlap if excess is small */
-            pbuf[256 - 1 - 3] = line[ln - 3];
-            pbuf[256 - 1 - 2] = line[ln - 2];
-            pbuf[256 - 1 - 1] = line[ln - 1];
+            pbuf[256 - 1 - 3] = __nh_char_at0(__nh_advance_str(line, ln - 3));
+            pbuf[256 - 1 - 2] = __nh_char_at0(__nh_advance_str(line, ln - 2));
+            pbuf[256 - 1 - 1] = __nh_char_at0(__nh_advance_str(line, ln - 1));
             /* unlike pline, we don't futz around to keep last few chars */
             /* terminate strncpy or truncate vsprintf */
             pbuf[256 - 1] = 0;
@@ -230,18 +227,18 @@ export function vpline(line, the_args) {
              */
             let tmp_in_pline = __vpline_in_pline;
             __vpline_in_pline = 0;
-            vision_recalc(0);
+            await vision_recalc(0);
             __vpline_in_pline = tmp_in_pline;
         }
         if (game.u.ux) {
-            flush_screen((game.pline_flags & 64) ? 0 : 1);
+            await flush_screen((game.pline_flags & 64) ? 0 : 1);
         }
         putmesg(line);
-        execplinehandler(line);
+        await execplinehandler(line);
         game.iflags.last_msg = PLNMSG_UNKNOWN;
         strncpy(game.prevmsg, line, 256) , game.prevmsg[256 - 1] = 0;
         if (msgtyp == 3) {
-            (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+            await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
         }
     }
     --__vpline_in_pline;
@@ -249,11 +246,11 @@ export function vpline(line, the_args) {
 /* pline() variant which can override MSGTYPE handling or suppress
    message history (tty interface uses pline() to issue prompts and
    they shouldn't be blockable via MSGTYPE=hide) */
-export function custompline(pflags, line) {
+export async function custompline(pflags, line, ...__nh_va_rest) {
     let the_args = 0;
-    __builtin_va_start(the_args, line);
+    the_args = __nh_va_rest;
     game.pline_flags = pflags;
-    vpline(line, the_args);
+    await vpline(line, the_args);
     game.pline_flags = 0;
     __builtin_va_end(the_args);
 }
@@ -261,19 +258,19 @@ export function custompline(pflags, line) {
    until next input request, tell the interface that it should override that
    and re-enable them; equivalent to custompline(URGENT_MESSAGE, line, ...)
    but slightly simpler to use */
-export function urgent_pline(line) {
+export async function urgent_pline(line, ...__nh_va_rest) {
     let the_args = 0;
-    __builtin_va_start(the_args, line);
+    the_args = __nh_va_rest;
     game.pline_flags = 8;
-    vpline(line, the_args);
+    await vpline(line, the_args);
     game.pline_flags = 0;
     __builtin_va_end(the_args);
 }
-export function Norep(line) {
+export async function Norep(line, ...__nh_va_rest) {
     let the_args = 0;
-    __builtin_va_start(the_args, line);
+    the_args = __nh_va_rest;
     game.pline_flags = 1;
-    vpline(line, the_args);
+    await vpline(line, the_args);
     game.pline_flags = 0;
     __builtin_va_end(the_args);
 }
@@ -294,61 +291,60 @@ export function free_youbuf() {
     game.you_buf_siz = 0;
 }
 /* `prefix' must be a string literal, not a pointer */
-export function You(line) {
+export async function You(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
-    vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 5 /* sizeof(char [5]) */))), "You ") , tmp), line), the_args);
+    the_args = __nh_va_rest;
+    await vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 5 /* sizeof(char [5]) */))), "You ") , tmp), line), the_args);
     __builtin_va_end(the_args);
 }
-export function Your(line) {
+export async function Your(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
-    vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 6 /* sizeof(char [6]) */))), "Your ") , tmp), line), the_args);
+    the_args = __nh_va_rest;
+    await vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 6 /* sizeof(char [6]) */))), "Your ") , tmp), line), the_args);
     __builtin_va_end(the_args);
 }
-export function You_feel(line) {
+export async function You_feel(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
+    the_args = __nh_va_rest;
     if ((game.multi < 0 && (unconscious() || is_fainted()))) {
         strcpy((tmp = You_buf((strlen(line) + 25 /* sizeof(char [25]) */))), "You dream that you feel ");
     } else {
         strcpy((tmp = You_buf((strlen(line) + 10 /* sizeof(char [10]) */))), "You feel ");
     }
-    /* caller should have caught this... */
-    vpline(strcat(tmp, line), the_args);
+    await vpline(strcat(tmp, line), the_args);
     __builtin_va_end(the_args);
 }
-export function You_cant(line) {
+export async function You_cant(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
-    vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 11 /* sizeof(char [11]) */))), "You can't ") , tmp), line), the_args);
+    the_args = __nh_va_rest;
+    await vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 11 /* sizeof(char [11]) */))), "You can't ") , tmp), line), the_args);
     __builtin_va_end(the_args);
 }
-export function pline_The(line) {
+export async function pline_The(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
-    vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 5 /* sizeof(char [5]) */))), "The ") , tmp), line), the_args);
+    the_args = __nh_va_rest;
+    await vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 5 /* sizeof(char [5]) */))), "The ") , tmp), line), the_args);
     __builtin_va_end(the_args);
 }
-export function There(line) {
+export async function There(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
-    vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 7 /* sizeof(char [7]) */))), "There ") , tmp), line), the_args);
+    the_args = __nh_va_rest;
+    await vpline(strcat((strcpy((tmp = You_buf((strlen(line) + 7 /* sizeof(char [7]) */))), "There ") , tmp), line), the_args);
     __builtin_va_end(the_args);
 }
-export function You_hear(line) {
+export async function You_hear(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
     if (((game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !(game.multi < 0 && (unconscious() || is_fainted()))) || !game.flags.acoustics) {
         return;
     }
-    __builtin_va_start(the_args, line);
+    the_args = __nh_va_rest;
     if ((game.u.uinwater)) {
         strcpy((tmp = You_buf((strlen(line) + 17 /* sizeof(char [17]) */))), "You barely hear ");
     } else if ((game.multi < 0 && (unconscious() || is_fainted()))) {
@@ -356,13 +352,13 @@ export function You_hear(line) {
     } else {
         strcpy((tmp = You_buf((strlen(line) + 10 /* sizeof(char [10]) */))), "You hear ");
     }
-    vpline(strcat(tmp, line), the_args);
+    await vpline(strcat(tmp, line), the_args);
     __builtin_va_end(the_args);
 }
-export function You_see(line) {
+export async function You_see(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
+    the_args = __nh_va_rest;
     if ((game.multi < 0 && (unconscious() || is_fainted()))) {
         strcpy((tmp = You_buf((strlen(line) + 24 /* sizeof(char [24]) */))), "You dream that you see ");
     } else if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
@@ -370,23 +366,23 @@ export function You_see(line) {
     } else {
         strcpy((tmp = You_buf((strlen(line) + 9 /* sizeof(char [9]) */))), "You see ");
     }
-    vpline(strcat(tmp, line), the_args);
+    await vpline(strcat(tmp, line), the_args);
     __builtin_va_end(the_args);
 }
 /* Print a message inside double-quotes.
  * The caller is responsible for checking deafness.
  * Gods can speak directly to you in spite of deafness.
  */
-export function verbalize(line) {
+export async function verbalize(line, ...__nh_va_rest) {
     let the_args = 0;
     let tmp = null;
-    __builtin_va_start(the_args, line);
+    the_args = __nh_va_rest;
     game.pline_flags |= 16;
     tmp = You_buf(strlen(line) + 3 /* sizeof(char [3]) */);
     tmp = strcpy(tmp, "\"");
     tmp = strcat(tmp, line);
     tmp = strcat(tmp, "\"");
-    vpline(tmp, the_args);
+    await vpline(tmp, the_args);
     game.pline_flags &= ~16;
     __builtin_va_end(the_args);
 }
@@ -407,11 +403,11 @@ export function gamelog_add(glflags, gltime, str) {
         lst.next = tmp;
     }
 }
-export function livelog_printf(ll_type, line) {
+export function livelog_printf(ll_type, line, ...__nh_va_rest) {
     let gamelogbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let the_args = 0;
-    __builtin_va_start(the_args, line);
-    vsnprintf(gamelogbuf, 512 /* sizeof(char [512]) */, line, the_args);
+    the_args = __nh_va_rest;
+    gamelogbuf = vsnprintf_str(line, the_args);
     __builtin_va_end(the_args);
     gamelog_add(ll_type, game.moves, gamelogbuf);
     strNsubst(gamelogbuf, "\t", "_", 0);
@@ -420,19 +416,19 @@ export function livelog_printf(ll_type, line) {
 /* nothing here */
 /* nothing here */
 /* !CHRONICLE */
-export function raw_printf(line) {
+export async function raw_printf(line, ...__nh_va_rest) {
     let the_args = 0;
-    __builtin_va_start(the_args, line);
-    vraw_printf(line, the_args);
+    the_args = __nh_va_rest;
+    await vraw_printf(line, the_args);
     __builtin_va_end(the_args);
     if (!game.program_state.beyond_savefile_load) {
         game.early_raw_messages++;
     }
 }
-export function vraw_printf(line, the_args) {
+export async function vraw_printf(line, the_args) {
     let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     if (strchr(line, 37)) {
-        vsnprintf(pbuf, 1280 /* sizeof(char [1280]) */, line, the_args);
+        pbuf = vsnprintf_str(line, the_args);
         line = pbuf;
     }
     if (strlen(line) > 256 - 1) {
@@ -442,29 +438,29 @@ export function vraw_printf(line, the_args) {
         pbuf[256 - 1] = 0;
     }
     (game.windowprocs.win_raw_print)(line);
-    execplinehandler(line);
+    await execplinehandler(line);
     if (!game.program_state.beyond_savefile_load) {
         game.early_raw_messages++;
     }
 }
-export function impossible(s) {
+export async function impossible(s, ...__nh_va_rest) {
     let the_args = 0;
     let pbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let pbuf2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    __builtin_va_start(the_args, s);
+    the_args = __nh_va_rest;
     if (game.program_state.in_impossible) {
-        panic("impossible called impossible");
+        await panic("impossible called impossible");
     }
     game.program_state.in_impossible = 1;
-    vsnprintf(pbuf, 1280 /* sizeof(char [1280]) */, s, the_args);
+    pbuf = vsnprintf_str(s, the_args);
     __builtin_va_end(the_args);
     pbuf[256 - 1] = 0;
     paniclog("impossible", pbuf);
     if (game.iflags.debug_fuzzer == fuzzer_impossible_panic) {
-        panic("%s", pbuf);
+        await panic("%s", pbuf);
     }
     game.pline_flags = 8;
-    pline("%s", pbuf);
+    await pline("%s", pbuf);
     game.pline_flags = 0;
     if (game.program_state.in_sanity_check) {
         /* skip rest of multi-line feedback */
@@ -475,13 +471,13 @@ export function impossible(s) {
     if (game.program_state.something_worth_saving) {
         pbuf2 = strcat(pbuf2, "  (Saving and reloading may fix this problem.)");
     }
-    pline("%s", pbuf2);
-    pline("Please report these messages to %s.", "devteam@nethack.org");
+    await pline("%s", pbuf2);
+    await pline("Please report these messages to %s.", "devteam@nethack.org");
     if (game.sysopt.support) {
-        pline("Alternatively, contact local support: %s", game.sysopt.support);
+        await pline("Alternatively, contact local support: %s", game.sysopt.support);
     }
     if (game.sysopt.crashreporturl) {
-        let report = (121 == yn_function("Report now?", ynchars, 110, (0)));
+        let report = (121 == await yn_function("Report now?", ynchars, 110, (0)));
         (game.windowprocs.win_raw_print)("");
         if (report) {
             /* prove to the user the character was accepted */
@@ -491,7 +487,7 @@ export function impossible(s) {
     game.program_state.in_impossible = 0;
 }
 game.use_pline_handler = (1);
-export function execplinehandler(line) {
+export async function execplinehandler(line) {
     let f = 0;
     let args = [null, null, null];
     if (!game.use_pline_handler || !game.sysopt.msghandler) {
@@ -515,11 +511,11 @@ export function execplinehandler(line) {
     } else if (f == -1) {
         perror(null);
         game.use_pline_handler = (0);
-        pline("%s", "Fork to message handler failed.");
+        await pline("%s", "Fork to message handler failed.");
     }
 }
 /* nhassert_failed is called when an nhassert's condition is false */
-export function nhassert_failed(expression, filepath, line) {
+export async function nhassert_failed(expression, filepath, line) {
     let filename = null;
     let p = null;
     /* Attempt to get filename from path.
@@ -532,13 +528,19 @@ export function nhassert_failed(expression, filepath, line) {
     if ((p = strrchr(filename, 92)) != null) {
         filename = __nh_advance_str(p, 1);
     }
-    /* usually "device:[directory]name"
-       but might be "device:[root.][directory]name"
-       and either "[directory]" or "[root.]" or both can be delimited
-       by <> rather than by []; find the last of ']', '>', and ':'  */
-    impossible("nhassert(%s) failed in file '%s' at line %d", expression, filename, line);
+    await impossible("nhassert(%s) failed in file '%s' at line %d", expression, filename, line);
 }
 /*pline.c*/
 /* this buffer will gradually shrink until the 'else' is needed;
            there's no pressing need to track allocation size instead */
+/* "%s" => single string; skip format and use its first argument;
+           unlike with the format, it is irrelevant whether the argument
+           contains any percent signs */
+/*VA_NEXT(line,const char *);*/
+/* perform printf() formatting */
+/* caller should have caught this... */
+/* usually "device:[directory]name"
+       but might be "device:[root.][directory]name"
+       and either "[directory]" or "[root.]" or both can be delimited
+       by <> rather than by []; find the last of ']', '>', and ':'  */
 /* clear the SPEECH flag so caller never has to */

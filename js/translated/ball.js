@@ -33,48 +33,45 @@ import { find_mac, setnotworn } from './worn.js';
 import { miss } from './zap.js';
 
 game.bcrestriction = 0;
-export function ballrelease(showmsg) {
+export async function ballrelease(showmsg) {
     if (((game.uball).where == 3) && !welded(game.uball)) {
         if (showmsg) {
-            pline("Startled, you drop the iron ball.");
+            await pline("Startled, you drop the iron ball.");
         }
         if (game.uwep == game.uball) {
-            setuwep(null);
+            await setuwep(null);
         }
         if (game.uswapwep == game.uball) {
-            setuswapwep(null);
+            await setuswapwep(null);
         }
         if (game.uquiver == game.uball) {
-            setuqwep(null);
+            await setuqwep(null);
         }
-        /* [this used to test 'if (uwep != uball)' but that always passes
-           after the setuwep() above] */
-        /* remove from inventory but don't place on floor */
-        freeinv(game.uball);
-        encumber_msg();
+        await freeinv(game.uball);
+        await encumber_msg();
     }
 }
 /* ball&chain might hit hero when falling through a trap door */
-export function ballfall() {
+export async function ballfall() {
     let gets_hit = 0;
     if (!game.uball || (game.uball && ((game.uball).where == 3) && welded(game.uball))) {
         /* ball&chain not unplaced while swallowed */
         return;
     }
     gets_hit = (((game.uball.ox != game.u.ux) || (game.uball.oy != game.u.uy)) && ((game.uwep == game.uball) ? (0) : rn2(5)));
-    ballrelease((1));
+    await ballrelease((1));
     if (gets_hit) {
         let dmg = (rn2(7) + (25));
-        pline_The("iron ball falls on your %s.", body_part(HEAD));
+        await pline_The("iron ball falls on your %s.", await body_part(HEAD));
         if (game.uarmh) {
             if (hard_helmet(game.uarmh)) {
-                pline("Fortunately, you are wearing a hard helmet.");
+                await pline("Fortunately, you are wearing a hard helmet.");
                 dmg = 3;
             } else if (game.flags.verbose) {
-                pline("%s does not protect you.", Yname2(game.uarmh));
+                await pline("%s does not protect you.", await Yname2(game.uarmh));
             }
         }
-        losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "crunched in the head by an iron ball", 2);
+        await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "crunched in the head by an iron ball", 2);
     }
 }
 /*
@@ -124,53 +121,48 @@ export function ballfall() {
  *
  *  Should not be called while swallowed except on waterlevel.
  */
-export function placebc_core() {
+export async function placebc_core() {
     if (!game.uchain || !game.uball) {
-        impossible("Where are your ball and chain?");
+        await impossible("Where are your ball and chain?");
         return;
     }
-    flooreffects(game.uchain, game.u.ux, game.u.uy, "");
+    await flooreffects(game.uchain, game.u.ux, game.u.uy, "");
     if (((game.uball).where == 3)) {
         game.u.bc_order = 0;
     } else {
-        /* ball might rust -- already checked when carried */
-        flooreffects(game.uball, game.u.ux, game.u.uy, "");
-        place_object(game.uball, game.u.ux, game.u.uy);
+        await flooreffects(game.uball, game.u.ux, game.u.uy, "");
+        await place_object(game.uball, game.u.ux, game.u.uy);
         game.u.bc_order = 1;
     }
-    place_object(game.uchain, game.u.ux, game.u.uy);
+    await place_object(game.uchain, game.u.ux, game.u.uy);
     game.u.bglyph = game.u.cglyph = game.level.locations[game.u.ux][game.u.uy].glyph;
-    newsym(game.u.ux, game.u.uy);
+    await newsym(game.u.ux, game.u.uy);
     game.bcrestriction = 0;
 }
-export function unplacebc_core() {
+export async function unplacebc_core() {
     if (game.u.uswallow) {
         if ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level))))) {
-            /* we need to proceed with the removal from the floor
-             * so that movebubbles() processing will disregard it as
-             * intended. Ignore all the vision stuff.
-             */
             if (!((game.uball).where == 3)) {
-                obj_extract_self(game.uball);
+                await obj_extract_self(game.uball);
             }
-            obj_extract_self(game.uchain);
+            await obj_extract_self(game.uchain);
         }
         return;
     }
     if (!((game.uball).where == 3)) {
-        obj_extract_self(game.uball);
+        await obj_extract_self(game.uball);
         if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && (game.u.bc_felt & 1)) {
             game.level.locations[game.uball.ox][game.uball.oy].glyph = game.u.bglyph;
         }
-        maybe_unhide_at(game.uball.ox, game.uball.oy);
-        newsym(game.uball.ox, game.uball.oy);
+        await maybe_unhide_at(game.uball.ox, game.uball.oy);
+        await newsym(game.uball.ox, game.uball.oy);
     }
-    obj_extract_self(game.uchain);
+    await obj_extract_self(game.uchain);
     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && (game.u.bc_felt & 2)) {
         game.level.locations[game.uchain.ox][game.uchain.oy].glyph = game.u.cglyph;
     }
-    maybe_unhide_at(game.uchain.ox, game.uchain.oy);
-    newsym(game.uchain.ox, game.uchain.oy);
+    await maybe_unhide_at(game.uchain.ox, game.uchain.oy);
+    await newsym(game.uchain.ox, game.uchain.oy);
     game.u.bc_felt = 0;
 }
 export function check_restriction(restriction) {
@@ -182,42 +174,42 @@ export function check_restriction(restriction) {
     }
     return ret;
 }
-export function placebc() {
+export async function placebc() {
     if (!check_restriction(0)) {
         return;
     }
     if (game.uchain && game.uchain.where != 0) {
-        impossible("bc already placed?");
+        await impossible("bc already placed?");
         return;
     }
-    placebc_core();
+    await placebc_core();
 }
-export function unplacebc() {
+export async function unplacebc() {
     if (game.bcrestriction) {
-        impossible("unplacebc denied, restriction in place");
+        await impossible("unplacebc denied, restriction in place");
         return;
     }
-    unplacebc_core();
+    await unplacebc_core();
 }
-export function unplacebc_and_covet_placebc() {
+export async function unplacebc_and_covet_placebc() {
     let restriction = 0;
     if (game.bcrestriction) {
-        impossible("unplacebc_and_covet_placebc denied, already restricted");
+        await impossible("unplacebc_and_covet_placebc denied, already restricted");
     } else {
         restriction = game.bcrestriction = rnd(400);
-        unplacebc_core();
+        await unplacebc_core();
     }
     return restriction;
 }
-export function lift_covet_and_placebc(pin) {
+export async function lift_covet_and_placebc(pin) {
     if (!check_restriction(pin)) {
         return;
     }
     if (game.uchain && game.uchain.where != 0) {
-        impossible("bc already placed?");
+        await impossible("bc already placed?");
         return;
     }
-    placebc_core();
+    await placebc_core();
 }
 /* BREADCRUMBS */
 /* BREADCRUMBS */
@@ -225,7 +217,7 @@ export function lift_covet_and_placebc(pin) {
  *  Return the stacking of the hero's ball & chain.  This assumes that the
  *  hero is being punished.
  */
-export function bc_order() {
+export async function bc_order() {
     let obj = null;
     if (game.uchain.ox != game.uball.ox || game.uchain.oy != game.uball.oy || ((game.uball).where == 3) || game.u.uswallow) {
         return 0;
@@ -238,7 +230,7 @@ export function bc_order() {
             return 2;
         }
     }
-    impossible("bc_order:  ball&chain not in same location!");
+    await impossible("bc_order:  ball&chain not in same location!");
     return 0;
 }
 /*
@@ -247,44 +239,39 @@ export function bc_order() {
  *  The hero is either about to go blind or already blind and just punished.
  *  Set up the ball and chain variables so that the ball and chain are "felt".
  */
-export function set_bc(already_blind) {
+export async function set_bc(already_blind) {
     let ball_on_floor = !((game.uball).where == 3);
-    game.u.bc_order = bc_order();
+    game.u.bc_order = await bc_order();
     game.u.bc_felt = ball_on_floor ? 1 | 2 : 2;
     if (already_blind || game.u.uswallow) {
         game.u.cglyph = game.u.bglyph = game.level.locations[game.u.ux][game.u.uy].glyph;
         return;
     }
-    /*
-     *  Since we can still see, remove the ball&chain and get the glyph that
-     *  would be beneath them.  Then put the ball&chain back.  This is pretty
-     *  disgusting, but it will work.
-     */
-    remove_object(game.uchain);
+    await remove_object(game.uchain);
     if (ball_on_floor) {
-        remove_object(game.uball);
+        await remove_object(game.uball);
     }
-    newsym(game.uchain.ox, game.uchain.oy);
+    await newsym(game.uchain.ox, game.uchain.oy);
     game.u.cglyph = game.level.locations[game.uchain.ox][game.uchain.oy].glyph;
     if (game.u.bc_order == 0) {
-        place_object(game.uchain, game.uchain.ox, game.uchain.oy);
-        newsym(game.uchain.ox, game.uchain.oy);
+        await place_object(game.uchain, game.uchain.ox, game.uchain.oy);
+        await newsym(game.uchain.ox, game.uchain.oy);
         if (ball_on_floor) {
-            newsym(game.uball.ox, game.uball.oy);
+            await newsym(game.uball.ox, game.uball.oy);
             game.u.bglyph = game.level.locations[game.uball.ox][game.uball.oy].glyph;
-            place_object(game.uball, game.uball.ox, game.uball.oy);
-            newsym(game.uball.ox, game.uball.oy);
+            await place_object(game.uball, game.uball.ox, game.uball.oy);
+            await newsym(game.uball.ox, game.uball.oy);
         }
     } else {
         game.u.bglyph = game.u.cglyph;
         if (game.u.bc_order == 1) {
-            place_object(game.uball, game.uball.ox, game.uball.oy);
-            place_object(game.uchain, game.uchain.ox, game.uchain.oy);
+            await place_object(game.uball, game.uball.ox, game.uball.oy);
+            await place_object(game.uchain, game.uchain.ox, game.uchain.oy);
         } else {
-            place_object(game.uchain, game.uchain.ox, game.uchain.oy);
-            place_object(game.uball, game.uball.ox, game.uball.oy);
+            await place_object(game.uchain, game.uchain.ox, game.uchain.oy);
+            await place_object(game.uball, game.uball.ox, game.uball.oy);
         }
-        newsym(game.uball.ox, game.uball.oy);
+        await newsym(game.uball.ox, game.uball.oy);
     }
 }
 /*
@@ -297,7 +284,7 @@ export function set_bc(already_blind) {
  *
  *  Should not be called while swallowed.
  */
-export function move_bc(before, control, ballx, bally, chainx, chainy) {
+export async function move_bc(before, control, ballx, bally, chainx, chainy) {
     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
         if (!before) {
             if ((control & 2) && (control & 1)) {
@@ -324,15 +311,15 @@ export function move_bc(before, control, ballx, bally, chainx, chainy) {
                 /* Pick up glyph at new location. */
                 game.u.bglyph = game.level.locations[ballx][bally].glyph;
                 game.u.cglyph = game.level.locations[chainx][chainy].glyph;
-                movobj(game.uball, ballx, bally);
-                movobj(game.uchain, chainx, chainy);
+                await movobj(game.uball, ballx, bally);
+                await movobj(game.uchain, chainx, chainy);
             } else if (control & 1) {
                 if (game.u.bc_felt & 1) {
                     if (game.u.bc_order == 0) {
                         game.level.locations[game.uball.ox][game.uball.oy].glyph = game.u.bglyph;
                     } else if (game.u.bc_order == 2) {
                         if (game.u.bc_felt & 2) {
-                            map_object(game.uchain, 0);
+                            await map_object(game.uchain, 0);
                         } else {
                             game.level.locations[game.uball.ox][game.uball.oy].glyph = game.u.bglyph;
                         }
@@ -341,14 +328,14 @@ export function move_bc(before, control, ballx, bally, chainx, chainy) {
                 }
                 /* Pick up glyph at new position. */
                 game.u.bglyph = (ballx != chainx || bally != chainy) ? game.level.locations[ballx][bally].glyph : game.u.cglyph;
-                movobj(game.uball, ballx, bally);
+                await movobj(game.uball, ballx, bally);
             } else if (control & 2) {
                 if (game.u.bc_felt & 2) {
                     if (game.u.bc_order == 0) {
                         game.level.locations[game.uchain.ox][game.uchain.oy].glyph = game.u.cglyph;
                     } else if (game.u.bc_order == 1) {
                         if (game.u.bc_felt & 1) {
-                            map_object(game.uball, 0);
+                            await map_object(game.uball, 0);
                         } else {
                             game.level.locations[game.uchain.ox][game.uchain.oy].glyph = game.u.cglyph;
                         }
@@ -356,56 +343,45 @@ export function move_bc(before, control, ballx, bally, chainx, chainy) {
                     game.u.bc_felt &= ~2;
                 }
                 game.u.cglyph = (ballx != chainx || bally != chainy) ? game.level.locations[chainx][chainy].glyph : game.u.bglyph;
-                movobj(game.uchain, chainx, chainy);
+                await movobj(game.uchain, chainx, chainy);
             }
-            game.u.bc_order = bc_order();
+            game.u.bc_order = await bc_order();
         }
     } else {
         if (before) {
             if (!control) {
-                /*
-         *  The hero is not blind.  To make this work correctly, we need to
-         *  pick up the ball and chain before the hero moves, then put them
-         *  in their new positions after the hero moves.
-         */
-                /*
-                 * Neither ball nor chain is moving, so remember which was
-                 * on top until !before.  Use the variable u.bc_order
-                 * since it is only valid when blind.
-                 */
-                game.u.bc_order = bc_order();
+                game.u.bc_order = await bc_order();
             }
-            remove_object(game.uchain);
-            maybe_unhide_at(game.uchain.ox, game.uchain.oy);
-            newsym(game.uchain.ox, game.uchain.oy);
+            await remove_object(game.uchain);
+            await maybe_unhide_at(game.uchain.ox, game.uchain.oy);
+            await newsym(game.uchain.ox, game.uchain.oy);
             if (!((game.uball).where == 3)) {
-                remove_object(game.uball);
-                maybe_unhide_at(game.uball.ox, game.uball.oy);
-                newsym(game.uball.ox, game.uball.oy);
+                await remove_object(game.uball);
+                await maybe_unhide_at(game.uball.ox, game.uball.oy);
+                await newsym(game.uball.ox, game.uball.oy);
             }
         } else {
             let on_floor = !((game.uball).where == 3);
             if ((control & 2) || (!control && game.u.bc_order == 1)) {
-                /* If the chain moved or nothing moved & chain on top. */
                 if (on_floor) {
-                    place_object(game.uball, ballx, bally);
+                    await place_object(game.uball, ballx, bally);
                 }
-                place_object(game.uchain, chainx, chainy);
+                await place_object(game.uchain, chainx, chainy);
             } else {
-                place_object(game.uchain, chainx, chainy);
+                await place_object(game.uchain, chainx, chainy);
                 if (on_floor) {
-                    place_object(game.uball, ballx, bally);
+                    await place_object(game.uball, ballx, bally);
                 }
             }
-            newsym(chainx, chainy);
+            await newsym(chainx, chainy);
             if (on_floor) {
-                newsym(ballx, bally);
+                await newsym(ballx, bally);
             }
         }
     }
 }
 /* return TRUE if the caller needs to place the ball and chain down again */
-export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_delay, allow_drag) {
+export async function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_delay, allow_drag) {
     let t = null;
     let already_in_rock = 0;
     drag: {
@@ -430,7 +406,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
         bc_control.value = 0;
         cause_delay.value = (0);
         if (dist2(x, y, game.uchain.ox, game.uchain.oy) <= 2) {
-            move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+            await move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
             return (1);
         }
         if (((game.uball).where == 3) || distmin(x, y, game.uball.ox, game.uball.oy) <= 2) {
@@ -438,7 +414,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
             let oldchainx = game.uchain.ox;
             let oldchainy = game.uchain.oy;
             bc_control.value = 2;
-            move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+            await move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
             if (((game.uball).where == 3)) {
                 if (distmin(x, y, game.uchain.ox, game.uchain.oy) > 1) {
                     /* move chain only if necessary */
@@ -468,7 +444,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                         do {
                             chainx.value = oldchainx;
                             chainy.value = oldchainy;
-                            move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                            await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                             break drag;
                         } while (0);
                     }
@@ -507,7 +483,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                                     do {
                                         chainx.value = oldchainx;
                                         chainy.value = oldchainy;
-                                        move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                                        await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                                         break drag;
                                     } while (0);
                                 }
@@ -520,7 +496,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                                     do {
                                         chainx.value = oldchainx;
                                         chainy.value = oldchainy;
-                                        move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                                        await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                                         break drag;
                                     } while (0);
                                 }
@@ -533,7 +509,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                                     do {
                                         chainx.value = oldchainx;
                                         chainy.value = oldchainy;
-                                        move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                                        await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                                         break drag;
                                     } while (0);
                                 }
@@ -541,7 +517,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                                     do {
                                         chainx.value = oldchainx;
                                         chainy.value = oldchainy;
-                                        move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                                        await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                                         break drag;
                                     } while (0);
                                 }
@@ -552,7 +528,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                             do {
                                 chainx.value = oldchainx;
                                 chainy.value = oldchainy;
-                                move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                                await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                                 break drag;
                             } while (0);
                         } else if (dist2(tempx, tempy, game.uchain.ox, game.uchain.oy) < dist2(tempx2, tempy2, game.uchain.ox, game.uchain.oy) || ((dist2(tempx, tempy, game.uchain.ox, game.uchain.oy) == dist2(tempx2, tempy2, game.uchain.ox, game.uchain.oy)) && rn2(2))) {
@@ -576,7 +552,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                         do {
                             chainx.value = oldchainx;
                             chainy.value = oldchainy;
-                            move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                            await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                             break drag;
                         } while (0);
                     }
@@ -600,7 +576,7 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                             do {
                                 chainx.value = oldchainx;
                                 chainy.value = oldchainy;
-                                move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+                                await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
                                 break drag;
                             } while (0);
                         }
@@ -624,56 +600,55 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
                     chainy.value = y;
                     break;
                 default:
-                    impossible("bad chain movement");
+                    await impossible("bad chain movement");
                     break;
             }
             return (1);
         }
     }
     if (near_capacity() > SLT_ENCUMBER && dist2(x, y, game.u.ux, game.u.uy) <= 2) {
-        You("cannot %sdrag the heavy iron ball.", game.invent ? "carry all that and also " : "");
+        await You("cannot %sdrag the heavy iron ball.", game.invent ? "carry all that and also " : "");
         nomul(0);
         return (0);
     }
     if ((is_pool(game.uchain.ox, game.uchain.oy) && (game.level.locations[game.uchain.ox][game.uchain.oy].typ == POOL || !is_pool(game.uball.ox, game.uball.oy) || game.level.locations[game.uball.ox][game.uball.oy].typ == POOL)) || ((t = t_at(game.uchain.ox, game.uchain.oy)) && (((t.ttyp) == PIT || (t.ttyp) == SPIKED_PIT) || ((t.ttyp) == HOLE || (t.ttyp) == TRAPDOOR)))) {
         if (((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked)) {
-            /* water not mere continuation of previous water */
-            You_feel("a tug from the iron ball.");
+            await You_feel("a tug from the iron ball.");
             if (t) {
                 t.tseen = 1;
             }
         } else {
             let victim = null;
-            You("are jerked back by the iron ball!");
+            await You("are jerked back by the iron ball!");
             if ((victim = (game.level.monsters[game.uchain.ox][game.uchain.oy])) != null) {
                 let tmp = 0;
                 let dieroll = rnd(20);
                 tmp = -2 + (game.u.uluck + game.u.moreluck) + find_mac(victim);
-                tmp += omon_adj(victim, game.uball, (1));
+                tmp += await omon_adj(victim, game.uball, (1));
                 if (tmp >= dieroll) {
-                    hmon(victim, game.uball, HMON_DRAGGED, dieroll);
+                    await hmon(victim, game.uball, HMON_DRAGGED, dieroll);
                 } else {
-                    miss(xname(game.uball), victim);
+                    await miss(await xname(game.uball), victim);
                 }
             }
             if (!(game.level.monsters[game.uchain.ox][game.uchain.oy])) {
                 /* now check again in case mon died */
                 game.u.ux = game.uchain.ox;
                 game.u.uy = game.uchain.oy;
-                newsym(game.u.ux0, game.u.uy0);
+                await newsym(game.u.ux0, game.u.uy0);
             }
             nomul(0);
             bc_control.value = 1;
-            move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+            await move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
             ballx.value = game.uchain.ox;
             bally.value = game.uchain.oy;
-            move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
-            spoteffects((1));
+            await move_bc(0, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+            await spoteffects((1));
             return (0);
         }
     }
     bc_control.value = 1 | 2;
-    move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
+    await move_bc(1, bc_control.value, ballx.value, bally.value, chainx.value, chainy.value);
     if (dist2(x, y, game.u.ux, game.u.uy) > 2) {
         /* Awful case: we're still in range of the ball, so we thought we
          * could only move the chain, but it turned out that the target
@@ -721,9 +696,9 @@ export function drag_ball(x, y, bc_control, ballx, bally, chainx, chainy, cause_
  *  Should not be called while swallowed.
  */
 const __drop_ball_pullmsg = "The ball pulls you out of the ";
-export function drop_ball(x, y) {
+export async function drop_ball(x, y) {
     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-        game.u.bc_order = bc_order();
+        game.u.bc_order = await bc_order();
         game.u.bglyph = (game.u.bc_order) ? game.u.cglyph : game.level.locations[x][y].glyph;
     }
     if (x != game.u.ux || y != game.u.uy) {
@@ -732,29 +707,29 @@ export function drop_ball(x, y) {
         if (game.u.utrap && game.u.utraptype != TT_INFLOOR && game.u.utraptype != TT_BURIEDBALL) {
             switch (game.u.utraptype) {
                 case TT_PIT:
-                    pline("%s%s!", __drop_ball_pullmsg, "pit");
+                    await pline("%s%s!", __drop_ball_pullmsg, "pit");
                     break;
                 case TT_WEB:
-                    pline("%s%s!", __drop_ball_pullmsg, "web");
+                    await pline("%s%s!", __drop_ball_pullmsg, "web");
                     ;
-                    pline_The("web is destroyed!");
-                    deltrap(t_at(game.u.ux, game.u.uy));
+                    await pline_The("web is destroyed!");
+                    await deltrap(t_at(game.u.ux, game.u.uy));
                     break;
                 case TT_LAVA:
-                    pline("%s%s!", __drop_ball_pullmsg, hliquid("lava"));
+                    await pline("%s%s!", __drop_ball_pullmsg, hliquid("lava"));
                     break;
                 case TT_BEARTRAP:
                     side = rn2(3) ? 131072 : 262144;
-                    pline("%s%s!", __drop_ball_pullmsg, "bear trap");
-                    set_wounded_legs(side, (rn2(1000) + (500)));
+                    await pline("%s%s!", __drop_ball_pullmsg, "bear trap");
+                    await set_wounded_legs(side, (rn2(1000) + (500)));
                     if (!game.u.usteed) {
-                        Your("%s %s is severely damaged.", (side == 131072) ? "left" : "right", body_part(LEG));
-                        losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((2) + 1) / 2)) : (2)), "leg damage from being pulled out of a bear trap", 1);
+                        await Your("%s %s is severely damaged.", (side == 131072) ? "left" : "right", await body_part(LEG));
+                        await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((2) + 1) / 2)) : (2)), "leg damage from being pulled out of a bear trap", 1);
                     }
                     break;
             }
-            reset_utrap((1));
-            fill_pit(game.u.ux, game.u.uy);
+            await reset_utrap((1));
+            await fill_pit(game.u.ux, game.u.uy);
         }
         game.u.ux0 = game.u.ux;
         game.u.uy0 = game.u.uy;
@@ -775,34 +750,34 @@ export function drop_ball(x, y) {
             game.u.bc_felt = 0;
             game.u.cglyph = (game.u.bc_order) ? game.u.bglyph : game.level.locations[game.u.ux][game.u.uy].glyph;
         }
-        movobj(game.uchain, game.u.ux, game.u.uy);
+        await movobj(game.uchain, game.u.ux, game.u.uy);
         if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            game.u.bc_order = bc_order();
+            game.u.bc_order = await bc_order();
         }
-        newsym(game.u.ux0, game.u.uy0);
+        await newsym(game.u.ux0, game.u.uy0);
         if (game.u.ux0 != game.u.ux || game.u.uy0 != game.u.uy) {
-            spoteffects((1));
+            await spoteffects((1));
         }
     }
 }
 /* ball&chain cause hero to randomly lose stuff from inventory */
-export function litter() {
+export async function litter() {
     let otmp = null;
     let nextobj = null;
     let capacity = weight_cap();
     for (otmp = game.invent; otmp; otmp = nextobj) {
         nextobj = otmp.nobj;
         if (otmp != game.uball && rnd(capacity) <= otmp.owt) {
-            if (canletgo(otmp, "")) {
-                You("drop %s and %s %s down the stairs with you.", yname(otmp), (otmp.quan == 1) ? "it" : "they", otense(otmp, "fall"));
-                setnotworn(otmp);
-                freeinv(otmp);
-                hitfloor(otmp, (0));
+            if (await canletgo(otmp, "")) {
+                await You("drop %s and %s %s down the stairs with you.", await yname(otmp), (otmp.quan == 1) ? "it" : "they", await otense(otmp, "fall"));
+                await setnotworn(otmp);
+                await freeinv(otmp);
+                await hitfloor(otmp, (0));
             }
         }
     }
 }
-export function drag_down() {
+export async function drag_down() {
     let forward = 0;
     let dragchance = 3;
     /*
@@ -815,42 +790,40 @@ export function drag_down() {
      */
     forward = ((game.uball).where == 3) && (game.uwep == game.uball || !game.uwep || !rn2(3));
     if (((game.uball).where == 3) && !welded(game.uball)) {
-        You("lose your grip on the iron ball.");
+        await You("lose your grip on the iron ball.");
     }
-    /* previous level is still displayed although you
-               went down the stairs. Avoids bug C343-20 */
-    cls();
+    await cls();
     if (forward) {
         if (rn2(6)) {
-            pline_The("iron ball drags you downstairs!");
-            losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((rnd(6)) + 1) / 2)) : (rnd(6))), "dragged downstairs by an iron ball", 2);
-            litter();
+            await pline_The("iron ball drags you downstairs!");
+            await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((rnd(6)) + 1) / 2)) : (rnd(6))), "dragged downstairs by an iron ball", 2);
+            await litter();
         }
     } else {
         if (rn2(2)) {
             ;
-            pline_The("iron ball smacks into you!");
-            losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((rnd(20)) + 1) / 2)) : (rnd(20))), "iron ball collision", 0);
-            exercise(A_STR, (0));
+            await pline_The("iron ball smacks into you!");
+            await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((rnd(20)) + 1) / 2)) : (rnd(20))), "iron ball collision", 0);
+            await exercise(A_STR, (0));
             dragchance -= 2;
         }
         if (dragchance >= rnd(6)) {
-            pline_The("iron ball drags you downstairs!");
-            losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((rnd(3)) + 1) / 2)) : (rnd(3))), "dragged downstairs by an iron ball", 2);
-            exercise(A_STR, (0));
-            litter();
+            await pline_The("iron ball drags you downstairs!");
+            await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((rnd(3)) + 1) / 2)) : (rnd(3))), "dragged downstairs by an iron ball", 2);
+            await exercise(A_STR, (0));
+            await litter();
         }
     }
 }
-export function bc_sanity_check() {
+export async function bc_sanity_check() {
     let otyp = 0;
     let freeball = 0;
     let freechain = 0;
     let onam = null;
     if ((game.uball != null) && (!game.uball || !game.uchain)) {
-        impossible("Punished without %s%s%s?", !game.uball ? "iron ball" : "", (!game.uball && !game.uchain) ? " and " : "", !game.uchain ? "attached chain" : "");
+        await impossible("Punished without %s%s%s?", !game.uball ? "iron ball" : "", (!game.uball && !game.uchain) ? " and " : "", !game.uchain ? "attached chain" : "");
     } else if (!(game.uball != null) && (game.uball || game.uchain)) {
-        impossible("Attached %s%s%s without being Punished?", game.uchain ? "chain" : "", (game.uchain && game.uball) ? " and " : "", game.uball ? "iron ball" : "");
+        await impossible("Attached %s%s%s without being Punished?", game.uchain ? "chain" : "", (game.uchain && game.uball) ? " and " : "", game.uball ? "iron ball" : "");
     }
     /* ball is free when swallowed, when changing levels or during air bubble
        management on Plane of Water (both of which start and end in between
@@ -860,15 +833,15 @@ export function bc_sanity_check() {
     if (game.uball && (game.uball.otyp != HEAVY_IRON_BALL || (game.uball.where != 1 && game.uball.where != 3 && game.uball.where != 0) || (freeball ^ freechain) || (game.uball.owornmask & 2097152) == 0 || (game.uball.owornmask & ~(2097152 | (256 | 1024 | 512))) != 0)) {
         /* lie to simplify the testing logic */
         otyp = game.uball.otyp;
-        onam = safe_typename(otyp);
-        impossible("uball: type %d (%s), where %d, wornmask=0x%08lx", otyp, onam, game.uball.where, game.uball.owornmask);
+        onam = await safe_typename(otyp);
+        await impossible("uball: type %d (%s), where %d, wornmask=0x%08lx", otyp, onam, game.uball.where, game.uball.owornmask);
     }
     if (game.uchain && (game.uchain.otyp != IRON_CHAIN || (game.uchain.where != 1 && game.uchain.where != 0) || (freechain ^ freeball) || (game.uchain.owornmask & 4194304) == 0 || (game.uchain.owornmask & ~4194304) != 0)) {
         /* similar check to ball except can't be in inventory */
         /* [could simplify this to owornmask != W_CHAIN] */
         otyp = game.uchain.otyp;
-        onam = safe_typename(otyp);
-        impossible("uchain: type %d (%s), where %d, wornmask=0x%08lx", otyp, onam, game.uchain.where, game.uchain.owornmask);
+        onam = await safe_typename(otyp);
+        await impossible("uchain: type %d (%s), where %d, wornmask=0x%08lx", otyp, onam, game.uchain.where, game.uchain.owornmask);
     }
     if (game.uball && game.uchain && !(freeball && freechain)) {
         let bx = 0;
@@ -892,8 +865,35 @@ export function bc_sanity_check() {
         bdx = bx - cx , bdy = by - cy;
         bdx = abs(bdx) , bdy = abs(bdy);
         if (cdx > 1 || cdy > 1 || bdx > 1 || bdy > 1) {
-            impossible("b&c distance: you@<%d,%d>, chain@<%d,%d>, ball@<%d,%d>", game.u.ux, game.u.uy, cx, cy, bx, by);
+            await impossible("b&c distance: you@<%d,%d>, chain@<%d,%d>, ball@<%d,%d>", game.u.ux, game.u.uy, cx, cy, bx, by);
         }
     }
 }
 /*ball.c*/
+/* [this used to test 'if (uwep != uball)' but that always passes
+           after the setuwep() above] */
+/* remove from inventory but don't place on floor */
+/* ball might rust -- already checked when carried */
+/* we need to proceed with the removal from the floor
+             * so that movebubbles() processing will disregard it as
+             * intended. Ignore all the vision stuff.
+             */
+/*
+     *  Since we can still see, remove the ball&chain and get the glyph that
+     *  would be beneath them.  Then put the ball&chain back.  This is pretty
+     *  disgusting, but it will work.
+     */
+/*
+         *  The hero is not blind.  To make this work correctly, we need to
+         *  pick up the ball and chain before the hero moves, then put them
+         *  in their new positions after the hero moves.
+         */
+/*
+                 * Neither ball nor chain is moving, so remember which was
+                 * on top until !before.  Use the variable u.bc_order
+                 * since it is only valid when blind.
+                 */
+/* If the chain moved or nothing moved & chain on top. */
+/* water not mere continuation of previous water */
+/* previous level is still displayed although you
+               went down the stairs. Avoids bug C343-20 */

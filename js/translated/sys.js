@@ -14,7 +14,7 @@ import { panic } from '../c2js-runtime/panic.js';
 import { historical } from './nh-constants.js';
 
 game.sysopt = { support: null, recover: null, wizards: null, fmtd_wizard_list: null, explorers: null, shellers: null, genericusers: null, debugfiles: null, msghandler: null, env_dbgfl: 0, maxplayers: 0, seduce: 0, check_save_uid: 0, check_plname: 0, bones_pools: 0, livelog: 0, persmax: 0, pers_is_uid: 0, entrymax: 0, pointsmin: 0, tt_oname_maxrank: 0, gdbpath: null, greppath: null, crashreporturl: null, panictrace_gdb: 0, panictrace_libc: 0, saveformat: [0, 0], bonesformat: [0, 0], accessibility: 0, hideusage: 0 };
-export function sys_early_init() {
+export async function sys_early_init() {
     let p = null;
     /* Don't assume that these are not already set, and that it is
      * safe to dupstr() without orphaning any pointers. Check them. */
@@ -46,7 +46,7 @@ export function sys_early_init() {
     game.sysopt.pers_is_uid = 1;
     game.sysopt.tt_oname_maxrank = 10;
     if (game.sysopt.pers_is_uid != 0 && game.sysopt.pers_is_uid != 1) {
-        panic("config error: PERS_IS_UID must be either 0 or 1");
+        await panic("config error: PERS_IS_UID must be either 0 or 1");
     }
     if (game.sysopt.gdbpath) {
         free(game.sysopt.gdbpath);

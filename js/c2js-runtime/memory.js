@@ -55,8 +55,21 @@ function makeStructProxy() {
     return new Proxy(target, {
         get(t, prop) {
             if (prop in t) return t[prop];
+            // C memset-zero semantics for arithmetic/comparison
+            // contexts: an unwritten ("ghost") struct member coerces
+            // to 0, so `edog.hungrytime < minhungry`, `moves <
+            // ghost`, `ghost + 1`, `${ghost}` all behave as if the
+            // struct were zeroed (which newedog-style memset(.., 0)
+            // cannot do on a fresh proxy — it has no own keys to
+            // walk).  seed1150's dog was PERMANENTLY HUNGRY because
+            // `{} < minhungry` was false and hungrytime never got
+            // initialized.  NOTE: ghosts remain TRUTHY (pointer
+            // `if (ptr)` checks still misread them — the documented
+            // separate hazard); only numeric/string coercion changes.
+            if (prop === Symbol.toPrimitive) return () => 0;
             if (typeof prop === 'symbol') return undefined;
             if (prop === 'then' || prop === 'toJSON') return undefined;
+            if (prop === 'valueOf') return () => 0;
             const slot = makeStructProxy();
             t[prop] = slot;
             return slot;
@@ -104,12 +117,25 @@ export function memset(p, value, count) {
         return p;
     }
     if (typeof p === 'object') {
-        for (const k of Object.keys(p)) {
-            const cur = p[k];
-            if (cur && typeof cur === 'object') memset(cur, value, count);
-            else if (typeof cur === 'number') p[k] = value;
-            else if (typeof cur === 'string') p[k] = '';
-            else p[k] = null;
+        // Cycle guard: linked structures (obj chains via nobj/cobj,
+        // monster chains via nmon) recurse infinitely without it —
+        // "Maximum call stack size exceeded" killed seed4500 when a
+        // level object graph reached memset.  The WeakSet lives per
+        // top-level call (cleared on root entry/exit).
+        const __root = !memset.__seen;
+        if (__root) memset.__seen = new WeakSet();
+        if (memset.__seen.has(p)) return p;
+        memset.__seen.add(p);
+        try {
+            for (const k of Object.keys(p)) {
+                const cur = p[k];
+                if (cur && typeof cur === 'object') memset(cur, value, count);
+                else if (typeof cur === 'number') p[k] = value;
+                else if (typeof cur === 'string') p[k] = '';
+                else p[k] = null;
+            }
+        } finally {
+            if (__root) memset.__seen = null;
         }
         return p;
     }

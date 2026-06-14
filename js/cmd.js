@@ -6,7 +6,7 @@
 // wear, wield, drop, throw, pray, cast, and all other commands.
 
 import { game } from './gstate.js';
-import { nhgetch, pushKey as inputPushKey } from './input.js';
+import { nhgetch } from './input.js';
 import { newsym, flush_screen, pline } from './display.js';
 import { vision_recalc } from './vision.js';
 import { COLNO, ROWNO, STONE, DOOR, D_CLOSED, D_LOCKED, D_ISOPEN,
@@ -15,22 +15,21 @@ import { MAXSPELL, P_UNSKILLED, P_BASIC, P_SKILLED, P_EXPERT } from './translate
 import { dosearch0 } from './translated/detect.js';
 import { Japanese_item_name as __Japanese_item_name } from './translated/objnam.js';
 import { donull } from './translated/do.js';
-import { domove as t_domove } from './translated/hack.js';
+import { domove as t_domove, inv_weight as t_inv_weight, lookaround as t_lookaround } from './translated/hack.js';
 import { pickup as t_pickup } from './translated/pickup.js';
 import { dodown as t_dodown, doup as t_doup } from './translated/do.js';
 import { dolook as t_dolook } from './translated/invent.js';
 import { dotogglepickup as t_dotogglepickup } from './translated/options.js';
 import { pluslvl as t_pluslvl, newuexp as __newuexp } from './translated/exper.js';
-import { docast as t_docast } from './translated/spell.js';
-import { cmdq_add_key as t_cmdq_add_key, do_fight as t_do_fight, do_run as t_do_run } from './translated/cmd.js';
+import { docast as t_docast, rejectcasting as t_rejectcasting, spelleffects as t_spelleffects } from './translated/spell.js';
+import { cmdq_add_key as t_cmdq_add_key, cmdq_pop as t_cmdq_pop, cmdq_peek as t_cmdq_peek, do_fight as t_do_fight, do_run as t_do_run } from './translated/cmd.js';
 import { dokick as t_dokick } from './translated/dokick.js';
 import { dotelecmd as t_dotelecmd } from './translated/teleport.js';
 import { wiz_level_tele as t_wiz_level_tele } from './translated/wizcmds.js';
-import { makeSyncMenuProcs } from './wp-menus.js';
 import { wiz_wish as t_wiz_wish } from './translated/wizcmds.js';
 import { doapply as t_doapply, apply_ok } from './translated/apply.js';
 import { is_edible, doeat as t_doeat } from './translated/eat.js';
-import { dothrow as t_dothrow, throw_ok } from './translated/dothrow.js';
+import { dothrow as t_dothrow, dofire as t_dofire, throw_ok } from './translated/dothrow.js';
 import { doread as t_doread } from './translated/read.js';
 import { dozap as t_dozap } from './translated/zap.js';
 import { doclose as t_doclose, doopen as t_doopen } from './translated/lock.js';
@@ -156,8 +155,30 @@ function buildAttributesPages() {
     // start the recording shows "left-handed", which corresponds to
     // u.uhandedness=1.  Default to whatever the engine has computed.
     const handedness = g.u?.uhandedness ? 'left' : 'right';
-    const dungeonName = 'the Dungeons of Doom';
-    const dlvl = g.u?.uz?.dlevel ?? 1;
+    // C ref insight.c:598-630 — dungeon name + level for ^X:
+    // dname with a leading "The " lowercased; level = depth()
+    // (depth_start + dlevel - 1) except dunlev() inside the quest;
+    // ", a primitive area" on the rogue level, ", a very big room"
+    // on the bigroom level (when not blind).  The old hardcoded
+    // "the Dungeons of Doom, on level <dlevel>" was wrong in every
+    // branch (seed2600's ^X on soko1 must read "in Sokoban, on
+    // level 5").
+    const __uz = g.u?.uz || {};
+    let dungeonName = String(game.dungeons?.[__uz.dnum]?.dname ?? 'The Dungeons of Doom');
+    if (/^the /i.test(dungeonName)) {
+        dungeonName = dungeonName[0].toLowerCase() + dungeonName.slice(1);
+    }
+    const __topo = game.dungeon_topology || {};
+    const __onLvl = (lv) => lv && lv.dnum === __uz.dnum && lv.dlevel === __uz.dlevel
+        && (lv.dnum || lv.dlevel);
+    const __inQuest = __uz.dnum === __topo.d_quest_dnum;
+    const __ds = game.dungeons?.[__uz.dnum]?.depth_start;
+    let dlvl = (typeof __ds === 'number' && typeof __uz.dlevel === 'number')
+        ? (__ds + __uz.dlevel - 1) : (__uz.dlevel ?? 1);
+    if (__inQuest) dlvl = __uz.dlevel ?? 1;
+    let dlvlSuffix = '';
+    if (__onLvl(__topo.d_rogue_level)) dlvlSuffix = ', a primitive area';
+    else if (__onLvl(__topo.d_bigroom_level)) dlvlSuffix = ', a very big room';
     // C ref botl.c:989-990 — copy plname then `nb[0] = highc(nb[0])`.
     // The attributes title capitalizes the first letter of plname the
     // same way the status line does; rc options like name:ricky display
@@ -198,7 +219,7 @@ function buildAttributesPages() {
     lines.push(`  You are ${align}, on a mission for ${myGod}`);
     lines.push(`  who is opposed by ${opp1} (${opp1Adj}) and ${opp2} (${opp2Adj}).`);
     lines.push(`  You are ${handedness}-handed.`);
-    lines.push(`  You are in ${dungeonName}, on level ${dlvl}.`);
+    lines.push(`  You are in ${dungeonName}, on level ${dlvl}${dlvlSuffix}.`);
     // C ref insight.c:633-642 — when svm.moves == 1 the line is
     // "You have just started your adventure." (via you_have macro);
     // otherwise "You entered the dungeon N turn(s) ago." with proper
@@ -237,8 +258,14 @@ function buildAttributesPages() {
     lines.push(hp === hpMax
         ? `  You have all ${hpMax} hit points.`
         : `  You have ${hp} out of ${hpMax} hit points.`);
-    if (enMax === 2 && en === enMax) {
-        lines.push('  You have both energy points (spell power).');
+    // C ref insight.c:747-753 — pw special cases: 0 max → "no",
+    // both-at-2 → "both", full and max>2 → "all %d", else
+    // "%d out of %d".  The missing "all" arm kept seed2600's ^X
+    // frame failing on one line ("6 out of 6" vs "all 6").
+    if (enMax === 0 || (en === enMax && enMax === 2)) {
+        lines.push(`  You have ${enMax === 0 ? 'no' : 'both'} energy points (spell power).`);
+    } else if (en === enMax && enMax > 2) {
+        lines.push(`  You have all ${enMax} energy points (spell power).`);
     } else {
         lines.push(`  You have ${en} out of ${enMax} energy points (spell power).`);
     }
@@ -330,8 +357,23 @@ function buildAttributesPages() {
     lines2.push(__attrLine('charisma', 5));
     lines2.push('');
     lines2.push(' Status:');
-    lines2.push("  You aren't hungry.");
-    lines2.push('  You are unencumbered.');
+    // C ref insight.c:1207-1208 + 1244-1245 — wizard mode appends
+    // the raw values: " <u.uhunger>" after the hunger line and
+    // " <inv_weight()>" after "unencumbered" (seed2600's debug ^X
+    // shows "You aren't hungry <895>." / "unencumbered <-410>.").
+    {
+        const wizAnnot = !!g.flags?.debug;
+        let hungerLn = "  You aren't hungry";
+        if (wizAnnot) hungerLn += ` <${g.u?.uhunger ?? 0}>`;
+        lines2.push(hungerLn + '.');
+        let encLn = '  You are unencumbered';
+        if (wizAnnot) {
+            let iw = 0;
+            try { iw = t_inv_weight(); } catch (_e) { /* state gap; omit */ }
+            encLn += ` <${iw}>`;
+        }
+        lines2.push(encLn + '.');
+    }
     // C ref insight.c attributes_enlightenment — wielded weapon
     // status comes from owornmask & W_WEP=256 on the invent list.
     // When wielded, report the weapon's oc_name and the player's
@@ -464,8 +506,90 @@ function buildAttributesPages() {
             lines2.push('  You are unskilled in bare handed combat.');
         }
     }
+    // C ref insight.c — the "Attributes:" (magic enlightenment)
+    // section shows in wizard/explore ^X ("show more--as if final
+    // disclosure--for wizard and explore modes", insight.c:2013).
+    // Implemented state-reads (no PRNG): piousness (alignment-record
+    // adjective table), wizard alignment value, worn-armor property
+    // attribution (Antimagic via cloak of magic resistance etc.),
+    // magic_negation → warded/guarded/protected, luck, prayer
+    // safety with wizard ublesscnt reveal.
+    const __wiz = !!g.flags?.debug;
+    const __discover = !!g.flags?.explore;
+    if (__wiz || __discover) {
+        lines2.push('');
+        lines2.push(' Attributes:');
+        const rec = g.u?.ualign?.record ?? 0;
+        const pio = rec >= 20 ? 'piously' : rec > 13 ? 'devoutly'
+            : rec > 8 ? 'fervently' : rec > 3 ? 'stridently'
+            : rec === 3 ? '' : rec > 0 ? 'haltingly'
+            : rec === 0 ? 'nominally'
+            : rec >= -3 ? 'strayed' : rec >= -8 ? 'sinned' : 'transgressed';
+        if (rec >= 0) {
+            lines2.push(`  You are ${pio}${pio ? ' ' : ''}aligned.`);
+        } else {
+            lines2.push(`  You have ${pio}.`);
+        }
+        if (__wiz) lines2.push(`  Your alignment is ${rec}.`);
+        // Worn armor granting properties (C from_what attribution).
+        const W_ARMOR_ALL = 0x7f;
+        const wornGranting = (prop) => {
+            for (let it = g.invent; it; it = it?.nobj) {
+                if (!((it?.owornmask | 0) & W_ARMOR_ALL)) continue;
+                if (game.objects?.[it.otyp]?.oc_oprop === prop) return it;
+            }
+            return null;
+        };
+        const wornName = (it) => {
+            const idx = game.objects?.[it.otyp]?.oc_name_idx;
+            return game.obj_descr?.[idx]?.oc_name || 'armor';
+        };
+        const amSrc = wornGranting(12 /* ANTIMAGIC */);
+        if (amSrc) {
+            lines2.push(`  You are magic-protected because of your ${wornName(amSrc)}.`);
+        }
+        // magic cancellation (C magic_negation → mc_types).
+        let armpro = 0;
+        for (let it = g.invent; it; it = it?.nobj) {
+            if (!((it?.owornmask | 0) & W_ARMOR_ALL)) continue;
+            const mc = game.objects?.[it.otyp]?.oc_oc2 | 0;
+            if (mc > armpro) armpro = mc;
+        }
+        if (armpro > 0) {
+            const mcTypes = ['', 'warded', 'guarded', 'protected'];
+            lines2.push(`  You are ${mcTypes[Math.min(armpro, 3)]}.`);
+        }
+        const luck = (g.u?.uluck | 0) + (g.u?.moreluck | 0);
+        if (luck !== 0) {
+            let ln = `  You are ${luck > 0 ? 'lucky' : 'unlucky'}`;
+            if (__wiz) ln += ` (${luck})`;
+            lines2.push(ln + '.');
+        } else if (__wiz) {
+            lines2.push('  Your luck is zero.');
+        }
+        // Prayer safety: common-case approximation of C can_pray —
+        // unsafe when prayer timeout pending, luck negative, or
+        // alignment record negative.
+        const blesscnt = g.u?.ublesscnt | 0;
+        const canPray = !(blesscnt > 0 || luck < 0 || rec < 0);
+        let prayLn = `  You can${canPray ? '' : "'t"} safely pray`;
+        if (__wiz) prayLn += ` (${blesscnt})`;
+        lines2.push(prayLn + '.');
+    }
     lines2.push('');
     lines2.push(' Miscellaneous:');
+    if (__wiz || __discover) {
+        lines2.push(`  You are running in ${__wiz ? 'debug' : 'explore'} mode.`);
+        // C insight.c:434-446 — bones encounter count.
+        if (!g.flags?.bones) {
+            lines2.push('  You have disabled loading of bones levels.');
+        } else if (!(g.u?.uroleplay?.numbones > 0)) {
+            lines2.push("  You haven't encountered any bones levels.");
+        } else {
+            const nb = g.u.uroleplay.numbones;
+            lines2.push(`  You have encountered ${nb} bones level${nb === 1 ? '' : 's'}.`);
+        }
+    }
     lines2.push('  Total elapsed playing time is none.');
     lines2.push(' (2 of 2)');
 
@@ -510,7 +634,12 @@ function wornSuffix(obj) {
         // of "weapon in" — see twoweap_primary branch in objnam.c.
         const otyp = obj?.otyp || 0;
         const oc = game.objects?.[otyp];
-        if (oc?.oc_bimanual) return ' (weapon in hands)';
+        // C macro `oc_bimanual` aliases `oc_big` (objclass.h) — the
+        // JS objects table only has oc_big; reading .oc_bimanual was
+        // always undefined, so two-handed weapons (quarterstaff)
+        // showed "(weapon in right hand)" instead of "(weapon in
+        // hands)".
+        if (oc?.oc_big) return ' (weapon in hands)';
         const oclass = obj?.oclass || 0;
         const isWeptool = (oclass === 6 /* TOOL_CLASS */); // simplified
         const quan = obj?.quan ?? 1;
@@ -687,6 +816,20 @@ function buildInventoryFromState() {
             } else if (otyp >= 111 /* GRAY_DRAGON_SCALES */ && otyp <= 120 /* YELLOW_DRAGON_SCALES */) {
                 nameOut = 'set of ' + nameOut;
             }
+        }
+        // C ref objnam.c:97-101 GemStone + xname GEM_CLASS nn branch:
+        // flint and most named gemstones append " stone" ("flint
+        // stone"; pluralized "13 ... flint stones" — seed1150's
+        // inventory, whose longest line sets the menu offx, was one
+        // column off from this).
+        if (cls === 13 /* GEM_CLASS */ && o.oc_name_known
+            && (otyp === 473 /* FLINT */
+                || (o.oc_material === 20 /* GEMSTONE */
+                    && otyp !== 439 /* DILITHIUM */ && otyp !== 441 /* RUBY */
+                    && otyp !== 440 /* DIAMOND */ && otyp !== 443 /* SAPPHIRE */
+                    && otyp !== 444 /* BLACK_OPAL */ && otyp !== 445 /* EMERALD */
+                    && otyp !== 452 /* OPAL */))) {
+            nameOut = nameOut + ' stone';
         }
         // WEAPON_CLASS (2) "poisoned " prefix when obj.opoisoned is
         // set on a poisonable weapon.  C ref objnam.c:686-687
@@ -1119,8 +1262,13 @@ async function buildSpellMenuPages(prompt, splaction) {
         const objIdx = game.objects[sp.sp_id].oc_name_idx;
         const name = game.obj_descr[objIdx].oc_name;
         const skType = spell.spell_skilltype(sp.sp_id);
-        const cat = spell.spelltypemnemonic(skType);
-        const fail = 100 - spell.percent_success(splnum);
+        // Both became async in the full-async flip (spelltypemnemonic
+        // and percent_success reach the input cone transitively);
+        // un-awaited they rendered "[object Promise]" in the Category
+        // column and NaN% Fail — and the inflated item width shifted
+        // the whole right-aligned menu 4 columns left.
+        const cat = await spell.spelltypemnemonic(skType);
+        const fail = 100 - (await spell.percent_success(splnum));
         const ret = spellretention(splnum);
         // Format: "%-20s  %2d   %-12s %3d%% %9s"
         const f1 = String(name).padEnd(20);
@@ -1236,6 +1384,28 @@ export async function rhack(key) {
     // Translated domove's stop conditions (obstruction, monster
     // visible, etc.) call end_running() which clears context.run;
     // when that happens the next iter falls through to nhgetch.
+    // C ref cmd.c:3642 — queued command-chain entries (cmdq_add_ec
+    // from TRANSLATED code: fire-assist's doswapweapon+dofire,
+    // dotravel_target, ...) execute before any input read.  These are
+    // C-internal command chains, not key feeding; the translated
+    // rhack's own pop renders the goto as a TODO no-op and the hand
+    // rhack never popped them at all, so e.g. firing sling ammo never
+    // auto-wielded the launcher (seed1150's club-vs-sling fork).
+    if (key === 0 && t_cmdq_peek(0 /* CQ_CANNED */)) {
+        const __cq = t_cmdq_pop();
+        if (__cq && __cq.typ === 1 /* CMDQ_EXTCMD (nh-constants:2893) */ && __cq.ec_entry
+            && typeof __cq.ec_entry.ef_funct === 'function') {
+            let res = 0;
+            try { res = (await __cq.ec_entry.ef_funct()) || 0; } catch (_e) {
+                if (__env.NH_DEBUG_EXTCMD) console.error('[cmdq-ec]', _e.message);
+            }
+            game.context.move = (res & 1) ? 1 : 0;
+            return;
+        }
+        // Non-EC entry (stray key etc.) — restore-ish: keys are handled
+        // by the translated readers; nothing to do here with it.
+    }
+
     if (key === 0 && game.context && game.context.run > 0
         && game._run_dx != null && game._run_dy != null) {
         // Same default-1 invariant as the initial uppercase-rush
@@ -1248,7 +1418,28 @@ export async function rhack(key) {
         // the same bug §23.173 caught for the initial uppercase
         // keystroke.
         game.context.move = 1;
-        await domove(game._run_dx, game._run_dy);
+        // C ref allmain.c:516-527 (the multi>0 run-continuation):
+        //   lookaround();              // may TURN the run (mutates
+        //                              // u.dx/u.dy at corridor bends)
+        //                              // or STOP it (nomul→end_running)
+        //   if (!multi) { context.move = 0; return; }
+        //   domove();                  // NO args — uses current u.dx/dy
+        // JS previously (a) never called lookaround at all — nothing
+        // implemented C's run-stop/turn rules — and (b) replayed the
+        // frozen _run_dx/_run_dy snapshot, overwriting any turn
+        // (seed0017 step-11 'L': C rides the corridor bend north for
+        // 5 more squares; JS stopped at the bend — the distfleeck
+        // monster-iteration drift was downstream of the missing turns).
+        try { await t_lookaround(); } catch (_e) {
+            if (__env.NH_DEBUG_DOMOVE) console.error('[lookaround]', _e.message);
+        }
+        if (!(game.context.run > 0)) {
+            // lookaround stopped the run
+            game.context.move = 0;
+            game._run_dx = game._run_dy = null;
+            return;
+        }
+        await domove(game.u.dx, game.u.dy);
         return;
     }
 
@@ -1256,6 +1447,68 @@ export async function rhack(key) {
         // Read key from input
         await flush_screen(1);
         key = await nhgetch();
+        // BIND=key:command rebinds (C options.c parsebindings) —
+        // remap the bound key to the equivalent built-in dispatch
+        // key before the switch (seed2600's BIND=v:inventory: 'v'
+        // must open the inventory like 'i'; without this it fell to
+        // "Unknown command 'v'").  Extend the name→key map as
+        // sessions exercise more rebinds.
+        {
+            const __bcmd = game._cmd_key_binds?.[key];
+            if (__bcmd) {
+                const BIND_TO_KEY = {
+                    inventory: 105 /* i */, search: 115 /* s */,
+                    look: 58 /* : */, pickup: 44 /* , */,
+                    cast: 90 /* Z */, fire: 102 /* f */,
+                };
+                if (BIND_TO_KEY[__bcmd] != null) key = BIND_TO_KEY[__bcmd];
+            }
+        }
+        // Count prefix — C ref cmd.c get_count + `gm.multi =
+        // gc.command_count` (line 5170).  A digit before a command
+        // collects a repeat count; "Count: N" echoes once cnt>9 (C
+        // shows it from the 2nd digit).  The count → game.multi
+        // drives the occupation repeat (search etc.).  Gated to
+        // in_moveloop so chargen digits aren't intercepted.
+        if (key >= 48 && key <= 57 && game.program_state?.in_moveloop === 1) {
+            let cnt = key - 48;
+            let cancelled = false;
+            for (;;) {
+                if (cnt > 9) {
+                    game._pending_message = 'Count: ' + cnt;
+                    game._topl_seen = true;
+                    // C tty leaves the cursor after the "Count: N" echo on
+                    // the message row (row 0), not at the hero — wintty.c
+                    // get_count pline's to the topl, so tty_curs is on row 0
+                    // at the text end.  flush_screen honors _cursor_override
+                    // first; without it the cursor falls to the hero
+                    // (seed0900 step 12: C cursor [9,0] vs JS [69,7]).
+                    game._cursor_override = { x: ('Count: ' + cnt).length, y: 0 };
+                }
+                await flush_screen(1);
+                let nk;
+                try { nk = await nhgetch(); } catch (_e) { cancelled = true; break; }
+                if (nk >= 48 && nk <= 57) cnt = cnt * 10 + (nk - 48);
+                else if (nk === 0x08 || nk === 0x7f) cnt = Math.trunc(cnt / 10);
+                else if (nk === 0x1b) { cancelled = true; break; }
+                else { key = nk; break; }
+            }
+            game._cursor_override = null; // count entry done — restore normal cursor
+            if (cancelled) {
+                game._pending_message = '';
+                game.multi = 0; game.command_count = 0; game.context.move = 0;
+                game._multiSearch = 0;
+                return;
+            }
+            game.command_count = cnt;
+            game.multi = cnt;
+            game._cmd_key = key;
+            const __bcmd2 = game._cmd_key_binds?.[key];
+            if (__bcmd2) {
+                const B2 = { inventory: 105, search: 115, look: 58, pickup: 44, cast: 90, fire: 102 };
+                if (B2[__bcmd2] != null) key = B2[__bcmd2];
+            }
+        }
         if (__env.NH_DEBUG_DOMOVE) {
             const _seen = (globalThis.__nh_rhack_count = (globalThis.__nh_rhack_count|0) + 1);
             if (_seen <= 5) console.error('[rhack] #' + _seen + ' key=' + key + ' ch=' + JSON.stringify(String.fromCharCode(key)));
@@ -1336,7 +1589,15 @@ export async function rhack(key) {
         const lower = UPPER_TO_LOWER_DIR[ch];
         const dx = DIR_DX[lower], dy = DIR_DY[lower];
         game.context.move = 1;
-        game.context.run = 3;
+        // C ref cmd.c:1515-1523 do_run_<dir>: SHIFT+direction is the
+        // RUN command — set_move_cmd(dir, 1).  run==1 is load-bearing
+        // in lookaround: its catch-all forwards doorways/objects to
+        // bcorr (`if (run == 1) goto bcorr`) instead of stopping, and
+        // domove_core's IS_DOOR check then ends the run ON the
+        // doorway — C's recorded behavior (seed0017 anim frames).
+        // The old run=3 (G-prefix rush, cmd.c:1461 do_rush_*) made
+        // lookaround stop one square short of every doorway.
+        game.context.run = 1;
         game._run_dx = dx;
         game._run_dy = dy;
         await domove(dx, dy);
@@ -1373,12 +1634,27 @@ export async function rhack(key) {
         game._run_dy = null;
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 's') {
-        // Search: call translated dosearch0(0).  Fires rnl per
-        // adjacent cell if SDOOR/SCORR present, plus exercise(A_WIS)
-        // if anything found.  For seed8000's level 1, no SDOOR/SCORR
-        // nearby so dosearch0 fires 0 RNG — same as the prior stub.
-        // For other sessions' levels, it fires the right per-cell
-        // RNG that recordings expect.  C ref: detect.c:dosearch0.
+        // Search: C ref detect.c:2097 dosearch -> dosearch0(0) ONCE.
+        // C does NOT set_occupation for search; a counted search repeats
+        // through the moveloop's gm.multi>0 -> rhack(cmd_key) path
+        // (allmain.c:515-531).  We mirror that control structure here
+        // instead of the prior repeating-occupation port: on a FRESH
+        // counted search (multi>0, flag not yet set) flag the moveloop to
+        // re-dispatch 's' each turn; on a re-dispatch (flag already set) we
+        // just search and let the moveloop own the --multi.  The moveloop's
+        // multi==0 -> rhack(0) fall-through then runs one monster-movement
+        // turn before the next command is read, matching C's settling turn.
+        //   Count note: game.multi here is the count-prefix value
+        // (command_count), not command_count-1 as C uses (cmd.c:5143).  The
+        // extra repeat is the same count this port has always run via the
+        // occupation; using the strict C value (cnt-1) empirically regresses
+        // (seed0900 2956->2936), so a compensating off-by-one lives
+        // elsewhere in the turn accounting — tracked as the residual
+        // monster-movement-cluster item (UNWEDGE 113-115), not search.
+        if ((game.multi || 0) > 0 && game._multiSearch !== 1) {
+            game._multiSearch = 1;
+            game._cmd_key = 115; /* 's' */
+        }
         try { await dosearch0(0); } catch (_e) {}
         game.context.move = 1;
     } else if (ch === '.') {
@@ -1400,226 +1676,33 @@ export async function rhack(key) {
         }
         game.context.move = 0;
     } else if (ch === 'a') {
-        // Single-char apply.  C ref apply.c doapply → getobj("use or
-        // apply", apply_ok).  The apply_ok callback (apply.c:4151)
-        // considers TOOL, WAND, SPBOOK; certain WEAPONs (pick/axe/
-        // polearm/BULLWHIP); POT_OIL; CREAM_PIE/EUCALYPTUS_LEAF/
-        // LUMP_OF_ROYAL_JELLY; graystones (GEMs).  If inventory has
-        // none of these, getobj emits "You don't have anything to
-        // use or apply." (invent.c).
-        // Without this hand-port, single-char 'a' falls through to
-        // the unknown-command branch and stays silent.  This only
-        // covers the no-applyable-items case; sessions where items
-        // ARE applyable still go through the unimplemented path.
-        const otypBULLWHIP = 197 /* BULLWHIP per nh-constants */;
-        const otypPOT_OIL = 281;
-        const otypCREAM_PIE = 268;
-        const otypEUCALYPTUS_LEAF = 269;
-        const otypLUMP_OF_ROYAL_JELLY = 274;
-        // Graystone otyps: TOUCHSTONE..LOADSTONE (in GEM_CLASS).
-        // The simpler test: GEM_CLASS object whose mineral subtype
-        // includes graystones — we approximate by checking GEM_CLASS.
-        let hasApply = false;
-        for (let p = game.invent; p; p = p.nobj) {
-            const cls = (p?.oclass | 0);
-            if (cls === 6 /* TOOL */ || cls === 11 /* WAND */
-                || cls === 10 /* SPBOOK */) { hasApply = true; break; }
-            const otyp = (p?.otyp | 0);
-            if (otyp === otypBULLWHIP || otyp === otypPOT_OIL
-                || otyp === otypCREAM_PIE || otyp === otypEUCALYPTUS_LEAF
-                || otyp === otypLUMP_OF_ROYAL_JELLY) {
-                hasApply = true; break;
-            }
-            // Pick/axe/polearm weapons via oc_skill — pick-axe is a
-            // tool though, captured above.  Conservative: skip for now.
+        // a: direct dispatch to translated apply.c doapply.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
+        let res = 0;
+        try { res = (await t_doapply()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[a t_doapply]', _e.message);
         }
-        if (!hasApply) {
-            await pline("You don't have anything to use or apply.");
-            game.context.move = 0;
-        } else {
-            // Build SUGGEST letter list AND inv-letter map.
-            const suggestLetters = [];
-            const invLetters = new Map();
-            for (let p = game.invent; p; p = p.nobj) {
-                if (!p) continue;
-                invLetters.set(p.invlet, p);
-                let ok = 0;
-                try { ok = apply_ok(p); } catch (_e) { ok = 0; }
-                if (ok === 2 /* GETOBJ_SUGGEST */) {
-                    suggestLetters.push(String.fromCharCode(p.invlet));
-                }
-            }
-            // C ref invent.c getobj:1929 — `if (!buf[0]) Strcat(qbuf, " [*]")
-            // else Sprintf(eos(qbuf), " [%s or ?*]", buf);` — when no SUGGEST
-            // letters, the prompt suffix is " [*]" (not " [?*]"); the leading
-            // "?" is part of the listing-shortcut suffix that only appears
-            // when there ARE suggested letters.
-            const promptText = suggestLetters.length > 0
-                ? `What do you want to use or apply? [${suggestLetters.join('')} or ?*]`
-                : `What do you want to use or apply? [*]`;
-            // Loop: C ref invent.c getobj — on invalid invlet, pline
-            // "You don't have that object" + --More-- and continue
-            // reading.  Translated getobj's cmdq-fed path returns null
-            // directly on invalid (translator gap — C continues the
-            // for-loop; see LEARNINGS §23.197), so we mirror the loop
-            // here.  State machine:
-            //   * Prompt state — apply prompt visible.  Quitchars
-            //     (ESC, space, \n, \r) cancel ("Never mind").  Valid
-            //     invlet dispatches.  Invalid invlet → pline + More →
-            //     More state.
-            //   * More state — "You don't have--More--" visible.  C ref
-            //     topl.c more() → xwaitforspace("\033 ").  ESC, space,
-            //     \n, \r dismiss; any other key beeps and is rejected
-            //     (consumes one nhgetch with More still visible, stays
-            //     in More).
-            // See LEARNINGS §23.198 for the seed1800 trace motivating
-            // the strict state machine.
-            let pickedK = -1;
-            let cancelled = false;
-            let moreState = false;
-            applyLoop:
-            while (true) {
-                if (moreState) {
-                    const errMsg = "You don't have that object.--More--";
-                    game._pending_message = errMsg;
-                    game._cursor_override = { x: errMsg.length, y: 0 };
-                } else {
-                    game._pending_message = promptText;
-                    game._cursor_override = { x: promptText.length + 1, y: 0 };
-                }
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const k = await nhgetch();
-                game._cursor_override = null;
-                if (moreState) {
-                    if (k === 0x1b || k === 0x20 || k === 0x0a || k === 0x0d) {
-                        moreState = false;
-                    }
-                    continue applyLoop;
-                }
-                if (k === 0x1b || k === 0x20 || k === 0x0a || k === 0x0d) {
-                    await pline("Never mind.");
-                    cancelled = true;
-                    break applyLoop;
-                }
-                const invObj = invLetters.get(k);
-                let okVal = -3;
-                if (invObj) { try { okVal = apply_ok(invObj); } catch (_e) { okVal = -3; } }
-                if (!invObj || (okVal !== 1 && okVal !== 2)) {
-                    moreState = true;
-                    continue applyLoop;
-                }
-                pickedK = k;
-                break applyLoop;
-            }
-            if (cancelled) {
-                game.context.move = 0;
-            } else {
-                t_cmdq_add_key(0 /* CQ_CANNED */, pickedK);
-                let res = 0;
-                try { res = (await t_doapply()) || 0; } catch (_e) {
-                    if (__env.NH_DEBUG_EXTCMD) console.error('[a doapply]', _e.message);
-                }
-                game.context.move = (res & 1) ? 1 : 0;
-            }
-        }
+        game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'e') {
-        // Single-char eat dispatch — async hand-port of
-        // doeat → floorfood → getobj("eat", eat_ok, 0).  C ref:
-        // eat.c doeat (line 2820), invent.c getobj (line 1782).
-        //
-        // eat_ok callback in C eat.c:3517:
-        //   is_edible(obj)                    → GETOBJ_SUGGEST   (in buf)
-        //   obj->oclass == COIN_CLASS         → GETOBJ_EXCLUDE   ("cannot eat gold")
-        //   non-edible non-coin               → GETOBJ_EXCLUDE_SELECTABLE
-        //                                       (not in buf, but a typed
-        //                                        invlet still picks the
-        //                                        item — getobj returns it
-        //                                        and doeat emits "cannot
-        //                                        eat that!")
-        //
-        // Prompt state-machine:
-        //   PROMPT: read key.
-        //     ESC                  → pline "Never mind." + exit
-        //     letter ∈ eligible    → eat (deferred — see TODO below)
-        //     letter ∈ invent,coin → pline "You cannot eat gold." + exit
-        //     letter ∈ invent      → pline "You cannot eat that!" + exit
-        //     other                → pline "You don't have that object."
-        //                            then More-state
-        //   MORE: read key.  Space/CR/LF/ESC dismiss → back to PROMPT.
-        //                    Other key stays at More.
-        //
-        // Floor-food paths (corpse / iron-bars / gold / floor stack
-        // prompts in floorfood before getobj) are skipped; this
-        // covers the inventory-only path used by seed0105 and the
-        // EXCLUDE_SELECTABLE branch used by seed0900.
-        const COIN_CLASS_LOCAL = 12;
-        const eligibleLetters = [];
-        const invLetters = new Map();
-        for (let p = game.invent; p; p = p.nobj) {
-            if (!p) continue;
-            const letter = String.fromCharCode(p.invlet);
-            invLetters.set(letter, p);
-            if (p.oclass === COIN_CLASS_LOCAL) continue;
-            try { if (!is_edible(p)) continue; } catch (_e) { continue; }
-            eligibleLetters.push(letter);
+        // e: direct dispatch to translated eat.c doeat.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
+        let res = 0;
+        try { res = (await t_doeat()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[e t_doeat]', _e.message);
         }
-        if (eligibleLetters.length === 0) {
-            await pline("You don't have anything to eat.");
-            game.context.move = 0;
-        } else {
-            const promptText = `What do you want to eat? [${eligibleLetters.join('')} or ?*]`;
-            const moreText = "You don't have that object.--More--";
-            promptLoop:
-            while (true) {
-                game._pending_message = promptText;
-                game._cursor_override = { x: promptText.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const k = await nhgetch();
-                if (k === 0x1b) {
-                    await pline("Never mind.");
-                    break promptLoop;
-                }
-                const kchr = String.fromCharCode(k);
-                if (eligibleLetters.includes(kchr)) {
-                    // Push the selected invlet into cmdq so translated
-                    // floorfood→getobj("eat",...) consumes it directly
-                    // and skips its own prompt.  doeat then proceeds
-                    // through is_edible/check_capacity and either
-                    // single-turn-eats (e.g. fortune cookie → outrumor)
-                    // or sets up the eat-occupation for multi-turn food.
-                    t_cmdq_add_key(0 /* CQ_CANNED */, k);
-                    let res = 0;
-                    try { res = (await t_doeat()) || 0; } catch (_e) {
-                        if (__env.NH_DEBUG_EXTCMD) console.error('[e doeat]', _e.message);
-                    }
-                    game._cursor_override = null;
-                    game.context.move = (res & 1) ? 1 : 0;
-                    return;
-                }
-                const invObj = invLetters.get(kchr);
-                if (invObj) {
-                    if (invObj.oclass === COIN_CLASS_LOCAL) {
-                        await pline("You cannot eat gold.");
-                    } else {
-                        await pline("You cannot eat that!");
-                    }
-                    break promptLoop;
-                }
-                // Letter not in inventory — More-state until dismissed
-                while (true) {
-                    game._pending_message = moreText;
-                    game._cursor_override = { x: moreText.length, y: 0 };
-                    game._cursor_override_oneshot = true;
-                    await flush_screen(1);
-                    const mk = await nhgetch();
-                    if (mk === 0x20 || mk === 0x0d || mk === 0x0a || mk === 0x1b) break;
-                }
-            }
-            game._cursor_override = null;
-            game.context.move = 0;
-        }
+        game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'q') {
         // Single-char quaff dispatch — async hand-port of
         // dodrink → getobj("drink", drink_ok, NOFLAGS).  C ref:
@@ -1692,264 +1775,48 @@ export async function rhack(key) {
             game.context.move = 0;
         }
     } else if (ch === 'r') {
-        // Single-char read dispatch — async hand-port of
-        // doread → getobj("read", read_ok, 2).  C ref:
-        // read.c doread (line 182), invent.c getobj (line 1782).
-        //
-        // read_ok (read.c:169):
-        //   SCROLL_CLASS, SPBOOK_CLASS   → GETOBJ_SUGGEST (in buf)
-        //   all others (including coin)  → GETOBJ_DOWNPLAY (not in buf
-        //                                  but typed letter still
-        //                                  selects; doread then emits
-        //                                  silly_thing → "That is a
-        //                                  silly thing to read.")
-        //
-        // Empty-invent path: getobj-builtin emits "You have nothing
-        // to read." (`c_nothing_to_<word>` template) and aborts when
-        // invent is null AND no SUGGEST candidates.  This hand-port
-        // covers only the inventory-getobj branch; floor-engraving
-        // and "what's here" sub-paths in doread (Braille / cards /
-        // tombstones) aren't reached because no canonical session
-        // has the hero standing on one when 'r' is pressed.
-        const SCROLL_CLASS_LOCAL = 9;
-        const SPBOOK_CLASS_LOCAL = 10;
-        const eligibleLetters = [];
-        const invLetters = new Map();
-        for (let p = game.invent; p; p = p.nobj) {
-            if (!p) continue;
-            const letter = String.fromCharCode(p.invlet);
-            invLetters.set(letter, p);
-            if (p.oclass === SCROLL_CLASS_LOCAL || p.oclass === SPBOOK_CLASS_LOCAL) {
-                eligibleLetters.push(letter);
-            }
+        // r: direct dispatch to translated read.c doread.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
+        let res = 0;
+        try { res = (await t_doread()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[r t_doread]', _e.message);
         }
-        if (invLetters.size === 0) {
-            await pline("You don't have anything to read.");
-            game.context.move = 0;
-        } else {
-            // C ref invent.c getobj:1929 — no-SUGGEST suffix is " [*]"
-            // (the "?" only appears when there ARE suggested letters).
-            const promptText = eligibleLetters.length > 0
-                ? `What do you want to read? [${eligibleLetters.join('')} or ?*]`
-                : `What do you want to read? [*]`;
-            const moreText = "You don't have that object.--More--";
-            promptLoop:
-            while (true) {
-                game._pending_message = promptText;
-                game._cursor_override = { x: promptText.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const k = await nhgetch();
-                if (k === 0x1b) {
-                    await pline("Never mind.");
-                    break promptLoop;
-                }
-                const kchr = String.fromCharCode(k);
-                if (eligibleLetters.includes(kchr)) {
-                    // Two-stage handling: SPBOOK whose spell is already
-                    // known stays on the manual absorb path (preserves
-                    // seed0501 PRNG which depends on not entering doread
-                    // for already-known spells).  SCROLL and not-yet-
-                    // known SPBOOK route through translated doread via
-                    // cmdq so the actual read effect (and its PRNG) fires.
-                    //
-                    // Sub-case: SPBOOK whose spell the player already knows
-                    // (sp_know > 2000).  C ref spell.c:541-548 fires
-                    // "You know \"X\" quite well already." then
-                    // yn_function("Refresh your memory anyway?", ynchars,
-                    // 'n', TRUE) — a two-stage prompt.  Without consuming
-                    // these prompts' keys, the canonical user's
-                    // post-selection keys (e.g. seed0501's `y#turn\ri\x1b`
-                    // 9 chars) all leak to the top-level command loop and
-                    // the first leaked key ('y') moves the hero NW —
-                    // shifting hero position so On_stairs(hero) returns
-                    // false for the rest of the session and the pet's
-                    // dog_goal takes the inventory loop instead of
-                    // appr=1, firing extra obj_resists rn2(100) calls
-                    // that diverge from C's dog_move rn2(1) at the next
-                    // 's' search turn (PRNG #2230 for seed0501).
-                    const sel = invLetters.get(kchr);
-                    const isSpbook = sel && sel.oclass === SPBOOK_CLASS_LOCAL;
-                    let alreadyKnown = false;
-                    let spellName = null;
-                    if (isSpbook && Array.isArray(game.spl_book)) {
-                        for (let __sbi = 0; __sbi < game.spl_book.length; __sbi++) {
-                            const sb = game.spl_book[__sbi];
-                            if (sb && sb.sp_id === sel.otyp
-                                && typeof sb.sp_know === 'number'
-                                && sb.sp_know > 2000) {
-                                alreadyKnown = true;
-                                break;
-                            }
-                            if (!sb || sb.sp_id === 0) break;
-                        }
-                        try {
-                            const nameIdx = game.objects?.[sel.otyp]?.oc_name_idx;
-                            const desc = game.obj_descr?.[nameIdx];
-                            if (desc && typeof desc.oc_name === 'string') {
-                                spellName = desc.oc_name;
-                            }
-                        } catch (_e) { /* leave spellName null */ }
-                    }
-                    if (alreadyKnown) {
-                        const knownMsg = spellName
-                            ? `You know "${spellName}" quite well already.`
-                            : `You know that spell quite well already.`;
-                        const moreLine = knownMsg + '--More--';
-                        // Stage 1: --More-- absorbing all non-dismiss keys.
-                        while (true) {
-                            game._pending_message = moreLine;
-                            game._cursor_override = { x: moreLine.length, y: 0 };
-                            game._cursor_override_oneshot = true;
-                            await flush_screen(1);
-                            const mk = await nhgetch();
-                            if (mk === 0x20 || mk === 0x0d || mk === 0x0a || mk === 0x1b) break;
-                        }
-                        // Stage 2: yn_function("Refresh your memory anyway?", 'n').
-                        // Accept y/Y/n/N/RET/ESC; reject everything else (loop).
-                        // C tty yn_function parks the cursor at
-                        // prompt.length + 1 (one col past message-end,
-                        // where typed input would echo).  --More-- parks
-                        // AT message.length (no input-echo gutter).
-                        const ynPrompt = 'Refresh your memory anyway? [yn] (n)';
-                        let refresh = false;
-                        while (true) {
-                            game._pending_message = ynPrompt;
-                            game._cursor_override = { x: ynPrompt.length + 1, y: 0 };
-                            game._cursor_override_oneshot = true;
-                            await flush_screen(1);
-                            const yk = await nhgetch();
-                            if (yk === 0x79 /*y*/ || yk === 0x59 /*Y*/) { refresh = true; break; }
-                            if (yk === 0x6e /*n*/ || yk === 0x4e /*N*/
-                                || yk === 0x0d || yk === 0x0a || yk === 0x1b) {
-                                refresh = false; break;
-                            }
-                            // Invalid key — re-show prompt (consume the key).
-                        }
-                        if (refresh) {
-                            // TODO Phase 5+: actually refresh spell memory
-                            // (spell.c learn() path).  For now, no-op —
-                            // canonical sessions that DO say yes will
-                            // diverge at the next PRNG call.
-                        }
-                        break promptLoop;
-                    }
-                    // Scroll OR not-yet-known SPBOOK: route through
-                    // translated doread.  Push the invlet into cmdq;
-                    // getobj inside doread consumes it and the read
-                    // effect runs synchronously, firing its PRNG.
-                    t_cmdq_add_key(0 /* CQ_CANNED */, k);
-                    let res = 0;
-                    try { res = (await t_doread()) || 0; } catch (_e) {
-                        if (__env.NH_DEBUG_EXTCMD) console.error('[r doread]', _e.message);
-                    }
-                    game._cursor_override = null;
-                    game.context.move = (res & 1) ? 1 : 0;
-                    return;
-                }
-                const invObj = invLetters.get(kchr);
-                if (invObj) {
-                    // read_ok returns DOWNPLAY → doread fires silly_thing
-                    // (read.c:357) → "That is a silly thing to read."
-                    await pline("That is a silly thing to read.");
-                    break promptLoop;
-                }
-                // Letter not in inventory — More-state until dismissed
-                while (true) {
-                    game._pending_message = moreText;
-                    game._cursor_override = { x: moreText.length, y: 0 };
-                    game._cursor_override_oneshot = true;
-                    await flush_screen(1);
-                    const mk = await nhgetch();
-                    if (mk === 0x20 || mk === 0x0d || mk === 0x0a || mk === 0x1b) break;
-                }
-            }
-            game._cursor_override = null;
-            game.context.move = 0;
+        game.context.move = (res & 1) ? 1 : 0;
+    } else if (ch === 'f') {
+        if (process.env.NH_FPROBE) console.warn('[f] arm reached');
+        // f: direct dispatch to translated dothrow.c dofire (fire the
+        // quivered ammo; auto-wields the matching launcher like C).
+        // Was UNWIRED — 'f' fell to unknown-command, so seed1150's
+        // caveman never fired the sling, never swap-wielded, and the
+        // whole post-fire stream diverged (club melee vs C's sling
+        // volley; the 'i' menu showed club "weapon in hand" vs C's
+        // "alternate weapon").  Same await-on-input shape as the
+        // other single-key arms (prompts via async win procs).
+        let res = 0;
+        try { res = (await t_dofire()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[f dofire]', _e.message);
         }
+        game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 't') {
-        // Single-char throw dispatch — async hand-port of
-        // dothrow → getobj("throw", throw_ok, GETOBJ_PROMPT|GETOBJ_ALLOWCNT)
-        // → throw_obj → getdir(null).  C ref: dothrow.c dothrow (line ~357).
-        //
-        // throw_ok (dothrow.c:326):
-        //   COIN_CLASS, WEAPON_CLASS (when uwep is not sling)   → SUGGEST
-        //   GEM_CLASS (when uwep IS sling)                       → SUGGEST
-        //   BOULDER (when polyform giant)                        → SUGGEST
-        //   AKLYS/Mjollnir/BOOMERANG (when wielded)              → SUGGEST
-        //   uwep stack of 1 / uswapwep                           → DOWNPLAY
-        //   everything else                                      → DOWNPLAY
-        //
-        // Build the SUGGEST + DOWNPLAY letter sets, format the
-        // "[<lets> or ?*]" prompt, read item-letter, then direction.
-        // Push both into cmdq (item first, then dir) so getobj inside
-        // dothrow consumes the item-letter and getdir inside throw_obj
-        // consumes the direction.
-        const suggestLetters = [];
-        const allLetters = new Map();
-        let hasCoin = false;
-        for (let p = game.invent; p; p = p.nobj) {
-            if (!p) continue;
-            const letter = String.fromCharCode(p.invlet);
-            allLetters.set(letter, p);
-            let ok = 0;
-            try { ok = throw_ok(p); } catch (_e) { ok = 0; }
-            if (ok === 2 /* GETOBJ_SUGGEST */) {
-                if (p.oclass === 12 /* COIN_CLASS */) hasCoin = true;
-                else suggestLetters.push(letter);
-            }
+        // t: direct dispatch to translated dothrow.c dothrow.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
+        let res = 0;
+        try { res = (await t_dothrow()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[t t_dothrow]', _e.message);
         }
-        // Coin appears as "$" in the prompt buffer (not as its invlet).
-        const lettersStr = (hasCoin ? '$' : '') + suggestLetters.join('');
-        if (lettersStr.length === 0 && allLetters.size === 0) {
-            await pline("You don't have anything to throw.");
-            game.context.move = 0;
-        } else {
-            // C ref invent.c getobj:1929 — no-SUGGEST suffix is " [*]"
-            // (the "?" only appears when there ARE suggested letters).
-            const promptText = lettersStr.length > 0
-                ? `What do you want to throw? [${lettersStr} or ?*]`
-                : `What do you want to throw? [*]`;
-            game._pending_message = promptText;
-            game._cursor_override = { x: promptText.length + 1, y: 0 };
-            game._cursor_override_oneshot = true;
-            await flush_screen(1);
-            const itemKey = await nhgetch();
-            game._cursor_override = null;
-            if (itemKey === 0x1b) {
-                await pline("Never mind.");
-                game.context.move = 0;
-            } else {
-                // Read direction next.  C ref dothrow.c:127 getdir(null)
-                // emits "In what direction?" prompt via yn_function.
-                const dirPrompt = "In what direction?";
-                game._pending_message = dirPrompt;
-                game._cursor_override = { x: dirPrompt.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const dirKey = await nhgetch();
-                game._cursor_override = null;
-                // Push item then direction; dothrow consumes in that order.
-                t_cmdq_add_key(0 /* CQ_CANNED */, itemKey);
-                t_cmdq_add_key(0 /* CQ_CANNED */, dirKey);
-                let res = 0;
-                try { res = (await t_dothrow()) || 0; } catch (_e) {
-                    if (__env.NH_DEBUG_EXTCMD) console.error('[t dothrow]', _e.message);
-                }
-                // C ref cmd.c getdir clears WIN_MESSAGE after dirsym
-                // (cmd.c:3053).  Our cmdq-fed path skips that clear
-                // (it only fires for non-cmdq input).  If t_dothrow
-                // already overwrote _pending_message with a throw
-                // message ("Your dart misses." etc.), keep it; else
-                // clear the dir prompt so the next capture sees
-                // blank row 0 matching canonical.
-                if (game._pending_message === 'In what direction?') {
-                    game._pending_message = '';
-                    game._topl_seen = true;
-                }
-                game.context.move = (res & 1) ? 1 : 0;
-            }
-        }
+        game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'w' && game.program_state?.in_moveloop === 1) {
         // 'w' wield — C ref wield.c dowield → getobj("wield",
         // wield_ok, GETOBJ_PROMPT|GETOBJ_ALLOWCNT).  Gated on
@@ -2031,181 +1898,33 @@ export async function rhack(key) {
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'Q') {
-        // 'Q' quiver — async hand-port of dowieldquiver ->
-        // doquiver_core("ready") -> getobj(ready_ok).  Mirror the
-        // 't' throw pattern: render the getobj prompt, read the item
-        // key, feed it to cmdq so translated getobj pops it.  The
-        // old wire called t_dowieldquiver() bare; getobj found an
-        // empty cmdq, aborted via readKeySync ESC-on-empty, and the
-        // session's item/confirm keys leaked to rhack as movement
-        // commands ('b'/'y' = SW/NW), burning turns and shifting
-        // every later turn boundary (seed0101 div @2293, Q9 iter
-        // 39).  Uppercase, no chargen risk.
-        //
-        // C ref wield.c ready_ok: '-' is SUGGEST when uquiver is
-        // filled; getobj's prompt joins it ahead of the letters
-        // with a space — "[- cd or ?*]" (invent.c compose_obj_list).
-        const qSuggest = [];
-        let qHasCoin = false;
-        let qHasInvent = false;
-        for (let p = game.invent; p; p = p.nobj) {
-            qHasInvent = true;
-            let ok = 0;
-            try { ok = ready_ok(p); } catch (_e) { ok = 0; }
-            if (ok === 2 /* GETOBJ_SUGGEST */) {
-                if (p.oclass === 12 /* COIN_CLASS */) qHasCoin = true;
-                else qSuggest.push(String.fromCharCode(p.invlet));
-            }
+        // Q: direct dispatch to translated wield.c dowieldquiver.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
+        let res = 0;
+        try { res = (await t_dowieldquiver()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[Q t_dowieldquiver]', _e.message);
         }
-        if (!qHasInvent) {
-            // C doquiver_core: "You have nothing to ready for firing."
-            await pline("You have nothing to ready for firing.");
-            game.context.move = 0;
-        } else {
-            let qNone = 0;
-            try { qNone = ready_ok(null); } catch (_e) { qNone = 0; }
-            const qLetters = (qHasCoin ? '$' : '') + qSuggest.join('');
-            const qLets = (qNone === 2 ? '-' + (qLetters ? ' ' : '') : '') + qLetters;
-            const qPrompt = qLets.length > 0
-                ? `What do you want to ready? [${qLets} or ?*]`
-                : `What do you want to ready? [*]`;
-            game._pending_message = qPrompt;
-            game._cursor_override = { x: qPrompt.length + 1, y: 0 };
-            game._cursor_override_oneshot = true;
-            await flush_screen(1);
-            const qKey = await nhgetch();
-            game._cursor_override = null;
-            if (qKey === 0x1b) {
-                await pline("Never mind.");
-                game.context.move = 0;
-            } else {
-                // If the picked item is the alternate weapon (single,
-                // not dual-wielding), C's doquiver_core requires a
-                // [ynq] confirmation before readying it.  That ynq
-                // runs through the SYNC win_yn_function -> readKeySync
-                // path, which cannot await the async display queue
-                // (and must keep its ESC-on-empty behavior).  Render
-                // the same prompt here, read the answer key, and feed
-                // it to input.js's queue so readKeySync finds it.
-                // C ref wield.c doquiver_core: "%s your %s weapon.
-                // Ready %s instead?" -- quan==1, !twoweap arm only;
-                // other arms (wielded weapon, splittable stacks) keep
-                // the old behavior until a session exercises them.
-                let qPicked = null;
-                for (let p = game.invent; p; p = p.nobj) {
-                    if (p.invlet === qKey) { qPicked = p; break; }
-                }
-                if (qPicked && game.uswapwep && qPicked === game.uswapwep
-                    && !game.u.twoweap && qPicked.quan === 1) {
-                    const cPrompt =
-                        "That is your alternate weapon.  Ready it instead? [ynq] (q)";
-                    game._pending_message = cPrompt;
-                    game._cursor_override = { x: cPrompt.length + 1, y: 0 };
-                    game._cursor_override_oneshot = true;
-                    await flush_screen(1);
-                    const cKey = await nhgetch();
-                    game._cursor_override = null;
-                    inputPushKey(cKey);
-                }
-                t_cmdq_add_key(0 /* CQ_CANNED */, qKey);
-                let res = 0;
-                try { res = (await t_dowieldquiver()) || 0; } catch (_e) {
-                    if (__env.NH_DEBUG_EXTCMD) console.error('[Q dowieldquiver]', _e.message);
-                }
-                // doquiver_core's prinv line should carry doname's
-                // worn suffix ("b - a +1 bow (at the ready).") but
-                // production doname's Concat appends are dead on
-                // string bufs (objnam migration blocker).  Splice the
-                // suffix into the pending prinv message via the same
-                // wornSuffix table the inventory overlay uses.
-                if (qPicked && qPicked === game.uquiver
-                    && typeof game._pending_message === 'string') {
-                    const pfx = String.fromCharCode(qPicked.invlet) + ' - ';
-                    const sfx = wornSuffix(qPicked);
-                    if (sfx && game._pending_message.startsWith(pfx)
-                        && game._pending_message.endsWith('.')
-                        && !game._pending_message.includes(sfx)) {
-                        game._pending_message =
-                            game._pending_message.slice(0, -1) + sfx + '.';
-                    }
-                }
-                game.context.move = (res & 1) ? 1 : 0;
-            }
-        }
+        game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'T') {
-        // Single-char takeoff dispatch — async hand-port of
-        // dotakeoff.  C ref: do_wear.c dotakeoff (line ~1745).
-        // count_worn_stuff sets game.Narmorpieces;
-        // if exactly 1 piece worn + no paranoia/iaction, no
-        // prompt — directly takes it off.  Else getobj for which.
-        //
-        // Uppercase 'T' is not in any chargen menu, so no gate
-        // needed.  dotakeoff is sync.  When prompt is needed,
-        // getobj reads from input.js _inputQueue via readKeySync
-        // for the pre-buffered armor letter key.
-        // Q9 iter 59 (seed0367 @1933): with 2+ worn pieces C's
-        // getobj prompt consumes the next keys; the bare call's
-        // translated getobj read an EMPTY _inputQueue and aborted
-        // via readKeySync ESC-on-empty, leaking the answer keys to
-        // rhack (a ^W became the wish bridge and swallowed the
-        // following keys as wish text).  Same class and fix shape
-        // as the 'Q' quiver bridge above: render C's prompt, read
-        // keys via nhgetch with C's invalid-letter "You don't have
-        // that object.--More--" loop, push the accepted letter to
-        // input.js's queue so the translated getobj pops it.
-        // W_ARMOR = 0x7f (prop.h:108).
-        const tWorn = [];
-        for (let p = game.invent; p; p = p.nobj) {
-            if ((p.owornmask & 0x7f) !== 0) tWorn.push(p.invlet);
+        // T: direct dispatch to translated do_wear.c dotakeoff.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
+        let res = 0;
+        try { res = (await t_dotakeoff()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[T t_dotakeoff]', _e.message);
         }
-        if (tWorn.length <= 1) {
-            let res = 0;
-            try { res = (await t_dotakeoff()) || 0; } catch (_e) {
-                if (__env.NH_DEBUG_EXTCMD) console.error('[T dotakeoff]', _e.message);
-            }
-            game.context.move = (res & 1) ? 1 : 0;
-        } else {
-            const tLets = tWorn.map((c) => String.fromCharCode(c)).join('');
-            const tPrompt = `What do you want to take off? [${tLets} or ?*]`;
-            let tDone = false;
-            let tAccepted = -1;
-            while (!tDone) {
-                game._pending_message = tPrompt;
-                game._cursor_override = { x: tPrompt.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const tKey = await nhgetch();
-                game._cursor_override = null;
-                if (tKey === 0x1b) {
-                    await pline("Never mind.");
-                    tDone = true;
-                } else if (tWorn.includes(tKey)) {
-                    tAccepted = tKey;
-                    tDone = true;
-                } else {
-                    // C getobj: unknown letter -> "You don't have that
-                    // object." with --More--; the next key dismisses
-                    // and the prompt re-renders.
-                    const tErr = "You don't have that object.--More--";
-                    game._pending_message = tErr;
-                    game._cursor_override = { x: tErr.length, y: 0 };
-                    game._cursor_override_oneshot = true;
-                    await flush_screen(1);
-                    await nhgetch();
-                    game._cursor_override = null;
-                }
-            }
-            if (tAccepted >= 0) {
-                inputPushKey(tAccepted);
-                let res = 0;
-                try { res = (await t_dotakeoff()) || 0; } catch (_e) {
-                    if (__env.NH_DEBUG_EXTCMD) console.error('[T dotakeoff]', _e.message);
-                }
-                game.context.move = (res & 1) ? 1 : 0;
-            } else {
-                game.context.move = 0;
-            }
-        }
+        game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'W') {
         // 'W' wear — C ref do_wear.c dowear → getobj("wear",
         // wear_ok, 0).  If nothing wearable, fires its own
@@ -2261,51 +1980,19 @@ export async function rhack(key) {
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'z') {
-        // Single-char zap dispatch — async hand-port of
-        // dozap → getobj("zap", zap_ok, 0) → maybe getdir(null).
-        // C ref: zap.c dozap (line ~2545).
-        //
-        // zap_ok (zap.c): WAND_CLASS → SUGGEST; else EXCLUDE.
-        //
-        // The direction prompt fires INSIDE dozap (after getobj +
-        // unpaid-check + need_dir computation), via getdir → its
-        // own yn_function "In what direction?" prompt.  Pushing the
-        // item-letter into cmdq lets getobj inside dozap consume it
-        // without prompting again; the subsequent direction read
-        // falls through to readKeySync (input.js _inputQueue) for
-        // pre-buffered direction keys.
-        const WAND_CLASS_LOCAL = 11;
-        const eligibleLetters = [];
-        const invLetters = new Map();
-        for (let p = game.invent; p; p = p.nobj) {
-            if (!p) continue;
-            const letter = String.fromCharCode(p.invlet);
-            invLetters.set(letter, p);
-            if (p.oclass === WAND_CLASS_LOCAL) eligibleLetters.push(letter);
+        // z: direct dispatch to translated zap.c dozap.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
+        let res = 0;
+        try { res = (await t_dozap()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[z t_dozap]', _e.message);
         }
-        if (eligibleLetters.length === 0) {
-            await pline("You don't have anything to zap.");
-            game.context.move = 0;
-        } else {
-            const promptText = `What do you want to zap? [${eligibleLetters.join('')} or ?*]`;
-            game._pending_message = promptText;
-            game._cursor_override = { x: promptText.length + 1, y: 0 };
-            game._cursor_override_oneshot = true;
-            await flush_screen(1);
-            const itemKey = await nhgetch();
-            game._cursor_override = null;
-            if (itemKey === 0x1b) {
-                await pline("Never mind.");
-                game.context.move = 0;
-            } else {
-                t_cmdq_add_key(0 /* CQ_CANNED */, itemKey);
-                let res = 0;
-                try { res = (await t_dozap()) || 0; } catch (_e) {
-                    if (__env.NH_DEBUG_EXTCMD) console.error('[z dozap]', _e.message);
-                }
-                game.context.move = (res & 1) ? 1 : 0;
-            }
-        }
+        game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === ' ') {
         // Top-level space — C with default rest_on_space=off (the
         // setting all 44 canonical sessions use) leaves ' ' unbound,
@@ -2402,47 +2089,16 @@ export async function rhack(key) {
                 if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message);
             }
         } else {
-            const lvPrompt = 'To what level do you want to teleport?';
-            game._pending_message = lvPrompt;
-            game._cursor_override = { x: lvPrompt.length + 1, y: 0 };
-            game._cursor_override_oneshot = true;
-            await flush_screen(1);
-            let lvBuf = '';
-            let lvCancelled = false;
-            for (;;) {
-                const k = await nhgetch();
-                if (k === 0x1b) { lvCancelled = true; break; }
-                if (k === 0x0a || k === 0x0d) break;
-                if (k === 0x08 || k === 0x7f) {
-                    if (lvBuf.length) lvBuf = lvBuf.slice(0, -1);
-                } else {
-                    lvBuf += String.fromCharCode(k);
-                }
-                game._pending_message = lvPrompt + ' ' + lvBuf;
-                game._cursor_override = { x: lvPrompt.length + 1 + lvBuf.length, y: 0 };
-                await flush_screen(1);
-            }
-            game._cursor_override = null;
-            if (lvCancelled) {
-                await pline("Never mind.");
-                game.context.move = 0;
-            } else {
-                for (const ch2 of lvBuf) {
-                    t_cmdq_add_key(0 /* CQ_CANNED */, ch2.charCodeAt(0));
-                }
-                t_cmdq_add_key(0 /* CQ_CANNED */, 10);
-                const __menuProcs = makeSyncMenuProcs(game);
-                const __saved = {};
-                for (const k2 of Object.keys(__menuProcs)) {
-                    __saved[k2] = game.windowprocs[k2];
-                    game.windowprocs[k2] = __menuProcs[k2];
-                }
-                try { res = (await t_wiz_level_tele()) || 0; } catch (_e) {
-                    if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message, _e.stack?.split('\n')[1]);
-                }
-                for (const k2 of Object.keys(__menuProcs)) {
-                    game.windowprocs[k2] = __saved[k2];
-                }
+            // Await-on-input (bridge deleted, see ^W): translated
+            // level_tele's getlin reads live keys via the async
+            // win_getlin proc, and a '?' answer renders
+            // print_dungeon's level menu through the ASYNC menu
+            // windowprocs that allmain installs by default in regen
+            // builds (the former temporary sync-proc install
+            // OVERWROTE those async procs — strictly worse, and the
+            // last consumer of the sync family).
+            try { res = (await t_wiz_level_tele()) || 0; } catch (_e) {
+                if (__env.NH_DEBUG_EXTCMD) console.error('[^V wiz_level_tele]', _e.message, _e.stack?.split('\n')[1]);
             }
         }
         game.context.move = (res & 1) ? 1 : 0;
@@ -2482,128 +2138,75 @@ export async function rhack(key) {
         if (!game.flags?.debug) {
             game.context.move = 0;
         } else {
-            const promptStr = 'For what do you wish?';
-            game._pending_message = promptStr;
-            game._cursor_override = { x: promptStr.length + 1, y: 0 };
-            game._cursor_override_oneshot = true;
-            await flush_screen(1);
-            let wishBuf = '';
-            let wishCancelled = false;
-            for (;;) {
-                const k = await nhgetch();
-                if (k === 0x1b) { wishCancelled = true; break; }
-                if (k === 0x0a || k === 0x0d) break;
-                if (k === 0x08 || k === 0x7f) {
-                    if (wishBuf.length) wishBuf = wishBuf.slice(0, -1);
-                } else {
-                    wishBuf += String.fromCharCode(k);
-                }
-                game._pending_message = promptStr + ' ' + wishBuf;
-                game._cursor_override = { x: promptStr.length + 1 + wishBuf.length, y: 0 };
-                await flush_screen(1);
-            }
-            game._cursor_override = null;
-            if (!wishCancelled) {
-                for (const ch of wishBuf) {
-                    t_cmdq_add_key(0 /* CQ_CANNED */, ch.charCodeAt(0));
-                }
-                t_cmdq_add_key(0 /* CQ_CANNED */, 10);
-            }
+            // Await-on-input: call wiz_wish directly and let the
+            // translated getlin read LIVE keys via the async
+            // win_getlin proc (identical per-key captures).  The old
+            // bridge pre-read the text here and re-fed it via canned
+            // cmdq, which sent C's getlin down its cmdq path with an
+            // extra echo pline("%s %s") the interactive tty path
+            // never emits — that pline made the wish-result message
+            // overflow the topl and queue a --More-- that swallowed
+            // the NEXT command key (seed0360 wish #2's ^W ran its
+            // text as movement commands).
             try { await t_wiz_wish(); } catch (_e) {
                 if (__env.NH_DEBUG_EXTCMD) console.error('[^W wizwish]', _e.message);
             }
             game.context.move = 0;
         }
     } else if (ch === 'Z') {
-        // Cast spell.  C ref cmd.c:1716 maps 'Z' to docast.
-        // Translated docast (spell.js:770) calls getspell whose
-        // yn_function path uses readKeySync (sync) to read the
-        // spell letter.  readKeySync only sees the input.js
-        // _inputQueue, not the display queue (see memory:
-        // readKeySync ESC-on-empty is load-bearing).
-        //
-        // Hand-port: async-read the spell letter via nhgetch
-        // (which DOES see the display queue), push it to
-        // _inputQueue via inputPushKey, then dispatch t_docast.
-        // getspell's readKeySync will then pop the letter and
-        // proceed into spelleffects → rnd(100) success check.
-        // Used by seed0501 (priest cast: Z a .).
-        // Render the spell menu BEFORE awaiting nhgetch so the
-        // captured screen at this input boundary shows the menu
-        // (matching canonical C wintty.c which draws the menu
-        // before reading the spell letter).  splaction=-2 (CAST).
-        //
-        // No-spells short-circuit: C getspell (spell.js:680-682) fires
-        // pline "You don't know any spells right now." and returns 0
-        // when num_spells()==0.  Mirror that so non-spellcasters
-        // (Knight/Ranger/etc.) don't render an empty cast menu.
-        if (!_heroHasAnySpells()) {
-            await pline("You don't know any spells right now.");
-            game.context.move = 0;
-            return;
-        }
-        {
-            const { pages, offx, _encodedRows } = await buildSpellMenuPages(
-                "Choose which spell to cast", -2);
-            game._menu_overlay = {
-                kind: 'menu', pages, page: 0,
-                cType: 'NHW_MENU', offx,
-                _encodedRows,
-            };
-            await flush_screen(1);
-        }
-        const spellKey = await nhgetch();
-        game._menu_overlay = null;
-        // Determine spell directionality up-front so we can pre-push
-        // BOTH the spell letter AND a self-direction key ('.') into
-        // cmdq before t_docast runs.  Without the dir push, translated
-        // spelleffects's `else if (!getdir(null))` branch fires a
-        // spurious `pline_The("magical energy is released!")` because
-        // JS getdir on empty cmdq+input queue returns 0 (ESC fallback)
-        // — pre-§23.222's queue routing masked this via overwrite,
-        // post-routing the spurious pline concatenates with the
-        // legitimate "You feel better." and step 6 of seed0501
-        // diverges from canonical.  See project_pline_queue_path_split.md.
-        // The '.' default is correct for self-direction cases (seed0501
-        // healing); other directional spells would need the actual
-        // direction key, but seed0501 is the only directional spell
-        // exercised by the current 44 test seeds.  Refined 2026-05-31.
-        const __NODIR = 1;
-        const __spellIdx = (spellKey >= 0x61 && spellKey <= 0x7a) ? spellKey - 0x61 : -1;
-        const __spellEntry = (__spellIdx >= 0 && Array.isArray(game.spl_book))
-            ? game.spl_book[__spellIdx] : null;
-        const __spellOtyp = __spellEntry?.sp_id;
-        const __ocDir = (__spellOtyp != null) ? (game.objects?.[__spellOtyp]?.oc_dir ?? __NODIR) : __NODIR;
-        // Push the spell letter into cmdq so getspell consumes it
-        // there (instead of via the inputPushKey/readKeySync path).
-        t_cmdq_add_key(0 /* CQ_CANNED */, spellKey);
-        // For directional spells, also push '.' so spelleffects's
-        // getdir reads it from cmdq → sets u.dx=u.dy=u.dz=0 → returns
-        // 1 → the `else if (!getdir(null))` branch evaluates to false
-        // and the spurious pline_The doesn't fire.
-        if (__ocDir !== __NODIR) {
-            t_cmdq_add_key(0 /* CQ_CANNED */, 0x2e /* '.' */);
-        }
+        // Z: direct dispatch to translated spell.c docast.
+        // Await-on-input: the former bridge pre-read the item/
+        // direction keys here and re-fed them via canned cmdq /
+        // inputPushKey; the translated prompt paths (getobj /
+        // getspell / getdir) now read LIVE keys through the async
+        // win_yn_function / win_getlin procs, so the bridge is
+        // deleted (David 2026-06-12: bridges mask bugs; eliminate
+        // them all before chasing metrics).
         let res = 0;
-        try { res = (await t_docast()) || 0; } catch (_e) {
-            if (__env.NH_DEBUG_CAST) console.error('[docast]', _e.message);
+        // C default menu_style is MENU_FULL (options.c:7258
+        // initoptions_init): getspell renders the spell MENU, not
+        // the traditional "[a-b *?]" prompt.  Reuse the session-
+        // proven hand menu (buildSpellMenuPages — exact tty cells
+        // incl. the inverse header segments), read ONE live key for
+        // the choice, then run C docast's tail:
+        // spelleffects(spl_book[idx].sp_id, FALSE, FALSE).  This is
+        // NOT a key-feed bridge — no input is pre-read or re-fed.
+        // Canned chains (cmdq) keep the translated path, mirroring
+        // C getspell's cmdq_pop short-circuit.
+        const __haveSpells = !!game.spl_book?.[0]?.sp_id;
+        let __rejected = false;
+        if ((game.flags?.menu_style | 0) === 2 && __haveSpells
+            && !t_cmdq_peek(0 /* CQ_CANNED */)) {
+            try { __rejected = !!(await t_rejectcasting()); } catch (_e) { __rejected = false; }
+            if (!__rejected) {
+                const { pages, offx, _encodedRows } = await buildSpellMenuPages(
+                    'Choose which spell to cast', 0 /* SPELLMENU_CAST */);
+                game._menu_overlay = {
+                    kind: 'menu', pages, page: 0,
+                    cType: 'NHW_MENU', offx, _encodedRows,
+                };
+                await flush_screen(1);
+                const __c = await nhgetch();
+                game._menu_overlay = null;
+                let __idx = -1;
+                if (__c >= 97 && __c <= 122) __idx = __c - 97;
+                else if (__c >= 65 && __c <= 90) __idx = __c - 65 + 26;
+                if (__idx >= 0 && game.spl_book?.[__idx]?.sp_id) {
+                    try {
+                        res = (await t_spelleffects(game.spl_book[__idx].sp_id, 0, 0)) || 0;
+                    } catch (_e) {
+                        if (__env.NH_DEBUG_EXTCMD) console.error('[Z spelleffects]', _e.message);
+                    }
+                }
+                // ESC / space / invalid letter: no cast (res stays 0).
+            }
+            // rejectcasting already pline'd its reason; res stays 0.
+        } else {
+            try { res = (await t_docast()) || 0; } catch (_e) {
+                if (__env.NH_DEBUG_EXTCMD) console.error('[Z t_docast]', _e.message);
+            }
         }
         game.context.move = (res & 1) ? 1 : 0;
-        // For directional spells, the canonical user's NEXT key is the
-        // direction (e.g., '.') — but we already consumed it via the
-        // cmdq push above.  Signal the next rhack iter to silently
-        // capture-and-discard the user's '.' so the capture count
-        // still matches canonical (one capture per session key).
-        // The post_dir_msg flow shows "In what direction?" at the
-        // direction-key step (step N+1) and restores the cast-effect
-        // pline at step N+2 — matching canonical message timing.
-        if (__ocDir !== __NODIR && res) {
-            globalThis.__nh_consume_next_as_dir = true;
-            globalThis.__nh_post_dir_msg = game._pending_message || '';
-            game._pending_message = 'In what direction?';
-            game._cursor_override = { x: 'In what direction?'.length + 1, y: 0 };
-            game._cursor_override_oneshot = true;
-        }
     } else if (key === 0x18) {
         // Ctrl-X (^X): doattributes — show enlightenment.
         // C ref: insight.c:2009 doattributes() →
@@ -2715,7 +2318,7 @@ export async function rhack(key) {
         // a full-screen text overlay.
         const pages = await renderTranslatedTextWindow(async () => {
             const o_init = await import('./translated/o_init.js');
-            o_init.dodiscovered();
+            await o_init.dodiscovered();  /* async since the full-async flip */
         });
         // C: dodiscovered creates an NHW_TEXT window (o_init.c:753).
         // dmore offset=1 + offx=0 → cursor at col morestr.length after
@@ -2909,7 +2512,7 @@ export async function rhack(key) {
                         // not blind+unmapped, pline "It's like talking
                         // to a wall."  DBWALL = 9, SDOOR = 10.
                         if (!mon && typ >= 1 && typ <= 10) {
-                            pline("It's like talking to a wall.");
+                            await pline("It's like talking to a wall.");
                             plined = true;
                         }
                         // Other dochat branches (statues, fountains,
@@ -2926,34 +2529,12 @@ export async function rhack(key) {
                     game.context.move = 0;
                 }
             } else if (!cancelled && name === 'pray') {
-                // #pray needs y/n confirmation.  C ref pray.c dopray
-                // → paranoid_query → yn_function.  Same sync-getdir
-                // bottleneck as #ride; same fix: read y/n via async
-                // boundary, push into input.js queue, dispatch
-                // translated dopray.  dopray then fires its full
-                // PRNG sequence (alignment checks, deity speech, etc).
-                const promptStr = 'Are you sure you want to pray? [yn] (n)';
-                game._pending_message = promptStr;
-                game._cursor_override = { x: promptStr.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const yn = await nhgetch();
-                game._cursor_override = null;
-                if (yn === 0x1b || yn === 0x6e /* 'n' */) {
-                    // ESC or 'n' — Never mind.  Don't push anything,
-                    // dopray's paranoid_query will read 27 (ESC) from
-                    // empty queue and treat as no.
-                    inputPushKey(yn);
-                    if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {}
-                    }
-                } else {
-                    // 'y' or anything else — push it, dopray sees it.
-                    inputPushKey(yn);
-                    if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {
-                            if (__env.NH_DEBUG_EXTCMD) console.error('[#pray]', _e.message);
-                        }
+                // Await-on-input: bridge deleted — translated
+                // paranoid_query/getdir read live keys via the
+                // async window procs (see ^W / single-key arms).
+                if (entry && typeof entry.ef_funct === 'function') {
+                    try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                        if (__env.NH_DEBUG_EXTCMD) console.error('[#pray]', _e.message);
                     }
                 }
             } else if (!cancelled && name === 'levelchange') {
@@ -3029,33 +2610,10 @@ export async function rhack(key) {
                         try { res = (await entry.ef_funct()) || 0; } catch (_e) {}
                     }
                 } else {
-                    const promptStr = 'For what do you wish?';
-                    game._pending_message = promptStr;
-                    game._cursor_override = { x: promptStr.length + 1, y: 0 };
-                    game._cursor_override_oneshot = true;
-                    await flush_screen(1);
-                    let wishBuf = '';
-                    let wishCancelled = false;
-                    for (;;) {
-                        const k = await nhgetch();
-                        if (k === 0x1b) { wishCancelled = true; break; }
-                        if (k === 0x0a || k === 0x0d) break;
-                        if (k === 0x08 || k === 0x7f) {
-                            if (wishBuf.length) wishBuf = wishBuf.slice(0, -1);
-                        } else {
-                            wishBuf += String.fromCharCode(k);
-                        }
-                        game._pending_message = promptStr + ' ' + wishBuf;
-                        game._cursor_override = { x: promptStr.length + 1 + wishBuf.length, y: 0 };
-                        await flush_screen(1);
-                    }
-                    game._cursor_override = null;
-                    if (!wishCancelled) {
-                        for (const ch of wishBuf) {
-                            t_cmdq_add_key(0 /* CQ_CANNED */, ch.charCodeAt(0));
-                        }
-                        t_cmdq_add_key(0 /* CQ_CANNED */, 10);
-                    }
+                    // Await-on-input: dispatch directly; translated
+                    // getlin reads live keys via win_getlin (see the
+                    // ^W arm for why the old canned-cmdq bridge broke
+                    // the topl state).
                     if (entry && typeof entry.ef_funct === 'function') {
                         try { res = (await entry.ef_funct()) || 0; } catch (_e) {
                             if (__env.NH_DEBUG_EXTCMD) console.error('[#wizwish]', _e.message);
@@ -3072,7 +2630,7 @@ export async function rhack(key) {
                 try {
                     const raw = await renderTranslatedTextWindow(async () => {
                         const ins = await import('./translated/insight.js');
-                        ins.doconduct();
+                        await ins.doconduct();  /* async since the full-async flip */
                     });
                     // raw is [[lines, lines, ...]] with --More-- and
                     // blank-pad to 23 rows.  Strip the pad+--More--
@@ -3158,95 +2716,31 @@ export async function rhack(key) {
                 }
                 game.context.move = 0;
             } else if (!cancelled && (name === 'jump' || name === 'untrap')) {
-                // #jump and #untrap also need direction prompts and
-                // run through translated dispatch.  Same pattern as
-                // #ride: read direction async, push to input.js
-                // queue, dispatch translated function.  C ref:
-                // jump.c dojump → getdir; trap.c dountrap → getdir.
-                game._pending_message = 'In what direction?';
-                game._cursor_override = { x: 'In what direction?'.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const dirKey = await nhgetch();
-                game._cursor_override = null;
-                if (dirKey === 0x1b) {
-                    game._pending_message = '';
-                    game.context.move = 0;
-                } else {
-                    inputPushKey(dirKey);
-                    if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {
-                            if (__env.NH_DEBUG_EXTCMD) console.error('[#' + name + ']', _e.message);
-                        }
+                // Await-on-input: bridge deleted — translated
+                // paranoid_query/getdir read live keys via the
+                // async window procs (see ^W / single-key arms).
+                if (entry && typeof entry.ef_funct === 'function') {
+                    try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                        if (__env.NH_DEBUG_EXTCMD) console.error('[#jump/untrap]', _e.message);
                     }
-                    // Translated dojump / dountrap → getdir →
-                    // win_yn_function re-sets _cursor_override during
-                    // its internal direction-prompt loop.  Mirror the
-                    // #ride pattern (commit 3ca926f): clear the stale
-                    // override and re-flush so cursor parks at hero
-                    // for the next _preNhgetchHook capture.
-                    game._cursor_override = null;
-                    game._cursor_override_oneshot = false;
-                    await flush_screen(1);
                 }
             } else if (!cancelled && name === 'quit') {
-                // #quit needs y/n confirmation.  C ref end.c done2 →
-                // paranoid_query("Really quit?").  Same pattern as
-                // #pray: read response, push to queue, dispatch
-                // translated done2 which fires its real PRNG /
-                // bones / score-saving logic.
-                const promptStr = 'Really quit? [yn] (n)';
-                game._pending_message = promptStr;
-                game._cursor_override = { x: promptStr.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const yn = await nhgetch();
-                game._cursor_override = null;
-                inputPushKey(yn);
+                // Await-on-input: bridge deleted — translated
+                // paranoid_query/getdir read live keys via the
+                // async window procs (see ^W / single-key arms).
                 if (entry && typeof entry.ef_funct === 'function') {
                     try { res = (await entry.ef_funct()) || 0; } catch (_e) {
                         if (__env.NH_DEBUG_EXTCMD) console.error('[#quit]', _e.message);
                     }
                 }
             } else if (!cancelled && name === 'ride') {
-                // #ride needs a direction prompt — same sync-getdir
-                // bottleneck as #chat.  Strategy: read direction here
-                // via await nhgetch (proper screen-capture boundary),
-                // then push the key into input.js's _inputQueue so
-                // doride's own getdir → yn_function → win_yn_function
-                // → readKeySync sees it.  doride then fires its real
-                // PRNG calls (mount_steed rnd(20) etc) per C ref.
-                game._pending_message = 'In what direction?';
-                game._cursor_override = { x: 'In what direction?'.length + 1, y: 0 };
-                game._cursor_override_oneshot = true;
-                await flush_screen(1);
-                const dirKey = await nhgetch();
-                game._cursor_override = null;
-                if (dirKey === 0x1b) {
-                    game._pending_message = '';
-                    game.context.move = 0;
-                } else {
-                    inputPushKey(dirKey);
-                    if (entry && typeof entry.ef_funct === 'function') {
-                        try { res = (await entry.ef_funct()) || 0; } catch (_e) {
-                            if (__env.NH_DEBUG_EXTCMD) console.error('[#ride]', _e.message);
-                        }
+                // Await-on-input: bridge deleted — translated
+                // paranoid_query/getdir read live keys via the
+                // async window procs (see ^W / single-key arms).
+                if (entry && typeof entry.ef_funct === 'function') {
+                    try { res = (await entry.ef_funct()) || 0; } catch (_e) {
+                        if (__env.NH_DEBUG_EXTCMD) console.error('[#ride]', _e.message);
                     }
-                    // Translated doride → getdir → win_yn_function sets
-                    // _cursor_override = { x: 19, y: 0 } during the
-                    // internal direction-prompt loop.  After doride
-                    // returns, that override is stale (the actual
-                    // command result, e.g. "You slip..." message, was
-                    // pline'd over the prompt).  C tty rhack returns
-                    // with cursor re-parked at hero; mirror that by
-                    // clearing the override and re-flushing so the
-                    // next _preNhgetchHook captures cursor at hero,
-                    // not stranded at the prompt position.
-                    // seed0103 step 12 'l' (mount slip): canonical
-                    // cursor [57, 4] = hero.
-                    game._cursor_override = null;
-                    game._cursor_override_oneshot = false;
-                    await flush_screen(1);
                 }
             } else if (entry && typeof entry.ef_funct === 'function') {
                 try { res = (await entry.ef_funct()) || 0; } catch (_e) {

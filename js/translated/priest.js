@@ -10,7 +10,7 @@ import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, Your, pline, verbalize } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { strcat, strchr, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strchr, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { adjalign, exercise } from './attrib.js';
 import { xdir, ydir } from './decl.js';
 import { canseemon, newsym, sensemon } from './display.js';
@@ -65,7 +65,7 @@ export function free_epri(mtmp) {
  * Move for priests and shopkeepers.  Called from shk_move() and pri_move().
  * Valid returns are  1: moved  0: didn't  -1: let m_move do it  -2: died.
  */
-export function move_special(mtmp, in_his_shop, appr, uondoor, avoid, omx, omy, ggx, ggy) {
+export async function move_special(mtmp, in_his_shop, appr, uondoor, avoid, omx, omy, ggx, ggy) {
     let nx = 0;
     let ny = 0;
     let nix = 0;
@@ -89,8 +89,8 @@ export function move_special(mtmp, in_his_shop, appr, uondoor, avoid, omx, omy, 
         }
         nix = omx;
         niy = omy;
-        allowflags = mon_allowflags(mtmp);
-        cnt = mfndpos(mtmp, mfp, allowflags);
+        allowflags = await mon_allowflags(mtmp);
+        cnt = await mfndpos(mtmp, mfp, allowflags);
         if (mtmp.isshk && avoid && uondoor) {
             /* perhaps we cannot avoid him */
             for (i = 0; i < cnt; i++) {
@@ -125,11 +125,11 @@ export function move_special(mtmp, in_his_shop, appr, uondoor, avoid, omx, omy, 
     }
     if (nix != omx || niy != omy) {
         if (ninfo & 33554432) {
-            m_break_boulder(mtmp, nix, niy);
+            await m_break_boulder(mtmp, nix, niy);
             /* dead code; maybe someday someone will track down why... */
             return 1;
         } else if (ninfo & 524288) {
-            switch (m_move_aggress(mtmp, nix, niy)) {
+            switch (await m_move_aggress(mtmp, nix, niy)) {
                 /* mtmp is deciding it would like to attack this turn.
              * Returns from m_move_aggress don't correspond to the same things
              * as this function should return, so we need to translate. */
@@ -143,10 +143,10 @@ export function move_special(mtmp, in_his_shop, appr, uondoor, avoid, omx, omy, 
             return 0;
         }
         game.level.monsters[omx][omy] = null;
-        place_monster(mtmp, nix, niy);
-        newsym(nix, niy);
+        await place_monster(mtmp, nix, niy);
+        await newsym(nix, niy);
         if (mtmp.isshk && !in_his_shop && inhishop(mtmp)) {
-            check_special_room((0));
+            await check_special_room((0));
         }
         return 1;
     }
@@ -179,7 +179,7 @@ export function inhistemple(priest) {
 /*
  * pri_move: return 1: moved  0: didn't  -1: let m_move do it  -2: died
  */
-export function pri_move(priest) {
+export async function pri_move(priest) {
     let ggx = 0;
     let ggy = 0;
     let omx = 0;
@@ -199,9 +199,9 @@ export function pri_move(priest) {
     if (!priest.mpeaceful || ((game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic) && !resist_conflict(priest))) {
         if (monnear(priest, game.u.ux, game.u.uy)) {
             if ((game.u.uprops[DISPLACED].intrinsic || game.u.uprops[DISPLACED].extrinsic)) {
-                Your("displaced image doesn't fool %s!", mon_nam(priest));
+                await Your("displaced image doesn't fool %s!", await mon_nam(priest));
             }
-            mattacku(priest);
+            await mattacku(priest);
             return 0;
         } else if (strchr(game.u.urooms, temple)) {
             if (priest.mcansee && ((!((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) || ((((priest).data).mflags1 & 16777216) != 0)) && !(game.u.uinwater) && ((game.viz_array[(priest).my][(priest).mx] & 1) != 0))) {
@@ -214,11 +214,11 @@ export function pri_move(priest) {
     } else if (((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked)) {
         avoid = (0);
     }
-    return move_special(priest, (0), (1), (0), avoid, omx, omy, ggx, ggy);
+    return await move_special(priest, (0), (1), (0), avoid, omx, omy, ggx, ggy);
 }
 /* exclusively for mktemple() */
 /* is it the seat of the high priest? */
-export function priestini(lvl, sroom, sx, sy, sanctum) {
+export async function priestini(lvl, sroom, sx, sy, sanctum) {
     let priest = null;
     let otmp = null;
     let cnt = 0;
@@ -238,9 +238,9 @@ export function priestini(lvl, sroom, sx, sy, sanctum) {
         px = sx , py = sy;
     }
     if ((game.level.monsters[px][py] != null)) {
-        rloc((game.level.monsters[px][py]), 4);
+        await rloc((game.level.monsters[px][py]), 4);
     }
-    priest = makemon(prim, px, py, 256);
+    priest = await makemon(prim, px, py, 256);
     if (priest) {
         ((priest).mextra.epri).shroom = ((game.rooms.indexOf(sroom)) + 3);
         ((priest).mextra.epri).shralign = (((((game.level.locations[sx][sy].flags) & 7) == 0) ? (-128) : (((game.level.locations[sx][sy].flags) & 7) == 4) ? 1 : (((game.level.locations[sx][sy].flags) & 7)) - 2));
@@ -255,16 +255,16 @@ export function priestini(lvl, sroom, sx, sy, sanctum) {
         /* mpeaceful may have changed */
         set_malign(priest);
         if (sanctum && ((priest).mextra.epri).shralign == (-128) && on_level((game.dungeon_topology.d_sanctum_level), game.u.uz)) {
-            mongets(priest, AMULET_OF_YENDOR);
+            await mongets(priest, AMULET_OF_YENDOR);
         }
         for (cnt = (rn2(3) + (2)); cnt > 0; --cnt) {
-            mpickobj(priest, mkobj((0 - SPBOOK_CLASS), (0)));
+            await mpickobj(priest, await mkobj((0 - SPBOOK_CLASS), (0)));
         }
-        if (rn2(2) && (otmp = which_armor(priest, 2)) != null) {
+        if (rn2(2) && (otmp = await which_armor(priest, 2)) != null) {
             if (p_coaligned(priest)) {
-                uncurse(otmp);
+                await uncurse(otmp);
             } else {
-                curse(otmp);
+                await curse(otmp);
             }
         }
     }
@@ -289,12 +289,12 @@ export function mon_aligntyp(mon) {
  *              the true name even when under that influence
  */
 /* caller-supplied output buffer */
-export function priestname(mon, article, reveal_high_priest, pname) {
+export async function priestname(mon, article, reveal_high_priest, pname) {
     let do_hallu = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic));
     let aligned_priest = mon.data == game.mons[PM_ALIGNED_CLERIC];
     let high_priest = mon.data == game.mons[PM_HIGH_CLERIC];
     let whatcode = 0;
-    let what = do_hallu ? rndmonnam({ get value() { return whatcode; }, set value(_v) { whatcode = _v; } }) : mon_pmname(mon);
+    let what = do_hallu ? await rndmonnam({ get value() { return whatcode; }, set value(_v) { whatcode = _v; } }) : mon_pmname(mon);
     if (!mon.ispriest && !mon.isminion) {
         return strcpy(pname, what);
     }
@@ -346,7 +346,7 @@ export function priestname(mon, article, reveal_high_priest, pname) {
     /* same as distant_monnam(), more or less... */
     if (do_hallu || !high_priest || reveal_high_priest || !(((((game.dungeon_topology.d_astral_level)).dlevel || ((game.dungeon_topology.d_astral_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_astral_level)))) || (dist2(((mon).mx), ((mon).my), game.u.ux, game.u.uy) <= 2) || game.program_state.gameover) {
         pname = strcat(pname, " of ");
-        pname = strcat(pname, halu_gname(mon_aligntyp(mon)));
+        pname = strcat(pname, await halu_gname(mon_aligntyp(mon)));
     }
     return pname;
 }
@@ -379,7 +379,7 @@ export function findpriest(roomno) {
     return null;
 }
 /* called from check_special_room() when the player enters the temple room */
-export function intemple(roomno) {
+export async function intemple(roomno) {
     let priest = null;
     let mtmp = null;
     let epri_p = null;
@@ -396,7 +396,7 @@ export function intemple(roomno) {
         return;
     }
     if ((priest = findpriest(roomno)) != null) {
-        record_achievement(ACH_TMPL);
+        await record_achievement(ACH_TMPL);
         epri_p = ((priest).mextra.epri);
         shrined = has_shrine(priest);
         sanctum = (priest.data == game.mons[PM_HIGH_CLERIC] && ((((((game.dungeon_topology.d_sanctum_level)).dlevel || ((game.dungeon_topology.d_sanctum_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_sanctum_level)))) || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)));
@@ -409,7 +409,7 @@ export function intemple(roomno) {
             if (sanctum && !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
                 priest.ispriest = 0;
             }
-            pline("%s intones:", canseemon(priest) ? Monnam(priest) : "A nearby voice");
+            await pline("%s intones:", canseemon(priest) ? await Monnam(priest) : "A nearby voice");
             priest.ispriest = save_priest;
             epri_p.intone_time = game.moves + d(10, 500);
             /* make sure that we don't suppress entry message when
@@ -434,9 +434,9 @@ export function intemple(roomno) {
         }
         if (msg1 && can_speak && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
             ;
-            verbalize("%s", msg1);
+            await verbalize("%s", msg1);
             if (msg2) {
-                verbalize("%s", msg2);
+                await verbalize("%s", msg2);
             }
             epri_p.enter_time = game.moves + d(10, 100);
         }
@@ -453,10 +453,7 @@ export function intemple(roomno) {
                 other_time = epri_p.hostile_time;
             }
             if (game.moves >= this_time || other_time >= this_time) {
-                /* give message if we haven't seen it recently or
-               if alignment update has caused it to switch from
-               forbidding to sense-of-peace or vice versa */
-                You(msg1, msg2);
+                await You(msg1, msg2);
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = game.moves + d(10, 20)) */;
                 /* avoid being tricked by the RNG:  switch might have just
                    happened and previous random threshold could be larger */
@@ -471,28 +468,28 @@ export function intemple(roomno) {
     } else {
         switch (rn2(4)) {
             case 0:
-                You("have an eerie feeling...");
+                await You("have an eerie feeling...");
                 break;
             case 1:
-                You_feel("like you are being watched.");
+                await You_feel("like you are being watched.");
                 break;
             case 2:
-                pline("A shiver runs down your %s.", body_part(SPINE));
+                await pline("A shiver runs down your %s.", await body_part(SPINE));
                 break;
             default:
                 break;
         }
-        if (!rn2(5) && (mtmp = makemon(game.mons[PM_GHOST], game.u.ux, game.u.uy, 131072)) != null) {
+        if (!rn2(5) && (mtmp = await makemon(game.mons[PM_GHOST], game.u.ux, game.u.uy, 131072)) != null) {
             let ngen = game.mvitals[PM_GHOST].born;
             if ((canseemon(mtmp) || sensemon(mtmp))) {
-                pline("A%s ghost appears next to you%c", ngen < 5 ? "n enormous" : "", ngen < 10 ? 33 : 46);
+                await pline("A%s ghost appears next to you%c", ngen < 5 ? "n enormous" : "", ngen < 10 ? 33 : 46);
             } else {
-                You("sense a presence close by!");
+                await You("sense a presence close by!");
             }
             mtmp.mpeaceful = 0;
             set_malign(mtmp);
             if (game.flags.verbose) {
-                You("are frightened to death, and unable to move.");
+                await You("are frightened to death, and unable to move.");
             }
             nomul(-3);
             game.multi_reason = "being terrified of a ghost";
@@ -502,51 +499,44 @@ export function intemple(roomno) {
 }
 /* reset the move counters used to limit temple entry feedback;
    leaving the level and then returning yields a fresh start */
-export function forget_temple_entry(priest) {
+export async function forget_temple_entry(priest) {
     let epri_p = priest.ispriest ? ((priest).mextra.epri) : null;
     if (!epri_p) {
-        impossible("attempting to manipulate shrine data for non-priest?");
+        await impossible("attempting to manipulate shrine data for non-priest?");
         return;
     }
     epri_p.intone_time = epri_p.enter_time = epri_p.peaceful_time = epri_p.hostile_time = 0;
 }
 const __priest_talk_cranky_msg = ["Thou wouldst have words, eh?  I'll give thee a word or two!", "Talk?  Here is what I have to say!", "Pilgrim, I would speak no longer with thee."];
-export function priest_talk(priest) {
+export async function priest_talk(priest) {
     let coaligned = p_coaligned(priest);
     let strayed = (game.u.ualign.record < 0);
     let cheapskate = null;
     if (((priest).mextra.epri)) {
         cheapskate = ((priest).mextra.epri).cheapskate_count;
     }
-    /*
-     * Note: we won't be called if hero is Deaf [since dochat() will
-     * return before calling domonnoise()], so we don't need to check
-     * for that before the various calls to verbalize() here.
-     */
     if (!game.u.uconduct.gnostic++) {
-        livelog_printf(32, "rejected atheism by consulting with %s", mon_nam(priest));
+        livelog_printf(32, "rejected atheism by consulting with %s", await mon_nam(priest));
     }
     if (priest.mflee || (!priest.ispriest && coaligned && strayed)) {
-        pline("%s doesn't want anything to do with you!", Monnam(priest));
+        await pline("%s doesn't want anything to do with you!", await Monnam(priest));
         priest.mpeaceful = 0;
         return;
     }
     if (!inhistemple(priest) || !priest.mpeaceful || ((priest).msleeping || !(priest).mcanmove)) {
         if (((priest).msleeping || !(priest).mcanmove)) {
-            /* priests don't chat unless peaceful and in their own temple */
-            pline("%s breaks out of %s reverie!", Monnam(priest), (genders[pronoun_gender(priest, 2)].his));
+            await pline("%s breaks out of %s reverie!", await Monnam(priest), (genders[pronoun_gender(priest, 2)].his));
             priest.mfrozen = priest.msleeping = 0;
             priest.mcanmove = 1;
         }
         priest.mpeaceful = 0;
         ;
-        verbalize("%s", __priest_talk_cranky_msg[rn2(3)]);
+        await verbalize("%s", __priest_talk_cranky_msg[rn2(3)]);
         return;
     }
     if (priest.mpeaceful && in_rooms(priest.mx, priest.my, TEMPLE) && !has_shrine(priest)) {
         ;
-        /* you desecrated the temple and now you want to chat? */
-        verbalize("Begone!  Thou desecratest this holy place with thy presence.");
+        await verbalize("Begone!  Thou desecratest this holy place with thy presence.");
         priest.mpeaceful = 0;
         return;
     }
@@ -555,16 +545,15 @@ export function priest_talk(priest) {
             let pmoney = money_cnt(priest.minvent);
             if (pmoney > 0) {
                 let bits = null;
-                bits = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? currency(pmoney) : (pmoney == 1) ? "bit" : "bits";
-                /* Note: two bits is actually 25 cents.  Hmm. */
-                pline("%s gives you %s%s for an ale.", Monnam(priest), (pmoney == 1) ? "one " : "two ", bits);
-                money2u(priest, pmoney > 1 ? 2 : 1);
+                bits = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? await currency(pmoney) : (pmoney == 1) ? "bit" : "bits";
+                await pline("%s gives you %s%s for an ale.", await Monnam(priest), (pmoney == 1) ? "one " : "two ", bits);
+                await money2u(priest, pmoney > 1 ? 2 : 1);
             } else {
-                pline("%s preaches the virtues of poverty.", Monnam(priest));
+                await pline("%s preaches the virtues of poverty.", await Monnam(priest));
             }
-            exercise(A_WIS, (1));
+            await exercise(A_WIS, (1));
         } else {
-            pline("%s is not interested.", Monnam(priest));
+            await pline("%s is not interested.", await Monnam(priest));
         }
         return;
     } else {
@@ -583,13 +572,13 @@ export function priest_talk(priest) {
         }
         buf = sprintf(buf, "How much will you offer (suggested: %ld or %ld)?", suggested * quan, suggested * quan * 2);
         if (game.flags.debug) {
-            pline("%s asks you for a contribution for the temple (base %ld).", Monnam(priest), suggested);
+            await pline("%s asks you for a contribution for the temple (base %ld).", await Monnam(priest), suggested);
         } else {
-            pline("%s asks you for a contribution for the temple.", Monnam(priest));
+            await pline("%s asks you for a contribution for the temple.", await Monnam(priest));
         }
-        if ((offer = bribe(priest, buf)) == 0) {
+        if ((offer = await bribe(priest, buf)) == 0) {
             ;
-            verbalize("Thou shalt regret thine action!");
+            await verbalize("Thou shalt regret thine action!");
             if (coaligned) {
                 adjalign(-1);
             }
@@ -599,24 +588,24 @@ export function priest_talk(priest) {
         } else if (offer < suggested * quan) {
             if (money_cnt(game.invent) > (offer * 2)) {
                 ;
-                verbalize("Cheapskate.");
+                await verbalize("Cheapskate.");
                 if (cheapskate) {
                     ++cheapskate;
                 }
             } else {
                 ;
-                verbalize("I thank thee for thy contribution.");
-                exercise(A_WIS, (1));
+                await verbalize("I thank thee for thy contribution.");
+                await exercise(A_WIS, (1));
             }
         } else if (offer < suggested * quan * 2) {
             ;
-            verbalize("Thou art indeed a pious individual.");
+            await verbalize("Thou art indeed a pious individual.");
             if (money_cnt(game.invent) < (offer * 2)) {
                 if (coaligned && game.u.ualign.record <= (-4)) {
                     adjalign(1);
                 }
             }
-            verbalize("I bestow upon thee a blessing.");
+            await verbalize("I bestow upon thee a blessing.");
             incr_itimeout({ get value() { return game.u.uprops[CLAIRVOYANT].intrinsic; }, set value(_v) { game.u.uprops[CLAIRVOYANT].intrinsic = _v; } }, (rn2(Math.trunc(500 * offer / suggested)) + (Math.trunc(500 * offer / suggested))));
         } else if (offer < suggested * quan * 3) {
             let orig_ublessed = game.u.ublessed;
@@ -638,13 +627,13 @@ export function priest_talk(priest) {
             }
             ;
             if (game.u.ublessed > orig_ublessed) {
-                verbalize("Thou hast been rewarded for thy devotion.");
+                await verbalize("Thou hast been rewarded for thy devotion.");
             } else {
-                verbalize("Thy selfless generosity is deeply appreciated.");
+                await verbalize("Thy selfless generosity is deeply appreciated.");
             }
         } else {
             ;
-            verbalize("Thy selfless generosity is deeply appreciated.");
+            await verbalize("Thy selfless generosity is deeply appreciated.");
             if (money_cnt(game.invent) < (offer * 2) && coaligned) {
                 if (strayed && (game.moves - game.u.ucleansed) > 5000) {
                     /* money_cnt check is preserved for futureproofing but probably
@@ -658,14 +647,14 @@ export function priest_talk(priest) {
         }
     }
 }
-export function mk_roamer(ptr, alignment, x, y, peaceful) {
+export async function mk_roamer(ptr, alignment, x, y, peaceful) {
     let roamer = null;
     let coaligned = (game.u.ualign.type == alignment);
     /* this was due to permonst's pxlth field which is now gone */
     if ((game.level.monsters[x][y] != null)) {
-        rloc((game.level.monsters[x][y]), 4);
+        await rloc((game.level.monsters[x][y]), 4);
     }
-    if (!(roamer = makemon(ptr, x, y, 16 | 1024 | 131072))) {
+    if (!(roamer = await makemon(ptr, x, y, 16 | 1024 | 131072))) {
         return null;
     }
     ((roamer).mextra.emin).min_align = alignment;
@@ -679,7 +668,7 @@ export function mk_roamer(ptr, alignment, x, y, peaceful) {
     set_malign(roamer);
     return roamer;
 }
-export function reset_hostility(roamer) {
+export async function reset_hostility(roamer) {
     if (!roamer.isminion) {
         return;
     }
@@ -690,7 +679,7 @@ export function reset_hostility(roamer) {
         roamer.mpeaceful = roamer.mtame = 0;
         set_malign(roamer);
     }
-    newsym(roamer.mx, roamer.my);
+    await newsym(roamer.mx, roamer.my);
 }
 /* if non-null, <mx,my> overrides <x,y> */
 export function in_your_sanctuary(mon, x, y) {
@@ -714,7 +703,7 @@ export function in_your_sanctuary(mon, x, y) {
     return (has_shrine(priest) && p_coaligned(priest) && priest.mpeaceful);
 }
 /* when attacking "priest" in his temple */
-export function ghod_hitsu(priest) {
+export async function ghod_hitsu(priest) {
     let troom = null;
     let oldbuzzer = null;
     let oldcurrwand = null;
@@ -770,13 +759,13 @@ export function ghod_hitsu(priest) {
     }
     switch (rn2(3)) {
         case 0:
-            pline("%s roars in anger:  \"Thou shalt suffer!\"", a_gname_at(ax, ay));
+            await pline("%s roars in anger:  \"Thou shalt suffer!\"", await a_gname_at(ax, ay));
             break;
         case 1:
-            pline("%s voice booms:  \"How darest thou harm my servant!\"", s_suffix(a_gname_at(ax, ay)));
+            await pline("%s voice booms:  \"How darest thou harm my servant!\"", s_suffix(await a_gname_at(ax, ay)));
             break;
         default:
-            pline("%s roars:  \"Thou dost profane my shrine!\"", a_gname_at(ax, ay));
+            await pline("%s roars:  \"Thou dost profane my shrine!\"", await a_gname_at(ax, ay));
             break;
     }
     /* bolt of lightning cast by unspecified monster */
@@ -784,18 +773,18 @@ export function ghod_hitsu(priest) {
     game.current_wand = null;
     oldbuzzer = game.buzzer;
     game.buzzer = null;
-    buzz((-10 - ((abs((6) - 1) % 10))), 6, x, y, sgn(game.tbx), sgn(game.tby));
+    await buzz((-10 - ((abs((6) - 1) % 10))), 6, x, y, sgn(game.tbx), sgn(game.tby));
     game.buzzer = oldbuzzer;
     game.current_wand = oldcurrwand;
-    exercise(A_WIS, (0));
+    await exercise(A_WIS, (0));
 }
-export function angry_priest() {
+export async function angry_priest() {
     let priest = null;
     let lev = null;
     if ((priest = findpriest(temple_occupied(game.u.urooms))) != null) {
         let eprip = ((priest).mextra.epri);
-        wakeup(priest, (0));
-        setmangry(priest, (0));
+        await wakeup(priest, (0));
+        await setmangry(priest, (0));
         /*
          * If the altar has been destroyed or converted, let the
          * priest run loose.
@@ -825,14 +814,14 @@ export function angry_priest() {
  * and remove them.  This avoids big problems when restoring bones.
  * [Perhaps we should convert them into roamers instead?]
  */
-export function clearpriests() {
+export async function clearpriests() {
     let mtmp = null;
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
         if (((mtmp).mhp < 1)) {
             continue;
         }
         if (mtmp.ispriest && !on_level((((mtmp).mextra.epri).shrlevel), game.u.uz)) {
-            mongone(mtmp);
+            await mongone(mtmp);
         }
     }
 }
@@ -846,6 +835,17 @@ export function restpriest(mtmp, ghostly) {
 }
 /*priest.c*/
 /* attacked and spent this move */
+/* give message if we haven't seen it recently or
+               if alignment update has caused it to switch from
+               forbidding to sense-of-peace or vice versa */
 /* no message; unfortunately there's no
                       EPRI(priest)->eerie_time available to
                       make sure we give one the first time */
+/*
+     * Note: we won't be called if hero is Deaf [since dochat() will
+     * return before calling domonnoise()], so we don't need to check
+     * for that before the various calls to verbalize() here.
+     */
+/* priests don't chat unless peaceful and in their own temple */
+/* you desecrated the temple and now you want to chat? */
+/* Note: two bits is actually 25 cents.  Hmm. */

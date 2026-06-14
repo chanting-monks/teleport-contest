@@ -17,8 +17,9 @@
 import { game } from '../gstate.js';
 import { memcpy } from '../c2js-runtime/memory.js';
 import { pline, raw_printf } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { fprintf, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_advance_str, __nh_char_at0, strchr, strcpy, strlen, strncat } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strchr, strcpy, strlen, strncat } from '../c2js-runtime/string.js';
 import { ARGV0 } from './decl.js';
 import { NH_abort } from './end.js';
 import { copynchars, strsubst } from './hacklib.js';
@@ -28,6 +29,7 @@ import { getversionstring, version_string } from './version.js';
 game.bid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 /* ARGSUSED */
 let __crashreport_init_once = 0;
+__nh_register_static(() => { __crashreport_init_once = 0; });
 const __crashreport_init_hexdigits = "0123456789abcdef";
 export function crashreport_init(argc, argv) {
     let binfile = '';
@@ -56,7 +58,7 @@ export function crashreport_init(argc, argv) {
         }
         len = readlink("/proc/self/exe", binfile, 4097 /* sizeof(char [4097]) */ - 1);
         if (len > 0) {
-            binfile[len] = 0;
+            binfile = __nh_char_write(binfile, len, 0);
         } else {
             break skip;
         }
@@ -90,11 +92,11 @@ export function crashreport_init(argc, argv) {
         }
         while (cnt) {
             /* sprintf(p, "%02x", *in++), p += 2; */
-            game.bid[__nh_p_idx++] = __crashreport_init_hexdigits[(__nh_char_at0(in_) >> 4) & 15];
-            game.bid[__nh_p_idx++] = __crashreport_init_hexdigits[(in_ = __nh_advance_str(in_, 1)) & 15];
+            game.bid = game.bid.slice(0, __nh_p_idx++) + String.fromCharCode(__nh_char_at0(__nh_advance_str(__crashreport_init_hexdigits, (__nh_char_at0(in_) >> 4) & 15)));
+            game.bid = game.bid.slice(0, __nh_p_idx++) + String.fromCharCode(__nh_char_at0(__nh_advance_str(__crashreport_init_hexdigits, (in_ = __nh_advance_str(in_, 1)) & 15)));
             --cnt;
         }
-        game.bid[__nh_p_idx] = 0;
+        game.bid = game.bid.slice(0, __nh_p_idx);
         ;
         return;
     }
@@ -127,11 +129,11 @@ export function swr_add_uricoded(in_, out, remaining, markp) {
     while (__nh_char_at0(in_)) {
         if (((__ctype_b_loc())[((__nh_char_at0(in_)))] & _ISalnum) || strchr("_-.~", __nh_char_at0(in_))) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0(in_)) */;
-            (out[__nh_out_idx])++;
+            (__nh_char_at0(__nh_advance_str(out, __nh_out_idx)))++;
             (remaining.value)--;
         } else if (__nh_char_at0(in_) == 32) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 43) */;
-            (out[__nh_out_idx])++;
+            (__nh_char_at0(__nh_advance_str(out, __nh_out_idx)))++;
             (remaining.value)--;
         } else {
             if (remaining.value <= 3) {
@@ -147,8 +149,8 @@ export function swr_add_uricoded(in_, out, remaining, markp) {
                 chr = sprintf(chr, "%%%02X", __nh_char_at0(in_));
                 x = strlen(chr);
                 if (x <= remaining.value) {
-                    strcpy(out[__nh_out_idx], chr);
-                    out[__nh_out_idx] += x;
+                    strcpy(__nh_char_at0(__nh_advance_str(out, __nh_out_idx)), chr);
+                    __nh_char_at0(__nh_advance_str(out, __nh_out_idx)) += x;
                     remaining.value -= x;
                 }
             }
@@ -410,15 +412,15 @@ export function submit_web_report(cos, msg, why) {
     }
     return (1);
 }
-export function dobugreport() {
+export async function dobugreport() {
     if (!submit_web_report(2, null, "#bugreport command")) {
-        pline("Unable to send bug report.  Please visit %s instead.", (game.sysopt.crashreporturl && __nh_char_at0(game.sysopt.crashreporturl)) ? game.sysopt.crashreporturl : "https://www.nethack.org/");
+        await pline("Unable to send bug report.  Please visit %s instead.", (game.sysopt.crashreporturl && __nh_char_at0(game.sysopt.crashreporturl)) ? game.sysopt.crashreporturl : "https://www.nethack.org/");
     }
     return 0;
 }
 /* CRASHREPORT */
 /*ARGSUSED*/
-export function NH_panictrace_libc() {
+export async function NH_panictrace_libc() {
     let bt = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
     let count = 0;
     let x = 0;
@@ -431,7 +433,7 @@ export function NH_panictrace_libc() {
         buf = copynchars(buf, info[x], 256 /* sizeof(char [256]) */ - 1);
         buf = strsubst(buf, "        ", "");
         buf = strsubst(buf, "        ", "");
-        raw_printf("[%02lu] %s", x, buf);
+        await raw_printf("[%02lu] %s", x, buf);
     }
     return (1);
 }
@@ -490,7 +492,7 @@ export function get_saved_pline(lineno) {
 }
 /* called as signal() handler, so sent at least one arg */
 /*ARGUSED*/
-export function panictrace_handler(sig_unused) {
+export async function panictrace_handler(sig_unused) {
     let f2 = 0;
     /* it is risky calling this during a program-terminating signal,
            but without it the subsequent backtrace is useless because
@@ -500,9 +502,7 @@ export function panictrace_handler(sig_unused) {
            then NH_abort() and we don't want to call this twice */
     f2 = write(2, "\nSignal received.\n", 19 /* sizeof(char [19]) */ - 1);
     ((f2));
-    /* what could we do if write to fd#2 (stderr) fails  */
-    /* ... and we're already in the process of quitting? */
-    NH_abort(null);
+    await NH_abort(null);
 }
 export function panictrace_setsignals(set) {
     signal(4, set ? panictrace_handler : (null));
@@ -528,3 +528,5 @@ export function panictrace_setsignals(set) {
  * FIXME: this should have a lot of '#undef's for onefile support.
  */
 /*report.c*/
+/* what could we do if write to fd#2 (stderr) fails  */
+/* ... and we're already in the process of quitting? */

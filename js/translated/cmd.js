@@ -91,6 +91,7 @@ import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, pline, raw_printf } from '../c2js-runtime/pline.js';
 import { do_write_config_file, dobugreport, dosave } from '../c2js-runtime/savestubs.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strrchr, strstri } from '../c2js-runtime/string.js';
 import { timet_delta } from './allmain.js';
@@ -400,25 +401,25 @@ export function cmdq_clear(q) {
     game.command_queue[q] = null;
 }
 /* courtesy of aeb@cwi.nl */
-export function pgetchar() {
+export async function pgetchar() {
     let ch = 0;
     if (game.iflags.debug_fuzzer) {
         return randomkey();
     }
-    ch = (game.windowprocs.win_nhgetch)();
+    ch = await (game.windowprocs.win_nhgetch)();
     return ch;
 }
 /* '#' or whatever has been bound to doextcmd() in its place */
 export function extcmd_initiator() {
     return game.Cmd.extcmd_char;
 }
-export function can_do_extcmd(extcmd) {
+export async function can_do_extcmd(extcmd) {
     let ecflags = extcmd.flags;
     if (game.luacore && game.nhcb_counts[NHCB_CMD_BEFORE]) {
         lua_getglobal(game.luacore, "nh_callback_run");
         lua_pushstring(game.luacore, nhcb_name[NHCB_CMD_BEFORE]);
         lua_pushstring(game.luacore, extcmd.ef_txt);
-        nhl_pcall_handle(game.luacore, 2, 1, "can_do_extcmd", NHLpa_panic);
+        await nhl_pcall_handle(game.luacore, 2, 1, "can_do_extcmd", NHLpa_panic);
         if (!lua_toboolean(game.luacore, -1)) {
             lua_settop(game.luacore, 0);
             return (0);
@@ -426,10 +427,10 @@ export function can_do_extcmd(extcmd) {
         lua_settop(game.luacore, 0);
     }
     if (!game.flags.debug && (ecflags & 4)) {
-        pline(unavailcmd, extcmd.ef_txt);
+        await pline(unavailcmd, extcmd.ef_txt);
         return (0);
     } else if (game.u.uburied && !(ecflags & 1)) {
-        You_cant("do that while you are buried!");
+        await You_cant("do that while you are buried!");
         return (0);
     } else if (game.iflags.debug_fuzzer && (ecflags & 32)) {
         return (0);
@@ -437,22 +438,21 @@ export function can_do_extcmd(extcmd) {
     return (1);
 }
 /* here after # - now read a full-word command */
-export function doextcmd() {
+export async function doextcmd() {
     let idx = 0;
     let retval = 0;
     let func = null;
     do {
-        idx = (game.windowprocs.win_get_ext_cmd)();
+        idx = await (game.windowprocs.win_get_ext_cmd)();
         if (idx < 0) {
             return 0;
         }
         func = game.extcmdlist[idx].ef_funct;
-        if (!can_do_extcmd(game.extcmdlist[idx])) {
+        if (!await can_do_extcmd(game.extcmdlist[idx])) {
             return 0;
         }
         if (game.iflags.menu_requested && !accept_menu_prefix(game.extcmdlist[idx])) {
-            /* keep repeating until we don't run help or quit */
-            pline("'%s' prefix has no effect for the %s command.", visctrl(cmd_from_func(do_reqmenu)), game.extcmdlist[idx].ef_txt);
+            await pline("'%s' prefix has no effect for the %s command.", visctrl(cmd_from_func(do_reqmenu)), game.extcmdlist[idx].ef_txt);
             game.iflags.menu_requested = (0);
         }
         /* tell rhack() what command is actually executing */
@@ -464,15 +464,16 @@ export function doextcmd() {
 /* format extended command flags for display */
 /* if Null, add a footnote to the menu */
 let __doc_extcmd_flagstr_Abuf = '';
-export function doc_extcmd_flagstr(menuwin, efp) {
+__nh_register_static(() => { __doc_extcmd_flagstr_Abuf = ''; });
+export async function doc_extcmd_flagstr(menuwin, efp) {
     if (!efp) {
         /* 5 would suffice: {'[','m','A',']','\0'} */
         /* note: tag shown for menu prefix is 'm' even if m-prefix action
        has been bound to some other key */
         let qbuf = '';
-        add_menu_str(menuwin, "[A] Command autocompletes");
+        await add_menu_str(menuwin, "[A] Command autocompletes");
         qbuf = sprintf(qbuf, "[m] Command accepts '%s' prefix", visctrl(cmd_from_func(do_reqmenu)));
-        add_menu_str(menuwin, qbuf);
+        await add_menu_str(menuwin, qbuf);
         return null;
     } else {
         let mprefix = accept_menu_prefix(efp);
@@ -480,23 +481,23 @@ export function doc_extcmd_flagstr(menuwin, efp) {
         let __nh_p_idx = 0;
         if (mprefix || autocomplete) {
             /* "" or "[m]" or "[A]" or "[mA]" */
-            __doc_extcmd_flagstr_Abuf[__nh_p_idx++] = 91;
+            __doc_extcmd_flagstr_Abuf = __doc_extcmd_flagstr_Abuf.slice(0, __nh_p_idx++) + String.fromCharCode(91);
             if (mprefix) {
-                __doc_extcmd_flagstr_Abuf[__nh_p_idx++] = 109;
+                __doc_extcmd_flagstr_Abuf = __doc_extcmd_flagstr_Abuf.slice(0, __nh_p_idx++) + String.fromCharCode(109);
             }
             if (autocomplete) {
-                __doc_extcmd_flagstr_Abuf[__nh_p_idx++] = 65;
+                __doc_extcmd_flagstr_Abuf = __doc_extcmd_flagstr_Abuf.slice(0, __nh_p_idx++) + String.fromCharCode(65);
             }
-            __doc_extcmd_flagstr_Abuf[__nh_p_idx++] = 93;
+            __doc_extcmd_flagstr_Abuf = __doc_extcmd_flagstr_Abuf.slice(0, __nh_p_idx++) + String.fromCharCode(93);
         }
-        __doc_extcmd_flagstr_Abuf[__nh_p_idx] = 0;
+        __doc_extcmd_flagstr_Abuf = __doc_extcmd_flagstr_Abuf.slice(0, __nh_p_idx);
         return __doc_extcmd_flagstr_Abuf;
     }
 }
 /* here after #? - now list all full-word commands and provide
    some navigation capability through the long list */
 const __doextlist_headings = ["Extended commands", "Debugging Extended Commands"];
-export function doextlist() {
+export async function doextlist() {
     let efp = null;
     let buf = '';
     let searchbuf = '';
@@ -504,7 +505,7 @@ export function doextlist() {
     let promptbuf = '';
     let cmd_desc = null;
     let menuwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let selected = null;
     let n = 0;
     let pass = 0;
@@ -519,39 +520,29 @@ export function doextlist() {
     while (redisplay) {
         redisplay = (0);
         /* TODO: fixed letters for the menu entries? */
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         (game.windowprocs.win_start_menu)(menuwin, 0);
-        add_menu_str(menuwin, "Extended Commands List");
-        add_menu_str(menuwin, "");
+        await add_menu_str(menuwin, "Extended Commands List");
+        await add_menu_str(menuwin, "");
         buf = sprintf(buf, "Switch to %s commands that don't autocomplete", menumode ? "including" : "excluding");
         any.a_int = 1;
-        add_menu(menuwin, nul_glyphinfo, any, 97, 0, 0, clr, buf, 0);
+        await add_menu(menuwin, nul_glyphinfo, any, 97, 0, 0, clr, buf, 0);
         if (!searchbuf) {
             any.a_int = 2;
-            /* was 's', but then using ':' handling within the interface
-               would only examine the two or three meta entries, not the
-               actual list of extended commands shown via separator lines;
-               having ':' as an explicit selector overrides the default
-               menu behavior for it; we retain 's' as a group accelerator */
-            add_menu(menuwin, nul_glyphinfo, any, 58, 115, 0, clr, "Search extended commands", 0);
+            await add_menu(menuwin, nul_glyphinfo, any, 58, 115, 0, clr, "Search extended commands", 0);
         } else {
             buf = strcpy(buf, "Switch back from search");
             if (strlen(buf) + strlen(searchbuf) + strlen(" (\"\")") < 128) {
                 buf = __nh_buf_append(buf, sprintf('', " (\"%s\")", searchbuf));
             }
             any.a_int = 3;
-            /* specifying ':' as a group accelerator here is mostly a
-               statement of intent (we'd like to accept it as a synonym but
-               also want to hide it from general menu use) because it won't
-               work for interfaces which support ':' to search; use as a
-               general menu command takes precedence over group accelerator */
-            add_menu(menuwin, nul_glyphinfo, any, 115, 58, 0, clr, buf, 0);
+            await add_menu(menuwin, nul_glyphinfo, any, 115, 58, 0, clr, buf, 0);
         }
         if (game.flags.debug) {
             any.a_int = 4;
-            add_menu(menuwin, nul_glyphinfo, any, 122, 0, 0, clr, onelist ? "Switch to showing debugging commands in separate section" : "Switch to showing all alphabetically, including debugging commands", 0);
+            await add_menu(menuwin, nul_glyphinfo, any, 122, 0, 0, clr, onelist ? "Switch to showing debugging commands in separate section" : "Switch to showing all alphabetically, including debugging commands", 0);
         }
-        add_menu_str(menuwin, "");
+        await add_menu_str(menuwin, "");
         (menushown[1] = 0, menushown[0] = 0);
         n = 0;
         for (pass = 0; pass <= 1; ++pass) {
@@ -592,33 +583,24 @@ export function doextlist() {
                 }
                 if (!menushown[pass]) {
                     buf = strcpy(buf, __doextlist_headings[pass]);
-                    /* first try case-insensitive substring match */
-                    /* wildcard support; most interfaces use case-insensitive
-                       pmatch rather than regexp for menu searching */
-                    /* We're about to show an item, have we shown the menu yet?
-                   Doing menu in inner loop like this on demand avoids a
-                   heading with no subordinate entries on the search
-                   results menu. */
-                    add_menu_heading(menuwin, buf);
+                    await add_menu_heading(menuwin, buf);
                     menushown[pass] = 1;
                 }
-                buf = sprintf(buf, " %-14s %4s %s", efp.ef_txt, doc_extcmd_flagstr(menuwin, efp), cmd_desc);
-                add_menu_str(menuwin, buf);
+                buf = sprintf(buf, " %-14s %4s %s", efp.ef_txt, await doc_extcmd_flagstr(menuwin, efp), cmd_desc);
+                await add_menu_str(menuwin, buf);
                 ++n;
             }
             if (n) {
-                add_menu_str(menuwin, "");
+                await add_menu_str(menuwin, "");
             }
         }
         if (searchbuf && !n) {
-            add_menu_str(menuwin, "no matches");
-        /* longest ef_txt at present is "wizrumorcheck" (13 chars);
-                   2nd field will be "    " or " [A]" or " [m]" or "[mA]" */
+            await add_menu_str(menuwin, "no matches");
         } else {
-            doc_extcmd_flagstr(menuwin, null);
+            await doc_extcmd_flagstr(menuwin, null);
         }
         (game.windowprocs.win_end_menu)(menuwin, null);
-        n = select_menu(menuwin, 1, selected);
+        n = await select_menu(menuwin, 1, selected);
         if (n > 0) {
             switch (selected[0].item.a_int) {
                 /* 'a': toggle show/hide non-autocomplete */
@@ -654,9 +636,9 @@ export function doextlist() {
         if (search) {
             promptbuf = strcpy(promptbuf, "Extended command list search phrase");
             promptbuf = strcat(promptbuf, "?");
-            getlin(promptbuf, searchbuf);
+            searchbuf = await getlin(promptbuf, searchbuf);
             searchbuf = mungspaces(searchbuf);
-            if (searchbuf[0] == 27) {
+            if (__nh_char_at0(searchbuf) == 27) {
                 searchbuf = '';
             }
             if (searchbuf) {
@@ -679,11 +661,11 @@ export function doextlist() {
  *
  * Here after # - now show pick-list of possible commands.
  */
-export function extcmd_via_menu() {
+export async function extcmd_via_menu() {
     let efp = null;
     let pick_list = null;
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let choices = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
     let buf = '';
     let cbuf = '';
@@ -707,7 +689,7 @@ export function extcmd_via_menu() {
     biggest = 0;
     while (!ret) {
         i = n = 0;
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         for (let __nhi_efp = 0; (efp = game.extcmdlist[__nhi_efp]) && (efp.ef_txt); __nhi_efp++) {
             if ((efp.flags & (16 | 64)) || !(efp.flags & 2) || (!game.flags.debug && (efp.flags & 4))) {
                 continue;
@@ -755,7 +737,7 @@ export function extcmd_via_menu() {
                          *   + "%c - " menu selector + 1 space right margin */
                     /* flush extended cmds for that letter already in buf */
                     any.a_char = prevaccelerator;
-                    add_menu(win, nul_glyphinfo, any, any.a_char, 0, 0, clr, buf, 0);
+                    await add_menu(win, nul_glyphinfo, any, any.a_char, 0, 0, clr, buf, 0);
                     acount = 0;
                     if (!(accelerator != prevaccelerator || one_per_line)) {
                         wastoolong = (1);
@@ -776,19 +758,19 @@ export function extcmd_via_menu() {
         if (acount) {
             buf = sprintf(buf, fmtstr, prompt);
             any.a_char = prevaccelerator;
-            add_menu(win, nul_glyphinfo, any, any.a_char, 0, 0, clr, buf, 0);
+            await add_menu(win, nul_glyphinfo, any, any.a_char, 0, 0, clr, buf, 0);
         }
         prompt = nh_snprintf("extcmd_via_menu", 856, prompt, 128 /* sizeof(char [128]) */, "Extended Command: %s", cbuf);
         (game.windowprocs.win_end_menu)(win, prompt);
-        n = select_menu(win, 1, pick_list);
+        n = await select_menu(win, 1, pick_list);
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (n == 1) {
             if (matchlevel > (128 - 2)) {
                 free(pick_list);
                 ret = -1;
             } else {
-                cbuf[matchlevel++] = pick_list[0].item.a_char;
-                cbuf[matchlevel] = 0;
+                cbuf = __nh_char_write(cbuf, matchlevel++, pick_list[0].item.a_char);
+                cbuf = __nh_char_write(cbuf, matchlevel, 0);
                 free(pick_list);
             }
         } else {
@@ -804,98 +786,96 @@ export function extcmd_via_menu() {
 }
 /* TTY_GRAPHICS */
 /* #monster command - use special monster ability while polymorphed */
-export function domonability() {
+export async function domonability() {
     let uptr = game.youmonst.data;
     let might_hide = ((((uptr).mflags1 & 256) != 0) || (((uptr).mflags1 & 128) != 0));
     let c = 0;
     if (might_hide && ((uptr) == game.mons[PM_CAVE_SPIDER] || (uptr) == game.mons[PM_GIANT_SPIDER])) {
-        c = yn_function("Hide [h] or spin a web [s]?", hidespinchars, 113, (1));
+        c = await yn_function("Hide [h] or spin a web [s]?", hidespinchars, 113, (1));
         if (c == 113 || c == 27) {
             return 0;
         }
     }
     if (attacktype(uptr, 12)) {
-        return dobreathe();
+        return await dobreathe();
     } else if (attacktype(uptr, 10)) {
-        return dospit();
+        return await dospit();
     } else if (uptr.mlet == S_NYMPH) {
-        return doremove();
+        return await doremove();
     } else if (attacktype(uptr, 15)) {
-        return dogaze();
+        return await dogaze();
     } else if ((((uptr).mflags2 & 4) != 0)) {
-        return dosummon();
+        return await dosummon();
     } else if (c ? c == 104 : might_hide) {
-        return dohide();
+        return await dohide();
     } else if (c ? c == 115 : ((uptr) == game.mons[PM_CAVE_SPIDER] || (uptr) == game.mons[PM_GIANT_SPIDER])) {
-        return dospinweb();
+        return await dospinweb();
     } else if (((uptr) == game.mons[PM_MIND_FLAYER] || (uptr) == game.mons[PM_MASTER_MIND_FLAYER])) {
-        return domindblast();
+        return await domindblast();
     } else if (game.u.umonnum == PM_GREMLIN) {
         if (((game.level.locations[game.u.ux][game.u.uy].typ) == FOUNTAIN)) {
-            if (split_mon(game.youmonst, null)) {
-                dryup(game.u.ux, game.u.uy, (1));
+            if (await split_mon(game.youmonst, null)) {
+                await dryup(game.u.ux, game.u.uy, (1));
             }
         } else if (is_pool(game.u.ux, game.u.uy)) {
-            /* is_pool: might be wearing water walking boots or amulet of
-               magical breathing */
-            split_mon(game.youmonst, null);
+            await split_mon(game.youmonst, null);
         } else {
-            There("is no fountain here.");
+            await There("is no fountain here.");
         }
     } else if (((uptr).mlet == S_UNICORN && (((uptr).mflags2 & 536870912) != 0))) {
-        use_unicorn_horn(null);
+        await use_unicorn_horn(null);
         return 1;
     } else if (uptr.msound == MS_SHRIEK) {
-        You("shriek.");
+        await You("shriek.");
         if (game.u.uburied) {
-            pline("Unfortunately sound does not carry well through rock.");
+            await pline("Unfortunately sound does not carry well through rock.");
         } else {
-            aggravate();
+            await aggravate();
         }
     } else if (((uptr).mlet == S_VAMPIRE) || ((game.youmonst).cham == PM_VAMPIRE || (game.youmonst).cham == PM_VAMPIRE_LEADER || (game.youmonst).cham == PM_VLAD_THE_IMPALER)) {
-        return dopoly();
+        return await dopoly();
     } else if (game.u.usteed && attacktype(game.u.usteed.data, 12)) {
-        pet_ranged_attk(game.u.usteed, (1));
+        await pet_ranged_attk(game.u.usteed, (1));
         return 1;
     } else if ((game.u.umonnum != game.u.umonster)) {
-        pline("Any special ability you may have is purely reflexive.");
+        await pline("Any special ability you may have is purely reflexive.");
     } else {
-        You("don't have a special ability in your normal form!");
+        await You("don't have a special ability in your normal form!");
     }
     return 0;
 }
-export function enter_explore_mode() {
+export async function enter_explore_mode() {
     if (game.flags.explore) {
-        You("are already in explore mode.");
+        await You("are already in explore mode.");
     } else {
         let oldmode = !game.flags.debug ? "normal game" : "debug mode";
         if (!authorize_explore_mode()) {
             if (!game.flags.debug) {
-                You("cannot access explore mode.");
+                await You("cannot access explore mode.");
                 return 0;
             } else {
-                pline("Note: normally you wouldn't be allowed into explore mode.");
+                await pline("Note: normally you wouldn't be allowed into explore mode.");
             }
         }
-        pline("Beware!  From explore mode there will be no return to %s,", oldmode);
-        if (paranoid_query(((game.flags.paranoia_bits & 2) != 0), "Do you want to enter explore mode?")) {
+        await pline("Beware!  From explore mode there will be no return to %s,", oldmode);
+        if (await paranoid_query(((game.flags.paranoia_bits & 2) != 0), "Do you want to enter explore mode?")) {
             game.flags.explore = (1);
             game.flags.debug = (0);
             (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
-            You("are now in non-scoring explore mode.");
+            await You("are now in non-scoring explore mode.");
         } else {
             (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
-            pline("Continuing with %s.", oldmode);
+            await pline("Continuing with %s.", oldmode);
         }
     }
     return 0;
 }
 const __makemap_prepost_Unachieve = "%s achievement revoked.";
-export function makemap_prepost(pre, wiztower) {
+export async function makemap_prepost(pre, wiztower) {
     let tmpnhfp = null;
     let mtmp = null;
     if (pre) {
-        makemap_remove_mons();
+        await makemap_remove_mons();
         /* discard overview info for level */
         rm_mapseen(ledger_no(game.u.uz));
 {
@@ -904,19 +884,19 @@ export function makemap_prepost(pre, wiztower) {
                special prize, lose credit for previously finding it and
                reset for the new instance of that prize */
                 if (remove_achievement(ACH_MINE_PRIZE)) {
-                    pline(__makemap_prepost_Unachieve, "Mine's-end");
+                    await pline(__makemap_prepost_Unachieve, "Mine's-end");
                 }
                 game.context.achieveo.mines_prize_oid = 0;
             } else if ((((((game.dungeon_topology.d_sokoend_level)).dlevel || ((game.dungeon_topology.d_sokoend_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_sokoend_level))))) {
                 if (remove_achievement(ACH_SOKO_PRIZE)) {
-                    pline(__makemap_prepost_Unachieve, "Soko-prize");
+                    await pline(__makemap_prepost_Unachieve, "Soko-prize");
                 }
                 game.context.achieveo.soko_prize_oid = 0;
             }
         }
         if ((game.uball != null)) {
-            ballrelease((0));
-            unplacebc();
+            await ballrelease((0));
+            await unplacebc();
         }
         /* reset lock picking unless it's for a carried container */
         maybe_reset_pick(null);
@@ -926,18 +906,17 @@ export function makemap_prepost(pre, wiztower) {
         }
         game.iflags.travelcc.x = game.iflags.travelcc.y = 0;
         game.context.polearm.hitmon = null;
-        reset_utrap((0));
-        check_special_room((1));
+        await reset_utrap((0));
+        await check_special_room((1));
         memset(game.dndest, 0, 1 /* sizeof(dest_area) */);
         memset(game.updest, 0, 1 /* sizeof(dest_area) */);
         game.u.ustuck = null;
         game.u.uswallow = game.u.uswldtim = 0;
-        set_uinwater(0);
+        await set_uinwater(0);
         /* not hidden, even if means are available */
         game.u.uundetected = 0;
-        /* purge dead monsters from 'fmon' */
-        dmonsfree();
-        dobjsfree();
+        await dmonsfree();
+        await dobjsfree();
         /* discard current level; "saving" is used to release dynamic data */
         tmpnhfp = get_freeing_nhfile();
         savelev(tmpnhfp, ledger_no(game.u.uz));
@@ -945,29 +924,26 @@ export function makemap_prepost(pre, wiztower) {
     } else {
         vision_reset();
         game.vision_full_recalc = 1;
-        cls();
-        /* was using safe_teleds() but that doesn't honor arrival region
-           on levels which have such; we don't force stairs, just area */
-        u_on_rndspot((game.u.uhave.amulet ? 1 : 0) | (wiztower ? 2 : 0));
-        losedogs();
-        kill_genocided_monsters();
+        await cls();
+        await u_on_rndspot((game.u.uhave.amulet ? 1 : 0) | (wiztower ? 2 : 0));
+        await losedogs();
+        await kill_genocided_monsters();
         /* u_on_rndspot() might pick a spot that has a monster, or losedogs()
            might pick the hero's spot (only if there isn't already a monster
            there), so we might have to move hero or the co-located monster */
         if ((mtmp = (game.level.monsters[game.u.ux][game.u.uy])) != null) {
-            u_collide_m(mtmp);
+            await u_collide_m(mtmp);
         }
         initrack();
         if ((game.uball != null)) {
-            unplacebc();
-            placebc();
+            await unplacebc();
+            await placebc();
         }
-        docrt();
-        /* Flush screen buffer. Put the cursor on the hero. */
-        flush_screen(1);
-        deliver_splev_message();
-        check_special_room((0));
-        save_currentstate();
+        await docrt();
+        await flush_screen(1);
+        await deliver_splev_message();
+        await check_special_room((0));
+        await save_currentstate();
     }
 }
 /* temporary? hack, since level type codes aren't the same as screen
@@ -984,16 +960,14 @@ export function levltyp_to_name(typ) {
     return null;
 }
 /* #terrain command -- show known map, inspired by crawl's '|' command */
-export function doterrain() {
+export async function doterrain() {
     let men = 0;
     let sel = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let n = 0;
     let which = 0;
     let clr = 8;
-    /* this used to be done each time vision was recalculated, so would
-       always be up to date (hopefully); now we do it on demand instead */
-    recalc_mapseen();
+    await recalc_mapseen();
     /*
      * normal play: choose between known map without mons, obj, and traps
      *  (to see underlying terrain only), or
@@ -1006,25 +980,25 @@ export function doterrain() {
      */
     men = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(men, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     any.a_int = 1;
-    add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "known map without monsters, objects, and traps", 1);
+    await add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "known map without monsters, objects, and traps", 1);
     any.a_int = 2;
-    add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "known map without monsters and objects", 0);
+    await add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "known map without monsters and objects", 0);
     any.a_int = 3;
-    add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "known map without monsters", 0);
+    await add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "known map without monsters", 0);
     if (game.flags.explore || game.flags.debug) {
         any.a_int = 4;
-        add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "full map without monsters, objects, and traps", 0);
+        await add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "full map without monsters, objects, and traps", 0);
         if (game.flags.debug) {
             any.a_int = 5;
-            add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "internal levl[][].typ codes in base-36", 0);
+            await add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "internal levl[][].typ codes in base-36", 0);
             any.a_int = 6;
-            add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "legend of base-36 levl[][].typ codes", 0);
+            await add_menu(men, nul_glyphinfo, any, 0, 0, 0, clr, "legend of base-36 levl[][].typ codes", 0);
         }
     }
     (game.windowprocs.win_end_menu)(men, "View which?");
-    n = select_menu(men, 1, sel);
+    n = await select_menu(men, 1, sel);
     (game.windowprocs.win_destroy_nhwindow)(men);
     /*
      * n <  0: player used ESC to cancel;
@@ -1041,22 +1015,22 @@ export function doterrain() {
     }
     switch (which) {
         case 1:
-            reveal_terrain(1);
+            await reveal_terrain(1);
             break;
         case 2:
-            reveal_terrain(1 | 2);
+            await reveal_terrain(1 | 2);
             break;
         case 3:
-            reveal_terrain(1 | 2 | 4);
+            await reveal_terrain(1 | 2 | 4);
             break;
         case 4:
-            reveal_terrain(1 | 16);
+            await reveal_terrain(1 | 16);
             break;
         case 5:
-            wiz_map_levltyp();
+            await wiz_map_levltyp();
             break;
         case 6:
-            wiz_levltyp_legend();
+            await wiz_levltyp_legend();
             break;
         default:
             break;
@@ -1130,27 +1104,27 @@ export function dolookaround_floodfill_findroom(x, y) {
     return (1);
 }
 /* describe the room at x,y */
-export function lookaround_known_room(x, y) {
+export async function lookaround_known_room(x, y) {
     let sel = selection_new();
     let rmno = game.u.urooms[0] - 3;
     let qbuf = '';
     set_selection_floodfillchk(dolookaround_floodfill_findroom);
-    selection_floodfill(sel, x, y, (1));
+    await selection_floodfill(sel, x, y, (1));
     if (!((x) == game.u.ux && (y) == game.u.uy)) {
         set_msg_xy(x, y);
     }
     if (u_have_seen_whole_selection(sel)) {
         let u_in = selection_getpoint(x, y, sel);
-        You("%s %s %s.", ((x) == game.u.ux && (y) == game.u.uy) && u_in && u_can_see_whole_selection(sel) ? "are in" : (((x) == game.u.ux && (y) == game.u.uy)) ? "remember this as" : "remember that as", an(selection_size_description(sel, qbuf)), rmno >= 0 ? "room" : "area");
+        await You("%s %s %s.", ((x) == game.u.ux && (y) == game.u.uy) && u_in && u_can_see_whole_selection(sel) ? "are in" : (((x) == game.u.ux && (y) == game.u.uy)) ? "remember this as" : "remember that as", await an(selection_size_description(sel, qbuf)), rmno >= 0 ? "room" : "area");
     } else if (u_have_seen_bounds_selection(sel)) {
-        You("guess %s to be %s %s.", ((x) == game.u.ux && (y) == game.u.uy) ? "this" : "that", an(selection_size_description(sel, qbuf)), rmno >= 0 ? "room" : "area");
+        await You("guess %s to be %s %s.", ((x) == game.u.ux && (y) == game.u.uy) ? "this" : "that", await an(selection_size_description(sel, qbuf)), rmno >= 0 ? "room" : "area");
     } else {
-        You("can't guess the size of %s area.", ((x) == game.u.ux && (y) == game.u.uy) ? "this" : "that");
+        await You("can't guess the size of %s area.", ((x) == game.u.ux && (y) == game.u.uy) ? "this" : "that");
     }
     selection_free(sel, (1));
 }
 /* #lookaround - describe what the hero can see, in text */
-export function dolookaround() {
+export async function dolookaround() {
     let x = 0;
     let y = 0;
     let tmp_getloc_filter = game.iflags.getloc_filter;
@@ -1169,12 +1143,12 @@ export function dolookaround() {
             x = game.u.ux + xdir[i];
             y = game.u.uy + ydir[i];
             if (isok(x, y) && ((game.level.locations[x][y].typ) >= ROOM)) {
-                lookaround_known_room(x, y);
+                await lookaround_known_room(x, y);
             }
         }
         corr_next2u = (1);
     } else {
-        lookaround_known_room(game.u.ux, game.u.uy);
+        await lookaround_known_room(game.u.ux, game.u.uy);
     }
     /* TODO: maybe describe stuff outside the current room differently? */
     game.iflags.getloc_filter = GFILTER_VIEW;
@@ -1190,8 +1164,8 @@ export function dolookaround() {
                 let sym = 0;
                 let firstmatch = null;
                 cc.x = x , cc.y = y;
-                do_screen_description(cc, (1), sym, buf, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, null);
-                pline_xy(x, y, "%s.", firstmatch);
+                await do_screen_description(cc, (1), sym, buf, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, null);
+                await pline_xy(x, y, "%s.", firstmatch);
             }
         }
     }
@@ -1203,11 +1177,11 @@ export function dolookaround() {
 
    BIND=':toggle(price_quotes)
    BIND=@:toggle(autopickup) */
-export function dotoggleoption() {
+export async function dotoggleoption() {
     if (game.cmd_bind && game.cmd_bind.param) {
-        return toggle_bool_option(game.cmd_bind.param);
+        return await toggle_bool_option(game.cmd_bind.param);
     } else {
-        pline("Use #optionsfull to set any option instead.");
+        await pline("Use #optionsfull to set any option instead.");
         return 0;
     }
 }
@@ -1325,9 +1299,9 @@ export function do_run_southwest() {
     return 1;
 }
 /* #reqmenu, prefix command to modify some others */
-export function do_reqmenu() {
+export async function do_reqmenu() {
     if (game.iflags.menu_requested) {
-        Norep("Double %s prefix, canceled.", visctrl(cmd_from_func(do_reqmenu)));
+        await Norep("Double %s prefix, canceled.", visctrl(cmd_from_func(do_reqmenu)));
         game.iflags.menu_requested = (0);
         return 2;
     }
@@ -1335,9 +1309,9 @@ export function do_reqmenu() {
     return 0;
 }
 /* #rush */
-export function do_rush() {
+export async function do_rush() {
     if ((game.domove_attempting & 2)) {
-        Norep("Double rush prefix, canceled.");
+        await Norep("Double rush prefix, canceled.");
         game.context.run = 0;
         game.domove_attempting = 0;
         return 2;
@@ -1347,9 +1321,9 @@ export function do_rush() {
     return 0;
 }
 /* #run */
-export function do_run() {
+export async function do_run() {
     if ((game.domove_attempting & 2)) {
-        Norep("Double run prefix, canceled.");
+        await Norep("Double run prefix, canceled.");
         game.context.run = 0;
         game.domove_attempting = 0;
         return 2;
@@ -1359,9 +1333,9 @@ export function do_run() {
     return 0;
 }
 /* #fight */
-export function do_fight() {
+export async function do_fight() {
     if (game.context.forcefight) {
-        Norep("Double fight prefix, canceled.");
+        await Norep("Double fight prefix, canceled.");
         game.context.forcefight = 0;
         game.domove_attempting = 0;
         return 2;
@@ -1371,18 +1345,17 @@ export function do_fight() {
     return 0;
 }
 /* #repeat */
-export function do_repeat() {
+export async function do_repeat() {
     let res = 0;
     if (!game.in_doagain) {
         let repeat_copy = null;
         if (!cmdq_peek(CQ_REPEAT)) {
-            Norep("There is no command available to repeat.");
+            await Norep("There is no command available to repeat.");
             return 4;
         }
         repeat_copy = cmdq_copy(CQ_REPEAT);
         game.in_doagain = (1);
-        /* read and execute command */
-        rhack(0);
+        await rhack(0);
         game.in_doagain = (0);
         cmdq_clear(CQ_REPEAT);
         game.command_queue[CQ_REPEAT] = repeat_copy;
@@ -1549,7 +1522,7 @@ export function count_bind_keys() {
     return nbinds;
 }
 /* show changed key bindings in text, or if sbuf is non-null, append to it */
-export function get_changed_key_binds(sbuf) {
+export async function get_changed_key_binds(sbuf) {
     let win = (-1);
     let i = 0;
     let buf = '';
@@ -1596,15 +1569,15 @@ export function get_changed_key_binds(sbuf) {
         }
     }
     if (!sbuf) {
-        (game.windowprocs.win_display_nhwindow)(win, (1));
+        await (game.windowprocs.win_display_nhwindow)(win, (1));
         (game.windowprocs.win_destroy_nhwindow)(win);
     }
 }
 /* interactive key binding */
-export function handler_rebind_keys_add(keyfirst) {
+export async function handler_rebind_keys_add(keyfirst) {
     let ec = null;
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let npick = 0;
     let picks = null;
@@ -1613,15 +1586,15 @@ export function handler_rebind_keys_add(keyfirst) {
     let key = 0;
     let clr = 8;
     if (keyfirst) {
-        pline("Bind which key? ");
-        key = pgetchar();
+        await pline("Bind which key? ");
+        key = await pgetchar();
         if (!key || key == 27) {
             return;
         }
     }
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     if (key) {
         let bind = cmdbind_get(key);
         if (bind && bind.cmd) {
@@ -1629,12 +1602,12 @@ export function handler_rebind_keys_add(keyfirst) {
         } else {
             buf = sprintf(buf, "Key '%s' is not bound to anything.", key2txt(key, buf2));
         }
-        add_menu_str(win, buf);
-        add_menu_str(win, "");
+        await add_menu_str(win, buf);
+        await add_menu_str(win, "");
     }
     any.a_int = -1;
-    add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "nothing: unbind the key", 0);
-    add_menu_str(win, "");
+    await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "nothing: unbind the key", 0);
+    await add_menu_str(win, "");
     for (i = 0; i < game.extcmdlist_length; i++) {
         ec = game.extcmdlist[i];
         if ((ec.flags & (1024 | 64 | 16)) != 0) {
@@ -1642,7 +1615,7 @@ export function handler_rebind_keys_add(keyfirst) {
         }
         any.a_int = (i + 1);
         buf = sprintf(buf, "%s: %s", ec.ef_txt, ec.ef_desc);
-        add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+        await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
     }
     if (key) {
         buf = sprintf(buf, "Bind '%s' to what command?", key2txt(key, buf2));
@@ -1650,7 +1623,7 @@ export function handler_rebind_keys_add(keyfirst) {
         buf = sprintf(buf, "Bind what command?");
     }
     (game.windowprocs.win_end_menu)(win, buf);
-    npick = select_menu(win, 1, picks);
+    npick = await select_menu(win, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(win);
     if (npick > 0) {
         let prevcmd = null;
@@ -1669,18 +1642,18 @@ export function handler_rebind_keys_add(keyfirst) {
                     let querybuf = '';
                     parambuf = '';
                     querybuf = sprintf(querybuf, "Command %s requires a parameter:", ec.ef_txt);
-                    getlin(querybuf, parambuf);
+                    parambuf = await getlin(querybuf, parambuf);
                     parambuf = mungspaces(parambuf);
                     cmdstr = nh_snprintf("handler_rebind_keys_add", 2376, cmdstr, 256 - 1, "%s(%s)", ec.ef_txt, parambuf);
-                    cmdstr[256 - 1] = 0;
+                    cmdstr = __nh_char_write(cmdstr, 256 - 1, 0);
                 } else {
                     cmdstr = strcat(cmdstr, ec.ef_txt);
                 }
             }
         }
         if (!key) {
-            pline("Bind which key? ");
-            key = pgetchar();
+            await pline("Bind which key? ");
+            key = await pgetchar();
             if (!key || key == 27) {
                 return;
             }
@@ -1688,18 +1661,18 @@ export function handler_rebind_keys_add(keyfirst) {
         prevcmd = cmdbind_get(key);
         if (bind_key(key, cmdstr, (1))) {
             if (prevcmd && prevcmd.cmd != ec) {
-                pline("Changed key '%s' from \"%s\" to \"%s\".", key2txt(key, buf2), prevcmd.cmd.ef_txt, cmdstr);
+                await pline("Changed key '%s' from \"%s\" to \"%s\".", key2txt(key, buf2), prevcmd.cmd.ef_txt, cmdstr);
             } else if (!prevcmd) {
-                pline("Bound key '%s' to \"%s\".", key2txt(key, buf2), cmdstr);
+                await pline("Bound key '%s' to \"%s\".", key2txt(key, buf2), cmdstr);
             }
         } else {
-            pline("Key binding failed?!");
+            await pline("Key binding failed?!");
         }
     }
 }
-export function handler_rebind_keys() {
+export async function handler_rebind_keys() {
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let npick = 0;
     let picks = null;
@@ -1707,34 +1680,34 @@ export function handler_rebind_keys() {
     redo_rebind: while (true) {
         win = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(win, 0);
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = 1;
-        add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "bind key to a command", 0);
+        await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "bind key to a command", 0);
         any.a_int = 2;
-        add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "bind command to a key", 0);
+        await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "bind command to a key", 0);
         if (count_bind_keys()) {
             any.a_int = 3;
-            add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "view changed key binds", 0);
+            await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, "view changed key binds", 0);
         }
         (game.windowprocs.win_end_menu)(win, "Do what?");
-        npick = select_menu(win, 1, picks);
+        npick = await select_menu(win, 1, picks);
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (npick > 0) {
             i = picks.item.a_int;
             free(picks);
             if (i == 1 || i == 2) {
-                handler_rebind_keys_add((i == 1));
+                await handler_rebind_keys_add((i == 1));
             } else if (i == 3) {
-                get_changed_key_binds(null);
+                await get_changed_key_binds(null);
             }
             continue redo_rebind;
         }
         break;
     }
 }
-export function handler_change_autocompletions() {
+export async function handler_change_autocompletions() {
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let n = 0;
     let picks = null;
@@ -1743,7 +1716,7 @@ export function handler_change_autocompletions() {
     let buf = '';
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; i < game.extcmdlist_length; i++) {
         ec = game.extcmdlist[i];
         if ((ec.flags & (64 | 16)) != 0) {
@@ -1754,10 +1727,10 @@ export function handler_change_autocompletions() {
         }
         any.a_int = (i + 1);
         buf = sprintf(buf, "%c %s: %s", (ec.flags & 8192) ? 42 : 32, ec.ef_txt, ec.ef_desc);
-        add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, (ec.flags & 2) ? 1 : 0);
+        await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, (ec.flags & 2) ? 1 : 0);
     }
     (game.windowprocs.win_end_menu)(win, "Which commands autocomplete?");
-    n = select_menu(win, 2, picks);
+    n = await select_menu(win, 2, picks);
     if (n >= 0) {
         let j = 0;
         for (i = 0; i < game.extcmdlist_length; i++) {
@@ -1772,13 +1745,13 @@ export function handler_change_autocompletions() {
             buf = sprintf(buf, "%s", ec.ef_txt);
             for (j = 0; j < n; ++j) {
                 if (ec == game.extcmdlist[(picks[j].item.a_int - 1)]) {
-                    parseautocomplete(buf, (1));
+                    await parseautocomplete(buf, (1));
                     setit = (1);
                     break;
                 }
             }
             if (!setit) {
-                parseautocomplete(buf, (0));
+                await parseautocomplete(buf, (0));
             }
         }
         if (n > 0) {
@@ -1793,10 +1766,11 @@ export function handler_change_autocompletions() {
             and the entry indexes in matchlist.
    for windowport use. */
 let __extcmds_match_retmatchlist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-export function extcmds_match(findstr, ecmflags, matchlist) {
+__nh_register_static(() => { __extcmds_match_retmatchlist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; });
+export async function extcmds_match(findstr, ecmflags, matchlist) {
     let i = 0;
     let mi = 0;
-    let fslen = findstr ? Strlen_(findstr, "extcmds_match", 2527) : 0;
+    let fslen = findstr ? await Strlen_(findstr, "extcmds_match", 2527) : 0;
     let ignoreac = (ecmflags & 1) != 0;
     let exactmatch = (ecmflags & 2) != 0;
     let no1charcmd = (ecmflags & 4) != 0;
@@ -1831,6 +1805,7 @@ export function extcmds_match(findstr, ecmflags, matchlist) {
     return mi;
 }
 let __key2extcmddesc_key2cmdbuf = '';
+__nh_register_static(() => { __key2extcmddesc_key2cmdbuf = ''; });
 export function key2extcmddesc(key) {
     let txt = null;
     let k = 0;
@@ -2083,7 +2058,7 @@ export function keylist_putcmds(datawin, docount, incl_flags, excl_flags, keys_u
     return count;
 }
 /* list all keys and their bindings, like dat/hh but dynamic */
-export function dokeylist() {
+export async function dokeylist() {
     let extcmd = null;
     let datawin = 0;
     let buf = '';
@@ -2200,7 +2175,7 @@ export function dokeylist() {
         (game.windowprocs.win_putstr)(datawin, 0, "Debug mode commands:");
         keylist_putcmds(datawin, (0), 4, 64, keys_used);
     }
-    (game.windowprocs.win_display_nhwindow)(datawin, (0));
+    await (game.windowprocs.win_display_nhwindow)(datawin, (0));
     (game.windowprocs.win_destroy_nhwindow)(datawin);
 }
 export function ext_func_tab_from_func(fn) {
@@ -2249,6 +2224,7 @@ export function cmd_from_func(fn) {
 /* return visual interpretation of the key bound to extended command,
    or the ext cmd name if not bound to any key. */
 let __cmd_from_ecname_cmdnamebuf = '';
+__nh_register_static(() => { __cmd_from_ecname_cmdnamebuf = ''; });
 export function cmd_from_ecname(ecname) {
     let extcmd = null;
     for (let __nhi_extcmd = 0; (extcmd = game.extcmdlist[__nhi_extcmd]) && (extcmd.ef_txt); __nhi_extcmd++) {
@@ -2280,7 +2256,7 @@ export function ecname_from_fn(fn) {
 /* function whose command name is wanted */
 /* place to store the result */
 /* False: just enough to disambiguate */
-export function cmdname_from_func(fn, outbuf, fullname) {
+export async function cmdname_from_func(fn, outbuf, fullname) {
     let extcmd = null;
     let cmdptr = null;
     let res = null;
@@ -2301,7 +2277,7 @@ export function cmdname_from_func(fn, outbuf, fullname) {
     } else {
         let matchcmd = game.extcmdlist;
         let len = 0;
-        let maxlen = Strlen_(res, "cmdname_from_func", 3130);
+        let maxlen = await Strlen_(res, "cmdname_from_func", 3130);
         do {
             if (++len >= maxlen) {
                 break;
@@ -2324,7 +2300,7 @@ export function cmdname_from_func(fn, outbuf, fullname) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/cmd.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("shortened %s: \"%s\"", res, outbuf);
+                await pline("shortened %s: \"%s\"", res, outbuf);
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -2377,12 +2353,12 @@ export function key2txt(c, txt) {
     }
     return txt;
 }
-export function parseautocomplete(autocomplete, condition) {
+export async function parseautocomplete(autocomplete, condition) {
     let efp = null;
     let autoc = null;
     if ((autoc = strchr(autocomplete, 44)) != null || (autoc = strchr(autocomplete, 58)) != null) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        parseautocomplete(autoc, condition);
+        await parseautocomplete(autoc, condition);
     }
     /* strip leading and trailing white space */
     autocomplete = trimspaces(autocomplete);
@@ -2414,8 +2390,7 @@ export function parseautocomplete(autocomplete, condition) {
             return;
         }
     }
-    /* not a real extended command */
-    raw_printf("Bad autocomplete: invalid extended command '%s'.", autocomplete);
+    await raw_printf("Bad autocomplete: invalid extended command '%s'.", autocomplete);
     (game.windowprocs.win_wait_synch)();
 }
 /* add changed autocompletions to the string buffer in config file format */
@@ -2462,8 +2437,11 @@ const __reset_commands_ndir = "47896321><";
 const __reset_commands_ndir_phone_layout = "41236987><";
 const __reset_commands_ylist = [121, 89, (31 & (121)), ((121) - 128), ((89) - 128), (((31 & (121))) - 128)];
 let __reset_commands_back_dir_cmd = [[null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null]];
+__nh_register_static(() => { __reset_commands_back_dir_cmd = [[null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null], [null, null, null]]; });
 let __reset_commands_back_dir_key = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
+__nh_register_static(() => { __reset_commands_back_dir_key = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]; });
 let __reset_commands_backed_dir_cmd = (0);
+__nh_register_static(() => { __reset_commands_backed_dir_cmd = (0); });
 export function reset_commands(initial) {
     let flagtemp = 0;
     let c = 0;
@@ -2614,7 +2592,9 @@ export function accept_menu_prefix(ec) {
 /* choose a random character, biased towards movement commands, primarily
    for debug-fuzzer testing */
 let __randomkey_i = 0;
+__nh_register_static(() => { __randomkey_i = 0; });
 let __randomkey_last_c = 0;
+__nh_register_static(() => { __randomkey_last_c = 0; });
 export function randomkey() {
     let c = 0;
     /* give ^A and ^P a high probability of being repeated */
@@ -2708,7 +2688,7 @@ export function reset_cmd_vars(reset_cmdq) {
         cmdq_clear(CQ_REPEAT);
     }
 }
-export function rhack(key) {
+export async function rhack(key) {
     let bad_command = 0;
     let firsttime = (key == 0);
     let cq = { typ: 0, key: 0, dirx: 0, diry: 0, dirz: 0, intval: 0, ec_entry: null, next: null };
@@ -2734,7 +2714,7 @@ export function rhack(key) {
            to the !*cmd handling which clears out the command-queue */
             key = (cq.typ == CMDQ_KEY) ? cq.key : 0;
         } else if (firsttime) {
-            key = parse();
+            key = await parse();
             /* parse() pushed a cmd but didn't return any key */
             if (!key && cmdq_peek(CQ_CANNED)) {
                 continue got_prefix_input;
@@ -2767,7 +2747,7 @@ export function rhack(key) {
                 tlist = game.cmd_bind ? game.cmd_bind.cmd : null;
             }
             if (tlist != null) {
-                if (!can_do_extcmd(tlist)) {
+                if (!await can_do_extcmd(tlist)) {
                     /* current - use key to directly index cmdlist array */
                     /* can_do_extcmd() already gave a message */
                     /* it is possible to have a result of (ECMD_TIME|ECMD_CANCEL)
@@ -2783,18 +2763,12 @@ export function rhack(key) {
                     let pfxidx = cmd_from_func(prefix_seen.ef_funct);
                     let which = (pfxidx != 0) ? visctrl(pfxidx) : (prefix_seen.ef_funct == do_reqmenu) ? "move-no-pickup or request-menu" : prefix_seen.ef_txt;
                     if (was_m_prefix) {
-                        /*
-                 * We got a prefix previously and looped for another
-                 * command instead of returning, but the command we got
-                 * doesn't accept a prefix.  The feedback here supersedes
-                 * the former call to help_dir() (for 'bad_command' below).
-                 */
-                        custompline(4, "The %s command does not accept '%s' prefix.", tlist.ef_txt, which);
+                        await custompline(4, "The %s command does not accept '%s' prefix.", tlist.ef_txt, which);
                     } else {
                         let ch = tlist.key;
                         let up = (ch == 60 || tlist.ef_funct == doup);
                         let down = (ch == 62 || tlist.ef_funct == dodown);
-                        pline("The '%s' prefix should be followed by a movement command%s.", which, (up || down) ? " other than up or down" : "");
+                        await pline("The '%s' prefix should be followed by a movement command%s.", which, (up || down) ? " other than up or down" : "");
                     }
                     res = 4;
                     prefix_seen = null;
@@ -2850,16 +2824,14 @@ export function rhack(key) {
                     } else if (!(tlist.flags & 1024) && game.domove_attempting) {
                         ;
                     } else if (((game.domove_attempting & (2 | 1)) != 0) && !game.context.travel && !dxdy_moveok()) {
-                        /* not a movement command, but a move prefix earlier? */
-                        /* trying to move diagonally as a grid bug */
-                        You_cant("get there from here...");
+                        await You_cant("get there from here...");
                         reset_cmd_vars((1));
                         return;
                     } else if ((game.domove_attempting & 1) != 0) {
                         if (game.multi) {
                             game.context.mv = (1);
                         }
-                        domove();
+                        await domove();
                         game.context.forcefight = 0;
                         game.iflags.menu_requested = (0);
                         return;
@@ -2871,7 +2843,7 @@ export function rhack(key) {
                             game.u.last_str_turn = 0;
                         }
                         game.context.mv = (1);
-                        domove();
+                        await domove();
                         game.iflags.menu_requested = (0);
                         return;
                     }
@@ -2899,7 +2871,7 @@ export function rhack(key) {
             bad_command = (1);
         }
         if (bad_command) {
-            custompline(4, "Unknown command '%s'.", visctrl(key));
+            await custompline(4, "Unknown command '%s'.", visctrl(key));
             cmdq_clear(CQ_CANNED);
             cmdq_clear(CQ_REPEAT);
             game.iflags.sanity_no_check = game.iflags.sanity_check;
@@ -2979,11 +2951,11 @@ export function redraw_cmd(c) {
  *
  * Returns non-zero if coordinates in cc are valid.
  */
-export function get_adjacent_loc(prompt, emsg, x, y, cc) {
+export async function get_adjacent_loc(prompt, emsg, x, y, cc) {
     let new_x = 0;
     let new_y = 0;
-    if (!getdir(prompt)) {
-        pline("%s", c_common_strings.c_Never_mind);
+    if (!await getdir(prompt)) {
+        await pline("%s", c_common_strings.c_Never_mind);
         return 0;
     }
     new_x = x + game.u.dx;
@@ -2993,7 +2965,7 @@ export function get_adjacent_loc(prompt, emsg, x, y, cc) {
         cc.y = new_y;
     } else {
         if (emsg) {
-            pline("%s", emsg);
+            await pline("%s", emsg);
         }
         return 0;
     }
@@ -3001,7 +2973,7 @@ export function get_adjacent_loc(prompt, emsg, x, y, cc) {
 }
 /* prompt for a direction (specified via movement keystroke) and return it
    in u.dx, u.dy, and u.dz; function return value is 1 for ok, 0 otherwise */
-export function getdir(s) {
+export async function getdir(s) {
     let dirsym = 0;
     let is_mov = 0;
     let cmdq = null;
@@ -3020,7 +2992,7 @@ export function getdir(s) {
         } else {
             cmdq_clear(CQ_CANNED);
             dirsym = 0;
-            impossible("getdir: command queue had no dir?");
+            await impossible("getdir: command queue had no dir?");
         }
         free(cmdq);
         __from_cmdq = (1);
@@ -3030,9 +3002,9 @@ export function getdir(s) {
         if (!__from_cmdq) {
             game.program_state.input_state = getdirInp;
             if (game.in_doagain || __nh_char_at0(readchar_queue)) {
-                dirsym = readchar();
+                dirsym = await readchar();
             } else {
-                dirsym = yn_function((s && __nh_char_at0(s) != 94) ? s : "In what direction?", null, 0, (0));
+                dirsym = await yn_function((s && __nh_char_at0(s) != 94) ? s : "In what direction?", null, 0, (0));
                 if (game.iflags.debug_fuzzer && rn2(20)) {
                     switch (rn2(20)) {
                         /* for the fuzzer, usually force the result to be a valid direction,
@@ -3054,8 +3026,7 @@ export function getdir(s) {
             }
             (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
             if (redraw_cmd(dirsym)) {
-                /* remove the prompt string so caller won't have to */
-                docrt_flags(docrtRefresh);
+                await docrt_flags(docrtRefresh);
                 continue retry;
             }
             if (!game.in_doagain) {
@@ -3073,7 +3044,7 @@ export function getdir(s) {
         qbuf = sprintf(qbuf, "desired location, then type '%s' for left click, '%s' for right", visctrl(game.Cmd.spkeys[NHKF_GETPOS_PICK_Q]), visctrl(game.Cmd.spkeys[NHKF_GETPOS_PICK]));
         /* starting cursor location for getpos() */
         cc.x = game.u.ux , cc.y = game.u.uy;
-        pos = getpos(cc, (1), qbuf);
+        pos = await getpos(cc, (1), qbuf);
         if (pos < 0) {
             /*
          * For #therecmdmenu:
@@ -3119,7 +3090,7 @@ export function getdir(s) {
                     mod = 2;
                     break;
                 default:
-                    impossible("getpos successful but not one of [.,;:] (%d)", pos);
+                    await impossible("getpos successful but not one of [.,;:] (%d)", pos);
                     mod = 0;
                     pos = -1;
                     break;
@@ -3135,18 +3106,18 @@ export function getdir(s) {
         if (!strchr(quitchars, dirsym)) {
             help_requested = (dirsym == game.Cmd.spkeys[NHKF_GETDIR_HELP]);
             if (help_requested || game.iflags.cmdassist) {
-                did_help = help_dir((s && __nh_char_at0(s) == 94) ? dirsym : 0, game.Cmd.spkeys[NHKF_ESC], help_requested ? null : "Invalid direction key!");
+                did_help = await help_dir((s && __nh_char_at0(s) == 94) ? dirsym : 0, game.Cmd.spkeys[NHKF_ESC], help_requested ? null : "Invalid direction key!");
                 if (help_requested) {
                     continue retry;
                 }
             }
             if (!did_help) {
-                pline("What a strange direction!");
+                await pline("What a strange direction!");
             }
         }
         return 0;
     } else if (is_mov && !dxdy_moveok()) {
-        You_cant("orient yourself that direction.");
+        await You_cant("orient yourself that direction.");
         return 0;
     }
     break;
@@ -3189,7 +3160,7 @@ export function show_direction_keys(win, centerchar, nodiag) {
    might be bogus but could be up, down, or self when not applicable */
 /* actual key; either prefix or ESC */
 const __help_dir_wiz_only_list = "EFGIVW";
-export function help_dir(sym, spkey, msg) {
+export async function help_dir(sym, spkey, msg) {
     let ctrl = 0;
     let win = 0;
     let buf = '';
@@ -3261,7 +3232,7 @@ export function help_dir(sym, spkey, msg) {
         (game.windowprocs.win_putstr)(win, 0, "");
         (game.windowprocs.win_putstr)(win, 0, "(Suppress this message with !cmdassist in config file.)");
     }
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return (1);
 }
@@ -3287,12 +3258,12 @@ export function isok(x, y) {
     return x >= 1 && x <= 80 - 1 && y >= 0 && y <= 21 - 1;
 }
 /* #herecmdmenu command */
-export function doherecmdmenu() {
-    let ch = here_cmd_menu();
+export async function doherecmdmenu() {
+    let ch = await here_cmd_menu();
     return (ch && ch != 27) ? 1 : 0;
 }
 /* #therecmdmenu command, a way to test there_cmd_menu without mouse */
-export function dotherecmdmenu() {
+export async function dotherecmdmenu() {
     let ch = 0;
     let dir = 0;
     let click = 0;
@@ -3301,24 +3272,24 @@ export function dotherecmdmenu() {
     game.iflags.getdir_click = 1 | 2;
     if (isok(x, y)) {
         if (x == game.u.ux && y == game.u.uy) {
-            ch = here_cmd_menu();
+            ch = await here_cmd_menu();
         } else {
-            ch = there_cmd_menu(x, y, game.iflags.getdir_click);
+            ch = await there_cmd_menu(x, y, game.iflags.getdir_click);
         }
         game.clicklook_cc.x = game.clicklook_cc.y = -1;
         game.iflags.getdir_click = 0;
         return (ch && ch != 27) ? 1 : 0;
     }
-    dir = getdir(null);
+    dir = await getdir(null);
     click = game.iflags.getdir_click;
     game.iflags.getdir_click = 0;
     if (!dir || !isok(game.u.ux + game.u.dx, game.u.uy + game.u.dy)) {
         return 2;
     }
     if (game.u.dx || game.u.dy) {
-        ch = there_cmd_menu(game.u.ux + game.u.dx, game.u.uy + game.u.dy, click);
+        ch = await there_cmd_menu(game.u.ux + game.u.dx, game.u.uy + game.u.dy, click);
     } else {
-        ch = here_cmd_menu();
+        ch = await here_cmd_menu();
     }
     return (ch && ch != 27) ? 1 : 0;
 }
@@ -3360,15 +3331,15 @@ export const MCMD_INVENTORY = 33;
 export const MCMD_CAST_SPELL = 34;
 export const MCMD_THROW_OBJ = 35;
 export const MCMD_TRAVEL = 36;
-export function mcmd_addmenu(win, act, txt) {
-    let any = 0;
+export async function mcmd_addmenu(win, act, txt) {
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     any.a_int = act;
-    add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, txt, 0);
+    await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, txt, 0);
 }
 /* command menu entries when targeting self */
-export function there_cmd_menu_self(win, x, y, act) {
+export async function there_cmd_menu_self(win, x, y, act) {
     let K = 0;
     let buf = '';
     let typ = game.level.locations[x][y].typ;
@@ -3379,63 +3350,63 @@ export function there_cmd_menu_self(win, x, y, act) {
     }
     if ((((typ) == FOUNTAIN) || ((typ) == SINK)) && can_reach_floor((0))) {
         buf = sprintf(buf, "Drink from the %s", defsyms[((typ) == FOUNTAIN) ? S_fountain : S_sink].explanation);
-        mcmd_addmenu(win, MCMD_QUAFF, buf) , ++K;
+        await mcmd_addmenu(win, MCMD_QUAFF, buf) , ++K;
     }
     if (((typ) == FOUNTAIN) && can_reach_floor((0))) {
-        mcmd_addmenu(win, MCMD_DIP, "Dip something into the fountain") , ++K;
+        await mcmd_addmenu(win, MCMD_DIP, "Dip something into the fountain") , ++K;
     }
     if (((typ) == THRONE)) {
-        mcmd_addmenu(win, MCMD_SIT, "Sit on the throne") , ++K;
+        await mcmd_addmenu(win, MCMD_SIT, "Sit on the throne") , ++K;
     }
     if (((typ) == ALTAR)) {
-        mcmd_addmenu(win, MCMD_OFFER, "Sacrifice something on the altar") , ++K;
+        await mcmd_addmenu(win, MCMD_OFFER, "Sacrifice something on the altar") , ++K;
     }
     if (stway && stway.up) {
         buf = sprintf(buf, "Go up the %s", stway.isladder ? "ladder" : "stairs");
-        mcmd_addmenu(win, MCMD_UP, buf) , ++K;
+        await mcmd_addmenu(win, MCMD_UP, buf) , ++K;
     }
     if (stway && !stway.up) {
         buf = sprintf(buf, "Go down the %s", stway.isladder ? "ladder" : "stairs");
-        mcmd_addmenu(win, MCMD_DOWN, buf) , ++K;
+        await mcmd_addmenu(win, MCMD_DOWN, buf) , ++K;
     }
     if (game.u.usteed) {
-        buf = sprintf(buf, "Dismount %s", x_monnam(game.u.usteed, 1, null, 8, (0)));
-        mcmd_addmenu(win, MCMD_DISMOUNT, buf) , ++K;
+        buf = sprintf(buf, "Dismount %s", await x_monnam(game.u.usteed, 1, null, 8, (0)));
+        await mcmd_addmenu(win, MCMD_DISMOUNT, buf) , ++K;
     }
     if ((game.level.objects[x][y] != null)) {
         let otmp = game.level.objects[x][y];
-        buf = sprintf(buf, "Pick up %s", otmp.v.v_nexthere ? "items" : doname(otmp));
-        mcmd_addmenu(win, MCMD_PICKUP, buf) , ++K;
+        buf = sprintf(buf, "Pick up %s", otmp.v.v_nexthere ? "items" : await doname(otmp));
+        await mcmd_addmenu(win, MCMD_PICKUP, buf) , ++K;
         if (((otmp).otyp >= LARGE_BOX && (otmp).otyp <= BAG_OF_TRICKS)) {
-            buf = sprintf(buf, "Loot %s", doname(otmp));
-            mcmd_addmenu(win, MCMD_LOOT, buf) , ++K;
-            buf = sprintf(buf, "Tip %s", doname(otmp));
-            mcmd_addmenu(win, MCMD_TIP, buf) , ++K;
+            buf = sprintf(buf, "Loot %s", await doname(otmp));
+            await mcmd_addmenu(win, MCMD_LOOT, buf) , ++K;
+            buf = sprintf(buf, "Tip %s", await doname(otmp));
+            await mcmd_addmenu(win, MCMD_TIP, buf) , ++K;
         }
         if (otmp.oclass == FOOD_CLASS) {
-            buf = sprintf(buf, "Eat %s", doname(otmp));
-            mcmd_addmenu(win, MCMD_EAT, buf) , ++K;
+            buf = sprintf(buf, "Eat %s", await doname(otmp));
+            await mcmd_addmenu(win, MCMD_EAT, buf) , ++K;
         }
     }
     if (game.invent) {
-        mcmd_addmenu(win, MCMD_INVENTORY, "Inventory") , ++K;
-        mcmd_addmenu(win, MCMD_DROP, "Drop items") , ++K;
+        await mcmd_addmenu(win, MCMD_INVENTORY, "Inventory") , ++K;
+        await mcmd_addmenu(win, MCMD_DROP, "Drop items") , ++K;
     }
-    mcmd_addmenu(win, MCMD_REST, "Rest one turn") , ++K;
-    mcmd_addmenu(win, MCMD_SEARCH, "Search around you") , ++K;
-    mcmd_addmenu(win, MCMD_LOOK_HERE, "Look at what is here") , ++K;
+    await mcmd_addmenu(win, MCMD_REST, "Rest one turn") , ++K;
+    await mcmd_addmenu(win, MCMD_SEARCH, "Search around you") , ++K;
+    await mcmd_addmenu(win, MCMD_LOOK_HERE, "Look at what is here") , ++K;
     if (num_spells() > 0) {
-        mcmd_addmenu(win, MCMD_CAST_SPELL, "Cast a spell") , ++K;
+        await mcmd_addmenu(win, MCMD_CAST_SPELL, "Cast a spell") , ++K;
     }
     if ((ttmp = t_at(x, y)) != null && ttmp.tseen) {
         if (ttmp.ttyp != VIBRATING_SQUARE) {
-            mcmd_addmenu(win, MCMD_UNTRAP_HERE, "Attempt to disarm trap") , ++K;
+            await mcmd_addmenu(win, MCMD_UNTRAP_HERE, "Attempt to disarm trap") , ++K;
         }
     }
     return K;
 }
 /* add entries to there_cmd_menu, when x,y is next to hero */
-export function there_cmd_menu_next2u(win, x, y, mod, act) {
+export async function there_cmd_menu_next2u(win, x, y, mod, act) {
     let K = 0;
     let buf = '';
     let typ = game.level.locations[x][y].typ;
@@ -3449,87 +3420,85 @@ export function there_cmd_menu_next2u(win, x, y, mod, act) {
         let card = 0;
         let dm = game.level.locations[x][y].flags;
         if ((dm & (4 | 8))) {
-            mcmd_addmenu(win, MCMD_OPEN_DOOR, "Open the door") , ++K;
+            await mcmd_addmenu(win, MCMD_OPEN_DOOR, "Open the door") , ++K;
             /* unfortunately there's no lknown flag for doors to
                remember the locked/unlocked state */
             key_or_pick = (carrying(SKELETON_KEY) || carrying(LOCK_PICK));
             card = (carrying(CREDIT_CARD) != null);
             if (key_or_pick || card) {
                 buf = sprintf(buf, "%sunlock the door", key_or_pick ? "lock or " : "");
-                mcmd_addmenu(win, MCMD_LOCK_DOOR, upstart(buf)) , ++K;
+                await mcmd_addmenu(win, MCMD_LOCK_DOOR, upstart(buf)) , ++K;
             }
-            /* unfortunately there's no tknown flag for doors (or chests)
-               to remember whether a trap had been found */
-            mcmd_addmenu(win, MCMD_UNTRAP_DOOR, "Search the door for a trap") , ++K;
-            mcmd_addmenu(win, MCMD_KICK_DOOR, "Kick the door") , ++K;
+            await mcmd_addmenu(win, MCMD_UNTRAP_DOOR, "Search the door for a trap") , ++K;
+            await mcmd_addmenu(win, MCMD_KICK_DOOR, "Kick the door") , ++K;
         } else if ((dm & 2) && (mod == 2)) {
-            mcmd_addmenu(win, MCMD_CLOSE_DOOR, "Close the door") , ++K;
+            await mcmd_addmenu(win, MCMD_CLOSE_DOOR, "Close the door") , ++K;
         }
     }
     if (typ <= SCORR) {
-        mcmd_addmenu(win, MCMD_SEARCH, "Search for secret doors") , ++K;
+        await mcmd_addmenu(win, MCMD_SEARCH, "Search for secret doors") , ++K;
     }
     if ((ttmp = t_at(x, y)) != null && ttmp.tseen) {
-        mcmd_addmenu(win, MCMD_LOOK_TRAP, "Examine trap") , ++K;
+        await mcmd_addmenu(win, MCMD_LOOK_TRAP, "Examine trap") , ++K;
         if (ttmp.ttyp != VIBRATING_SQUARE) {
-            mcmd_addmenu(win, MCMD_UNTRAP_TRAP, "Attempt to disarm trap") , ++K;
+            await mcmd_addmenu(win, MCMD_UNTRAP_TRAP, "Attempt to disarm trap") , ++K;
         }
-        mcmd_addmenu(win, MCMD_MOVE_DIR, "Move on the trap") , ++K;
+        await mcmd_addmenu(win, MCMD_MOVE_DIR, "Move on the trap") , ++K;
     }
     if (game.level.locations[x][y].glyph == ((BOULDER) + GLYPH_OBJ_OFF)) {
-        mcmd_addmenu(win, MCMD_MOVE_DIR, "Push the boulder") , ++K;
+        await mcmd_addmenu(win, MCMD_MOVE_DIR, "Push the boulder") , ++K;
     }
     mtmp = (game.level.monsters[x][y]);
     if (mtmp && !(canseemon(mtmp) || sensemon(mtmp))) {
         mtmp = null;
     }
-    if (mtmp && which_armor(mtmp, 1048576)) {
-        let mnam = x_monnam(mtmp, 1, null, 8, (0));
+    if (mtmp && await which_armor(mtmp, 1048576)) {
+        let mnam = await x_monnam(mtmp, 1, null, 8, (0));
         if (!game.u.usteed) {
             buf = sprintf(buf, "Ride %s", mnam);
-            mcmd_addmenu(win, MCMD_RIDE, buf) , ++K;
+            await mcmd_addmenu(win, MCMD_RIDE, buf) , ++K;
         }
         buf = sprintf(buf, "Remove saddle from %s", mnam);
-        mcmd_addmenu(win, MCMD_REMOVE_SADDLE, buf) , ++K;
+        await mcmd_addmenu(win, MCMD_REMOVE_SADDLE, buf) , ++K;
     }
-    if (mtmp && can_saddle(mtmp) && !which_armor(mtmp, 1048576) && carrying(SADDLE)) {
-        buf = sprintf(buf, "Put saddle on %s", mon_nam(mtmp));
-        mcmd_addmenu(win, MCMD_APPLY_SADDLE, buf) , ++K;
+    if (mtmp && can_saddle(mtmp) && !await which_armor(mtmp, 1048576) && carrying(SADDLE)) {
+        buf = sprintf(buf, "Put saddle on %s", await mon_nam(mtmp));
+        await mcmd_addmenu(win, MCMD_APPLY_SADDLE, buf) , ++K;
     }
     if (mtmp && (mtmp.mpeaceful || mtmp.mtame)) {
-        buf = sprintf(buf, "Talk to %s", mon_nam(mtmp));
-        mcmd_addmenu(win, MCMD_TALK, buf) , ++K;
-        buf = sprintf(buf, "Swap places with %s", mon_nam(mtmp));
-        mcmd_addmenu(win, MCMD_MOVE_DIR, buf) , ++K;
-        buf = sprintf(buf, "%s %s", !((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? "Name" : "Rename", mon_nam(mtmp));
-        mcmd_addmenu(win, MCMD_NAME, buf) , ++K;
+        buf = sprintf(buf, "Talk to %s", await mon_nam(mtmp));
+        await mcmd_addmenu(win, MCMD_TALK, buf) , ++K;
+        buf = sprintf(buf, "Swap places with %s", await mon_nam(mtmp));
+        await mcmd_addmenu(win, MCMD_MOVE_DIR, buf) , ++K;
+        buf = sprintf(buf, "%s %s", !((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? "Name" : "Rename", await mon_nam(mtmp));
+        await mcmd_addmenu(win, MCMD_NAME, buf) , ++K;
     }
     if ((mtmp && !(mtmp.mpeaceful || mtmp.mtame)) || ((glyph_at(x, y)) == GLYPH_INVIS_OFF)) {
-        buf = sprintf(buf, "Attack %s", mtmp ? mon_nam(mtmp) : "unseen creature");
-        mcmd_addmenu(win, MCMD_ATTACK_NEXT2U, buf) , ++K;
+        buf = sprintf(buf, "Attack %s", mtmp ? await mon_nam(mtmp) : "unseen creature");
+        await mcmd_addmenu(win, MCMD_ATTACK_NEXT2U, buf) , ++K;
         /* attacking overrides any other automatic action */
         act.value = MCMD_ATTACK_NEXT2U;
     } else { /* "Move %s", direction - handled below */ }
     return K;
 }
-export function there_cmd_menu_far(win, x, y, mod) {
+export async function there_cmd_menu_far(win, x, y, mod) {
     let K = 0;
     if (mod == 1) {
         if (linedup(game.u.ux, game.u.uy, x, y, 1) && dist2(game.u.ux, game.u.uy, x, y) < 18 * 18) {
-            mcmd_addmenu(win, MCMD_THROW_OBJ, "Throw something") , ++K;
+            await mcmd_addmenu(win, MCMD_THROW_OBJ, "Throw something") , ++K;
         }
-        mcmd_addmenu(win, MCMD_TRAVEL, "Travel here") , ++K;
+        await mcmd_addmenu(win, MCMD_TRAVEL, "Travel here") , ++K;
     }
     return K;
 }
-export function there_cmd_menu_common(win, x, y, mod, act) {
+export async function there_cmd_menu_common(win, x, y, mod, act) {
     let K = 0;
     if (mod == 1 || mod == 2) {
         /* ignore iflags.clicklook here */
         /* for self, only include "look at map symbol" if it isn't the
            ordinary hero symbol (steed, invisible w/o see invisible, ?) */
         if (!((x) == game.u.ux && (y) == game.u.uy) || (game.u.umonnum != game.u.umonster) || glyph_at(x, y) != ((((game.u.umonnum != game.u.umonster) || !game.flags.showrace) ? game.u.umonnum : game.urace.mnum) + (((((((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0))) == MALE) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF))) {
-            mcmd_addmenu(win, MCMD_LOOK_AT, "Look at map symbol") , ++K;
+            await mcmd_addmenu(win, MCMD_LOOK_AT, "Look at map symbol") , ++K;
         }
     }
     return K;
@@ -3722,7 +3691,7 @@ export function act_on_act(act, dx, dy) {
 }
 /* offer choice of actions to perform at adjacent location <x,y>;
    a few choices can be farther away */
-export function there_cmd_menu(x, y, mod) {
+export async function there_cmd_menu(x, y, mod) {
     let win = 0;
     let ch = 0;
     let npick = 0;
@@ -3735,15 +3704,15 @@ export function there_cmd_menu(x, y, mod) {
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
     if (((x) == game.u.ux && (y) == game.u.uy)) {
-        K += there_cmd_menu_self(win, x, y, { get value() { return act; }, set value(_v) { act = _v; } });
+        K += await there_cmd_menu_self(win, x, y, { get value() { return act; }, set value(_v) { act = _v; } });
     } else if ((dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2)) {
-        K += there_cmd_menu_next2u(win, x, y, mod, { get value() { return act; }, set value(_v) { act = _v; } });
+        K += await there_cmd_menu_next2u(win, x, y, mod, { get value() { return act; }, set value(_v) { act = _v; } });
     } else {
-        K += there_cmd_menu_far(win, x, y, mod);
+        K += await there_cmd_menu_far(win, x, y, mod);
     }
-    K += there_cmd_menu_common(win, x, y, mod, { get value() { return act; }, set value(_v) { act = _v; } });
+    K += await there_cmd_menu_common(win, x, y, mod, { get value() { return act; }, set value(_v) { act = _v; } });
     if (!K) {
-        if ((dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2) && test_move(game.u.ux, game.u.uy, dx, dy, 1)) {
+        if ((dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2) && await test_move(game.u.ux, game.u.uy, dx, dy, 1)) {
             /* no menu options, try to move */
             let dir = xytodir(dx, dy);
             cmdq_add_ec(CQ_CANNED, game.move_funcs[dir][MV_WALK]);
@@ -3760,7 +3729,7 @@ export function there_cmd_menu(x, y, mod) {
         return 0;
     } else {
         (game.windowprocs.win_end_menu)(win, "What do you want to do?");
-        npick = select_menu(win, 1, picks);
+        npick = await select_menu(win, 1, picks);
         ch = 27;
     }
     (game.windowprocs.win_destroy_nhwindow)(win);
@@ -3772,8 +3741,8 @@ export function there_cmd_menu(x, y, mod) {
     }
     return ch;
 }
-export function here_cmd_menu() {
-    there_cmd_menu(game.u.ux, game.u.uy, 1);
+export async function here_cmd_menu() {
+    await there_cmd_menu(game.u.ux, game.u.uy, 1);
     return 0;
 }
 export function click_to_cmd(x, y, mod) {
@@ -3783,7 +3752,7 @@ export function click_to_cmd(x, y, mod) {
         cmdq_add_ec(CQ_CANNED, game.Cmd.mousebtn[mod - 1].ef_funct);
     }
 }
-export function domouseaction() {
+export async function domouseaction() {
     let x = 0;
     let y = 0;
     let o = null;
@@ -3822,7 +3791,7 @@ export function domouseaction() {
             }
         }
         dir = xytodir(x, y);
-        if (!(game.level.monsters[game.u.ux + x][game.u.uy + y]) && !test_move(game.u.ux, game.u.uy, x, y, 1)) {
+        if (!(game.level.monsters[game.u.ux + x][game.u.uy + y]) && !await test_move(game.u.ux, game.u.uy, x, y, 1)) {
             if (((game.level.locations[game.u.ux + x][game.u.uy + y].typ) == DOOR)) {
                 if (game.level.locations[game.u.ux + x][game.u.uy + y].flags & 8) {
                     /* slight assistance to player: choose kick/open for them */
@@ -3868,7 +3837,7 @@ export function domouseaction() {
 /* if user tries to enter a bigger count, use this */
 /* primary output */
 /* control flags: GC_SAVEHIST, GC_ECHOFIRST */
-export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
+export async function get_count(allowchars, inkey, maxcount, count, gc_flags) {
     let qbuf = '';
     let key = 0;
     let save_input_state = game.program_state.input_state;
@@ -3894,7 +3863,7 @@ export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
             /* if readchar() has already been called in this loop, it will
                have reset input_state; put that back to its previous value */
             game.program_state.input_state = save_input_state;
-            key = readchar();
+            key = await readchar();
         }
         if (digit(key)) {
             let dgt = (key - 48);
@@ -3919,7 +3888,7 @@ export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
         } else if (!allowchars || strchr(allowchars, key)) {
             count.value = cnt;
             if (count.value != cnt) {
-                impossible("get_count: cmdcount_nht");
+                await impossible("get_count: cmdcount_nht");
             }
             break;
         }
@@ -3931,7 +3900,7 @@ export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
                 qbuf = sprintf(qbuf, "Count: %ld", cnt);
                 backspaced = (0);
             }
-            custompline(4, "%s", qbuf);
+            await custompline(4, "%s", qbuf);
             (game.windowprocs.win_mark_synch)();
         }
     }
@@ -3945,24 +3914,24 @@ export function get_count(allowchars, inkey, maxcount, count, gc_flags) {
 /* main command input routine when not repeating and not executing canned
    commands; input comes via get_count() which collects repeat count if one
    is present and returns next non-digit to us */
-export function parse() {
+export async function parse() {
     let foo = 0;
     let bind = null;
     game.iflags.in_parse = (1);
     game.command_count = 0;
     game.context.move = (1);
-    flush_screen(1);
+    await flush_screen(1);
     /* affects readchar() behavior for ESC iff 'altmeta' option is On;
        is always reset to otherInp by readchar() */
     game.program_state.input_state = commandInp;
-    if (!game.Cmd.num_pad || (foo = readchar()) == game.Cmd.spkeys[NHKF_COUNT]) {
+    if (!game.Cmd.num_pad || (foo = await readchar()) == game.Cmd.spkeys[NHKF_COUNT]) {
         /* if 'num_pad' is On then readchar() has just reset input_state;
            set it back to commandInp, so that get_count() supports 'altmeta';
            otherwise "n<count>ESC<character>" becomes "n<count>ESC" (with
            <character> not read from keyboard yet) rather than intended count
            and meta keystroke "n<count>M-<character>" */
         game.program_state.input_state = commandInp;
-        foo = get_count(null, 0, 32767, { get value() { return game.command_count; }, set value(_v) { game.command_count = _v; } }, 0);
+        foo = await get_count(null, 0, 32767, { get value() { return game.command_count; }, set value(_v) { game.command_count = _v; } }, 0);
     }
     game.last_command_count = game.command_count;
     if (foo == game.Cmd.spkeys[NHKF_ESC]) {
@@ -4030,7 +3999,7 @@ export function end_of_input() {
     return;
 }
 /* HANGUPHANDLING */
-export function readchar_core(x, y, mod) {
+export async function readchar_core(x, y, mod) {
     let sym = 0;
     readchar_done: {
         if (game.iflags.debug_fuzzer) {
@@ -4040,7 +4009,7 @@ export function readchar_core(x, y, mod) {
         if (__nh_char_at0(readchar_queue)) {
             sym = (readchar_queue = __nh_advance_str(readchar_queue, 1));
         } else if (game.in_doagain) {
-            sym = pgetchar();
+            sym = await pgetchar();
         } else {
             sym = (game.windowprocs.win_nh_poskey)(x, y, mod);
         }
@@ -4049,7 +4018,7 @@ export function readchar_core(x, y, mod) {
             do {
                 /* omit if clearerr is undefined */
                 clearerr(stdin);
-                sym = pgetchar();
+                sym = await pgetchar();
             } while (--cnt && sym == (-1));
         }
         if (sym == (-1)) {
@@ -4057,11 +4026,7 @@ export function readchar_core(x, y, mod) {
             hangup(0);
             sym = 27;
         } else if (sym == 27 && game.iflags.altmeta && game.program_state.input_state != otherInp) {
-            /* iflags.altmeta: treat two character ``ESC c'' as single `M-c' but
-           only when we're called by parse() [possibly via get_count()]
-           or getpos() [to support Alt+digit] or getdir() [for arrow keys
-           under curses] */
-            sym = __nh_char_at0(readchar_queue) ? (readchar_queue = __nh_advance_str(readchar_queue, 1)) : pgetchar();
+            sym = __nh_char_at0(readchar_queue) ? (readchar_queue = __nh_advance_str(readchar_queue, 1)) : await pgetchar();
             if (sym == (-1) || sym == 0) {
                 sym = 27;
             } else if (sym != 27) {
@@ -4079,23 +4044,23 @@ export function readchar_core(x, y, mod) {
     return sym;
 }
 /* get a character */
-export function readchar() {
+export async function readchar() {
     let ch = 0;
     let x = game.u.ux;
     let y = game.u.uy;
     let mod = 0;
-    ch = readchar_core({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, { get value() { return mod; }, set value(_v) { mod = _v; } });
+    ch = await readchar_core({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, { get value() { return mod; }, set value(_v) { mod = _v; } });
     return ch;
 }
 /* used by getpos() to accept mouse input as well as keyboard input */
-export function readchar_poskey(x, y, mod) {
+export async function readchar_poskey(x, y, mod) {
     let ch = 0;
     game.program_state.input_state = getposInp;
-    ch = readchar_core(x, y, mod);
+    ch = await readchar_core(x, y, mod);
     return ch;
 }
 /* '_' command, #travel, via keyboard rather than mouse click */
-export function dotravel() {
+export async function dotravel() {
     let cc = { x: 0, y: 0 };
     /*
      * Traveling used to be a no-op if user toggled 'travel' option
@@ -4118,33 +4083,30 @@ export function dotravel() {
     if (game.iflags.menu_requested) {
         let gfilt = game.iflags.getloc_filter;
         game.iflags.getloc_filter = GFILTER_VIEW;
-        if (!getpos_menu(cc, GLOC_INTERESTING)) {
+        if (!await getpos_menu(cc, GLOC_INTERESTING)) {
             game.iflags.getloc_filter = gfilt;
             game.iflags.getloc_travelmode = (0);
             return 0;
         }
         game.iflags.getloc_filter = gfilt;
     } else {
-        pline("Where do you want to travel to?");
-        if (getpos(cc, (1), "the desired destination") < 0) {
+        await pline("Where do you want to travel to?");
+        if (await getpos(cc, (1), "the desired destination") < 0) {
             game.iflags.getloc_travelmode = (0);
             return 2;
         }
     }
     game.iflags.travelcc.x = game.u.tx = cc.x;
     game.iflags.travelcc.y = game.u.ty = cc.y;
-    return dotravel_target();
+    return await dotravel_target();
 }
 /* #retravel, travel to iflags.travelcc, which must be set */
-export function dotravel_target() {
+export async function dotravel_target() {
     if (!isok(game.iflags.travelcc.x, game.iflags.travelcc.y)) {
-        /* assume <0,0>, the value assigned when travel reaches destination */
-        pline("No travel destination set.");
+        await pline("No travel destination set.");
         return 0;
     } else if (((game.iflags.travelcc.x) == game.u.ux && (game.iflags.travelcc.y) == game.u.uy)) {
-        /* maybe interrupted while traveling then just walked rest of way
-           so destination hasn't been reset yet */
-        You("are already here.");
+        await You("are already here.");
         game.iflags.travelcc.x = game.iflags.travelcc.y = 0;
         return 0;
     }
@@ -4159,32 +4121,32 @@ export function dotravel_target() {
     }
     game.u.last_str_turn = 0;
     game.context.mv = (1);
-    domove();
+    await domove();
     return 1;
 }
 /* mouse click look command */
-export function doclicklook() {
+export async function doclicklook() {
     if (!isok(game.clicklook_cc.x, game.clicklook_cc.y)) {
         return 0;
     }
     game.context.move = (0);
-    auto_describe(game.clicklook_cc.x, game.clicklook_cc.y);
+    await auto_describe(game.clicklook_cc.x, game.clicklook_cc.y);
     return 0;
 }
 /* can we use menu entries to respond to a query? */
 export function yn_menuable_resp(resp) {
     return game.iflags.query_menu && game.iflags.window_inited && (resp == ynchars || resp == ynqchars || resp == ynaqchars || resp == rightleftchars || resp == hidespinchars);
 }
-export function yn_func_menu_opt(win, key, text, def) {
-    let any = 0;
-    any = cg.zeroany;
+export async function yn_func_menu_opt(win, key, text, def) {
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
+    Object.assign(any, cg.zeroany);
     any.a_char = key;
-    add_menu(win, nul_glyphinfo, any, key, 0, 0, 8, text, (def == key) ? 1 : 0);
+    await add_menu(win, nul_glyphinfo, any, key, 0, 0, 8, text, (def == key) ? 1 : 0);
 }
 /* use a menu to ask a specific response to a query.
    returns TRUE if the menu was shown to the user.
    puts the response char into res. */
-export function yn_function_menu(query, resp, def, res) {
+export async function yn_function_menu(query, resp, def, res) {
     let __nh_res_idx = 0;
     if (yn_menuable_resp(resp)) {
         let win = (game.windowprocs.win_create_nhwindow)(4);
@@ -4193,35 +4155,35 @@ export function yn_function_menu(query, resp, def, res) {
         let keybuf = '';
         (game.windowprocs.win_start_menu)(win, 0);
         if (resp == rightleftchars) {
-            yn_func_menu_opt(win, 114, "Right", def);
-            yn_func_menu_opt(win, 108, "Left", def);
+            await yn_func_menu_opt(win, 114, "Right", def);
+            await yn_func_menu_opt(win, 108, "Left", def);
         } else if (resp == hidespinchars) {
-            yn_func_menu_opt(win, 104, "Hide", def);
-            yn_func_menu_opt(win, 115, "Spin a web", def);
+            await yn_func_menu_opt(win, 104, "Hide", def);
+            await yn_func_menu_opt(win, 115, "Spin a web", def);
         } else {
-            yn_func_menu_opt(win, 121, "Yes", def);
-            yn_func_menu_opt(win, 110, "No", def);
+            await yn_func_menu_opt(win, 121, "Yes", def);
+            await yn_func_menu_opt(win, 110, "No", def);
         }
         if (resp == ynaqchars) {
-            yn_func_menu_opt(win, 97, "All", def);
+            await yn_func_menu_opt(win, 97, "All", def);
         }
         if (resp == ynqchars || resp == ynaqchars || resp == hidespinchars) {
-            yn_func_menu_opt(win, 113, "Quit", def);
+            await yn_func_menu_opt(win, 113, "Quit", def);
         }
         (game.windowprocs.win_end_menu)(win, query);
-        n = select_menu(win, 1, sel);
+        n = await select_menu(win, 1, sel);
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (n > 0) {
             res.value = sel[0].item.a_char;
             /* two were selected? use the one that wasn't the default */
-            if (n > 1 && res[__nh_res_idx] == def) {
+            if (n > 1 && __nh_char_at0(__nh_advance_str(res, __nh_res_idx)) == def) {
                 res.value = sel[1].item.a_char;
             }
             free(sel);
         } else {
             res.value = def;
         }
-        pline("%s %s", query, key2txt(res[__nh_res_idx], keybuf));
+        await pline("%s %s", query, key2txt(__nh_char_at0(__nh_advance_str(res, __nh_res_idx)), keybuf));
         (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
         return (1);
     }
@@ -4232,7 +4194,7 @@ export function yn_function_menu(query, resp, def, res) {
  *   the core from sending too long a prompt string to the
  *   window port causing a buffer overflow there.
  */
-export function yn_function(query, resp, def, addcmdq) {
+export async function yn_function(query, resp, def, addcmdq) {
     let res = 27;
     let qbuf = '';
     let cq = { typ: 0, key: 0, dirx: 0, diry: 0, dirz: 0, intval: 0, ec_entry: null, next: null };
@@ -4248,7 +4210,7 @@ export function yn_function(query, resp, def, addcmdq) {
         /* caller shouldn't have passed anything this long */
         paniclog("Query truncated: ", query);
         qbuf = strncpy(qbuf, query, 128 - 1 - 3);
-        strcpy({ get value() { return qbuf[128 - 1 - 3]; }, set value(_v) { qbuf[128 - 1 - 3] = _v; } }, "...");
+        strcpy({ get value() { return __nh_char_at0(__nh_advance_str(qbuf, 128 - 1 - 3)); }, set value(_v) { __nh_char_at0(__nh_advance_str(qbuf, 128 - 1 - 3)) = _v; } }, "...");
         query = qbuf;
     }
     if (addcmdq && (cmdq = cmdq_pop()) != null) {
@@ -4285,8 +4247,8 @@ export function yn_function(query, resp, def, addcmdq) {
             }
         }
     } else {
-        if (!yn_function_menu(query, resp, def, { get value() { return res; }, set value(_v) { res = _v; } })) {
-            res = (game.windowprocs.win_yn_function)(query, resp, def);
+        if (!await yn_function_menu(query, resp, def, { get value() { return res; }, set value(_v) { res = _v; } })) {
+            res = await (game.windowprocs.win_yn_function)(query, resp, def);
         }
     }
     if (addcmdq) {
@@ -4316,7 +4278,7 @@ export function yn_function(query, resp, def, addcmdq) {
             paniclog("yn debug", dbg_buf);
             /* don't let this known problem kill the fuzzer */
             game.iflags.debug_fuzzer = fuzzer_impossible_continue;
-            impossible("yn_function() returned '%s'; using '%s' instead", visctrl(res), visctrl(altres));
+            await impossible("yn_function() returned '%s'; using '%s' instead", visctrl(res), visctrl(altres));
             game.iflags.debug_fuzzer = fuzzing;
         }
         res = altres;
@@ -4326,7 +4288,7 @@ export function yn_function(query, resp, def, addcmdq) {
 }
 /* for paranoid_confirm:quit,die,attack,&c prompting; allows yes, n|no,
    or q|quit; result is one of 'y' or 'n' or 'q'; ESC yields 'q' */
-export function paranoid_ynq(be_paranoid, prompt, accept_q) {
+export async function paranoid_ynq(be_paranoid, prompt, accept_q) {
     let c = 110;
     if (be_paranoid) {
         /* when paranoid, player must respond with "yes" rather than just 'y'
@@ -4350,7 +4312,7 @@ export function paranoid_ynq(be_paranoid, prompt, accept_q) {
             }
             qbuf = nh_snprintf("paranoid_ynq", 5624, qbuf, 128 /* sizeof(char [128]) */, "%s%s %s", promptprefix, pbuf, responsetype);
             ans = '';
-            getlin(qbuf, ans);
+            ans = await getlin(qbuf, ans);
             ans = mungspaces(ans);
             if (!strncmpi((ans), ("yes"), -1)) {
                 /* default of 'n' is shown for
@@ -4373,9 +4335,9 @@ export function paranoid_ynq(be_paranoid, prompt, accept_q) {
             promptprefix = "\"Yes\" or \"No\": ";
         } while (((game.flags.paranoia_bits & 1) != 0) && strncmpi((ans), ("no"), -1) && --trylimit);
     } else if (accept_q) {
-        c = yn_function(prompt, ynqchars, 110, (0));
+        c = await yn_function(prompt, ynqchars, 110, (0));
     } else {
-        c = yn_function(prompt, ynchars, 110, (0));
+        c = await yn_function(prompt, ynchars, 110, (0));
     }
     if (c != 121 && (c != 113 || !accept_q)) {
         c = 110;
@@ -4384,11 +4346,11 @@ export function paranoid_ynq(be_paranoid, prompt, accept_q) {
 }
 /* for paranoid_confirm:quit,die,attack,&c prompting; allows yes or n|no;
    result is True for yes; n|no and ESC yield False */
-export function paranoid_query(be_paranoid, prompt) {
-    return (paranoid_ynq(be_paranoid, prompt, (0)) == 121);
+export async function paranoid_query(be_paranoid, prompt) {
+    return (await paranoid_ynq(be_paranoid, prompt, (0)) == 121);
 }
 /* ^Z command, #suspend */
-export function dosuspend_core() {
+export async function dosuspend_core() {
     if ((game.windowprocs.win_can_suspend)()) {
         /* Does current window system support suspend? */
         let now = getnow();
@@ -4400,7 +4362,7 @@ export function dosuspend_core() {
         /* resume keeping track of time */
         game.urealtime.start_timing = getnow();
     } else {
-        Norep(cmdnotavail, "#suspend");
+        await Norep(cmdnotavail, "#suspend");
     }
     return 0;
 }
@@ -4418,8 +4380,46 @@ export function dummyfunction() {
     return 2;
 }
 /*cmd.c*/
+/* keep repeating until we don't run help or quit */
+/* was 's', but then using ':' handling within the interface
+               would only examine the two or three meta entries, not the
+               actual list of extended commands shown via separator lines;
+               having ':' as an explicit selector overrides the default
+               menu behavior for it; we retain 's' as a group accelerator */
+/* specifying ':' as a group accelerator here is mostly a
+               statement of intent (we'd like to accept it as a synonym but
+               also want to hide it from general menu use) because it won't
+               work for interfaces which support ':' to search; use as a
+               general menu command takes precedence over group accelerator */
+/* first try case-insensitive substring match */
+/* wildcard support; most interfaces use case-insensitive
+                       pmatch rather than regexp for menu searching */
+/* We're about to show an item, have we shown the menu yet?
+                   Doing menu in inner loop like this on demand avoids a
+                   heading with no subordinate entries on the search
+                   results menu. */
+/* longest ef_txt at present is "wizrumorcheck" (13 chars);
+                   2nd field will be "    " or " [A]" or " [m]" or "[mA]" */
+/* is_pool: might be wearing water walking boots or amulet of
+               magical breathing */
+/* purge dead monsters from 'fmon' */
+/* was using safe_teleds() but that doesn't honor arrival region
+           on levels which have such; we don't force stairs, just area */
+/* this used to be done each time vision was recalculated, so would
+       always be up to date (hopefully); now we do it on demand instead */
+/* read and execute command */
 /* relies on implicit concatenation of literal strings */
+/* not a real extended command */
 /* any char, but avoid '\0' because it's used for mouse click */
+/*
+                 * We got a prefix previously and looped for another
+                 * command instead of returning, but the command we got
+                 * doesn't accept a prefix.  The feedback here supersedes
+                 * the former call to help_dir() (for 'bad_command' below).
+                 */
+/* not a movement command, but a move prefix earlier? */
+/* trying to move diagonally as a grid bug */
+/* remove the prompt string so caller won't have to */
 /* could plug in bound values for spkeys[NHKF_GETPOS_PICK],&c
                    but that feels like overkill for something which should
                    never happen; just show their default values */
@@ -4427,9 +4427,19 @@ export function dummyfunction() {
          * invalid prefix is done in rhack() these days.
          */
 /* non-null msg means that this wasn't an explicit user request */
+/* unfortunately there's no tknown flag for doors (or chests)
+               to remember whether a trap had been found */
 /* force dx and dy to be +1, 0, or -1 */
+/* Flush screen buffer. Put the cursor on the hero. */
 /*
          * Some SYSV systems seem to return EOFs for various reasons
          * (?like when one hits break or for interrupted systemcalls?),
          * and we must see several before we quit.
          */
+/* iflags.altmeta: treat two character ``ESC c'' as single `M-c' but
+           only when we're called by parse() [possibly via get_count()]
+           or getpos() [to support Alt+digit] or getdir() [for arrow keys
+           under curses] */
+/* assume <0,0>, the value assigned when travel reaches destination */
+/* maybe interrupted while traveling then just walked rest of way
+           so destination hasn't been reset yet */

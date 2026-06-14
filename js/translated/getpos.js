@@ -5,9 +5,10 @@ import { game } from '../gstate.js';
 import { abs, sgn } from '../c2js-runtime/math.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { You, pline } from '../c2js-runtime/pline.js';
-import { qsort } from '../c2js-runtime/qsort.js';
+import { qsort , qsort_async } from '../c2js-runtime/qsort.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_char_write, strchr, strcmp, strcpy } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strchr, strcmp, strcpy } from '../c2js-runtime/string.js';
 import { cmd_from_func, cmdq_add_key, cmdq_clear, cmdq_pop, directionname, do_move_east, do_move_north, do_move_south, do_move_west, do_run, do_run_east, do_run_north, do_run_south, do_run_west, do_rush, isok, lock_mouse_buttons, movecmd, readchar_poskey, redraw_cmd, xytodir } from './cmd.js';
 import { cg, quitchars } from './decl.js';
 import { back_to_glyph, docrt_flags, flush_screen, glyph_at, nul_glyphinfo } from './display.js';
@@ -34,7 +35,7 @@ export const HiliteGoodposSymbol = 1;
 export const HiliteBackground = 2;
 game.getpos_hilite_state = HiliteNormalMap;
 game.defaultHiliteState = HiliteNormalMap;
-export function getpos_sethilite(gp_hilitef, gp_getvalidf) {
+export async function getpos_sethilite(gp_hilitef, gp_getvalidf) {
     let old_getvalid = game.getpos_getvalid;
     let old_map_frame_color = game.wsettings.map_frame_color;
     let sel = selection_new();
@@ -48,7 +49,7 @@ export function getpos_sethilite(gp_hilitef, gp_getvalidf) {
     getpos_getvalids_selection(sel, game.getpos_getvalid);
     game.wsettings.map_frame_color = (game.getpos_hilite_state == HiliteBackground) ? 12 : 8;
     if (game.getpos_getvalid != old_getvalid || game.wsettings.map_frame_color != old_map_frame_color) {
-        selection_force_newsyms(sel);
+        await selection_force_newsyms(sel);
     }
     selection_free(sel, (1));
 }
@@ -57,16 +58,13 @@ export function getpos_sethilite(gp_hilitef, gp_getvalidf) {
    positions and showing them via temporary S_goodpos symbol;
    when 'bgcolors' is On, there are three states and showing them via
    setting background color becomes the default */
-export function getpos_toggle_hilite_state() {
+export async function getpos_toggle_hilite_state() {
     if (game.getpos_hilite_state == HiliteGoodposSymbol) {
         /* getpos_hilitefunc isn't Null */
         (game.getpos_hilitefunc)((0));
     }
     game.getpos_hilite_state = (game.getpos_hilite_state + 1) % (game.iflags.bgcolors ? 3 : 2);
-    /* resetting the callback functions to their current values will draw
-       valid-spots with background color if that is the new state and turn
-       off that color if it was the previous state */
-    getpos_sethilite(game.getpos_hilitefunc, game.getpos_getvalid);
+    await getpos_sethilite(game.getpos_hilitefunc, game.getpos_getvalid);
     if (game.getpos_hilite_state == HiliteGoodposSymbol) {
         (game.getpos_hilitefunc)((1));
     }
@@ -111,7 +109,7 @@ export function getpos_help_keyxhelp(tmpwin, k1, k2, gloc) {
 }
 /* the response for '?' help request in getpos() */
 const __getpos_help_fastmovemode = ["8 units at a time", "skipping same glyphs"];
-export function getpos_help(force, goal) {
+export async function getpos_help(force, goal) {
     let sbuf = '';
     let doing_what_is = 0;
     let tmpwin = (game.windowprocs.win_create_nhwindow)(4);
@@ -196,7 +194,7 @@ export function getpos_help(force, goal) {
         (game.windowprocs.win_putstr)(tmpwin, 0, "Type Space or Escape when you're done.");
     }
     (game.windowprocs.win_putstr)(tmpwin, 0, "");
-    (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
+    await (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
 }
 export function cmp_coord_distu(a, b) {
@@ -237,8 +235,8 @@ export function gloc_filter_classify_glyph(glyph) {
     }
     return 0;
 }
-export function gloc_filter_floodfill_matcharea(x, y) {
-    let glyph = back_to_glyph(x, y);
+export async function gloc_filter_floodfill_matcharea(x, y) {
+    let glyph = await back_to_glyph(x, y);
     if (!game.level.locations[x][y].seenv) {
         return (0);
     }
@@ -250,24 +248,22 @@ export function gloc_filter_floodfill_matcharea(x, y) {
     }
     return (0);
 }
-export function gloc_filter_floodfill(x, y) {
-    game.gloc_filter_floodfill_match_glyph = back_to_glyph(x, y);
+export async function gloc_filter_floodfill(x, y) {
+    game.gloc_filter_floodfill_match_glyph = await back_to_glyph(x, y);
     set_selection_floodfillchk(gloc_filter_floodfill_matcharea);
-    selection_floodfill(game.gloc_filter_map, x, y, (0));
+    await selection_floodfill(game.gloc_filter_map, x, y, (0));
 }
-export function gloc_filter_init() {
+export async function gloc_filter_init() {
     if (game.iflags.getloc_filter == GFILTER_AREA) {
         if (!game.gloc_filter_map) {
             game.gloc_filter_map = selection_new();
         }
         if (((game.level.locations[game.u.ux][game.u.uy].typ) == DOOR)) {
             if ((game.u.dx || game.u.dy) && isok(game.u.ux + game.u.dx, game.u.uy + game.u.dy)) {
-                /* special case: if we're in a doorway, try to figure out which
-           direction we're moving, and use that side of the doorway */
-                gloc_filter_floodfill(game.u.ux + game.u.dx, game.u.uy + game.u.dy);
+                await gloc_filter_floodfill(game.u.ux + game.u.dx, game.u.uy + game.u.dy);
             } else { /* TODO: maybe add both sides of the doorway? */ }
         } else {
-            gloc_filter_floodfill(game.u.ux, game.u.uy);
+            await gloc_filter_floodfill(game.u.ux, game.u.uy);
         }
     }
 }
@@ -319,23 +315,12 @@ export function gather_locs_interesting(x, y, gloc) {
     return (0);
 }
 /* gather locations for monsters or objects shown on the map */
-export function gather_locs(arr_p, cnt_p, gloc) {
+export async function gather_locs(arr_p, cnt_p, gloc) {
     let pass = 0;
     let idx = 0;
     let x = 0;
     let y = 0;
-    /*
-     * We always include the hero's location even if there is no monster
-     * (invisible hero without see invisible) or object (usual case)
-     * displayed there.  That way, the count will always be at least 1,
-     * and player has a visual indicator (cursor returns to hero's spot)
-     * highlighting when successive 'm's or 'o's have cycled all the way
-     * through all monsters or objects.
-     *
-     * Hero's spot will always sort to array[0] because it will always
-     * be the shortest distance (namely, 0 units) away from <u.ux,u.uy>.
-     */
-    gloc_filter_init();
+    await gloc_filter_init();
     cnt_p.value = idx = 0;
     for (pass = 0; pass < 2; pass++) {
         for (x = 1; x < 80; x++) {
@@ -354,12 +339,13 @@ export function gather_locs(arr_p, cnt_p, gloc) {
         if (!pass) {
             arr_p.value = alloc(cnt_p.value * 1 /* sizeof(coord) */);
         } else {
-            qsort(arr_p.value, cnt_p.value, 1 /* sizeof(coord) */, cmp_coord_distu);
+            await qsort_async(arr_p.value, cnt_p.value, 1 /* sizeof(coord) */, cmp_coord_distu);
         }
     }
     gloc_filter_done();
 }
 let __dxdy_to_dist_descr_buf = '';
+__nh_register_static(() => { __dxdy_to_dist_descr_buf = ''; });
 const __dxdy_to_dist_descr_dirnames = [["n", "north"], ["s", "south"], ["w", "west"], ["e", "east"]];
 export function dxdy_to_dist_descr(dx, dy, fulldir) {
     let dst = 0;
@@ -388,6 +374,7 @@ export function dxdy_to_dist_descr(dx, dy, fulldir) {
 }
 /* coordinate formatting for 'whatis_coord' option */
 let __coord_desc_screen_fmt = '';
+__nh_register_static(() => { __coord_desc_screen_fmt = ''; });
 export function coord_desc(x, y, outbuf, cmode) {
     let dx = 0;
     let dy = 0;
@@ -415,40 +402,40 @@ export function coord_desc(x, y, outbuf, cmode) {
     }
     return outbuf;
 }
-export function auto_describe(cx, cy) {
+export async function auto_describe(cx, cy) {
     let cc = { x: 0, y: 0 };
     let sym = 0;
     let tmpbuf = '';
     let firstmatch = "unknown";
     cc.x = cx;
     cc.y = cy;
-    if (do_screen_description(cc, (1), sym, tmpbuf, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, null)) {
+    if (await do_screen_description(cc, (1), sym, tmpbuf, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, null)) {
         coord_desc(cx, cy, tmpbuf, game.iflags.getpos_coords);
-        custompline((4 | 2 | 64), "%s%s%s%s%s", firstmatch, tmpbuf ? " " : "", tmpbuf, (game.iflags.autodescribe && game.getpos_getvalid && !(game.getpos_getvalid)(cx, cy)) ? " (invalid target)" : "", (game.iflags.getloc_travelmode && !is_valid_travelpt(cx, cy)) ? " (no travel path)" : "");
+        await custompline((4 | 2 | 64), "%s%s%s%s%s", firstmatch, tmpbuf ? " " : "", tmpbuf, (game.iflags.autodescribe && game.getpos_getvalid && !(game.getpos_getvalid)(cx, cy)) ? " (invalid target)" : "", (game.iflags.getloc_travelmode && !await is_valid_travelpt(cx, cy)) ? " (no travel path)" : "");
         (game.windowprocs.win_curs)(game.WIN_MAP, cx, cy);
-        flush_screen(0);
+        await flush_screen(0);
     }
 }
-export function getpos_menu(ccp, gloc) {
+export async function getpos_menu(ccp, gloc) {
     let garr = [null];
     let gcount = 0;
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let pick_cnt = 0;
     let picks = null;
     let tmpbuf = '';
     let clr = 8;
-    gather_locs({ get value() { return garr; }, set value(_v) { garr = _v; } }, { get value() { return gcount; }, set value(_v) { gcount = _v; } }, gloc);
+    await gather_locs({ get value() { return garr; }, set value(_v) { garr = _v; } }, { get value() { return gcount; }, set value(_v) { gcount = _v; } }, gloc);
     if (gcount < 2) {
         /* gcount always includes the hero */
         free(garr);
-        You("cannot %s %s.", (game.iflags.getloc_filter == GFILTER_VIEW) ? "see" : "detect", gloc_descr[gloc][0]);
+        await You("cannot %s %s.", (game.iflags.getloc_filter == GFILTER_VIEW) ? "see" : "detect", gloc_descr[gloc][0]);
         return (0);
     }
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 1; i < gcount; i++) {
         /* gather_locs returns array[0] == you. skip it. */
         let fullbuf = '';
@@ -458,15 +445,15 @@ export function getpos_menu(ccp, gloc) {
         any.a_int = i + 1;
         tmpcc.x = garr[i].x;
         tmpcc.y = garr[i].y;
-        if (do_screen_description(tmpcc, (1), sym, tmpbuf, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, null)) {
+        if (await do_screen_description(tmpcc, (1), sym, tmpbuf, { get value() { return firstmatch; }, set value(_v) { firstmatch = _v; } }, null)) {
             coord_desc(garr[i].x, garr[i].y, tmpbuf, game.iflags.getpos_coords);
             fullbuf = nh_snprintf("getpos_menu", 705, fullbuf, 256 /* sizeof(char [256]) */, "%s%s%s", firstmatch, (tmpbuf ? " " : ""), tmpbuf);
-            add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, fullbuf, 0);
+            await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, fullbuf, 0);
         }
     }
-    tmpbuf = sprintf(tmpbuf, "Pick %s%s%s", an(gloc_descr[gloc][1]), gloc_filtertxt[game.iflags.getloc_filter], game.iflags.getloc_travelmode ? " for travel destination" : "");
+    tmpbuf = sprintf(tmpbuf, "Pick %s%s%s", await an(gloc_descr[gloc][1]), gloc_filtertxt[game.iflags.getloc_filter], game.iflags.getloc_travelmode ? " for travel destination" : "");
     (game.windowprocs.win_end_menu)(tmpwin, tmpbuf);
-    pick_cnt = select_menu(tmpwin, 1, picks);
+    pick_cnt = await select_menu(tmpwin, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (pick_cnt > 0) {
         ccp.x = garr[picks.item.a_int - 1].x;
@@ -498,15 +485,14 @@ export function truncate_to_map(cx, cy, dx, dy) {
 }
 /* called when ^R typed; if '$' is being shown for valid spots, remove that;
    if alternate background color is being shown for that, redraw it */
-export function getpos_refresh() {
+export async function getpos_refresh() {
     if (game.getpos_hilitefunc && game.getpos_hilite_state == HiliteGoodposSymbol) {
         (game.getpos_hilitefunc)((0));
         game.getpos_hilite_state = game.defaultHiliteState;
     }
-    docrt_flags(docrtRefresh);
+    await docrt_flags(docrtRefresh);
     if (game.getpos_hilitefunc && game.getpos_hilite_state == HiliteBackground) {
-        /* resetting to current values will draw valid-spots highlighting */
-        getpos_sethilite(game.getpos_hilitefunc, game.getpos_getvalid);
+        await getpos_sethilite(game.getpos_hilitefunc, game.getpos_getvalid);
     }
 }
 /* have the player use movement keystrokes to position the cursor at a
@@ -514,7 +500,7 @@ export function getpos_refresh() {
 const __getpos_pick_chars_def = [{ nhkf: NHKF_GETPOS_PICK, ret: LOOK_TRADITIONAL }, { nhkf: NHKF_GETPOS_PICK_Q, ret: LOOK_QUICK }, { nhkf: NHKF_GETPOS_PICK_O, ret: LOOK_ONCE }, { nhkf: NHKF_GETPOS_PICK_V, ret: LOOK_VERBOSE }];
 const __getpos_mMoOdDxX_def = [NHKF_GETPOS_MON_NEXT, NHKF_GETPOS_MON_PREV, NHKF_GETPOS_OBJ_NEXT, NHKF_GETPOS_OBJ_PREV, NHKF_GETPOS_DOOR_NEXT, NHKF_GETPOS_DOOR_PREV, NHKF_GETPOS_UNEX_NEXT, NHKF_GETPOS_UNEX_PREV, NHKF_GETPOS_INTERESTING_NEXT, NHKF_GETPOS_INTERESTING_PREV, NHKF_GETPOS_VALID_NEXT, NHKF_GETPOS_VALID_PREV];
 const __getpos_view_filters = ["Not limiting targets", "Limiting targets to those in sight", "Limiting targets to those in same area"];
-export function getpos(ccp, force, goal) {
+export async function getpos(ccp, force, goal) {
     let cq = { typ: 0, key: 0, dirx: 0, diry: 0, dirz: 0, intval: 0, ec_entry: null, next: null };
     let cmdq = null;
     let cp = null;
@@ -570,14 +556,14 @@ export function getpos(ccp, force, goal) {
             }
         }
         for (i = 0; i < (Math.trunc(4 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/getpos.c:773:12) [4]) */ / 1 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/getpos.c:773:12)) */)); i++) {
-            pick_chars[i] = game.Cmd.spkeys[__getpos_pick_chars_def[i].nhkf];
+            pick_chars = __nh_char_write(pick_chars, i, game.Cmd.spkeys[__getpos_pick_chars_def[i].nhkf]);
         }
-        pick_chars[(Math.trunc(4 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/getpos.c:773:12) [4]) */ / 1 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/getpos.c:773:12)) */))] = 0;
+        pick_chars = __nh_char_write(pick_chars, (Math.trunc(4 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/getpos.c:773:12) [4]) */ / 1 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/getpos.c:773:12)) */)), 0);
         for (i = 0; i < (Math.trunc(48 /* sizeof(const int [12]) */ / 4 /* sizeof(const int) */)); i++) {
-            mMoOdDxX[i] = game.Cmd.spkeys[__getpos_mMoOdDxX_def[i]];
+            mMoOdDxX = __nh_char_write(mMoOdDxX, i, game.Cmd.spkeys[__getpos_mMoOdDxX_def[i]]);
         }
-        mMoOdDxX[(Math.trunc(48 /* sizeof(const int [12]) */ / 4 /* sizeof(const int) */))] = 0;
-        if (handle_tip(TIP_GETPOS)) {
+        mMoOdDxX = __nh_char_write(mMoOdDxX, (Math.trunc(48 /* sizeof(const int [12]) */ / 4 /* sizeof(const int) */)), 0);
+        if (await handle_tip(TIP_GETPOS)) {
             show_goal_msg = (1);
         }
         /* tip has overwritten prompt in mesg window */
@@ -585,24 +571,24 @@ export function getpos(ccp, force, goal) {
             goal = "desired location";
         }
         if (game.flags.verbose) {
-            pline("(For instructions type a '%s')", visctrl(game.Cmd.spkeys[NHKF_GETPOS_HELP]));
+            await pline("(For instructions type a '%s')", visctrl(game.Cmd.spkeys[NHKF_GETPOS_HELP]));
             msg_given = (1);
         }
         cx = game.getposx = ccp.x;
         cy = game.getposy = ccp.y;
         (game.windowprocs.win_cliparound)(cx, cy);
         (game.windowprocs.win_curs)(game.WIN_MAP, cx, cy);
-        flush_screen(0);
+        await flush_screen(0);
         lock_mouse_buttons((1));
         for (; ; ) {
             nxtc: {
                 if (show_goal_msg) {
-                    pline("Move cursor to %s:", goal);
+                    await pline("Move cursor to %s:", goal);
                     (game.windowprocs.win_curs)(game.WIN_MAP, cx, cy);
-                    flush_screen(0);
+                    await flush_screen(0);
                     show_goal_msg = (0);
                 } else if (game.iflags.autodescribe && !msg_given) {
-                    auto_describe(cx, cy);
+                    await auto_describe(cx, cy);
                 }
                 rushrun = (0);
                 if ((cmdq = cmdq_pop()) != null) {
@@ -615,7 +601,7 @@ export function getpos(ccp, force, goal) {
                     }
                     free(cmdq);
                 } else {
-                    c = readchar_poskey({ get value() { return tx; }, set value(_v) { tx = _v; } }, { get value() { return ty; }, set value(_v) { ty = _v; } }, { get value() { return sidx; }, set value(_v) { sidx = _v; } });
+                    c = await readchar_poskey({ get value() { return tx; }, set value(_v) { tx = _v; } }, { get value() { return ty; }, set value(_v) { ty = _v; } }, { get value() { return sidx; }, set value(_v) { sidx = _v; } });
                     /* remember_getpos is normally False because reusing the
                cursor positioning during ^A is almost never the right
                thing to do, but caller could set it if that was needed */
@@ -633,7 +619,7 @@ export function getpos(ccp, force, goal) {
                     break;
                 }
                 if (c == cmd_from_func(do_run) || c == cmd_from_func(do_rush)) {
-                    c = readchar_poskey({ get value() { return tx; }, set value(_v) { tx = _v; } }, { get value() { return ty; }, set value(_v) { ty = _v; } }, { get value() { return sidx; }, set value(_v) { sidx = _v; } });
+                    c = await readchar_poskey({ get value() { return tx; }, set value(_v) { tx = _v; } }, { get value() { return ty; }, set value(_v) { ty = _v; } }, { get value() { return sidx; }, set value(_v) { sidx = _v; } });
                     rushrun = (1);
                 }
                 if (c == 0) {
@@ -690,23 +676,22 @@ export function getpos(ccp, force, goal) {
                     /* '?' will redraw twice, first when removing popup text window
                after showing the help text, then to reset highlighting */
                     if (c == game.Cmd.spkeys[NHKF_GETPOS_HELP]) {
-                        getpos_help(force, goal);
+                        await getpos_help(force, goal);
                     }
-                    /* ^R: docrt(), hilite_state = default */
-                    getpos_refresh();
+                    await getpos_refresh();
                     (game.windowprocs.win_curs)(game.WIN_MAP, cx, cy);
                     /* update message window to reflect that we're still targeting */
                     show_goal_msg = (1);
                 } else if (c == game.Cmd.spkeys[NHKF_GETPOS_SHOWVALID]) {
                     if (game.getpos_hilitefunc) {
-                        getpos_toggle_hilite_state();
+                        await getpos_toggle_hilite_state();
                         (game.windowprocs.win_curs)(game.WIN_MAP, cx, cy);
                     }
                     show_goal_msg = (1);
                     break nxtc;
                 } else if (c == game.Cmd.spkeys[NHKF_GETPOS_AUTODESC]) {
                     game.iflags.autodescribe = !game.iflags.autodescribe;
-                    pline("Automatic description %sis %s.", game.flags.verbose ? "of features under cursor " : "", game.iflags.autodescribe ? "on" : "off");
+                    await pline("Automatic description %sis %s.", game.flags.verbose ? "of features under cursor " : "", game.iflags.autodescribe ? "on" : "off");
                     if (!game.iflags.autodescribe) {
                         show_goal_msg = (1);
                     }
@@ -721,12 +706,12 @@ export function getpos(ccp, force, goal) {
                         }
                         (gcount[i] = 0, gidx[i] = 0);
                     }
-                    pline("%s.", __getpos_view_filters[game.iflags.getloc_filter]);
+                    await pline("%s.", __getpos_view_filters[game.iflags.getloc_filter]);
                     msg_given = (1);
                     break nxtc;
                 } else if (c == game.Cmd.spkeys[NHKF_GETPOS_MENU]) {
                     game.iflags.getloc_usemenu = !game.iflags.getloc_usemenu;
-                    pline("%s a menu to show possible targets%s.", game.iflags.getloc_usemenu ? "Using" : "Not using", game.iflags.getloc_usemenu ? " for 'm|M', 'o|O', 'd|D', and 'x|X'" : "");
+                    await pline("%s a menu to show possible targets%s.", game.iflags.getloc_usemenu ? "Using" : "Not using", game.iflags.getloc_usemenu ? " for 'm|M', 'o|O', 'd|D', and 'x|X'" : "");
                     msg_given = (1);
                     break nxtc;
                 } else if (c == game.Cmd.spkeys[NHKF_GETPOS_SELF]) {
@@ -740,7 +725,7 @@ export function getpos(ccp, force, goal) {
                     break nxtc;
                 } else if (c == game.Cmd.spkeys[NHKF_GETPOS_MOVESKIP]) {
                     game.iflags.getloc_moveskip = !game.iflags.getloc_moveskip;
-                    pline("%skipping over similar terrain when fastmoving the cursor.", game.iflags.getloc_moveskip ? "S" : "Not s");
+                    await pline("%skipping over similar terrain when fastmoving the cursor.", game.iflags.getloc_moveskip ? "S" : "Not s");
                     msg_given = (1);
                     break nxtc;
                 } else if ((cp = strchr(mMoOdDxX, c)) != null) {
@@ -749,14 +734,14 @@ export function getpos(ccp, force, goal) {
                     let gloc = gtmp >> 1;
                     if (game.iflags.getloc_usemenu) {
                         let tmpcrd = { x: 0, y: 0 };
-                        if (getpos_menu(tmpcrd, gloc)) {
+                        if (await getpos_menu(tmpcrd, gloc)) {
                             cx = tmpcrd.x;
                             cy = tmpcrd.y;
                         }
                         break nxtc;
                     }
                     if (!garr[gloc]) {
-                        gather_locs({ get value() { return garr[gloc]; }, set value(_v) { garr[gloc] = _v; } }, { get value() { return gcount[gloc]; }, set value(_v) { gcount[gloc] = _v; } }, gloc);
+                        await gather_locs({ get value() { return garr[gloc]; }, set value(_v) { garr[gloc] = _v; } }, { get value() { return gcount[gloc]; }, set value(_v) { gcount[gloc] = _v; } }, gloc);
                         /* garr[][0] is hero's spot */
                         gidx[gloc] = 0;
                     }
@@ -788,7 +773,7 @@ export function getpos(ccp, force, goal) {
                                 continue;
                             }
                             if (c == defsyms[sidx].sym || c == game.showsyms[sidx] || (c == 94 && ((sidx) >= S_arrow_trap && (sidx) < S_arrow_trap + (TRAPNUM - 1))) || (c == game.showsyms[S_engroom] && ((sidx) == S_engroom || (sidx) == S_engrcorr))) {
-                                matching[sidx] = ++k;
+                                matching = __nh_char_write(matching, sidx, ++k);
                             }
                         }
                         if (k) {
@@ -809,7 +794,7 @@ export function getpos(ccp, force, goal) {
                                             /* first, look at what is currently visible
                                    (might be monster) */
                                             k = glyph_at(tx, ty);
-                                            if (((k) >= GLYPH_CMAP_STONE_OFF && (k) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) && matching[glyph_to_cmap(k)]) {
+                                            if (((k) >= GLYPH_CMAP_STONE_OFF && (k) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) && __nh_char_at0(__nh_advance_str(matching, glyph_to_cmap(k)))) {
                                                 break foundc;
                                             }
                                             if (game.level.flags.hero_memory && !game.iflags.terrainmode) {
@@ -818,7 +803,7 @@ export function getpos(ccp, force, goal) {
                                                 /* !terrainmode: don't move to remembered
                                        trap or object if not currently shown */
                                                 k = game.level.locations[tx][ty].glyph;
-                                                if (((k) >= GLYPH_CMAP_STONE_OFF && (k) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) && matching[glyph_to_cmap(k)]) {
+                                                if (((k) >= GLYPH_CMAP_STONE_OFF && (k) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) && __nh_char_at0(__nh_advance_str(matching, glyph_to_cmap(k)))) {
                                                     break foundc;
                                                 }
                                             }
@@ -828,10 +813,8 @@ export function getpos(ccp, force, goal) {
                                                 break foundc;
                                             }
                                             if (game.level.locations[tx][ty].seenv) {
-                                                /* last, try actual terrain here (shouldn't
-                                   we be using svl.lastseentyp[][] instead?) */
-                                                k = back_to_glyph(tx, ty);
-                                                if (((k) >= GLYPH_CMAP_STONE_OFF && (k) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) && matching[glyph_to_cmap(k)]) {
+                                                k = await back_to_glyph(tx, ty);
+                                                if (((k) >= GLYPH_CMAP_STONE_OFF && (k) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1))) && __nh_char_at0(__nh_advance_str(matching, glyph_to_cmap(k)))) {
                                                     break foundc;
                                                 }
                                             }
@@ -846,7 +829,7 @@ export function getpos(ccp, force, goal) {
                                     }
                                 }
                             }
-                            pline("Can't find dungeon feature '%c'.", c);
+                            await pline("Can't find dungeon feature '%c'.", c);
                             msg_given = (1);
                             break nxtc;
                         } else {
@@ -856,14 +839,14 @@ export function getpos(ccp, force, goal) {
                             } else {
                                 note = sprintf(note, "use '%s', '%s', '%s', '%s' or '%s'", visctrl(cmd_from_func(do_move_west)), visctrl(cmd_from_func(do_move_south)), visctrl(cmd_from_func(do_move_north)), visctrl(cmd_from_func(do_move_east)), visctrl(game.Cmd.spkeys[NHKF_GETPOS_PICK]));
                             }
-                            pline("Unknown direction: '%s' (%s).", visctrl(c), note);
+                            await pline("Unknown direction: '%s' (%s).", visctrl(c), note);
                             msg_given = (1);
                         }
                     }
                     if (force) {
                         break nxtc;
                     }
-                    pline("Done.");
+                    await pline("Done.");
                     msg_given = (0);
                     cx = -1;
                     cy = 0;
@@ -874,7 +857,7 @@ export function getpos(ccp, force, goal) {
             game.getposx = cx , game.getposy = cy;
             (game.windowprocs.win_cliparound)(cx, cy);
             (game.windowprocs.win_curs)(game.WIN_MAP, cx, cy);
-            flush_screen(0);
+            await flush_screen(0);
         }
     }
     lock_mouse_buttons((0));
@@ -889,15 +872,31 @@ export function getpos(ccp, force, goal) {
             free(garr[i]);
         }
     }
-    getpos_sethilite(null, null);
+    await getpos_sethilite(null, null);
     game.u.dx = udx , game.u.dy = udy , game.u.dz = udz;
     return result;
 }
 /*getpos.c*/
+/* resetting the callback functions to their current values will draw
+       valid-spots with background color if that is the new state and turn
+       off that color if it was the previous state */
 /* default is too wide for basic 80-column tty so shorten it
                to avoid wrapping */
+/* special case: if we're in a doorway, try to figure out which
+           direction we're moving, and use that side of the doorway */
 /* unlike '/M', this skips monsters revealed by
            warning glyphs and remembered unseen ones */
+/*
+     * We always include the hero's location even if there is no monster
+     * (invisible hero without see invisible) or object (usual case)
+     * displayed there.  That way, the count will always be at least 1,
+     * and player has a visual indicator (cursor returns to hero's spot)
+     * highlighting when successive 'm's or 'o's have cycled all the way
+     * through all monsters or objects.
+     *
+     * Hero's spot will always sort to array[0] because it will always
+     * be the shortest distance (namely, 0 units) away from <u.ux,u.uy>.
+     */
 /* upper left corner of map is <1,0>;
            with default COLNO,ROWNO lower right corner is <79,20> */
 /* for normal map sizes, force a fixed-width formatting so that
@@ -907,3 +906,7 @@ export function getpos(ccp, force, goal) {
 
            The (100) is placed in brackets below to mark the [: "03"] as
            explicit compile-time dead code for clang */
+/* resetting to current values will draw valid-spots highlighting */
+/* ^R: docrt(), hilite_state = default */
+/* last, try actual terrain here (shouldn't
+                                   we be using svl.lastseentyp[][] instead?) */

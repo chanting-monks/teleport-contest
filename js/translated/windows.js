@@ -10,6 +10,7 @@ import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { panic } from '../c2js-runtime/panic.js';
 import { pline, raw_printf } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, fprintf, puts, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, strchr, strcmp, strcpy, strlen, strncmpi, strncpy, strstr } from '../c2js-runtime/string.js';
 import { tty_procs, win_tty_init } from '../c2js-runtime/wintty.js';
@@ -93,7 +94,7 @@ export function win_choices_find(s) {
      */
     return null;
 }
-export function choose_windows(s) {
+export async function choose_windows(s) {
     let i = 0;
     let tmps = null;
     for (i = 0; game.winchoices[i].procs; i++) {
@@ -124,8 +125,7 @@ export function choose_windows(s) {
         game.windowprocs.win_wait_synch = def_wait_synch;
     }
     if (!game.winchoices[0].procs) {
-        /* early config file error processing routines call this */
-        raw_printf("No window types supported?");
+        await raw_printf("No window types supported?");
         nh_terminate(1);
     }
     if (strlen(s) >= 50) {
@@ -179,8 +179,8 @@ export function choose_windows(s) {
  * --More-- prompt; other interfaces generally don't need that.
  */
 /*ARGSUSED*/
-export function genl_message_menu(let_, how, mesg) {
-    pline("%s", mesg);
+export async function genl_message_menu(let_, how, mesg) {
+    await pline("%s", mesg);
     return 0;
 }
 /*ARGSUSED*/
@@ -190,29 +190,9 @@ export function genl_preference_update(pref) {
 export function genl_getmsghistory(init) {
     return null;
 }
-export function genl_putmsghistory(msg, is_restoring) {
-    /* window ports can provide
-       their own putmsghistory() routine to
-       load message history from a saved game.
-       The routine is called repeatedly from
-       the core restore routine, starting with
-       the oldest saved message first, and
-       finishing with the latest.
-       The window port routine is expected to
-       load the message recall buffers in such
-       a way that the ordering is preserved.
-       The window port routine should make no
-       assumptions about how many messages are
-       forthcoming, nor should it assume that
-       another message will follow this one,
-       so it should keep all pointers/indexes
-       intact at the end of each call.
-    */
-    /* this doesn't provide for reloading the message window with the
-       previous session's messages upon restore, but it does put the quest
-       message summary lines there by treating them as ordinary messages */
+export async function genl_putmsghistory(msg, is_restoring) {
     if (!is_restoring) {
-        pline("%s", msg);
+        await pline("%s", msg);
     }
     return;
 }
@@ -393,7 +373,7 @@ export const status_fieldnm = [null, null, null, null, null, null, null, null, n
 export const status_fieldfmt = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
 game.status_vals = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
 game.status_activefields = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-export function genl_status_init() {
+export async function genl_status_init() {
     let i = 0;
     for (i = 0; i < MAXBLSTATS; ++i) {
         game.status_vals[i] = alloc(200);
@@ -403,7 +383,7 @@ export function genl_status_init() {
     }
     /* Use a window for the genl version; backward port compatibility */
     game.WIN_STATUS = (game.windowprocs.win_create_nhwindow)(2);
-    (game.windowprocs.win_display_nhwindow)(game.WIN_STATUS, 0);
+    await (game.windowprocs.win_display_nhwindow)(game.WIN_STATUS, 0);
 }
 export function genl_status_finish() {
     let i = 0;
@@ -423,6 +403,7 @@ export function genl_status_enablefield(fieldidx, nm, fmt, enable) {
 /* move experience and time to the end */
 /* move level description plus gold and experience and time to end */
 let __genl_status_update_fieldorder = [[BL_TITLE, BL_STR, BL_DX, BL_CO, BL_IN, BL_WI, BL_CH, BL_ALIGN, BL_SCORE, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_HUNGER, BL_CAP, BL_CONDITION, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_XP, BL_EXP, BL_HD, BL_HUNGER, BL_CAP, BL_CONDITION, BL_TIME, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_HUNGER, BL_CAP, BL_CONDITION, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_FLUSH], [BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_HUNGER, BL_CAP, BL_CONDITION, BL_LEVELDESC, BL_GOLD, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_FLUSH]];
+__nh_register_static(() => { __genl_status_update_fieldorder = [[BL_TITLE, BL_STR, BL_DX, BL_CO, BL_IN, BL_WI, BL_CH, BL_ALIGN, BL_SCORE, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_HUNGER, BL_CAP, BL_CONDITION, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_XP, BL_EXP, BL_HD, BL_HUNGER, BL_CAP, BL_CONDITION, BL_TIME, BL_FLUSH], [BL_LEVELDESC, BL_GOLD, BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_HUNGER, BL_CAP, BL_CONDITION, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_FLUSH], [BL_HP, BL_HPMAX, BL_ENE, BL_ENEMAX, BL_AC, BL_HUNGER, BL_CAP, BL_CONDITION, BL_LEVELDESC, BL_GOLD, BL_XP, BL_EXP, BL_HD, BL_TIME, BL_FLUSH]]; });
 export function genl_status_update(idx, ptr, chg, percent, color, colormasks) {
     let newbot1 = '';
     let newbot2 = '';
@@ -714,6 +695,7 @@ export function glyph2symidx(glyph) {
     return glyphinfo.gm.sym.symidx;
 }
 let __encglyph_encbuf = '';
+__nh_register_static(() => { __encglyph_encbuf = ''; });
 export function encglyph(glyph) {
     __encglyph_encbuf = sprintf(__encglyph_encbuf, "\\G%04X%04X", game.context.rndencode, glyph);
     return __encglyph_encbuf;
@@ -765,7 +747,7 @@ export function decode_mixed(buf, str) {
                         str = __nh_advance_str(str, (dcount + 1));
                         map_glyphinfo(0, 0, ggv, 0, glyphinfo);
                         so = glyphinfo.gm.sym.symidx;
-                        buf[__nh_put_idx++] = game.showsyms[so];
+                        buf = buf.slice(0, __nh_put_idx++) + String.fromCharCode(game.showsyms[so]);
                         /* 'str' is ready for the next loop iteration and '*str'
                        should not be copied at the end of this iteration */
                         continue;
@@ -781,9 +763,9 @@ export function decode_mixed(buf, str) {
                     break;
             }
         }
-        buf[__nh_put_idx++] = (str = __nh_advance_str(str, 1));
+        buf = buf.slice(0, __nh_put_idx++) + String.fromCharCode((str = __nh_advance_str(str, 1)));
     }
-    buf[__nh_put_idx] = 0;
+    buf = buf.slice(0, __nh_put_idx);
     return buf;
 }
 /*
@@ -903,10 +885,10 @@ export function mixed_to_glyphinfo(str, gip) {
  *
  * Returns number selected.
  */
-export function choose_classes_menu(prompt, category, way, class_list, class_select) {
+export async function choose_classes_menu(prompt, category, way, class_list, class_select) {
     let pick_list = null;
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let buf = '';
     let text = null;
     let selected = 0;
@@ -920,7 +902,7 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
         return 0;
     }
     next_accelerator = 97;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
     while (__nh_char_at0(class_list)) {
@@ -930,7 +912,7 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
             case 0:
                 idx = def_char_to_monclass(__nh_char_at0(class_list));
                 if (!((idx) >= 0 && (idx) < (Math.trunc(61 /* sizeof(const struct class_sym [61]) */ / 1 /* sizeof(const struct class_sym) */)))) {
-                    panic("choose_classes_menu: invalid monclass '%c'", __nh_char_at0(class_list));
+                    await panic("choose_classes_menu: invalid monclass '%c'", __nh_char_at0(class_list));
                 }
                 text = def_monsyms[idx].explain;
                 accelerator = __nh_char_at0(class_list);
@@ -939,14 +921,14 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
             case 1:
                 idx = def_char_to_objclass(__nh_char_at0(class_list));
                 if (!((idx) >= 0 && (idx) < (Math.trunc(18 /* sizeof(const struct class_sym [18]) */ / 1 /* sizeof(const struct class_sym) */)))) {
-                    panic("choose_classes_menu: invalid objclass '%c'", __nh_char_at0(class_list));
+                    await panic("choose_classes_menu: invalid objclass '%c'", __nh_char_at0(class_list));
                 }
                 text = def_oc_syms[idx].explain;
                 accelerator = next_accelerator;
                 buf = sprintf(buf, "%c  %s", __nh_char_at0(class_list), text);
                 break;
             default:
-                panic("choose_classes_menu: invalid category %d", category);
+                await panic("choose_classes_menu: invalid category %d", category);
         }
         if (way && class_select.value) {
             if (strchr(class_select, __nh_char_at0(class_list))) {
@@ -955,7 +937,7 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
             }
         }
         any.a_int = __nh_char_at0(class_list);
-        add_menu(win, nul_glyphinfo, any, accelerator, category ? __nh_char_at0(class_list) : 0, 0, clr, buf, selected ? 1 : 0);
+        await add_menu(win, nul_glyphinfo, any, accelerator, category ? __nh_char_at0(class_list) : 0, 0, clr, buf, selected ? 1 : 0);
         if (category > 0) {
             if (next_accelerator == 90) {
                 break;
@@ -968,24 +950,18 @@ export function choose_classes_menu(prompt, category, way, class_list, class_sel
         (class_list = __nh_advance_str(class_list, 1));
     }
     if (category == 1 && next_accelerator <= 122) {
-        /* for objects, add "A - ' '  all classes", after a separator */
-        add_menu_str(win, "");
-        any = cg.zeroany;
+        await add_menu_str(win, "");
+        Object.assign(any, cg.zeroany);
         any.a_int = 32;
         buf = sprintf(buf, "%c  %s", any.a_int, "All classes of objects");
-        /* we won't preselect this even if the incoming list is empty;
-           having it selected means that it would have to be explicitly
-           de-selected in order to select anything else */
-        add_menu(win, nul_glyphinfo, any, 65, 0, 0, clr, buf, 2);
+        await add_menu(win, nul_glyphinfo, any, 65, 0, 0, clr, buf, 2);
         if (!strcmp(prompt, "Autopickup what?")) {
-            add_menu_str(win, "Note: when no choices are selected, \"all\" is implied.");
-            /* for 'O', "toggle" should be intuitive; for 'm O', it would
-               probably be better to say "Set 'autopickup' to true|false" */
-            add_menu_str(win, game.flags.pickup ? "Toggle off 'autopickup' to not pick up anything." : "Toggle on 'autopickup' to automatically pick these things up.");
+            await add_menu_str(win, "Note: when no choices are selected, \"all\" is implied.");
+            await add_menu_str(win, game.flags.pickup ? "Toggle off 'autopickup' to not pick up anything." : "Toggle on 'autopickup' to automatically pick these things up.");
         }
     }
     (game.windowprocs.win_end_menu)(win, prompt);
-    n = select_menu(win, way ? 2 : 1, pick_list);
+    n = await select_menu(win, way ? 2 : 1, pick_list);
     (game.windowprocs.win_destroy_nhwindow)(win);
     if (n > 0) {
         if (category == 1) {
@@ -1038,12 +1014,12 @@ export function adjust_menu_promptstyle(window, style) {
 /* color for menu text (str) */
 /* menu text */
 /* itemflags such as MENU_ITEMFLAGS_SELECTED */
-export function add_menu(window, glyphinfo, identifier, ch, gch, attr, color, str, itemflags) {
+export async function add_menu(window, glyphinfo, identifier, ch, gch, attr, color, str, itemflags) {
     if (!str) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/windows.c", 1)) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("add_menu(Null)");
+                await pline("add_menu(Null)");
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -1059,7 +1035,7 @@ export function add_menu(window, glyphinfo, identifier, ch, gch, attr, color, st
     (game.windowprocs.win_add_menu)(window, glyphinfo, identifier, ch, gch, attr, color, str, itemflags);
 }
 /* insert a non-selectable, possibly highlighted line of text into a menu */
-export function add_menu_heading(tmpwin, buf) {
+export async function add_menu_heading(tmpwin, buf) {
     let any = cg.zeroany;
     let attr = game.iflags.menu_headings.attr;
     let color = game.iflags.menu_headings.color;
@@ -1067,12 +1043,12 @@ export function add_menu_heading(tmpwin, buf) {
     if (game.program_state.gameover) {
         attr = 0 , color = 8;
     }
-    add_menu(tmpwin, nul_glyphinfo, any, 0, 0, attr, color, buf, 4);
+    await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, attr, color, buf, 4);
 }
 /* insert a non-selectable, unhighlighted line of text into a menu */
-export function add_menu_str(tmpwin, buf) {
+export async function add_menu_str(tmpwin, buf) {
     let any = cg.zeroany;
-    add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, 8, buf, 0);
+    await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, 8, buf, 0);
 }
 export function get_menu_coloring(str, color, attr) {
     let tmpmc = null;
@@ -1087,35 +1063,23 @@ export function get_menu_coloring(str, color, attr) {
     }
     return 0;
 }
-export function select_menu(window, how, menu_list) {
+export async function select_menu(window, how, menu_list) {
     let reslt = 0;
     let old_bot_disabled = game.bot_disabled;
     game.bot_disabled = 1;
-    reslt = (game.windowprocs.win_select_menu)(window, how, menu_list);
+    reslt = await (game.windowprocs.win_select_menu)(window, how, menu_list);
     game.bot_disabled = old_bot_disabled;
     return reslt;
 }
-export function getlin(query, bufp) {
+export async function getlin(query, bufp) {
     let old_bot_disabled = game.bot_disabled;
     let obufp = bufp;
     let got_cmdq = 0;
     let cmdq = null;
-    /* Hand-port (§23.239 return-buffer convention, Q9 iter 44):
-       callers that pass a STRING buf can't receive the line through
-       the array-walker writes below (strict mode even throws on
-       `(string).value = ...`), so collect the line separately and
-       RETURN it; string-buf call sites rebind (teleport.js
-       level_tele).  Array-buf callers (zap.js makewish via #wizwish)
-       keep the original walker writes untouched. */
     let __line = '';
-    const __arraybuf = (typeof obufp === 'object' && obufp !== null);
     while ((cmdq = cmdq_pop()) != null) {
         if (cmdq.typ == CMDQ_KEY) {
             got_cmdq = 1;
-            if (__arraybuf) {
-                bufp.value = (cmdq.key != 10) ? cmdq.key : 0;
-                (bufp = __nh_advance_str(bufp, 1));
-            }
             if (cmdq.key != 10) {
                 __line += String.fromCharCode(cmdq.key);
             }
@@ -1132,20 +1096,20 @@ export function getlin(query, bufp) {
         free(cmdq);
     }
     if (got_cmdq) {
-        if (__arraybuf) {
-            bufp.value = 0;
-        }
-        pline("%s %s", query, __arraybuf ? obufp : __line);
-        return __line;
+        bufp = __line;
+        await pline("%s %s", query, bufp);
+        return bufp;
     }
     game.program_state.in_getlin = 1;
     game.bot_disabled = 1;
-    (game.windowprocs.win_getlin)(query, bufp);
+    bufp = await (game.windowprocs.win_getlin)(query, bufp);
     game.bot_disabled = old_bot_disabled;
     game.program_state.in_getlin = 0;
-    return obufp;
+    return bufp;
 }
 /*windows.c*/
+
+game.__getlin_returns_buffer = 1;
 
 // Install hup_procs no-op defaults for null windowprocs fields.
 // Gated: enable with NH_WINPROCS_DEFAULTS=1.  See LEARNINGS §23.29.
@@ -1156,6 +1120,27 @@ if (typeof process !== 'undefined' && process.env?.NH_WINPROCS_DEFAULTS) {
         }
     }
 }
+/* early config file error processing routines call this */
+/* window ports can provide
+       their own putmsghistory() routine to
+       load message history from a saved game.
+       The routine is called repeatedly from
+       the core restore routine, starting with
+       the oldest saved message first, and
+       finishing with the latest.
+       The window port routine is expected to
+       load the message recall buffers in such
+       a way that the ordering is preserved.
+       The window port routine should make no
+       assumptions about how many messages are
+       forthcoming, nor should it assume that
+       another message will follow this one,
+       so it should keep all pointers/indexes
+       intact at the end of each call.
+    */
+/* this doesn't provide for reloading the message window with the
+       previous session's messages upon restore, but it does put the quest
+       message summary lines there by treating them as ordinary messages */
 /* leveldesc has no leading space, so if we've moved
                        it past the first position, provide one */
 /* hunger==" " - keep it, end up with " ";
@@ -1168,3 +1153,9 @@ if (typeof process !== 'undefined' && process.env?.NH_WINPROCS_DEFAULTS) {
                    nearby objects. */
 /* brh - should we perhaps not allow things to have names
                    that contain '\\' */
+/* for objects, add "A - ' '  all classes", after a separator */
+/* we won't preselect this even if the incoming list is empty;
+           having it selected means that it would have to be explicitly
+           de-selected in order to select anything else */
+/* for 'O', "toggle" should be intuitive; for 'm O', it would
+               probably be better to say "Set 'autopickup' to true|false" */

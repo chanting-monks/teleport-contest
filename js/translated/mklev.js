@@ -12,7 +12,8 @@ import { abs } from '../c2js-runtime/math.js';
 import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, pline, pline_The } from '../c2js-runtime/pline.js';
-import { qsort } from '../c2js-runtime/qsort.js';
+import { qsort , qsort_async } from '../c2js-runtime/qsort.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { strcat } from '../c2js-runtime/string.js';
 import { getbones } from './bones.js';
@@ -78,7 +79,7 @@ export function good_rm_wall_doorpos(x, y, dir, room) {
     if (!isok(tx, ty) || ((game.level.locations[tx][ty].typ) < POOL)) {
         return (0);
     }
-    rmno = game.rooms.indexOf(room) + 3;
+    rmno = (game.rooms.indexOf(room)) + 3;
     if (rmno != game.level.locations[tx][ty].roomno) {
         return (0);
     }
@@ -121,7 +122,7 @@ export function finddpos_shift(x, y, dir, aroom) {
 /* find a valid door position at room edge.
    dir is the preferred edge of the room.
    if found, returns TRUE and the coordinate in cc */
-export function finddpos(cc, dir, aroom) {
+export async function finddpos(cc, dir, aroom) {
     let x = 0;
     let y = 0;
     let x1 = 0;
@@ -159,7 +160,7 @@ export function finddpos(cc, dir, aroom) {
                 y2 = aroom.hy;
                 break;
             default:
-                impossible("finddpos: illegal dir");
+                await impossible("finddpos: illegal dir");
                 return (0);
         }
         do {
@@ -187,13 +188,13 @@ export function finddpos(cc, dir, aroom) {
 }
 /* Sort rooms on the level so they're ordered from left to right on the map.
    makecorridors() by default links rooms N and N+1 */
-export function sort_rooms() {
+export async function sort_rooms() {
     let x = 0;
     let y = 0;
     let i = 0;
     let ri = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let n = game.nroom;
-    qsort(game.rooms, n, 1 /* sizeof(struct mkroom) */, mkroom_cmp);
+    await qsort_async(game.rooms, n, 1 /* sizeof(struct mkroom) */, mkroom_cmp);
     /* Update the roomnos on the map */
     for (i = 0; i < n; i++) {
         ri[game.rooms[i].roomnoidx] = i;
@@ -207,7 +208,7 @@ export function sort_rooms() {
         }
     }
 }
-export function do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, special, is_room) {
+export async function do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, special, is_room) {
     let x = 0;
     let y = 0;
     let lev = null;
@@ -235,7 +236,7 @@ export function do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, spec
     } else {
         croom.rlit = 0;
     }
-    croom.roomnoidx = game.rooms.indexOf(croom);
+    croom.roomnoidx = (game.rooms.indexOf(croom));
     croom.lx = lowx;
     croom.hx = hix;
     croom.ly = lowy;
@@ -275,34 +276,34 @@ export function do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, spec
             game.level.locations[lowx - 1][hiy + 1].typ = BLCORNER;
             game.level.locations[hix + 1][hiy + 1].typ = BRCORNER;
         } else {
-            wallification(lowx - 1, lowy - 1, hix + 1, hiy + 1);
+            await wallification(lowx - 1, lowy - 1, hix + 1, hiy + 1);
         }
     }
 }
-export function add_room(lowx, lowy, hix, hiy, lit, rtype, special) {
+export async function add_room(lowx, lowy, hix, hiy, lit, rtype, special) {
     fnEnter("add_room", "mklev.c", 0);
     /* generate_stairs_find_room() returns Null if nroom == 0, but that
        should never happen for a rooms+corridors style level */
     let croom = null;
     if (game.nroom >= 40) {
-        panic("level has too many rooms");
+        await panic("level has too many rooms");
     }
     croom = game.rooms[game.nroom];
-    do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, special, (1));
+    await do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, special, (1));
     if (game.rooms[game.nroom + 1]) game.rooms[game.nroom + 1].hx = -1;
     game.nroom++;
 }
-export function add_subroom(proom, lowx, lowy, hix, hiy, lit, rtype, special) {
+export async function add_subroom(proom, lowx, lowy, hix, hiy, lit, rtype, special) {
     fnEnter("add_subroom", "mklev.c", 0);
     let croom = null;
     if (game.nsubroom >= 40) {
-        panic("level has too many subrooms");
+        await panic("level has too many subrooms");
     }
     if (proom.nsubrooms >= 24) {
-        panic("room has too many subrooms");
+        await panic("room has too many subrooms");
     }
     croom = game.subrooms[game.nsubroom];
-    do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, special, (0));
+    await do_room_or_subroom(croom, lowx, lowy, hix, hiy, lit, rtype, special, (0));
     proom.sbrooms[proom.nsubrooms++] = croom;
     if (game.subrooms[game.nsubroom + 1]) game.subrooms[game.nsubroom + 1].hx = -1;
     game.nsubroom++;
@@ -363,7 +364,7 @@ export async function makerooms() {
             /* make rooms until satisfied */
             /* rnd_rect() will returns 0 if no more rects are available... */
             tried_vault = (1);
-            if (create_room(-1, -1, 2, 2, -1, -1, VAULT, (1))) {
+            if (await create_room(-1, -1, 2, 2, -1, -1, VAULT, (1))) {
                 game.vault_x = game.rooms[game.nroom].lx;
                 game.vault_y = game.rooms[game.nroom].ly;
                 game.rooms[game.nroom].hx = -1;
@@ -379,7 +380,7 @@ export async function makerooms() {
                     break;
                 }
             } else {
-                if (!create_room(-1, -1, -1, -1, -1, -1, OROOM, -1)) {
+                if (!await create_room(-1, -1, -1, -1, -1, -1, OROOM, -1)) {
                     break;
                 }
                 ;
@@ -395,7 +396,7 @@ export async function makerooms() {
         game.iflags.in_lua = game.in_mk_themerooms = (0);
     }
 }
-export function join(a, b, nxcor) {
+export async function join(a, b, nxcor) {
     let cc = { x: 0, y: 0 };
     let tt = { x: 0, y: 0 };
     let org = { x: 0, y: 0 };
@@ -423,37 +424,37 @@ export function join(a, b, nxcor) {
     if (troom.lx > croom.hx) {
         dx = 1;
         dy = 0;
-        if (!finddpos(cc, DIR_E, croom)) {
+        if (!await finddpos(cc, DIR_E, croom)) {
             return;
         }
-        if (!finddpos(tt, DIR_W, troom)) {
+        if (!await finddpos(tt, DIR_W, troom)) {
             return;
         }
     } else if (troom.hy < croom.ly) {
         dy = -1;
         dx = 0;
-        if (!finddpos(cc, DIR_N, croom)) {
+        if (!await finddpos(cc, DIR_N, croom)) {
             return;
         }
-        if (!finddpos(tt, DIR_S, troom)) {
+        if (!await finddpos(tt, DIR_S, troom)) {
             return;
         }
     } else if (troom.hx < croom.lx) {
         dx = -1;
         dy = 0;
-        if (!finddpos(cc, DIR_W, croom)) {
+        if (!await finddpos(cc, DIR_W, croom)) {
             return;
         }
-        if (!finddpos(tt, DIR_E, troom)) {
+        if (!await finddpos(tt, DIR_E, troom)) {
             return;
         }
     } else {
         dy = 1;
         dx = 0;
-        if (!finddpos(cc, DIR_S, croom)) {
+        if (!await finddpos(cc, DIR_S, croom)) {
             return;
         }
-        if (!finddpos(tt, DIR_N, troom)) {
+        if (!await finddpos(tt, DIR_N, troom)) {
             return;
         }
     }
@@ -468,17 +469,16 @@ export function join(a, b, nxcor) {
     org.y = yy + dy;
     dest.x = tx;
     dest.y = ty;
-    dig_result = dig_corridor(org, dest, { get value() { return npoints; }, set value(_v) { npoints = _v; } }, nxcor, game.level.flags.arboreal ? ROOM : CORR, STONE);
+    dig_result = await dig_corridor(org, dest, { get value() { return npoints; }, set value(_v) { npoints = _v; } }, nxcor, game.level.flags.arboreal ? ROOM : CORR, STONE);
     /* we created at least 1 tile of corridor, even if it failed */
     if ((npoints > 0) && (okdoor(xx, yy) || !nxcor)) {
-        dodoor(xx, yy, croom);
+        await dodoor(xx, yy, croom);
     }
     if (!dig_result) {
         return;
     }
-    /* we succeeded in digging the corridor */
     if (okdoor(tt.x, tt.y) || !nxcor) {
-        dodoor(tt.x, tt.y, troom);
+        await dodoor(tt.x, tt.y, troom);
     }
     if (game.smeq[a] < game.smeq[b]) {
         game.smeq[b] = game.smeq[a];
@@ -487,28 +487,28 @@ export function join(a, b, nxcor) {
     }
 }
 /* create random corridors between rooms */
-export function makecorridors() {
+export async function makecorridors() {
     fnEnter("makecorridors", "mklev.c", 0);
     let a = 0;
     let b = 0;
     let i = 0;
     let any = (1);
     for (a = 0; a < game.nroom - 1; a++) {
-        join(a, a + 1, (0));
+        await join(a, a + 1, (0));
         if (!rn2(50)) {
             break;
         }
     }
     for (a = 0; a < game.nroom - 2; a++) {
         if (game.smeq[a] != game.smeq[a + 2]) {
-            join(a, a + 2, (0));
+            await join(a, a + 2, (0));
         }
     }
     for (a = 0; any && a < game.nroom; a++) {
         any = (0);
         for (b = 0; b < game.nroom; b++) {
             if (game.smeq[a] != game.smeq[b]) {
-                join(a, b, (0));
+                await join(a, b, (0));
                 any = (1);
             }
         }
@@ -521,7 +521,7 @@ export function makecorridors() {
             if (b >= a) {
                 b += 2;
             }
-            join(a, b, (1));
+            await join(a, b, (1));
         }
     }
 }
@@ -575,7 +575,7 @@ export function add_door(x, y, aroom) {
     game.doors[aroom.fdoor].x = x;
     game.doors[aroom.fdoor].y = y;
 }
-export function dosdoor(x, y, aroom, type) {
+export async function dosdoor(x, y, aroom, type) {
     let shdoor = in_rooms(x, y, SHOPBASE) ? (1) : (0);
     /* avoid S.doors on already made doors */
     if (!((game.level.locations[x][y].typ) && (game.level.locations[x][y].typ) <= DBWALL)) {
@@ -592,7 +592,7 @@ export function dosdoor(x, y, aroom, type) {
             } else {
                 game.level.locations[x][y].flags = 4;
             }
-            if (game.level.locations[x][y].flags != 2 && !shdoor && level_difficulty() >= 5 && !rn2(25)) {
+            if (game.level.locations[x][y].flags != 2 && !shdoor && await level_difficulty() >= 5 && !rn2(25)) {
                 game.level.locations[x][y].flags |= 16;
             }
         } else {
@@ -605,11 +605,11 @@ export function dosdoor(x, y, aroom, type) {
         }
         if (game.level.locations[x][y].flags & 16) {
             let mtmp = null;
-            if (level_difficulty() >= 9 && !rn2(5) && !((game.mvitals[PM_SMALL_MIMIC].mvflags & (2 | 1)) && (game.mvitals[PM_LARGE_MIMIC].mvflags & (2 | 1)) && (game.mvitals[PM_GIANT_MIMIC].mvflags & (2 | 1)))) {
+            if (await level_difficulty() >= 9 && !rn2(5) && !((game.mvitals[PM_SMALL_MIMIC].mvflags & (2 | 1)) && (game.mvitals[PM_LARGE_MIMIC].mvflags & (2 | 1)) && (game.mvitals[PM_GIANT_MIMIC].mvflags & (2 | 1)))) {
                 game.level.locations[x][y].flags = 0;
-                mtmp = makemon(mkclass(S_MIMIC, 0), x, y, 0);
+                mtmp = await makemon(await mkclass(S_MIMIC, 0), x, y, 0);
                 if (mtmp) {
-                    set_mimic_sym(mtmp);
+                    await set_mimic_sym(mtmp);
                 }
             }
         }
@@ -619,7 +619,7 @@ export function dosdoor(x, y, aroom, type) {
         } else {
             game.level.locations[x][y].flags = 4;
         }
-        if (!shdoor && level_difficulty() >= 4 && !rn2(20)) {
+        if (!shdoor && await level_difficulty() >= 4 && !rn2(20)) {
             game.level.locations[x][y].flags |= 16;
         }
     }
@@ -628,7 +628,7 @@ export function dosdoor(x, y, aroom, type) {
 /* is x,y location such that NEWS direction from it is inside aroom,
    excluding subrooms */
 export function cardinal_nextto_room(aroom, x, y) {
-    let rmno = (game.rooms.indexOf(aroom) + 3);
+    let rmno = ((game.rooms.indexOf(aroom)) + 3);
     if (isok(x - 1, y) && !game.level.locations[x - 1][y].edge && game.level.locations[x - 1][y].roomno == rmno) {
         return (1);
     }
@@ -643,16 +643,16 @@ export function cardinal_nextto_room(aroom, x, y) {
     }
     return (0);
 }
-export function place_niche(aroom, dy, xx, yy) {
+export async function place_niche(aroom, dy, xx, yy) {
     let dd = { x: 0, y: 0 };
     if (rn2(2)) {
         dy.value = 1;
-        if (!finddpos(dd, DIR_S, aroom)) {
+        if (!await finddpos(dd, DIR_S, aroom)) {
             return (0);
         }
     } else {
         dy.value = -1;
-        if (!finddpos(dd, DIR_N, aroom)) {
+        if (!await finddpos(dd, DIR_N, aroom)) {
             return (0);
         }
     }
@@ -664,7 +664,7 @@ export function place_niche(aroom, dy, xx, yy) {
 const trap_engravings = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, "Vlad was here", "ad aerarium", "ad aerarium", null, null, null, null, null, null, null, null, null];
 /* 14..16: trap door, teleport, level-teleport */
 /* 24..25 */
-export function makeniche(trap_type) {
+export async function makeniche(trap_type) {
     let aroom = null;
     let rm = null;
     let dy = 0;
@@ -680,7 +680,7 @@ export function makeniche(trap_type) {
         if (aroom.doorct == 1 && rn2(5)) {
             continue;
         }
-        if (!place_niche(aroom, { get value() { return dy; }, set value(_v) { dy = _v; } }, { get value() { return xx; }, set value(_v) { xx = _v; } }, { get value() { return yy; }, set value(_v) { yy = _v; } })) {
+        if (!await place_niche(aroom, { get value() { return dy; }, set value(_v) { dy = _v; } }, { get value() { return xx; }, set value(_v) { xx = _v; } }, { get value() { return yy; }, set value(_v) { yy = _v; } })) {
             continue;
         }
         rm = game.level.locations[xx][yy + dy];
@@ -690,42 +690,41 @@ export function makeniche(trap_type) {
                 if (((trap_type) == HOLE || (trap_type) == TRAPDOOR) && !Can_fall_thru(game.u.uz)) {
                     trap_type = ROCKTRAP;
                 }
-                ttmp = maketrap(xx, yy + dy, trap_type);
+                ttmp = await maketrap(xx, yy + dy, trap_type);
                 if (ttmp) {
                     if (trap_type != ROCKTRAP) {
                         ttmp.once = 1;
                     }
                     if (trap_engravings[trap_type]) {
-                        make_engr_at(xx, yy - dy, trap_engravings[trap_type], null, 0, 1);
-                        wipe_engr_at(xx, yy - dy, 5, (0));
+                        await make_engr_at(xx, yy - dy, trap_engravings[trap_type], null, 0, 1);
+                        await wipe_engr_at(xx, yy - dy, 5, (0));
                     }
                 }
             }
-            dosdoor(xx, yy, aroom, SDOOR);
+            await dosdoor(xx, yy, aroom, SDOOR);
         } else {
             rm.typ = CORR;
             if (rn2(7)) {
-                dosdoor(xx, yy, aroom, rn2(5) ? SDOOR : DOOR);
+                await dosdoor(xx, yy, aroom, rn2(5) ? SDOOR : DOOR);
             } else {
                 if (!rn2(5) && ((game.level.locations[xx][yy].typ) && (game.level.locations[xx][yy].typ) <= DBWALL)) {
-                    /* inaccessible niches occasionally have iron bars */
-                    set_levltyp(xx, yy, IRONBARS);
+                    await set_levltyp(xx, yy, IRONBARS);
                     if (rn2(3)) {
-                        mkcorpstat(CORPSE, null, mkclass(S_HUMAN, 0), xx, yy + dy, (1));
+                        await mkcorpstat(CORPSE, null, await mkclass(S_HUMAN, 0), xx, yy + dy, (1));
                     }
                 }
                 if (!game.level.flags.noteleport) {
-                    mksobj_at(SCR_TELEPORTATION, xx, yy + dy, (1), (0));
+                    await mksobj_at(SCR_TELEPORTATION, xx, yy + dy, (1), (0));
                 }
                 if (!rn2(3)) {
-                    mkobj_at(RANDOM_CLASS, xx, yy + dy, (1));
+                    await mkobj_at(RANDOM_CLASS, xx, yy + dy, (1));
                 }
             }
         }
         return;
     }
 }
-export function make_niches() {
+export async function make_niches() {
     let ct = rnd((game.nroom >> 1) + 1);
     let dep = depth(game.u.uz);
     let ltptr = (!game.level.flags.noteleport && dep > 15);
@@ -733,17 +732,17 @@ export function make_niches() {
     while (ct--) {
         if (ltptr && !rn2(6)) {
             ltptr = (0);
-            makeniche(LEVEL_TELEP);
+            await makeniche(LEVEL_TELEP);
         } else if (vamp && !rn2(6)) {
             vamp = (0);
-            makeniche(TRAPDOOR);
+            await makeniche(TRAPDOOR);
         } else {
-            makeniche(NO_TRAP);
+            await makeniche(NO_TRAP);
         }
     }
 }
-export function makevtele() {
-    makeniche(TELEP_TRAP);
+export async function makevtele() {
+    await makeniche(TELEP_TRAP);
 }
 /* count the tracked features (sinks, fountains) present on the level */
 export function count_level_features() {
@@ -766,8 +765,9 @@ export function count_level_features() {
  * special) but it's easier to put it all in one place than make sure
  * each type initializes what it needs to separately.
  */
-let __clear_level_structures_zerorm = { glyph: GLYPH_UNEXPLORED_OFF, typ: 0, seenv: 0, flags: 0, horizontal: 0, lit: 0, waslit: 0, roomno: 0, edge: 0, candig: 0 };
-export function clear_level_structures() {
+let __clear_level_structures_zerorm = { glyph: GLYPH_UNEXPLORED_OFF, typ: 0, seenv: 0, flags: 0, horizontal: 0, lit: 0, waslit: 0, roomno: 0, edge: 0, candig: 0, disp_ch: '', disp_color: 8, disp_decgfx: false, disp_attr: 0, remembered_glyph: null, gnew: 0 };
+__nh_register_static(() => { __clear_level_structures_zerorm = { glyph: GLYPH_UNEXPLORED_OFF, typ: 0, seenv: 0, flags: 0, horizontal: 0, lit: 0, waslit: 0, roomno: 0, edge: 0, candig: 0, disp_ch: '', disp_color: 8, disp_decgfx: false, disp_attr: 0, remembered_glyph: null, gnew: 0 }; });
+export async function clear_level_structures() {
     let x = 0;
     let y = 0;
     let lev = null;
@@ -823,7 +823,7 @@ export function clear_level_structures() {
         game.doors = null;
         game.doors_alloc = 0;
     }
-    init_rect();
+    await init_rect();
     game.vault_x = -1;
     stairway_free_all();
     game.made_branch = (0);
@@ -842,7 +842,7 @@ export function clear_level_structures() {
    generated, depending on depth. */
 const __fill_ordinary_room_supply_items = [POT_EXTRA_HEALING, POT_SPEED, POT_GAIN_ENERGY, SCR_ENCHANT_WEAPON, SCR_ENCHANT_ARMOR, SCR_CONFUSE_MONSTER, SCR_SCARE_MONSTER, WAN_DIGGING, SPE_HEALING];
 const __fill_ordinary_room_extra_classes = [FOOD_CLASS, WEAPON_CLASS, ARMOR_CLASS, GEM_CLASS, SCROLL_CLASS, POTION_CLASS, RING_CLASS, (0 - SPBOOK_CLASS), (0 - SPBOOK_CLASS), (0 - SPBOOK_CLASS)];
-export function fill_ordinary_room(croom, bonus_items) {
+export async function fill_ordinary_room(croom, bonus_items) {
     let trycnt = 0;
     let pos = { x: 0, y: 0 };
     let tmonst = null;
@@ -862,57 +862,51 @@ export function fill_ordinary_room(croom, bonus_items) {
      * specified to be filled. */
             let subroom = croom.sbrooms[x];
             if (!subroom) {
-                impossible("fill_ordinary_room: Null subroom");
+                await impossible("fill_ordinary_room: Null subroom");
                 return;
             }
-            fill_ordinary_room(subroom, (0));
+            await fill_ordinary_room(subroom, (0));
         }
         if (croom.needfill != 1) {
             return;
         }
         if ((game.u.uhave.amulet || !rn2(3)) && somexyspace(croom, pos)) {
-            /* put a sleeping monster inside */
-            /* Note: monster may be on the stairs. This cannot be
-       avoided: maybe the player fell through a trap door
-       while a monster was on the stairs. Conclusion:
-       we have to check for monsters on the stairs anyway. */
-            tmonst = makemon(null, pos.x, pos.y, 8192);
+            tmonst = await makemon(null, pos.x, pos.y, 8192);
             if (tmonst && tmonst.data == game.mons[PM_GIANT_SPIDER] && !occupied(pos.x, pos.y)) {
-                maketrap(pos.x, pos.y, WEB);
+                await maketrap(pos.x, pos.y, WEB);
             }
         }
-        /* put traps and mimics inside */
-        x = 8 - (Math.trunc(level_difficulty() / 6));
+        x = 8 - (Math.trunc(await level_difficulty() / 6));
         if (x <= 1) {
             x = 2;
         }
         while (!rn2(x) && (++trycnt < 1000)) {
-            mktrap(0, 0, croom, null);
+            await mktrap(0, 0, croom, null);
         }
         if (!rn2(3) && somexyspace(croom, pos)) {
-            mkgold(0, pos.x, pos.y);
+            await mkgold(0, pos.x, pos.y);
         }
         if ((((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
             break skip_nonrogue;
         }
         if (!rn2(10)) {
-            mkfount(croom);
+            await mkfount(croom);
         }
         if (!rn2(60)) {
-            mksink(croom);
+            await mksink(croom);
         }
         if (!rn2(60)) {
-            mkaltar(croom);
+            await mkaltar(croom);
         }
         x = 80 - (depth(game.u.uz) * 2);
         if (x < 2) {
             x = 2;
         }
         if (!rn2(x)) {
-            mkgrave(croom);
+            await mkgrave(croom);
         }
         if (!rn2(20) && somexyspace(croom, pos)) {
-            mkcorpstat(STATUE, null, null, pos.x, pos.y, 8);
+            await mkcorpstat(STATUE, null, null, pos.x, pos.y, 8);
         }
         if (bonus_items && somexyspace(croom, pos)) {
             /*
@@ -935,7 +929,7 @@ export function fill_ordinary_room(croom, bonus_items) {
      */
             let uz_branch = Is_branchlev(game.u.uz);
             if (uz_branch && game.u.uz.dnum != (game.dungeon_topology.d_mines_dnum) && (uz_branch.end1.dnum == (game.dungeon_topology.d_mines_dnum) || uz_branch.end2.dnum == (game.dungeon_topology.d_mines_dnum))) {
-                mksobj_at((rn2(5) < 3) ? FOOD_RATION : rn2(2) ? CRAM_RATION : LEMBAS_WAFER, pos.x, pos.y, (1), (0));
+                await mksobj_at((rn2(5) < 3) ? FOOD_RATION : rn2(2) ? CRAM_RATION : LEMBAS_WAFER, pos.x, pos.y, (1), (0));
             } else if (game.u.uz.dnum == (game.dungeon_topology.d_oracle_level).dnum && game.u.uz.dlevel < (game.dungeon_topology.d_oracle_level).dlevel && rn2(3)) {
                 /* Object generated by the trap; initially NULL, stays NULL if
        the trap doesn't generate objects. */
@@ -943,28 +937,21 @@ export function fill_ordinary_room(croom, bonus_items) {
                 let otyp = 0;
                 let tryct = 0;
                 let cursed = 0;
-                /* reverse probabilities compared to non-supply chests;
-               these are twice as likely to be chests than large
-               boxes, rather than vice versa */
-                let supply_chest = mksobj_at(rn2(3) ? CHEST : LARGE_BOX, pos.x, pos.y, (0), (0));
+                let supply_chest = await mksobj_at(rn2(3) ? CHEST : LARGE_BOX, pos.x, pos.y, (0), (0));
                 supply_chest.olocked = !!(rn2(6));
                 do {
                     /* 50% this is a potion of healing */
                     otyp = rn2(2) ? POT_HEALING : __fill_ordinary_room_supply_items[rn2((Math.trunc(36 /* sizeof(const int [9]) */ / 4 /* sizeof(const int) */)))];
-                    otmp = mksobj(otyp, (1), (0));
+                    otmp = await mksobj(otyp, (1), (0));
                     if (otyp == POT_HEALING && rn2(2)) {
                         otmp.quan = 2;
-                        otmp.owt = weight(otmp);
+                        otmp.owt = await weight(otmp);
                     }
                     cursed = otmp.cursed;
-                    add_to_container(supply_chest, otmp);
+                    await add_to_container(supply_chest, otmp);
                     ++tryct;
-                    /* guarantee at least one noncursed item, with a small
-                   probability of more; if we generate a cursed item, it's
-                   added to the supply chest but we reroll for a noncursed
-                   item and add that too */
                     if (tryct == 50) {
-                        impossible("couldn't generate supply chest item");
+                        await impossible("couldn't generate supply chest item");
                         break;
                     }
                 } while (cursed || !rn2(5));
@@ -973,31 +960,23 @@ export function fill_ordinary_room(croom, bonus_items) {
                slightly towards low-level spellbooks; avoid tools
                because chests don't fit into other chests */
                     let oclass = __fill_ordinary_room_extra_classes[rn2((Math.trunc(40 /* sizeof(const int [10]) */ / 4 /* sizeof(const int) */)))];
-                    otmp = mkobj(oclass, (0));
+                    otmp = await mkobj(oclass, (0));
                     if (oclass == (0 - SPBOOK_CLASS)) {
                         let pass = 0;
                         let maxpass = (depth(game.u.uz) > 2) ? 2 : 3;
                         for (pass = 1; pass <= maxpass; ++pass) {
-                            /* bias towards lower level by generating again
-                       and taking the lower-level book; do that three
-                       times if on level 1 or 2, twice when deeper */
-                            let otmp2 = mkobj(oclass, (0));
+                            let otmp2 = await mkobj(oclass, (0));
                             if (game.objects[otmp.otyp].oc_oc2 <= game.objects[otmp2.otyp].oc_oc2) {
-                                dealloc_obj(otmp2);
+                                await dealloc_obj(otmp2);
                             } else {
-                                /* for mktrap_victim(), PIT is actually an exploded LANDMINE */
-                                /* landmine: if fragile object has been created, destroy it;
-               don't worry about non-empty containers--they aren't
-               breakable--nor about breakable contents of such */
-                                dealloc_obj(otmp);
+                                await dealloc_obj(otmp);
                                 otmp = otmp2;
                             }
                         }
                     }
-                    add_to_container(supply_chest, otmp);
+                    await add_to_container(supply_chest, otmp);
                 }
-                /* add_to_container() doesn't update the container's weight */
-                supply_chest.owt = weight(supply_chest);
+                supply_chest.owt = await weight(supply_chest);
                 /* don't want a second chest in this room */
                 skip_chests = (1);
             }
@@ -1009,13 +988,13 @@ export function fill_ordinary_room(croom, bonus_items) {
      */
         /*assert(svn.nroom > 0); // must be true because we're filling a room*/
         if (!skip_chests && !rn2(Math.trunc(game.nroom * 5 / 2)) && somexyspace(croom, pos)) {
-            mksobj_at(rn2(3) ? LARGE_BOX : CHEST, pos.x, pos.y, (1), (0));
+            await mksobj_at(rn2(3) ? LARGE_BOX : CHEST, pos.x, pos.y, (1), (0));
         }
         if (!rn2(27 + 3 * abs(depth(game.u.uz)))) {
             /* maybe make some graffiti */
             let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             let pristinebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            let mesg = random_engraving(buf, pristinebuf);
+            let mesg = await random_engraving(buf, pristinebuf);
             if (mesg) {
                 do {
                     somexyspace(croom, pos);
@@ -1023,21 +1002,21 @@ export function fill_ordinary_room(croom, bonus_items) {
                     y = pos.y;
                 } while (game.level.locations[x][y].typ != ROOM && !rn2(40));
                 if (game.level.locations[x][y].typ == ROOM) {
-                    make_engr_at(x, y, mesg, pristinebuf, 0, 4);
+                    await make_engr_at(x, y, mesg, pristinebuf, 0, 4);
                 }
             }
         }
     }
     if (!rn2(3) && somexyspace(croom, pos)) {
-        mkobj_at(RANDOM_CLASS, pos.x, pos.y, (1));
+        await mkobj_at(RANDOM_CLASS, pos.x, pos.y, (1));
         trycnt = 0;
         while (!rn2(5)) {
             if (++trycnt > 100) {
-                impossible("trycnt overflow4");
+                await impossible("trycnt overflow4");
                 break;
             }
             if (somexyspace(croom, pos)) {
-                mkobj_at(RANDOM_CLASS, pos.x, pos.y, (1));
+                await mkobj_at(RANDOM_CLASS, pos.x, pos.y, (1));
             }
         }
     }
@@ -1055,7 +1034,7 @@ export async function themerooms_post_level_generate() {
     lua_getglobal(themes, "post_level_generate");
     await nhl_pcall_handle(themes, 0, 0, "post_level_generate", NHLpa_panic);
     game.iflags.in_lua = game.in_mk_themerooms = (0);
-    wallification(1, 0, 80 - 1, 21 - 1);
+    await wallification(1, 0, 80 - 1, 21 - 1);
     if (game.coder) {
         free(game.coder) , game.coder = null;
     }
@@ -1084,7 +1063,7 @@ export function chk_okdoor(x, y) {
     return (1);
 }
 /* check mklev created level sanity */
-export function mklev_sanity_check() {
+export async function mklev_sanity_check() {
     let x = 0;
     let y = 0;
     let i = 0;
@@ -1095,7 +1074,7 @@ export function mklev_sanity_check() {
     for (y = 0; y < 21; y++) {
         for (x = 1; x < 80; x++) {
             if (!chk_okdoor(x, y)) {
-                impossible("levl[%i][%i] door not ok", x, y);
+                await impossible("levl[%i][%i] door not ok", x, y);
             }
         }
     }
@@ -1107,7 +1086,7 @@ export function mklev_sanity_check() {
             rmno = game.smeq[i];
         }
         if (rmno != -1 && game.smeq[i] != rmno) {
-            impossible("room %i not connected?", i);
+            await impossible("room %i not connected?", i);
         }
     }
 }
@@ -1120,15 +1099,13 @@ export async function makelevel() {
     let slev = null;
     let i = 0;
     if ((game.dungeon_topology.d_wiz1_level).dlevel == 0) {
-        impossible("makelevel() called when dungeon not yet initialized.");
+        await impossible("makelevel() called when dungeon not yet initialized.");
         await init_dungeons();
     }
-    /* assign level dependent obj probabilities */
-    oinit();
-    clear_level_structures();
+    await oinit();
+    await clear_level_structures();
     slev = Is_special(game.u.uz);
     if (slev && !(((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
-        /* check for special levels */
         await makemaz(slev.proto);
     } else if (game.dungeons[game.u.uz.dnum].proto[0]) {
         await makemaz("");
@@ -1143,7 +1120,7 @@ export async function makelevel() {
         fillname = strcat(fillname, (game.u.uz.dlevel < loc_lev.dlevel.dlevel) ? "a" : "b");
         await makemaz(fillname);
     } else if (In_hell(game.u.uz) || (rn2(5) && game.u.uz.dnum == (game.dungeon_topology.d_medusa_level).dnum && depth(game.u.uz) > depth((game.dungeon_topology.d_medusa_level)))) {
-        makemaz("");
+        await makemaz("");
     } else {
         let u_depth = 0;
         let fillable_room_count = 0;
@@ -1152,14 +1129,14 @@ export async function makelevel() {
             /* otherwise, fall through - it's a "regular" level. */
             u_depth = depth(game.u.uz);
             if ((((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
-                makeroguerooms();
-                makerogueghost();
+                await makeroguerooms();
+                await makerogueghost();
             } else {
                 await makerooms();
             }
             (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-            sort_rooms();
-            generate_stairs();
+            await sort_rooms();
+            await generate_stairs();
             branchp = Is_branchlev(game.u.uz);
             /* minimum number of rooms needed
                                             to allow a random special room */
@@ -1167,9 +1144,9 @@ export async function makelevel() {
             if ((((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
                 break skip0;
             }
-            makecorridors();
-            make_niches();
-            mklev_sanity_check();
+            await makecorridors();
+            await make_niches();
+            await mklev_sanity_check();
             if ((game.vault_x != -1)) {
                 /* make a secret treasure vault, not connected to the rest */
                 let w = 0;
@@ -1177,33 +1154,33 @@ export async function makelevel() {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/mklev.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("trying to make a vault...");
+                        await pline("trying to make a vault...");
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
                 w = 1;
                 h = 1;
                 let __do_fill_vault = false;
-                if (check_room({ get value() { return game.vault_x; }, set value(_v) { game.vault_x = _v; } }, { get value() { return w; }, set value(_v) { w = _v; } }, { get value() { return game.vault_y; }, set value(_v) { game.vault_y = _v; } }, { get value() { return h; }, set value(_v) { h = _v; } }, (1))) {
+                if (await check_room({ get value() { return game.vault_x; }, set value(_v) { game.vault_x = _v; } }, { get value() { return w; }, set value(_v) { w = _v; } }, { get value() { return game.vault_y; }, set value(_v) { game.vault_y = _v; } }, { get value() { return h; }, set value(_v) { h = _v; } }, (1))) {
                     __do_fill_vault = true;
-                } else if (rnd_rect() && create_room(-1, -1, 2, 2, -1, -1, VAULT, (1))) {
+                } else if (rnd_rect() && await create_room(-1, -1, 2, 2, -1, -1, VAULT, (1))) {
                     game.vault_x = game.rooms[game.nroom].lx;
                     game.vault_y = game.rooms[game.nroom].ly;
-                    if (check_room({ get value() { return game.vault_x; }, set value(_v) { game.vault_x = _v; } }, { get value() { return w; }, set value(_v) { w = _v; } }, { get value() { return game.vault_y; }, set value(_v) { game.vault_y = _v; } }, { get value() { return h; }, set value(_v) { h = _v; } }, (1))) {
+                    if (await check_room({ get value() { return game.vault_x; }, set value(_v) { game.vault_x = _v; } }, { get value() { return w; }, set value(_v) { w = _v; } }, { get value() { return game.vault_y; }, set value(_v) { game.vault_y = _v; } }, { get value() { return h; }, set value(_v) { h = _v; } }, (1))) {
                         __do_fill_vault = true;
                     } else {
                         game.rooms[game.nroom].hx = -1;
                     }
                 }
                 if (__do_fill_vault) {
-                    add_room(game.vault_x, game.vault_y, game.vault_x + w, game.vault_y + h, (1), VAULT, (0));
+                    await add_room(game.vault_x, game.vault_y, game.vault_x + w, game.vault_y + h, (1), VAULT, (0));
                     game.level.flags.has_vault = 1;
                     ++room_threshold;
                     game.rooms[game.nroom - 1].needfill = 1;
-                    fill_special_room(game.rooms[game.nroom - 1]);
-                    mk_knox_portal(game.vault_x + w, game.vault_y + h);
+                    await fill_special_room(game.rooms[game.nroom - 1]);
+                    await mk_knox_portal(game.vault_x + w, game.vault_y + h);
                     if (!game.level.flags.noteleport && !rn2(3)) {
-                        makevtele();
+                        await makevtele();
                     }
                 }
             }
@@ -1211,35 +1188,33 @@ export async function makelevel() {
            note that mkroom doesn't guarantee a room gets created, and that
            this step only sets the room's rtype - it doesn't fill it yet. */
             if (game.flags.debug && nh_getenv("SHOPTYPE")) {
-                do_mkroom(SHOPBASE);
+                await do_mkroom(SHOPBASE);
             } else if (u_depth > 1 && u_depth < depth((game.dungeon_topology.d_medusa_level)) && game.nroom >= room_threshold && rn2(u_depth) < 3) {
-                do_mkroom(SHOPBASE);
+                await do_mkroom(SHOPBASE);
             } else if (u_depth > 4 && !rn2(6)) {
-                do_mkroom(COURT);
+                await do_mkroom(COURT);
             } else if (u_depth > 5 && !rn2(8) && !(game.mvitals[PM_LEPRECHAUN].mvflags & (2 | 1))) {
-                do_mkroom(LEPREHALL);
+                await do_mkroom(LEPREHALL);
             } else if (u_depth > 6 && !rn2(7)) {
-                do_mkroom(ZOO);
+                await do_mkroom(ZOO);
             } else if (u_depth > 8 && !rn2(5)) {
-                do_mkroom(TEMPLE);
+                await do_mkroom(TEMPLE);
             } else if (u_depth > 9 && !rn2(5) && !(game.mvitals[PM_KILLER_BEE].mvflags & (2 | 1))) {
-                do_mkroom(BEEHIVE);
+                await do_mkroom(BEEHIVE);
             } else if (u_depth > 11 && !rn2(6)) {
-                do_mkroom(MORGUE);
-            } else if (u_depth > 12 && !rn2(8) && antholemon()) {
-                do_mkroom(ANTHOLE);
+                await do_mkroom(MORGUE);
+            } else if (u_depth > 12 && !rn2(8) && await antholemon()) {
+                await do_mkroom(ANTHOLE);
             } else if (u_depth > 14 && !rn2(4) && !(game.mvitals[PM_SOLDIER].mvflags & (2 | 1))) {
-                do_mkroom(BARRACKS);
+                await do_mkroom(BARRACKS);
             } else if (u_depth > 15 && !rn2(6)) {
-                do_mkroom(SWAMP);
+                await do_mkroom(SWAMP);
             } else if (u_depth > 16 && !rn2(8) && !(game.mvitals[PM_COCKATRICE].mvflags & (2 | 1))) {
-                do_mkroom(COCKNEST);
+                await do_mkroom(COCKNEST);
             }
         }
         prevstairs = game.stairs;
-        /* used to test for place_branch() success */
-        /* Place multi-dungeon branch. */
-        place_branch(branchp, 0, 0);
+        await place_branch(branchp, 0, 0);
         /* for main dungeon level 1, the stairs up where the hero starts
            are branch stairs; treat them as if hero had just come down
            them by marking them as having been traversed; most recently
@@ -1264,16 +1239,14 @@ export async function makelevel() {
         for (let __nhi_croom = 0; (croom = game.rooms[__nhi_croom]) && (croom.hx > 0); __nhi_croom++) {
             /* for each room: put things inside */
             let fillable = ((croom.rtype == OROOM || croom.rtype == THEMEROOM) && croom.needfill == 1);
-            fill_ordinary_room(croom, fillable && bonus_item_room_countdown == 0);
+            await fill_ordinary_room(croom, fillable && bonus_item_room_countdown == 0);
             if (fillable) {
                 --bonus_item_room_countdown;
             }
         }
     }
     for (i = 0; i < game.nroom; ++i) {
-        /* Fill all special rooms now, regardless of whether this is a special
-     * level, proto level, or ordinary level. */
-        fill_special_room(game.rooms[i]);
+        await fill_special_room(game.rooms[i]);
     }
     await themerooms_post_level_generate();
     if (game.luacore && game.nhcb_counts[NHCB_LVL_ENTER]) {
@@ -1296,7 +1269,7 @@ export function water_has_kelp(x, y, kelp_pool, kelp_moat) {
  *      Also place kelp in water.
  *      mineralize(-1, -1, -1, -1, FALSE); => "default" behavior
  */
-export function mineralize(kelp_pool, kelp_moat, goldprob, gemprob, skip_lvl_checks) {
+export async function mineralize(kelp_pool, kelp_moat, goldprob, gemprob, skip_lvl_checks) {
     let sp = null;
     let otmp = null;
     let x = 0;
@@ -1315,7 +1288,7 @@ export function mineralize(kelp_pool, kelp_moat, goldprob, gemprob, skip_lvl_che
     for (x = 2; x < (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
             if (water_has_kelp(x, y, kelp_pool, kelp_moat)) {
-                mksobj_at(KELP_FROND, x, y, (1), (0));
+                await mksobj_at(KELP_FROND, x, y, (1), (0));
             }
         }
     }
@@ -1356,28 +1329,28 @@ export function mineralize(kelp_pool, kelp_moat, goldprob, gemprob, skip_lvl_che
                 y += 1;
             } else if (!(game.level.locations[x][y].flags & 8) && game.level.locations[x][y - 1].typ == STONE && game.level.locations[x + 1][y - 1].typ == STONE && game.level.locations[x - 1][y - 1].typ == STONE && game.level.locations[x + 1][y].typ == STONE && game.level.locations[x - 1][y].typ == STONE && game.level.locations[x + 1][y + 1].typ == STONE && game.level.locations[x - 1][y + 1].typ == STONE) {
                 if (rn2(1000) < goldprob) {
-                    if ((otmp = mksobj(GOLD_PIECE, (0), (0))) != null) {
+                    if ((otmp = await mksobj(GOLD_PIECE, (0), (0))) != null) {
                         otmp.ox = x , otmp.oy = y;
                         otmp.quan = 1 + rnd(goldprob * 3);
-                        otmp.owt = weight(otmp);
+                        otmp.owt = await weight(otmp);
                         if (!rn2(3)) {
-                            add_to_buried(otmp);
+                            await add_to_buried(otmp);
                         } else {
-                            place_object(otmp, x, y);
+                            await place_object(otmp, x, y);
                         }
                     }
                 }
                 if (rn2(1000) < gemprob) {
                     for (cnt = rnd(2 + Math.trunc(dunlev(game.u.uz) / 3)); cnt > 0; cnt--) {
-                        if ((otmp = mkobj(GEM_CLASS, (0))) != null) {
+                        if ((otmp = await mkobj(GEM_CLASS, (0))) != null) {
                             if (otmp.otyp == ROCK) {
-                                dealloc_obj(otmp);
+                                await dealloc_obj(otmp);
                             } else {
                                 otmp.ox = x , otmp.oy = y;
                                 if (!rn2(3)) {
-                                    add_to_buried(otmp);
+                                    await add_to_buried(otmp);
                                 } else {
-                                    place_object(otmp, x, y);
+                                    await place_object(otmp, x, y);
                                 }
                             }
                         }
@@ -1387,11 +1360,11 @@ export function mineralize(kelp_pool, kelp_moat, goldprob, gemprob, skip_lvl_che
         }
     }
 }
-export function level_finalize_topology() {
+export async function level_finalize_topology() {
     let croom = null;
     let ridx = 0;
     bound_digging();
-    mineralize(-1, -1, -1, -1, (0));
+    await mineralize(-1, -1, -1, -1, (0));
     game.in_mklev = (0);
     /* avoid coordinates in future lua-loads for this level being thrown off
      * because xstart and ystart aren't saved with the level and will be 0
@@ -1417,23 +1390,23 @@ export function level_finalize_topology() {
 }
 export async function mklev() {
     fnEnter("mklev", "mklev.c", 0);
-    reseed_random(rn2);
-    reseed_random(rn2_on_display_rng);
+    await reseed_random(rn2);
+    await reseed_random(rn2_on_display_rng);
     init_mapseen(game.u.uz);
-    if (getbones()) {
+    if (await getbones()) {
         return;
     }
     game.in_mklev = (1);
     await makelevel();
-    level_finalize_topology();
-    reseed_random(rn2);
-    reseed_random(rn2_on_display_rng);
+    await level_finalize_topology();
+    await reseed_random(rn2);
+    await reseed_random(rn2_on_display_rng);
 }
 export function topologize(croom) {
     fnEnter("topologize", "mklev.c", 0);
     let x = 0;
     let y = 0;
-    let roomno = (game.rooms.indexOf(croom) + 3);
+    let roomno = ((game.rooms.indexOf(croom)) + 3);
     let lowx = croom.lx;
     let lowy = croom.ly;
     let hix = croom.hx;
@@ -1477,17 +1450,15 @@ export function topologize(croom) {
     }
 }
 /* Find an unused room for a branch location. */
-export function find_branch_room(mp) {
+export async function find_branch_room(mp) {
     let croom = null;
     if (game.nroom == 0) {
-        /* already verifies location */
-        mazexy(mp);
+        await mazexy(mp);
     } else {
         croom = generate_stairs_find_room();
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-        /* Null iff nroom==0 which won't get here */
         if (!somexyspace(croom, mp)) {
-            impossible("Can't place branch!");
+            await impossible("Can't place branch!");
         }
     }
     return croom;
@@ -1508,7 +1479,7 @@ export function pos_to_room(x, y) {
 /* If given a branch, randomly place a special stair or portal. */
 /* branch to place */
 /* location */
-export function place_branch(br, x, y) {
+export async function place_branch(br, x, y) {
     let m = { x: 0, y: 0 };
     let dest = null;
     let make_stairs = 0;
@@ -1522,10 +1493,7 @@ export function place_branch(br, x, y) {
         return;
     }
     if (!x) {
-        /* find random coordinates for branch */
-        /* br_room = find_branch_room(&m); */
-        /* sets m via mazexy() or somexy() */
-        find_branch_room(m);
+        await find_branch_room(m);
         x = m.x;
         y = m.y;
     } else {
@@ -1540,14 +1508,14 @@ export function place_branch(br, x, y) {
     }
     if (br.type == 3) {
         if (game.iflags.debug_fuzzer && (game.u.ucamefrom.dnum || game.u.ucamefrom.dlevel)) {
-            mkportal(x, y, game.u.ucamefrom.dnum, game.u.ucamefrom.dlevel);
+            await mkportal(x, y, game.u.ucamefrom.dnum, game.u.ucamefrom.dlevel);
         } else {
-            mkportal(x, y, dest.dnum, dest.dlevel);
+            await mkportal(x, y, dest.dnum, dest.dlevel);
         }
     } else if (make_stairs) {
         let goes_up = on_level(br.end1, game.u.uz) ? br.end1_up : !br.end1_up;
         stairway_add(x, y, goes_up, (0), dest);
-        set_levltyp(x, y, STAIRS);
+        await set_levltyp(x, y, STAIRS);
         game.level.locations[x][y].flags = goes_up ? 1 : 2;
     }
     /*
@@ -1596,17 +1564,17 @@ export function maybe_sdoor(chance) {
     return (depth(game.u.uz) > 2) && !rn2(((2) > (chance) ? (2) : (chance)));
 }
 /* create a door at x,y in room aroom */
-export function dodoor(x, y, aroom) {
-    dosdoor(x, y, aroom, maybe_sdoor(8) ? SDOOR : DOOR);
+export async function dodoor(x, y, aroom) {
+    await dosdoor(x, y, aroom, maybe_sdoor(8) ? SDOOR : DOOR);
 }
 export function occupied(x, y) {
     return (t_at(x, y) || ((game.level.locations[x][y].typ) >= STAIRS && (game.level.locations[x][y].typ) <= ALTAR) || is_lava(x, y) || is_pool(x, y) || invocation_pos(x, y));
 }
 /* generate a corpse and some items on top of a trap */
-export function mktrap_victim(ttmp) {
+export async function mktrap_victim(ttmp) {
     let otmp = null;
     let victim_mnum = 0;
-    let lvl = level_difficulty();
+    let lvl = await level_difficulty();
     let kind = ttmp.ttyp;
     let x = ttmp.tx;
     let y = ttmp.ty;
@@ -1615,20 +1583,20 @@ export function mktrap_victim(ttmp) {
         /* Not all trap types have special handling here; only the ones
        that kill in a specific way that's obvious after the fact. */
         case ARROW_TRAP:
-            otmp = mksobj(ARROW, (1), (0));
+            otmp = await mksobj(ARROW, (1), (0));
             otmp.otrapped = 0;
             break;
         case DART_TRAP:
-            otmp = mksobj(DART, (1), (0));
+            otmp = await mksobj(DART, (1), (0));
             break;
         case ROCKTRAP:
-            otmp = mksobj(ROCK, (1), (0));
+            otmp = await mksobj(ROCK, (1), (0));
             break;
         default:
             break;
     }
     if (otmp) {
-        place_object(otmp, x, y);
+        await place_object(otmp, x, y);
     }
     do {
         /* init => lint suppression */
@@ -1651,16 +1619,13 @@ export function mktrap_victim(ttmp) {
                 poss_class = GEM_CLASS;
                 break;
         }
-        /* these items are always cursed, both for flavour (owned
-           by a dead adventurer, bones-pile-style) and for balance
-           (less useful to use, and encourage pets to avoid the trap) */
-        otmp = mkobj(poss_class, (0));
-        curse(otmp);
+        otmp = await mkobj(poss_class, (0));
+        await curse(otmp);
         /* 20% chance of placing an additional item, recursively */
         if (ttmp.ttyp == PIT && breaktest(otmp)) {
-            dealloc_obj(otmp);
+            await dealloc_obj(otmp);
         } else {
-            place_object(otmp, x, y);
+            await place_object(otmp, x, y);
         }
     } while (!rn2(5));
     switch (rn2(15)) {
@@ -1689,16 +1654,13 @@ export function mktrap_victim(ttmp) {
         case 9:
             victim_mnum = PM_GNOME;
             if (!rn2(10)) {
-                /* elf corpses are the rarest as they're the most useful */
-                /* more common as they could have come from the Mines */
-                /* 10% chance of a candle too */
-                otmp = mksobj(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, (1), (0));
+                otmp = await mksobj(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, (1), (0));
                 otmp.quan = 1;
-                otmp.owt = weight(otmp);
-                curse(otmp);
-                place_object(otmp, x, y);
+                otmp.owt = await weight(otmp);
+                await curse(otmp);
+                await place_object(otmp, x, y);
                 if (!game.level.locations[x][y].lit) {
-                    begin_burn(otmp, (0));
+                    await begin_burn(otmp, (0));
                 }
             }
             break;
@@ -1712,13 +1674,13 @@ export function mktrap_victim(ttmp) {
     if (victim_mnum == PM_HUMAN && rn2(25)) {
         victim_mnum = (rn2(PM_WIZARD - PM_ARCHEOLOGIST) + (PM_ARCHEOLOGIST));
     }
-    otmp = mkcorpstat(CORPSE, null, game.mons[victim_mnum], x, y, 8);
+    otmp = await mkcorpstat(CORPSE, null, game.mons[victim_mnum], x, y, 8);
     /* died too long ago to safely eat */
     otmp.age -= ((50) + 1);
 }
 /* pick a random trap type, return NO_TRAP if "too hard" */
-export function traptype_rnd(mktrapflags) {
-    let lvl = level_difficulty();
+export async function traptype_rnd(mktrapflags) {
+    let lvl = await level_difficulty();
     let kind = rnd(TRAPNUM - 1);
     switch (kind) {
         /* these are controlled by the feature or object they guard,
@@ -1819,16 +1781,17 @@ export function traptype_roguelvl() {
 /* room to hold trap */
 /* specific location for trap */
 let __mktrap_mktrap_err = 0;
-export function mktrap(num, mktrapflags, croom, tm) {
+__nh_register_static(() => { __mktrap_mktrap_err = 0; });
+export async function mktrap(num, mktrapflags, croom, tm) {
     let t = null;
     let m = { x: 0, y: 0 };
     let kind = 0;
-    let lvl = level_difficulty();
+    let lvl = await level_difficulty();
     if (!tm && !croom && !(mktrapflags & 2)) {
         if (!__mktrap_mktrap_err++) {
             /* complain when the combination of arguments will never set 'm' */
             let errbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            nh_snprintf("mktrap", 2055, errbuf, 256 /* sizeof(char [256]) */, "args (%d,%d,%s,%s) are invalid", num, mktrapflags, "null room", "null location");
+            errbuf = nh_snprintf("mktrap", 2055, errbuf, 256 /* sizeof(char [256]) */, "args (%d,%d,%s,%s) are invalid", num, mktrapflags, "null room", "null location");
             paniclog("mktrap", errbuf);
         }
         return;
@@ -1846,7 +1809,7 @@ export function mktrap(num, mktrapflags, croom, tm) {
         kind = FIRE_TRAP;
     } else {
         do {
-            kind = traptype_rnd(mktrapflags);
+            kind = await traptype_rnd(mktrapflags);
         } while (kind == NO_TRAP);
     }
     if (((kind) == HOLE || (kind) == TRAPDOOR) && !Can_fall_thru(game.u.uz)) {
@@ -1862,18 +1825,18 @@ export function mktrap(num, mktrapflags, croom, tm) {
                 return;
             }
             if ((mktrapflags & 2) != 0) {
-                mazexy(m);
+                await mazexy(m);
             } else if (croom && !somexyspace(croom, m)) {
                 return;
             }
         } while (occupied(m.x, m.y) || (avoid_boulder && sobj_at(BOULDER, m.x, m.y)));
     }
-    t = maketrap(m.x, m.y, kind);
+    t = await maketrap(m.x, m.y, kind);
     /* we should always get type of trap we're asking for (occupied() test
        should prevent cases where that might not happen) but be paranoid */
     kind = t ? t.ttyp : NO_TRAP;
     if (kind == WEB && !(mktrapflags & 4)) {
-        makemon(game.mons[PM_GIANT_SPIDER], m.x, m.y, 0);
+        await makemon(game.mons[PM_GIANT_SPIDER], m.x, m.y, 0);
     }
     if (t && (mktrapflags & 1)) {
         t.tseen = (1);
@@ -1914,18 +1877,18 @@ export function mktrap(num, mktrapflags, croom, tm) {
             t.ttyp = PIT;
             t.tseen = 1;
         }
-        mktrap_victim(t);
+        await mktrap_victim(t);
     }
     return;
 }
 /* Create stairs up or down at x,y.
    If force is TRUE, change the terrain to ROOM first */
 /* [why 'char' when usage is boolean?] */
-export function mkstairs(x, y, up, croom, force) {
+export async function mkstairs(x, y, up, croom, force) {
     let ltyp = 0;
     let dest = { dnum: 0, dlevel: 0 };
     if (!x || !isok(x, y)) {
-        impossible("mkstairs:  bogus stair attempt at <%d,%d>", x, y);
+        await impossible("mkstairs:  bogus stair attempt at <%d,%d>", x, y);
         return;
     }
     if (force) {
@@ -1934,9 +1897,9 @@ export function mkstairs(x, y, up, croom, force) {
     /* somexyspace() allows ice */
     ltyp = game.level.locations[x][y].typ;
     if (ltyp != ROOM && ltyp != CORR && ltyp != ICE) {
-        let glyph = back_to_glyph(x, y);
+        let glyph = await back_to_glyph(x, y);
         let sidx = glyph_to_cmap(glyph);
-        impossible("mkstairs:  placing stairs %s on %s at <%d,%d>", up ? "up" : "down", defsyms[sidx].explanation, x, y);
+        await impossible("mkstairs:  placing stairs %s on %s at <%d,%d>", up ? "up" : "down", defsyms[sidx].explanation, x, y);
     }
     /*
      * We can't make a regular stair off an end of the dungeon.  This
@@ -1949,7 +1912,7 @@ export function mkstairs(x, y, up, croom, force) {
     dest.dnum = game.u.uz.dnum;
     dest.dlevel = game.u.uz.dlevel + (up ? -1 : 1);
     stairway_add(x, y, up ? (1) : (0), (0), dest);
-    set_levltyp(x, y, STAIRS);
+    await set_levltyp(x, y, STAIRS);
     game.level.locations[x][y].flags = up ? 1 : 2;
 }
 /* is room a good one to generate up or down stairs in? */
@@ -1994,39 +1957,38 @@ export function generate_stairs_find_room() {
 /* construct stairs up and down within the same branch,
    up and down in different rooms if possible */
 const __generate_stairs_gen_stairs_panic = "generate_stairs: failed to find a room! (%d)";
-export function generate_stairs() {
+export async function generate_stairs() {
     let croom = null;
     let pos = { x: 0, y: 0 };
     if (!Is_botlevel(game.u.uz)) {
         /* if there is only 1 room and we found it above, this will find
            it again */
         if ((croom = generate_stairs_find_room()) == (null)) {
-            panic(__generate_stairs_gen_stairs_panic, game.nroom);
+            await panic(__generate_stairs_gen_stairs_panic, game.nroom);
         }
         if (!somexyspace(croom, pos)) {
             pos.x = somex(croom);
             pos.y = somey(croom);
         }
-        mkstairs(pos.x, pos.y, 0, croom, (0));
+        await mkstairs(pos.x, pos.y, 0, croom, (0));
     }
     if (game.u.uz.dlevel != 1) {
         if ((croom = generate_stairs_find_room()) == (null)) {
-            panic(__generate_stairs_gen_stairs_panic, game.nroom);
+            await panic(__generate_stairs_gen_stairs_panic, game.nroom);
         }
         if (!somexyspace(croom, pos)) {
             pos.x = somex(croom);
             pos.y = somey(croom);
         }
-        mkstairs(pos.x, pos.y, 1, croom, (0));
+        await mkstairs(pos.x, pos.y, 1, croom, (0));
     }
 }
-export function mkfount(croom) {
+export async function mkfount(croom) {
     let m = { x: 0, y: 0 };
     if (!find_okay_roompos(croom, m)) {
         return;
     }
-    /* Put a fountain at m.x, m.y */
-    if (!set_levltyp(m.x, m.y, FOUNTAIN)) {
+    if (!await set_levltyp(m.x, m.y, FOUNTAIN)) {
         return;
     }
     /* Is it a "blessed" fountain? (affects drinking from fountain) */
@@ -2047,17 +2009,17 @@ export function find_okay_roompos(croom, crd) {
     } while (occupied(crd.x, crd.y) || bydoor(crd.x, crd.y));
     return (1);
 }
-export function mksink(croom) {
+export async function mksink(croom) {
     let m = { x: 0, y: 0 };
     if (!find_okay_roompos(croom, m)) {
         return;
     }
-    if (!set_levltyp(m.x, m.y, SINK)) {
+    if (!await set_levltyp(m.x, m.y, SINK)) {
         return;
     }
     game.level.flags.nsinks++;
 }
-export function mkaltar(croom) {
+export async function mkaltar(croom) {
     let m = { x: 0, y: 0 };
     let al = 0;
     if (croom.rtype != OROOM) {
@@ -2066,15 +2028,14 @@ export function mkaltar(croom) {
     if (!find_okay_roompos(croom, m)) {
         return;
     }
-    /* Put an altar at m.x, m.y */
-    if (!set_levltyp(m.x, m.y, ALTAR)) {
+    if (!await set_levltyp(m.x, m.y, ALTAR)) {
         return;
     }
     /* -1 - A_CHAOTIC, 0 - A_NEUTRAL, 1 - A_LAWFUL */
     al = rn2(1 + 2) - 1;
     game.level.locations[m.x][m.y].flags = ((((al) == (-128)) ? 0 : ((al) == 1) ? 4 : ((al) + 2)));
 }
-export function mkgrave(croom) {
+export async function mkgrave(croom) {
     let m = { x: 0, y: 0 };
     let tryct = 0;
     let otmp = null;
@@ -2085,34 +2046,26 @@ export function mkgrave(croom) {
     if (!find_okay_roompos(croom, m)) {
         return;
     }
-    /* Put a grave at <m.x,m.y> */
-    make_grave(m.x, m.y, dobell ? "Saved by the bell!" : null);
+    await make_grave(m.x, m.y, dobell ? "Saved by the bell!" : null);
     if (!rn2(3)) {
-        /* Possibly fill it with objects */
-        /* this used to use mkgold(), which puts a stack of gold on
-           the ground (or merges it with an existing one there if
-           present), and didn't bother burying it; now we create a
-           loose, easily buriable, stack but we make no attempt to
-           replicate mkgold()'s level-based formula for the amount */
-        let gold = mksobj(GOLD_PIECE, (1), (0));
-        gold.quan = (rnd(20) + level_difficulty() * rnd(5));
-        gold.owt = weight(gold);
+        let gold = await mksobj(GOLD_PIECE, (1), (0));
+        gold.quan = (rnd(20) + await level_difficulty() * rnd(5));
+        gold.owt = await weight(gold);
         gold.ox = m.x , gold.oy = m.y;
-        add_to_buried(gold);
+        await add_to_buried(gold);
     }
     for (tryct = rn2(5); tryct; tryct--) {
-        otmp = mkobj(RANDOM_CLASS, (1));
+        otmp = await mkobj(RANDOM_CLASS, (1));
         if (!otmp) {
             return;
         }
-        curse(otmp);
+        await curse(otmp);
         otmp.ox = m.x;
         otmp.oy = m.y;
-        add_to_buried(otmp);
+        await add_to_buried(otmp);
     }
-    /* Leave a bell, in case we accidentally buried someone alive */
     if (dobell) {
-        mksobj_at(BELL, m.x, m.y, (1), (0));
+        await mksobj_at(BELL, m.x, m.y, (1), (0));
     }
     return;
 }
@@ -2126,7 +2079,7 @@ export function mkgrave(croom) {
  * possible that "the Book reads the hero" rather than vice versa if
  * attempted while blind (in order to make blind-from-birth conduct viable).]
  */
-export function mkinvokearea() {
+export async function mkinvokearea() {
     let dist = 0;
     let wallct = 0;
     let xmin = 0;
@@ -2134,8 +2087,7 @@ export function mkinvokearea() {
     let ymin = 0;
     let ymax = 0;
     let i = 0;
-    /* slightly odd if levitating, but not wrong */
-    pline_The("floor shakes violently under you!");
+    await pline_The("floor shakes violently under you!");
 {
         /* reset after the check for walls */
         xmin = xmax = game.inv_pos.x;
@@ -2174,25 +2126,21 @@ export function mkinvokearea() {
                 }
             }
         }
-        /* message won't appear if the maze 'walls' on this level are lava
-           or if all the walls within range have been dug away; when it does
-           appear, it will describe iron bars as "walls" (which is ok) */
         if (wallct) {
-            pline_The("walls around you begin to bend and crumble!");
+            await pline_The("walls around you begin to bend and crumble!");
         }
     }
-    (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+    await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
     if (game.u.utrap) {
         /* any trap hero is stuck in will be going away now */
         if (game.u.utraptype == TT_BURIEDBALL) {
-            buried_ball_to_punishment();
+            await buried_ball_to_punishment();
         }
-        reset_utrap((0));
+        await reset_utrap((0));
     }
     xmin = xmax = game.inv_pos.x;
     ymin = ymax = game.inv_pos.y;
-    /* middle, before placing stairs */
-    mkinvpos(xmin, ymin, 0);
+    await mkinvpos(xmin, ymin, 0);
     for (dist = 1; dist < 7; dist++) {
         xmin--;
         xmax++;
@@ -2200,27 +2148,26 @@ export function mkinvokearea() {
             ymin--;
             ymax++;
             for (i = xmin + 1; i < xmax; i++) {
-                mkinvpos(i, ymin, dist);
-                mkinvpos(i, ymax, dist);
+                await mkinvpos(i, ymin, dist);
+                await mkinvpos(i, ymax, dist);
             }
         }
         for (i = ymin; i <= ymax; i++) {
-            mkinvpos(xmin, i, dist);
-            mkinvpos(xmax, i, dist);
+            await mkinvpos(xmin, i, dist);
+            await mkinvpos(xmax, i, dist);
         }
-        /* make sure the new glyphs shows up */
-        flush_screen(1);
+        await flush_screen(1);
         (game.windowprocs.win_delay_output)();
     }
-    You("are standing at the top of a stairwell leading down!");
-    mkstairs(game.u.ux, game.u.uy, 0, null, (0));
-    newsym(game.u.ux, game.u.uy);
+    await You("are standing at the top of a stairwell leading down!");
+    await mkstairs(game.u.ux, game.u.uy, 0, null, (0));
+    await newsym(game.u.ux, game.u.uy);
     game.vision_full_recalc = 1;
 }
 /* Change level topology.  Boulders in the vicinity are eliminated.
  * Temporarily overrides vision in the name of a nice effect.
  */
-export function mkinvpos(x, y, dist) {
+export async function mkinvpos(x, y, dist) {
     let ttmp = null;
     let otmp = null;
     let make_rocks = 0;
@@ -2240,18 +2187,18 @@ export function mkinvpos(x, y, dist) {
         return;
     }
     if ((ttmp = t_at(x, y)) != null) {
-        deltrap(ttmp);
+        await deltrap(ttmp);
     }
     /* clear boulders; leave some rocks for non-{moat|trap} locations */
     make_rocks = (dist != 1 && dist != 4 && dist != 5) ? (1) : (0);
     while ((otmp = sobj_at(BOULDER, x, y)) != null) {
         if (make_rocks) {
-            fracture_rock(otmp);
+            await fracture_rock(otmp);
             /* don't bother with more rocks */
             make_rocks = (0);
         } else {
-            obj_extract_self(otmp);
-            obfree(otmp, null);
+            await obj_extract_self(otmp);
+            await obfree(otmp, null);
         }
     }
     lev.seenv = 0;
@@ -2269,7 +2216,7 @@ export function mkinvpos(x, y, dist) {
                 break;
             }
             lev.typ = ROOM;
-            ttmp = maketrap(x, y, FIRE_TRAP);
+            ttmp = await maketrap(x, y, FIRE_TRAP);
             if (ttmp) {
                 ttmp.tseen = (1);
             }
@@ -2285,26 +2232,23 @@ export function mkinvpos(x, y, dist) {
             lev.typ = MOAT;
             break;
         default:
-            impossible("mkinvpos called with dist %d", dist);
+            await impossible("mkinvpos called with dist %d", dist);
             break;
     }
     if ((mon = (game.level.monsters[x][y])) != null) {
-        /* wake up mimics, don't want to deal with them blocking vision */
         if (mon.m_ap_type) {
-            seemimic(mon);
+            await seemimic(mon);
         }
         if ((ttmp = t_at(x, y)) != null) {
-            mintrap(mon, 0);
+            await mintrap(mon, 0);
         } else {
-            minliquid(mon);
+            await minliquid(mon);
         }
     }
     if (!does_block(x, y, lev)) {
         unblock_point(x, y);
     }
-    /* make sure vision knows location is open */
-    /* display new value of position; could have a monster/object on it */
-    newsym(x, y);
+    await newsym(x, y);
 }
 /* reduces clutter in mkinvokearea() while avoiding potential static analyzer
    confusion about using isok(x,y) to control access to levl[x][y] */
@@ -2326,11 +2270,11 @@ export function mkinvk_check_wall(x, y) {
  *
  * Ludios will remain isolated until the branch is corrected by this function.
  */
-export function mk_knox_portal(x, y) {
+export async function mk_knox_portal(x, y) {
     let source = null;
     let br = null;
     let u_depth = 0;
-    br = dungeon_branch("Fort Ludios");
+    br = await dungeon_branch("Fort Ludios");
     (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
     if (on_level((game.dungeon_topology.d_knox_level), br.end1)) {
         /* dungeon_branch() panics (so never returns) if result would be Null */
@@ -2346,28 +2290,86 @@ export function mk_knox_portal(x, y) {
     if (source.dnum < game.n_dgns || (rn2(3) && !game.flags.debug)) {
         return;
     }
-    if (!(game.u.uz.dnum == (game.dungeon_topology.d_oracle_level).dnum && !at_dgn_entrance("The Quest") && (u_depth = depth(game.u.uz)) > 10 && u_depth < depth((game.dungeon_topology.d_medusa_level)))) {
+    if (!(game.u.uz.dnum == (game.dungeon_topology.d_oracle_level).dnum && !await at_dgn_entrance("The Quest") && (u_depth = depth(game.u.uz)) > 10 && u_depth < depth((game.dungeon_topology.d_medusa_level)))) {
         return;
     }
-    source.dnum = game.u.uz.dnum;
-    source.dlevel = game.u.uz.dlevel;
-    insert_branch(br, (1));
+    /* Adjust source to be current level and re-insert branch. */
+    Object.assign(source, game.u.uz);
+    await insert_branch(br, (1));
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/mklev.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("Made knox portal.");
+            await pline("Made knox portal.");
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
-    place_branch(br, x, y);
+    await place_branch(br, x, y);
 }
 /*mklev.c*/
 /* don't try again when making next level */
+/* we succeeded in digging the corridor */
+/* inaccessible niches occasionally have iron bars */
 /* note:  normally we'd start at x=1 because map column #0 isn't used
        (except for placing vault guard at <0,0> when removed from the map
        but not from the level); explicitly reset column #0 along with the
        rest so that we start the new level with a completely clean slate */
+/* put a sleeping monster inside */
+/* Note: monster may be on the stairs. This cannot be
+       avoided: maybe the player fell through a trap door
+       while a monster was on the stairs. Conclusion:
+       we have to check for monsters on the stairs anyway. */
+/* put traps and mimics inside */
+/* reverse probabilities compared to non-supply chests;
+               these are twice as likely to be chests than large
+               boxes, rather than vice versa */
+/* guarantee at least one noncursed item, with a small
+                   probability of more; if we generate a cursed item, it's
+                   added to the supply chest but we reroll for a noncursed
+                   item and add that too */
+/* bias towards lower level by generating again
+                       and taking the lower-level book; do that three
+                       times if on level 1 or 2, twice when deeper */
+/* add_to_container() doesn't update the container's weight */
+/* assign level dependent obj probabilities */
+/* check for special levels */
+/* used to test for place_branch() success */
+/* Place multi-dungeon branch. */
+/* Fill all special rooms now, regardless of whether this is a special
+     * level, proto level, or ordinary level. */
+/* already verifies location */
+/* Null iff nroom==0 which won't get here */
+/* find random coordinates for branch */
+/* br_room = find_branch_room(&m); */
+/* sets m via mazexy() or somexy() */
 /* no item dropped by the trap */
+/* these items are always cursed, both for flavour (owned
+           by a dead adventurer, bones-pile-style) and for balance
+           (less useful to use, and encourage pets to avoid the trap) */
+/* for mktrap_victim(), PIT is actually an exploded LANDMINE */
+/* landmine: if fragile object has been created, destroy it;
+               don't worry about non-empty containers--they aren't
+               breakable--nor about breakable contents of such */
+/* elf corpses are the rarest as they're the most useful */
+/* more common as they could have come from the Mines */
+/* 10% chance of a candle too */
 /* human is the most common result */
 /* make these much less often than other traps */
-/* Adjust source to be current level and re-insert branch. */
+/* Put a fountain at m.x, m.y */
+/* Put an altar at m.x, m.y */
+/* Put a grave at <m.x,m.y> */
+/* Possibly fill it with objects */
+/* this used to use mkgold(), which puts a stack of gold on
+           the ground (or merges it with an existing one there if
+           present), and didn't bother burying it; now we create a
+           loose, easily buriable, stack but we make no attempt to
+           replicate mkgold()'s level-based formula for the amount */
+/* Leave a bell, in case we accidentally buried someone alive */
+/* slightly odd if levitating, but not wrong */
+/* message won't appear if the maze 'walls' on this level are lava
+           or if all the walls within range have been dug away; when it does
+           appear, it will describe iron bars as "walls" (which is ok) */
+/* middle, before placing stairs */
+/* make sure the new glyphs shows up */
+/* wake up mimics, don't want to deal with them blocking vision */
+/* make sure vision knows location is open */
+/* display new value of position; could have a monster/object on it */

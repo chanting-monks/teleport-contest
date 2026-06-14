@@ -7,10 +7,12 @@
 import { game } from '../gstate.js';
 import { abs } from '../c2js-runtime/math.js';
 import { memcpy, memset } from '../c2js-runtime/memory.js';
+import { __nh_hp_makeplural, __nh_hp_vtense } from '../c2js-runtime/objnam-handports.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_advance_str, __nh_char_at0, atoi, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
+import { coerceCStr, __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
 import { artifact_exists, artifact_light, artifact_name, artiname, find_artifact, glow_color, glow_verb, nartifact_exist, permapoisoned, undiscovered_artifact } from './artifact.js';
 import { isok, yn_function } from './cmd.js';
 import { is_ice, is_lava, is_pool, is_pool_or_lava } from './dbridge.js';
@@ -23,7 +25,7 @@ import { Can_fall_thru, on_level } from './dungeon.js';
 import { consume_oeaten, obj_nutrition, set_tin_variety, tin_details, tin_variety_txt } from './eat.js';
 import { del_engr_at, make_grave } from './engrave.js';
 import { obj_to_any, pooleffects, set_uinwater, switch_terrain } from './hack.js';
-import { copynchars, digit, dist2, eos, fuzzymatch, highc, letter, lowc, mungspaces, ordin, s_suffix, str_start_is, strcasecpy, strsubst, upstart } from './hacklib.js';
+import { copynchars, digit, dist2, eos, fuzzymatch, highc, lowc, mungspaces, ordin, s_suffix, str_start_is, strcasecpy, strsubst, upstart } from './hacklib.js';
 import { align_str } from './insight.js';
 import { count_contents, currency } from './invent.js';
 import { arti_light_description, find_mid } from './light.js';
@@ -57,7 +59,7 @@ import { get_obj_location, start_melt_ice_timeout } from './zap.js';
 /* convert signed ptrdiff_t to unsigned size_t */
 /* true for gems/rocks that should have " stone" appended to their names */
 const Japanese_items = [{ item: SHORT_SWORD, name: "wakizashi" }, { item: BROADSWORD, name: "ninja-to" }, { item: FLAIL, name: "nunchaku" }, { item: GLAIVE, name: "naginata" }, { item: LOCK_PICK, name: "osaku" }, { item: WOODEN_HARP, name: "koto" }, { item: MAGIC_HARP, name: "magic koto" }, { item: KNIFE, name: "shito" }, { item: PLATE_MAIL, name: "tanko" }, { item: HELMET, name: "kabuto" }, { item: LEATHER_GLOVES, name: "yugake" }, { item: FOOD_RATION, name: "gunyoki" }, { item: POT_BOOZE, name: "sake" }, { item: 0, name: "" }];
-export function strprepend(s, pref) {
+export async function strprepend(s, pref) {
     /* patched: pointer-arithmetic body replaced by string-concat.
        The C original rewinds the pointer by strlen(pref) and writes
        pref into the freed PREFIX area of an 80-byte buffer; here
@@ -123,7 +125,7 @@ export function maybereleaseobuf(obuffer) {
      */
     releaseobuf(obuffer);
 }
-export function obj_typename(otyp) {
+export async function obj_typename(otyp) {
     let buf = nextobuf();
     let ocl = game.objects[otyp];
     let actualn = (game.obj_descr[(ocl).oc_name_idx].oc_name);
@@ -141,7 +143,7 @@ export function obj_typename(otyp) {
     if (!actualn) {
         actualn = (otyp > 0 && otyp < MAXOCLASSES) ? "generic" : "object?";
     }
-    buf[0] = 0;
+    buf = __nh_char_write(buf, 0, 0);
     switch (ocl.oc_class) {
         case COIN_CLASS:
             return strcpy(buf, actualn);
@@ -177,7 +179,7 @@ export function obj_typename(otyp) {
                 buf = strcpy(buf, "amulet");
             }
             if (un) {
-                xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
+                await xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
             }
             if (dn) {
                 buf = __nh_buf_append(buf, sprintf('', " (%s)", dn));
@@ -196,9 +198,8 @@ export function obj_typename(otyp) {
                 if ((otyp == FLINT || (game.objects[otyp].oc_material == GEMSTONE && (otyp != DILITHIUM_CRYSTAL && otyp != RUBY && otyp != DIAMOND && otyp != SAPPHIRE && otyp != BLACK_OPAL && otyp != EMERALD && otyp != OPAL)))) {
                     buf = strcat(buf, " stone");
                 }
-                /* 3: length of " (" + ")" which will enclose 'dn' */
                 if (un) {
-                    xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
+                    await xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
                 }
                 if (dn) {
                     buf = __nh_buf_append(buf, sprintf('', " (%s)", dn));
@@ -209,7 +210,7 @@ export function obj_typename(otyp) {
                     buf = strcat(buf, (ocl.oc_material == MINERAL) ? " stone" : " gem");
                 }
                 if (un) {
-                    xcalled(buf, 256, "", un);
+                    await xcalled(buf, 256, "", un);
                 }
             }
             return buf;
@@ -223,7 +224,7 @@ export function obj_typename(otyp) {
         }
     }
     if (un) {
-        xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
+        await xcalled(buf, 256 - (dn ? strlen(dn) + 3 : 0), "", un);
     }
     if (dn) {
         buf = __nh_buf_append(buf, sprintf('', " (%s)", dn));
@@ -232,13 +233,13 @@ export function obj_typename(otyp) {
 }
 /* less verbose result than obj_typename(); either the actual name
    or the description (but not both); user-assigned name is ignored */
-export function simple_typename(otyp) {
+export async function simple_typename(otyp) {
     let bufp = null;
     let pp = null;
     let save_uname = game.objects[otyp].oc_uname;
     /* suppress any name given by user */
     game.objects[otyp].oc_uname = null;
-    bufp = obj_typename(otyp);
+    bufp = await obj_typename(otyp);
     game.objects[otyp].oc_uname = save_uname;
     if ((pp = strstri(bufp, " (")) != null) {
         bufp = nh_strchr_truncate(bufp, " (", 'stri');
@@ -247,18 +248,18 @@ export function simple_typename(otyp) {
     return bufp;
 }
 /* typename for debugging feedback where data involved might be suspect */
-export function safe_typename(otyp) {
+export async function safe_typename(otyp) {
     let save_nameknown = 0;
     let res = null;
     if (otyp < STRANGE_OBJECT || otyp >= NUM_OBJECTS || !(game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name)) {
         res = nextobuf();
         res = sprintf(res, "glorkum[%d]", otyp);
-        impossible("safe_typename: %s", res);
+        await impossible("safe_typename: %s", res);
     } else {
         /* force it to be treated as fully discovered */
         save_nameknown = game.objects[otyp].oc_name_known;
         game.objects[otyp].oc_name_known = 1;
-        res = simple_typename(otyp);
+        res = await simple_typename(otyp);
         game.objects[otyp].oc_name_known = save_nameknown;
     }
     return res;
@@ -278,7 +279,7 @@ export function obj_is_pname(obj) {
    we usually don't want to set dknown if it's not set already. */
 /* object to be formatted */
 /* formatting routine (usually xname or doname) */
-export function distant_name(obj, func) {
+export async function distant_name(obj, func) {
     let str = null;
     let save_oid = 0;
     let ox = 0;
@@ -315,12 +316,7 @@ export function distant_name(obj, func) {
         obj.o_id = 0;
     }
     if (get_obj_location(obj, { get value() { return ox; }, set value(_v) { ox = _v; } }, { get value() { return oy; }, set value(_v) { oy = _v; } }, 0) && ((game.viz_array[oy][ox] & 2) != 0) && (obj.oartifact || dist2((ox), (oy), game.u.ux, game.u.uy) <= neardist)) {
-        /* this maybe-nearby part used to be replicated in multiple callers */
-        /* side-effects:  treat as having been seen up close;
-           cansee() is True hence hero isn't Blind so if 'func' is
-           the usual doname or xname, obj->dknown will become set
-           and then for an artifact, find_artifact() will be called */
-        str = (func)(obj);
+        str = await (func)(obj);
     } else {
         /* prior to 3.6.1, this used to save current blindness state,
            explicitly set state to hero-is-blind, make the call (which
@@ -329,7 +325,7 @@ export function distant_name(obj, func) {
            would let characters wearing them get obj->dknown set for
            distant items, so the external flag was added */
         ++game.distantname;
-        str = (func)(obj);
+        str = await (func)(obj);
         --game.distantname;
     }
     obj.o_id = save_oid;
@@ -338,7 +334,7 @@ export function distant_name(obj, func) {
 /* convert player specified fruit name into corresponding fruit juice name
    ("slice of pizza" -> "pizza juice" rather than "slice of pizza juice") */
 /* whether or not to append " juice" to the name */
-export function fruitname(juice) {
+export async function fruitname(juice) {
     let buf = nextobuf();
     let fruit_nam = strstri(game.pl_fruit, " of ");
     if (fruit_nam) {
@@ -346,7 +342,7 @@ export function fruitname(juice) {
     } else {
         fruit_nam = game.pl_fruit;
     }
-    buf = sprintf(buf, "%s%s", makesingular(fruit_nam), juice ? " juice" : "");
+    buf = sprintf(buf, "%s%s", await makesingular(fruit_nam), juice ? " juice" : "");
     return buf;
 }
 /* look up a named fruit by index (1..127) */
@@ -362,7 +358,7 @@ export function fruit_from_indx(indx) {
 /* look up a named fruit by name */
 /* False: prefix or exact match, True: exact match only */
 /* optional output; only valid if 'fname' isn't found */
-export function fruit_from_name(fname, exact, highest_fid) {
+export async function fruit_from_name(fname, exact, highest_fid) {
     let f = null;
     let tentativef = null;
     let altfname = null;
@@ -387,17 +383,15 @@ export function fruit_from_name(fname, exact, highest_fid) {
        matches, not the first */
         tentativef = null;
         for (f = game.ffruit; f; f = f.nextf) {
-            k = Strlen_(f.fname, "fruit_from_name", 470);
-            if (!strncmp(f.fname, fname, k) && (!fname[k] || fname[k] == 32) && (!tentativef || k > strlen(tentativef.fname))) {
+            k = await Strlen_(f.fname, "fruit_from_name", 470);
+            if (!strncmp(f.fname, fname, k) && (!__nh_char_at0(__nh_advance_str(fname, k)) || __nh_char_at0(__nh_advance_str(fname, k)) == 32) && (!tentativef || k > strlen(tentativef.fname))) {
                 tentativef = f;
             }
         }
         f = tentativef;
     }
     if (!f) {
-        /* if we still don't have a match, try singularizing the target;
-       for exact match, that's trivial, but for prefix, it's hard */
-        altfname = makesingular(fname);
+        altfname = await makesingular(fname);
         for (f = game.ffruit; f; f = f.nextf) {
             if (!strcmp(f.fname, altfname)) {
                 /* depends on order of the dragon scales objects */
@@ -416,11 +410,10 @@ export function fruit_from_name(fname, exact, highest_fid) {
     if (!f && !exact) {
         let fnamebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         let p = null;
-        /* length of assumed plural fname */
-        let fname_k = Strlen_(fname, "fruit_from_name", 490);
+        let fname_k = await Strlen_(fname, "fruit_from_name", 490);
         tentativef = null;
         for (f = game.ffruit; f; f = f.nextf) {
-            k = Strlen_(f.fname, "fruit_from_name", 494);
+            k = await Strlen_(f.fname, "fruit_from_name", 494);
             fnamebuf = strcpy(fnamebuf, fname);
             if (fname_k >= k && (p = strchr(fnamebuf[k], 32)) != null) {
                 /* reload fnamebuf[] each iteration in case it gets modified;
@@ -435,9 +428,8 @@ export function fruit_from_name(fname, exact, highest_fid) {
                false match (I hope...) */
                 /* truncate at 1st space past length of f->fname */
                 fnamebuf = nh_strchr_truncate(fnamebuf, 32, 'chr', k);
-                altfname = makesingular(fnamebuf);
-                /* actually revised 'fname_k' */
-                k = Strlen_(altfname, "fruit_from_name", 509);
+                altfname = await makesingular(fnamebuf);
+                k = await Strlen_(altfname, "fruit_from_name", 509);
                 if (!strcmp(f.fname, altfname) && (!tentativef || k > strlen(tentativef.fname))) {
                     tentativef = f;
                 }
@@ -450,7 +442,7 @@ export function fruit_from_name(fname, exact, highest_fid) {
     return f;
 }
 /* sort the named-fruit linked list by fruit index number */
-export function reorder_fruit(forward) {
+export async function reorder_fruit(forward) {
     let f = null;
     let allfr = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
     let i = 0;
@@ -463,11 +455,11 @@ export function reorder_fruit(forward) {
         /* without sanity checking, this would reduce to 'allfr[f->fid]=f' */
         j = f.fid;
         if (j < 1 || j >= k) {
-            impossible("reorder_fruit: fruit index (%d) out of range", j);
+            await impossible("reorder_fruit: fruit index (%d) out of range", j);
             /* don't sort after all; should never happen... */
             return;
         } else if (allfr[j]) {
-            impossible("reorder_fruit: duplicate fruit index (%d)", j);
+            await impossible("reorder_fruit: duplicate fruit index (%d)", j);
             return;
         }
         allfr[j] = f;
@@ -491,20 +483,21 @@ export function reorder_fruit(forward) {
 /* BUFSZ or BUFSZ-PREFIX */
 /* usually class string, sometimes more specific */
 /* user assigned type name */
-export function xcalled(buf, siz, pfx, sfx) {
+export async function xcalled(buf, siz, pfx, sfx) {
     let bufsiz = siz - 1 - strlen(buf);
     let pfxlen = (strlen(pfx) + 9 /* sizeof(char [9]) */ - 1 /* sizeof(char [1]) */);
     if (pfxlen > bufsiz) {
-        panic("xcalled: not enough room for prefix (%d > %d)", pfxlen, bufsiz);
+        await panic("xcalled: not enough room for prefix (%d > %d)", pfxlen, bufsiz);
     }
     buf = __nh_buf_append(buf, sprintf('', "%s called %.*s", pfx, bufsiz - pfxlen, sfx));
 }
-export function xname(obj) {
-    return xname_flags(obj, 0);
+export async function xname(obj) {
+    return await xname_flags(obj, 0);
 }
 /* bitmask of CXN_xxx values */
 let __xname_flags_xname_full = 0;
-export function xname_flags(obj, cxn_flags) {
+__nh_register_static(() => { __xname_flags_xname_full = 0; });
+export async function xname_flags(obj, cxn_flags) {
     let buf = null;
     let obufp = null;
     let buf_end = null;
@@ -528,7 +521,7 @@ export function xname_flags(obj, cxn_flags) {
     /* patched: fixed-capacity char array instead of broken pointer
        arithmetic; xnamep+80 was string-concat, throwing on buf[0]=0 */
     void 0;
-    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
     if ((game.urole.mnum == (PM_SAMURAI))) {
         /* set buf_eos and bufspaceleft */
         actualn = Japanese_item_name(typ, actualn);
@@ -554,7 +547,7 @@ export function xname_flags(obj, cxn_flags) {
         obj.known = 0;
     }
     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !game.distantname) {
-        observe_object(obj);
+        await observe_object(obj);
     }
     /* if character is a priest[ess], bknown will get toggled back on */
     /* describe holy/unholy water as such */
@@ -570,27 +563,8 @@ export function xname_flags(obj, cxn_flags) {
         dknown = obj.dknown;
         bknown = obj.bknown;
     }
-    /*
-     * Maybe find a previously unseen artifact.
-     *
-     * Assumption 1: if an artifact object is being formatted, it is
-     *  being shown to the hero (on floor, or looking into container,
-     *  or probing a monster, or seeing a monster wield it).
-     * Assumption 2: if in a pile that has been stepped on, the
-     *  artifact won't be noticed for cases where the pile to too deep
-     *  to be auto-shown, unless the player explicitly looks at that
-     *  spot (via ':').  Might need to make an exception somehow (at
-     *  the point where the decision whether to auto-show gets made?)
-     *  when an artifact is on the top of the pile.
-     * Assumption 3: since this is used for livelog events, not being
-     *  100% correct won't negatively affect the player's current game.
-     *
-     * We use the real obj->dknown rather than the override_ID variant
-     * so that wizard-mode ^I doesn't cause a not-yet-seen artifact in
-     * inventory (picked up while blind, still blind) to become found.
-     */
     if (obj.oartifact && obj.dknown) {
-        find_artifact(obj);
+        await find_artifact(obj);
     }
     let __is_pname = obj_is_pname(obj);
     if (!__is_pname) {
@@ -603,7 +577,7 @@ export function xname_flags(obj, cxn_flags) {
             } else if (nn) {
                 buf = strcpy(buf, actualn);
             } else if (un) {
-                xcalled(buf, 256 - 80, "amulet", un);
+                await xcalled(buf, 256 - 80, "amulet", un);
             } else {
                 buf = sprintf(buf, "%s amulet", dn);
             }
@@ -631,26 +605,26 @@ export function xname_flags(obj, cxn_flags) {
             } else if (nn) {
                 buf = strcat(buf, actualn);
             } else if (un) {
-                xcalled(buf, 256 - 80, dn, un);
+                await xcalled(buf, 256 - 80, dn, un);
             } else {
                 buf = strcat(buf, dn);
             }
-            buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+            buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
             if (typ == FIGURINE && omndx != NON_PM) {
                 /* note: lenses or towel prefix would overwrite poisoned weapon
            prefix if both were simultaneously possible, but they aren't */
                 /* [4] would be enough: 'a','n',' ','\0' */
                 let anbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                let pm_name = obj_pmname(obj);
+                let pm_name = await obj_pmname(obj);
                 do {
-                    nh_snprintf("xname_flags", 713, buf_eos - 0, bufspaceleft + 0, " of %s%s", just_an(anbuf, pm_name), pm_name);
-                    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                    buf = coerceCStr(buf) + nh_snprintf("xname_flags", 713, '', bufspaceleft + 0, " of %s%s", just_an(anbuf, pm_name), pm_name);
+                    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                 } while (0);
             } else if (((obj).otyp == TOWEL && (obj).spe > 0)) {
                 if (game.flags.debug) {
                     do {
-                        nh_snprintf("xname_flags", 716, buf_eos - 0, bufspaceleft + 0, " (%d)", obj.spe);
-                        buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                        buf = coerceCStr(buf) + nh_snprintf("xname_flags", 716, '', bufspaceleft + 0, " (%d)", obj.spe);
+                        buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                     } while (0);
                 }
             }
@@ -670,18 +644,18 @@ export function xname_flags(obj, cxn_flags) {
                     break;
                 }
             }
-            buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+            buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
             if (nn) {
                 do {
-                    strncat(buf_eos - 0, actualn, bufspaceleft + 0);
-                    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                    buf = strncat(coerceCStr(buf), actualn, bufspaceleft + 0);
+                    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                 } while (0);
             } else if (un) {
-                xcalled(buf, 256 - 80, armor_simple_name(obj), un);
+                await xcalled(buf, 256 - 80, await armor_simple_name(obj), un);
             } else {
                 do {
-                    strncat(buf_eos - 0, dn, bufspaceleft + 0);
-                    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                    buf = strncat(coerceCStr(buf), dn, bufspaceleft + 0);
+                    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                 } while (0);
             }
             break;
@@ -690,12 +664,12 @@ export function xname_flags(obj, cxn_flags) {
                 /* we could include partly-eaten-hack on fruit but don't need to */
                 let f = fruit_from_indx(obj.spe);
                 if (!f) {
-                    impossible("Bad fruit #%d?", obj.spe);
+                    await impossible("Bad fruit #%d?", obj.spe);
                     buf = strcpy(buf, "fruit");
                 } else {
                     buf = strcpy(buf, f.fname);
                     if (pluralize) {
-                        buf = strcpy(buf, obufp = makesingular(buf));
+                        buf = strcpy(buf, obufp = await makesingular(buf));
                         /* fruit name is limited in length to PL_FSIZ; converting
                    to/from singular/plural might increase the length a
                    little but not enough to pose a risk of overflowing buf */
@@ -713,7 +687,7 @@ export function xname_flags(obj, cxn_flags) {
            makeplural() will be fully evaluated and done with its input
            argument before strcpy() touches its output argument */
                         releaseobuf(obufp);
-                        buf = strcpy(buf, obufp = makeplural(buf));
+                        buf = strcpy(buf, obufp = await makeplural(buf));
                         releaseobuf(obufp);
                         pluralize = (0);
                     }
@@ -722,28 +696,23 @@ export function xname_flags(obj, cxn_flags) {
             }
             if (game.iflags.partly_eaten_hack && obj.oeaten) {
                 do {
-                    strncat(buf_eos - 0, "partly eaten ", bufspaceleft + 0);
-                    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                    buf = strncat(coerceCStr(buf), "partly eaten ", bufspaceleft + 0);
+                    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                 } while (0);
             }
             if (obj.globby) {
                 do {
-                    nh_snprintf("xname_flags", 788, buf_eos - 0, bufspaceleft + 0, "%s %s", (obj.owt <= 100) ? "small" : (obj.owt <= 300) ? "medium" : (obj.owt <= 500) ? "large" : "very large", actualn);
-                    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                    buf = coerceCStr(buf) + nh_snprintf("xname_flags", 788, '', bufspaceleft + 0, "%s %s", (obj.owt <= 100) ? "small" : (obj.owt <= 300) ? "medium" : (obj.owt <= 500) ? "large" : "very large", actualn);
+                    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                 } while (0);
                 break;
             }
             do {
-                /* Translator gap §23.222b: `buf_eos - 0` (C macro
-                   Concat delta=0 form) emits an array - 0 = NaN in
-                   JS, breaking strncat.  Use buf_eos (the array)
-                   directly; the runtime strncat handles the NaN
-                   bufspaceleft via the n=Infinity fallback. */
-                strncat(buf_eos, actualn, bufspaceleft + 0);
-                buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                buf = strncat(coerceCStr(buf), actualn, bufspaceleft + 0);
+                buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
             } while (0);
             if (typ == TIN && known) {
-                tin_details(obj, omndx, buf);
+                buf = tin_details(obj, omndx, buf);
             }
             break;
         case COIN_CLASS:
@@ -753,11 +722,10 @@ export function xname_flags(obj, cxn_flags) {
         case ROCK_CLASS:
             if (typ == STATUE && omndx != NON_PM) {
                 let anbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                let statue_pmname = obj_pmname(obj);
-                nh_snprintf("xname_flags", 813, buf, bufspaceleft, "%s%s of %s%s", ((game.urole.mnum == (PM_ARCHEOLOGIST)) && (obj.spe & 4) != 0) ? "historic " : "", actualn, (((game.mons[omndx]).mflags2 & 524288) != 0) ? "" : the_unique_pm(game.mons[omndx]) ? "the " : just_an(anbuf, statue_pmname), statue_pmname);
+                let statue_pmname = await obj_pmname(obj);
+                buf = nh_snprintf("xname_flags", 813, buf, bufspaceleft, "%s%s of %s%s", ((game.urole.mnum == (PM_ARCHEOLOGIST)) && (obj.spe & 4) != 0) ? "historic " : "", actualn, (((game.mons[omndx]).mflags2 & 524288) != 0) ? "" : the_unique_pm(game.mons[omndx]) ? "the " : just_an(anbuf, statue_pmname), statue_pmname);
             } else if (typ == BOULDER && obj.corpsenm == 1) {
-                strcpy(buf, "next ");
-                strcat(buf, actualn);
+                strcat(strcpy(buf, "next "), actualn);
                 /* sometimes caller wants "next boulder" rather than just
                "boulder" (when pushing against a pile of more than one);
                originally we just tested for non-0 but checking for 1 is
@@ -789,7 +757,7 @@ export function xname_flags(obj, cxn_flags) {
                     }
                     buf = strcat(buf, actualn);
                 } else {
-                    xcalled(buf, 256 - 80, "", un);
+                    await xcalled(buf, 256 - 80, "", un);
                 }
             } else {
                 buf = strcat(buf, dn);
@@ -805,7 +773,7 @@ export function xname_flags(obj, cxn_flags) {
                 buf = strcat(buf, " of ");
                 buf = strcat(buf, actualn);
             } else if (un) {
-                xcalled(buf, 256 - 80, "", un);
+                await xcalled(buf, 256 - 80, "", un);
             } else if (ocl.oc_magic) {
                 buf = strcat(buf, " labeled ");
                 buf = strcat(buf, dn);
@@ -820,7 +788,7 @@ export function xname_flags(obj, cxn_flags) {
             } else if (nn) {
                 buf = sprintf(buf, "wand of %s", actualn);
             } else if (un) {
-                xcalled(buf, 256 - 80, "wand", un);
+                await xcalled(buf, 256 - 80, "wand", un);
             } else {
                 buf = sprintf(buf, "%s wand", dn);
             }
@@ -832,7 +800,7 @@ export function xname_flags(obj, cxn_flags) {
                 } else if (nn) {
                     buf = strcpy(buf, actualn);
                 } else if (un) {
-                    xcalled(buf, 256 - 80, "novel", un);
+                    await xcalled(buf, 256 - 80, "novel", un);
                 } else {
                     buf = sprintf(buf, "%s book", dn);
                 }
@@ -845,7 +813,7 @@ export function xname_flags(obj, cxn_flags) {
                 }
                 buf = strcat(buf, actualn);
             } else if (un) {
-                xcalled(buf, 256 - 80, "spellbook", un);
+                await xcalled(buf, 256 - 80, "spellbook", un);
             } else {
                 buf = sprintf(buf, "%s spellbook", dn);
             }
@@ -856,7 +824,7 @@ export function xname_flags(obj, cxn_flags) {
             } else if (nn) {
                 buf = sprintf(buf, "ring of %s", actualn);
             } else if (un) {
-                xcalled(buf, 256 - 80, "ring", un);
+                await xcalled(buf, 256 - 80, "ring", un);
             } else {
                 buf = sprintf(buf, "%s ring", dn);
             }
@@ -868,7 +836,7 @@ export function xname_flags(obj, cxn_flags) {
                     buf = strcpy(buf, rock);
                 } else if (!nn) {
                     if (un) {
-                        xcalled(buf, 256 - 80, rock, un);
+                        await xcalled(buf, 256 - 80, rock, un);
                     } else {
                         buf = sprintf(buf, "%s %s", dn, rock);
                     }
@@ -882,7 +850,7 @@ export function xname_flags(obj, cxn_flags) {
             }
         default:
             buf = sprintf(buf, "glorkum %d %d %d", obj.oclass, typ, obj.spe);
-            impossible("xname_flags: %s", buf);
+            await impossible("xname_flags: %s", buf);
             break;
     }
     /* check whether we've already gone out of bounds of the obuf[], prior
@@ -895,19 +863,18 @@ export function xname_flags(obj, cxn_flags) {
            add '\0' terminator unless fewer than N chars are copied, which
            is what we want, but gcc complains about that so use memcpy() */
         paniclog("xname", memcpy(buf - 6, "buf[]=", 6));
-        panic("xname: buffer overflow before appending name.");
+        await panic("xname: buffer overflow before appending name.");
     }
-    bufspaceleft = (buf_end - buf_eos);
+    bufspaceleft = 256 - 1 - strlen(buf);
     if (pluralize) {
-        /* patched: pluralize path used buf[0]=0+strncat to copy obufp
-           into buf, which throws when buf is a JS string.  Direct
-           string assignment is the semantic equivalent. */
-        /* if the name should be plural, do that now, after overflow check;
-       it could make buf[] become shorter */
-        obufp = makeplural(buf);
+        obufp = await makeplural(buf);
         /* replace the whole string */
-        buf = (typeof obufp === 'string') ? obufp
-            : (Array.isArray(obufp) ? ((() => { let __r=''; for (let __i=0; __i<obufp.length && obufp[__i]; __i++) __r += String.fromCharCode(obufp[__i]); return __r; })()) : String(obufp ?? ''));
+        buf = __nh_char_write(buf, 0, 0);
+        buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
+        do {
+            buf = strncat(coerceCStr(buf), obufp, bufspaceleft + 0);
+            buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
+        } while (0);
         releaseobuf(obufp);
     }
     if (game.program_state.gameover && obj.o_id && bufspaceleft > 0) {
@@ -929,23 +896,23 @@ export function xname_flags(obj, cxn_flags) {
             case T_SHIRT:
             case ALCHEMY_SMOCK:
                 do {
-                    nh_snprintf("xname_flags", 982, buf_eos - 0, bufspaceleft + 0, " with text \"%s\"", (obj.otyp == T_SHIRT) ? tshirt_text(obj, tmpbuf) : apron_text(obj, tmpbuf));
-                    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                    buf = coerceCStr(buf) + nh_snprintf("xname_flags", 982, '', bufspaceleft + 0, " with text \"%s\"", (obj.otyp == T_SHIRT) ? tshirt_text(obj, tmpbuf) : apron_text(obj, tmpbuf));
+                    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                 } while (0);
                 break;
             case CANDY_BAR:
                 lbl = candy_wrapper_text(obj);
                 if (__nh_char_at0(lbl)) {
                     do {
-                        nh_snprintf("xname_flags", 987, buf_eos - 0, bufspaceleft + 0, " labeled \"%s\"", lbl);
-                        buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                        buf = coerceCStr(buf) + nh_snprintf("xname_flags", 987, '', bufspaceleft + 0, " labeled \"%s\"", lbl);
+                        buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                     } while (0);
                 }
                 break;
             case HAWAIIAN_SHIRT:
                 do {
-                    nh_snprintf("xname_flags", 991, buf_eos - 0, bufspaceleft + 0, " with %s motif", an(hawaiian_motif(obj, tmpbuf)));
-                    buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                    buf = coerceCStr(buf) + nh_snprintf("xname_flags", 991, '', bufspaceleft + 0, " with %s motif", await an(hawaiian_motif(obj, tmpbuf)));
+                    buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
                 } while (0);
                 break;
             default:
@@ -956,14 +923,14 @@ export function xname_flags(obj, cxn_flags) {
     if (__is_pname || (((obj).oextra && ((obj).oextra.oname)) && dknown)) {
         if (!__is_pname) {
             do {
-                strncat(buf_eos - 0, " named ", bufspaceleft + 0);
-                buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+                buf = strncat(coerceCStr(buf), " named ", bufspaceleft + 0);
+                buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
             } while (0);
         }
         obufp = eos(buf);
         do {
-            strncat(buf_eos - 0, ((obj).oextra.oname), bufspaceleft + 0);
-            buf_eos = eos(buf) , bufspaceleft = (buf_end - buf_eos);
+            buf = strncat(coerceCStr(buf), ((obj).oextra.oname), bufspaceleft + 0);
+            buf_eos = eos(buf) , bufspaceleft = 256 - 1 - strlen(buf);
         } while (0);
         /* jump directly here if obj passes the has-personal-name test */
         /* remember where the name will start */
@@ -996,7 +963,7 @@ export function xname_flags(obj, cxn_flags) {
      brown potion               -- if oc_name_known not set
      potion of object detection -- if discovered
  */
-export function minimal_xname(obj) {
+export async function minimal_xname(obj) {
     let bufp = null;
     let bareobj = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
     let saveobcls = { oc_name_idx: 0, oc_descr_idx: 0, oc_uname: null, oc_name_known: 0, oc_merge: 0, oc_uses_known: 0, oc_encountered: 0, oc_magic: 0, oc_charged: 0, oc_unique: 0, oc_nowish: 0, oc_big: 0, oc_tough: 0, oc_spare1: 0, oc_dir: 0, oc_material: 0, oc_subtyp: 0, oc_oprop: 0, oc_class: 0, oc_delay: 0, oc_color: 0, oc_prob: 0, oc_weight: 0, oc_cost: 0, oc_wsdam: 0, oc_wldam: 0, oc_oc1: 0, oc_oc2: 0, oc_nutrition: 0, oc_sell_minseen: 0, oc_sell_maxseen: 0, oc_buy_minseen: 0, oc_buy_maxseen: 0 };
@@ -1032,7 +999,7 @@ export function minimal_xname(obj) {
     if (obj.otyp == SLIME_MOLD) {
         bareobj.spe = obj.spe;
     }
-    bufp = distant_name(bareobj, xname);
+    bufp = await distant_name(bareobj, xname);
     /* undo forced setting of bareobj.blessed for cleric (priest[ess]);
        bufp is an obuf[] so a pointer into the middle of that is viable */
     if (!strncmp(bufp, "uncursed ", 9)) {
@@ -1043,14 +1010,12 @@ export function minimal_xname(obj) {
     return bufp;
 }
 /* xname() output augmented for multishot missile feedback */
-export function mshot_xname(obj) {
+export async function mshot_xname(obj) {
     let tmpbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let onm = xname(obj);
+    let onm = await xname(obj);
     if (game.m_shot.n > 1 && game.m_shot.o == obj.otyp) {
         tmpbuf = sprintf(tmpbuf, "the %d%s ", game.m_shot.i, ordin(game.m_shot.i));
-        /* "the Nth arrow"; value will eventually be passed to an() or
-           The(), both of which correctly handle this "the " prefix */
-        onm = strprepend(onm, tmpbuf);
+        onm = await strprepend(onm, tmpbuf);
     }
     return onm;
 }
@@ -1148,7 +1113,8 @@ export function erosion_matters(obj) {
 /* object to format */
 /* special case requests */
 let __doname_base_doname_full = 0;
-export function doname_base(obj, doname_flags) {
+__nh_register_static(() => { __doname_base_doname_full = 0; });
+export async function doname_base(obj, doname_flags) {
     let ispoisoned = (0);
     let with_price = (doname_flags & 1) != 0;
     let vague_quan = (doname_flags & 2) != 0;
@@ -1171,17 +1137,11 @@ export function doname_base(obj, doname_flags) {
     let bp_eos = null;
     let bp_end = null;
     let bpspaceleft = 0;
-    /* 'bp' will be within an obuf[] rather than at the start of one,
-       usually (but not always) pointing at &obuf[PREFIX];
-       gx.xnamep always points to the start of that buffer;
-       'bp_eos' and 'bpspaceleft' are used and updated by Concat*() macros */
-    bp = xname(obj);
-    bp_end = game.xnamep + 256 - 1;
+    bp = await xname(obj);
+    bp_end = __nh_advance_str(game.xnamep, 256) - 1;
     bp_eos = eos(bp);
     (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-    /* ok provided xname() bounds checking works */
-    /* size_t cast: convert signed ptrdiff_t to unsigned size_t */
-    bpspaceleft = (bp_end - bp_eos);
+    bpspaceleft = 256 - 1 - strlen(bp);
     if (game.iflags.override_ID) {
         known = dknown = cknown = bknown = lknown = (1);
     } else {
@@ -1282,34 +1242,28 @@ export function doname_base(obj, doname_flags) {
         prefix = strcat(prefix, "greased ");
     }
     if (cknown && ((obj).cobj != null) && bpspaceleft > 0) {
-        /* 3.6.0 used "unlockable" here but that could be misunderstood
-               to mean "capable of being unlocked" rather than the intended
-               "not capable of being locked" */
-        /* we count the number of separate stacks, which corresponds
-           to the number of inventory slots needed to be able to take
-           everything out if no merges occur */
-        let itemcount = count_contents(obj, (0), (0), (1), (0));
+        let itemcount = await count_contents(obj, (0), (0), (1), (0));
         do {
-            nh_snprintf("doname_base", 1379, bp_eos - 0, bpspaceleft + 0, " containing %ld item%s", itemcount, (((itemcount) == 1) ? "" : "s"));
-            bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+            bp = coerceCStr(bp) + nh_snprintf("doname_base", 1379, '', bpspaceleft + 0, " containing %ld item%s", itemcount, (((itemcount) == 1) ? "" : "s"));
+            bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
         } while (0);
     }
     switch (((obj).oclass == TOOL_CLASS && game.objects[(obj).otyp].oc_subtyp != P_NONE) ? WEAPON_CLASS : obj.oclass) {
         case AMULET_CLASS:
             if (obj.owornmask & 65536) {
                 do {
-                    strncat(bp_eos - 0, " (being worn)", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = strncat(coerceCStr(bp), " (being worn)", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
             }
             break;
         case ARMOR_CLASS:
             if (obj.owornmask & (1 | 2 | 4 | 8 | 16 | 32 | 64)) {
                 do {
-                    strncat(bp_eos - 0, (obj == game.uskin) ? " (embedded in your skin)" : doffing(obj) ? " (being doffed)" : donning(obj) ? " (being donned)" : " (being worn)", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = strncat(coerceCStr(bp), (obj == game.uskin) ? " (embedded in your skin)" : doffing(obj) ? " (being doffed)" : donning(obj) ? " (being donned)" : " (being worn)", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
-                if (bp_eos[-1] == 41) {
+                if (__nh_char_at0(__nh_advance_str(bp_eos, -1)) == 41) {
                     /* in case of perm_invent update while Wear/Takeoff
                       is in progress; check doffing() before donning()
                       because donning() returns True for both cases */
@@ -1323,19 +1277,19 @@ export function doname_base(obj, doname_flags) {
                                            * to be "(something; slippery)" */
                     if (obj == game.uarmg && game.u.uprops[GLIB].intrinsic) {
                         do {
-                            strncat(bp_eos - 1, "; slippery)", bpspaceleft + 1);
-                            bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                            bp = strncat(coerceCStr(bp).slice(0, -1), "; slippery)", bpspaceleft + 1);
+                            bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                         } while (0);
                     }
                 }
-                if (bp_eos[-1] == 41) {
+                if (__nh_char_at0(__nh_advance_str(bp_eos, -1)) == 41) {
                     /* there could be light-emitting artifact gloves someday,
                    so add 'lit' separately from 'slippery' rather than via
                    'else if' after uarmg+Glib */
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && obj.lamplit && artifact_light(obj)) {
                         do {
-                            nh_snprintf("doname_base", 1413, bp_eos - 1, bpspaceleft + 1, ", %s lit)", arti_light_description(obj));
-                            bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                            bp = coerceCStr(bp).slice(0, -1) + nh_snprintf("doname_base", 1413, '', bpspaceleft + 1, ", %s lit)", arti_light_description(obj));
+                            bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                         } while (0);
                     }
                 }
@@ -1353,8 +1307,8 @@ export function doname_base(obj, doname_flags) {
         case TOOL_CLASS:
             if (obj.owornmask & (524288 | 1048576)) {
                 do {
-                    strncat(bp_eos - 0, " (being worn)", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = strncat(coerceCStr(bp), " (being worn)", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
                 break;
             }
@@ -1362,14 +1316,14 @@ export function doname_base(obj, doname_flags) {
                 let mlsh = find_mid(obj.corpsenm, 1);
                 if (mlsh && !((mlsh).mhp < 1)) {
                     do {
-                        nh_snprintf("doname_base", 1435, bp_eos - 0, bpspaceleft + 0, " (attached to %s)", noit_mon_nam(mlsh));
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = coerceCStr(bp) + nh_snprintf("doname_base", 1435, '', bpspaceleft + 0, " (attached to %s)", await noit_mon_nam(mlsh));
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 } else {
                     if (mlsh) {
-                        impossible("leashed %s #%u is dead", mon_pmname(mlsh), obj.corpsenm);
+                        await impossible("leashed %s #%u is dead", mon_pmname(mlsh), obj.corpsenm);
                     } else {
-                        impossible("leashed monster #%u not found", obj.corpsenm);
+                        await impossible("leashed monster #%u not found", obj.corpsenm);
                     }
                     obj.corpsenm = 0;
                 }
@@ -1380,18 +1334,18 @@ export function doname_base(obj, doname_flags) {
                 let suffix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
                 suffix = sprintf(suffix, "%s%s", (((obj.spe) == 1) ? "" : "s"), !obj.lamplit ? " attached" : ", lit");
                 do {
-                    nh_snprintf("doname_base", 1453, bp_eos - 0, bpspaceleft + 0, " (%d of 7 candle%s)", obj.spe, suffix);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = coerceCStr(bp) + nh_snprintf("doname_base", 1453, '', bpspaceleft + 0, " (%d of 7 candle%s)", obj.spe, suffix);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
                 break;
             } else if (obj.otyp == OIL_LAMP || obj.otyp == MAGIC_LAMP || obj.otyp == BRASS_LANTERN || (obj.otyp == TALLOW_CANDLE || obj.otyp == WAX_CANDLE)) {
                 if ((obj.otyp == TALLOW_CANDLE || obj.otyp == WAX_CANDLE)) {
                     /* separately formatted suffix avoids need for ConcatF3() */
-                    let timer = 0;
+                    let timer = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
                     let full_burn_time = 20 * game.objects[obj.otyp].oc_cost;
                     let turns_left = obj.age;
                     if (obj.lamplit) {
-                        timer = cg.zeroany;
+                        Object.assign(timer, cg.zeroany);
                         timer.a_obj = obj;
                         /* without this, wishing for "lit candle" yields
                        "partly used candle (lit)" because the time it can
@@ -1407,8 +1361,8 @@ export function doname_base(obj, doname_flags) {
                 }
                 if (obj.lamplit) {
                     do {
-                        strncat(bp_eos - 0, " (lit)", bpspaceleft + 0);
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = strncat(coerceCStr(bp), " (lit)", bpspaceleft + 0);
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 }
                 break;
@@ -1416,8 +1370,8 @@ export function doname_base(obj, doname_flags) {
             if (game.objects[obj.otyp].oc_charged) {
                 if (known) {
                     do {
-                        nh_snprintf("doname_base", 1486, bp_eos - 0, bpspaceleft + 0, " (%d:%d)", obj.recharged, obj.spe);
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = coerceCStr(bp) + nh_snprintf("doname_base", 1486, '', bpspaceleft + 0, " (%d:%d)", obj.recharged, obj.spe);
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 }
             }
@@ -1425,37 +1379,37 @@ export function doname_base(obj, doname_flags) {
         case WAND_CLASS:
             if (known) {
                 do {
-                    nh_snprintf("doname_base", 1486, bp_eos - 0, bpspaceleft + 0, " (%d:%d)", obj.recharged, obj.spe);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = coerceCStr(bp) + nh_snprintf("doname_base", 1486, '', bpspaceleft + 0, " (%d:%d)", obj.recharged, obj.spe);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
             }
             break;
         case POTION_CLASS:
             if (obj.otyp == POT_OIL && obj.lamplit) {
                 do {
-                    strncat(bp_eos - 0, " (lit)", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = strncat(coerceCStr(bp), " (lit)", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
             }
             break;
         case RING_CLASS:
             if (obj.owornmask & 262144) {
                 do {
-                    strncat(bp_eos - 0, " (on right ", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = strncat(coerceCStr(bp), " (on right ", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
             }
             /* normal rings reach here 'naturally'; meat ring jumps here */
             if (obj.owornmask & 131072) {
                 do {
-                    strncat(bp_eos - 0, " (on left ", bpspaceleft + 0);
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = strncat(coerceCStr(bp), " (on left ", bpspaceleft + 0);
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
             }
             if (obj.owornmask & (131072 | 262144)) {
                 do {
-                    nh_snprintf("doname_base", 1499, bp_eos - 0, bpspaceleft + 0, "%s)", body_part(HAND));
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = coerceCStr(bp) + nh_snprintf("doname_base", 1499, '', bpspaceleft + 0, "%s)", await body_part(HAND));
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
             }
             if (known && game.objects[obj.otyp].oc_charged) {
@@ -1477,7 +1431,7 @@ export function doname_base(obj, doname_flags) {
                itself shouldn't care about xnamep (pointer to start of
                current obuf[]) but keep it accurate anyway */
                 save_xnamep = game.xnamep;
-                cxstr = corpse_xname(obj, prefix, cxarg);
+                cxstr = await corpse_xname(obj, prefix, cxarg);
                 prefix = sprintf(prefix, "%s ", cxstr);
                 /* avoid having doname(corpse) consume an extra obuf */
                 releaseobuf(cxstr);
@@ -1489,32 +1443,32 @@ export function doname_base(obj, doname_flags) {
                     /* corpses don't tell if they're stale either */
                     if (obj.spe == 1) {
                         do {
-                            strncat(bp_eos - 0, " (laid by you)", bpspaceleft + 0);
-                            bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                            bp = strncat(coerceCStr(bp), " (laid by you)", bpspaceleft + 0);
+                            bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                         } while (0);
                     }
                 }
             } else if (obj.otyp == MEAT_RING) {
                 if (obj.owornmask & 262144) {
                     do {
-                        strncat(bp_eos - 0, " (on right ", bpspaceleft + 0);
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = strncat(coerceCStr(bp), " (on right ", bpspaceleft + 0);
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 }
                 if (obj.owornmask & 131072) {
                     do {
-                        strncat(bp_eos - 0, " (on left ", bpspaceleft + 0);
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = strncat(coerceCStr(bp), " (on left ", bpspaceleft + 0);
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 }
                 if (obj.owornmask & (131072 | 262144)) {
                     do {
-                        nh_snprintf("doname_base", 1499, bp_eos - 0, bpspaceleft + 0, "%s)", body_part(HAND));
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = coerceCStr(bp) + nh_snprintf("doname_base", 1499, '', bpspaceleft + 0, "%s)", await body_part(HAND));
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 }
                 if (known && game.objects[obj.otyp].oc_charged) {
-                    prefix = __nh_buf_append(prefix, sprintf('', "%+d ", obj.spe));
+                    prefix = (prefix || '') + sprintf('', "%+d ", obj.spe);
                 }
             }
             break;
@@ -1523,8 +1477,8 @@ export function doname_base(obj, doname_flags) {
             add_erosion_words(obj, prefix);
             if (obj.owornmask & (2097152 | 4194304)) {
                 do {
-                    nh_snprintf("doname_base", 1545, bp_eos - 0, bpspaceleft + 0, " (%s to you)", (obj.owornmask & 2097152) ? "chained" : "attached");
-                    bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                    bp = coerceCStr(bp) + nh_snprintf("doname_base", 1545, '', bpspaceleft + 0, " (%s to you)", (obj.owornmask & 2097152) ? "chained" : "attached");
+                    bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                 } while (0);
             }
             break;
@@ -1533,8 +1487,8 @@ export function doname_base(obj, doname_flags) {
         let cgend = (obj.spe & 3);
         let mgend = ((cgend == 2) ? MALE : (cgend == 1) ? FEMALE : NEUTRAL);
         do {
-            nh_snprintf("doname_base", 1558, bp_eos - 0, bpspaceleft + 0, " (%s)", (cgend != 0) ? genders[mgend].adj : "unspecified gender");
-            bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+            bp = coerceCStr(bp) + nh_snprintf("doname_base", 1558, '', bpspaceleft + 0, " (%s)", (cgend != 0) ? genders[mgend].adj : "unspecified gender");
+            bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
         } while (0);
     }
     if ((obj.owornmask & 256) && !game.mrg_to_wielded) {
@@ -1542,23 +1496,18 @@ export function doname_base(obj, doname_flags) {
         let tethered = (obj.otyp == AKLYS);
         if ((obj.quan != 1 || ((obj.oclass == WEAPON_CLASS) ? (((obj.oclass == WEAPON_CLASS || obj.oclass == GEM_CLASS) && game.objects[obj.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[obj.otyp].oc_subtyp <= -P_BOW) || ((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[obj.otyp].oc_subtyp <= -P_DART)) : !((obj).oclass == TOOL_CLASS && game.objects[(obj).otyp].oc_subtyp != P_NONE))) && !twoweap_primary) {
             do {
-                strncat(bp_eos - 0, " (wielded)", bpspaceleft + 0);
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = strncat(coerceCStr(bp), " (wielded)", bpspaceleft + 0);
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
         } else {
-            let hand_s = body_part(HAND);
+            let hand_s = await body_part(HAND);
             /* it's safe to overwrite our nambuf[] after an() has copied its
        old value into another buffer; and once _that_ has been copied,
        the obuf[] returned by an() can be made available for re-use */
             let obufp = null;
             let handsbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             if (((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_big)) {
-                /* use alternate phrasing for non-weapons and for wielded ammo
-           (arrows, bolts), or missiles (darts, shuriken, boomerangs)
-           except when those are being actively dual-wielded where the
-           regular phrasing will list them as "in right hand" to
-           contrast with secondary weapon's "in left hand" */
-                hand_s = strcpy(handsbuf, obufp = makeplural(hand_s));
+                hand_s = strcpy(handsbuf, obufp = await makeplural(hand_s));
                 releaseobuf(obufp);
             /* "right hand" or "left hand" */
             } else {
@@ -1566,23 +1515,23 @@ export function doname_base(obj, doname_flags) {
                 hand_s = handsbuf;
             }
             do {
-                nh_snprintf("doname_base", 1595, bp_eos - 0, bpspaceleft + 0, " (%s %s)", tethered ? "tethered to" : twoweap_primary ? "wielded in" : "weapon in", hand_s);
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = coerceCStr(bp) + nh_snprintf("doname_base", 1595, '', bpspaceleft + 0, " (%s %s)", tethered ? "tethered to" : twoweap_primary ? "wielded in" : "weapon in", hand_s);
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
-            if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && bpspaceleft && bp_eos[-1] == 41) {
+            if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && bpspaceleft && __nh_char_at0(__nh_advance_str(bp_eos, -1)) == 41) {
                 /* note: Sting's glow message, if added, will insert text
                in front of "(weapon in hand)"'s closing paren */
                 /* we know bp[] ends with ')'; overwrite that */
                 /* as above, overwrite known closing paren */
                 if (game.warn_obj_cnt && obj == game.uwep && (game.u.uprops[WARN_OF_MON].extrinsic & 256) != 0) {
                     do {
-                        nh_snprintf("doname_base", 1605, bp_eos - 1, bpspaceleft + 1, ", %s %s)", glow_verb(game.warn_obj_cnt, (1)), glow_color(obj.oartifact));
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = coerceCStr(bp).slice(0, -1) + nh_snprintf("doname_base", 1605, '', bpspaceleft + 1, ", %s %s)", glow_verb(game.warn_obj_cnt, (1)), glow_color(obj.oartifact));
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 } else if (obj.lamplit && artifact_light(obj)) {
                     do {
-                        nh_snprintf("doname_base", 1609, bp_eos - 1, bpspaceleft + 1, ", %s lit)", arti_light_description(obj));
-                        bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                        bp = coerceCStr(bp).slice(0, -1) + nh_snprintf("doname_base", 1609, '', bpspaceleft + 1, ", %s lit)", arti_light_description(obj));
+                        bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
                     } while (0);
                 }
             }
@@ -1592,13 +1541,13 @@ export function doname_base(obj, doname_flags) {
         /* TODO: rephrase this when obj isn't a weapon or weptool */
         if (game.u.twoweap) {
             do {
-                nh_snprintf("doname_base", 1616, bp_eos - 0, bpspaceleft + 0, " (wielded in %s %s)", (game.u.uhandedness == 0) ? "left" : "right", body_part(HAND));
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = coerceCStr(bp) + nh_snprintf("doname_base", 1616, '', bpspaceleft + 0, " (wielded in %s %s)", (game.u.uhandedness == 0) ? "left" : "right", await body_part(HAND));
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
         } else {
             do {
-                nh_snprintf("doname_base", 1620, bp_eos - 0, bpspaceleft + 0, " (alternate weapon%s; not wielded)", (((obj.quan) == 1) ? "" : "s"));
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = coerceCStr(bp) + nh_snprintf("doname_base", 1620, '', bpspaceleft + 0, " (alternate weapon%s; not wielded)", (((obj.quan) == 1) ? "" : "s"));
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
         }
     }
@@ -1620,8 +1569,8 @@ export function doname_base(obj, doname_flags) {
                 break;
         }
         do {
-            nh_snprintf("doname_base", 1645, bp_eos - 0, bpspaceleft + 0, " (%s)", (Qtyp == 1) ? "in quiver" : (Qtyp == 2) ? "in quiver pouch" : "at the ready");
-            bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+            bp = coerceCStr(bp) + nh_snprintf("doname_base", 1645, '', bpspaceleft + 0, " (%s)", (Qtyp == 1) ? "in quiver" : (Qtyp == 2) ? "in quiver pouch" : "at the ready");
+            bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
         } while (0);
     }
     if (game.iflags.suppress_price || game.program_state.restoring) {
@@ -1634,28 +1583,28 @@ export function doname_base(obj, doname_flags) {
         /* don't attempt to obtain any shop pricing, even if 'with_price' */
         /* in inventory or in container in invent */
         let pricebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let quotedprice = unpaid_cost(obj, COST_CONTENTS);
-        pricebuf = sprintf(pricebuf, "%ld %s", quotedprice, currency(quotedprice));
+        let quotedprice = await unpaid_cost(obj, COST_CONTENTS);
+        pricebuf = sprintf(pricebuf, "%ld %s", quotedprice, await currency(quotedprice));
         do {
-            nh_snprintf("doname_base", 1661, bp_eos - 0, bpspaceleft + 0, " (%s, %s)", obj.unpaid ? "unpaid" : "contents", pricebuf);
-            bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+            bp = coerceCStr(bp) + nh_snprintf("doname_base", 1661, '', bpspaceleft + 0, " (%s, %s)", obj.unpaid ? "unpaid" : "contents", pricebuf);
+            bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
         } while (0);
         record_price_quote(obj.otyp, Math.trunc(quotedprice / obj.quan), (1));
     } else if (with_price) {
         /* on floor or in container on floor */
         let nochrg = 0;
-        let price = get_cost_of_shop_item(obj, { get value() { return nochrg; }, set value(_v) { nochrg = _v; } });
+        let price = await get_cost_of_shop_item(obj, { get value() { return nochrg; }, set value(_v) { nochrg = _v; } });
         if (price > 0) {
             let pricebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            pricebuf = sprintf(pricebuf, "%ld %s", price, currency(price));
+            pricebuf = sprintf(pricebuf, "%ld %s", price, await currency(price));
             do {
-                nh_snprintf("doname_base", 1673, bp_eos - 0, bpspaceleft + 0, " (%s, %s)", nochrg ? "contents" : "for sale", pricebuf);
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = coerceCStr(bp) + nh_snprintf("doname_base", 1673, '', bpspaceleft + 0, " (%s, %s)", nochrg ? "contents" : "for sale", pricebuf);
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
         } else if (nochrg > 0) {
             do {
-                strncat(bp_eos - 0, " (no charge)", bpspaceleft + 0);
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = strncat(coerceCStr(bp), " (no charge)", bpspaceleft + 0);
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
         } else if (game.iflags.pricequotes && !game.objects[obj.otyp].oc_name_known) {
             append_price_quote(bp, bp_eos, obj.otyp);
@@ -1667,29 +1616,24 @@ export function doname_base(obj, doname_flags) {
         append_price_quote(bp, bp_eos, obj.otyp);
     }
     if (!strncmp(prefix, "a ", 2)) {
-        /* Hand-port: just_an mutates its outbuf via C pointer
-           semantics that JS strings can't honor, so capture its
-           return value directly to pick the new "a "/"an " article. */
         tmpbuf = strcpy(tmpbuf, __nh_advance_str(prefix, 2));
-        /* save current prefix, without "a "; might be empty */
-        /* set prefix[] to "", "a ", or "an " */
-        const _article = just_an([0, 0, 0, 0], tmpbuf ? tmpbuf : bp);
+        prefix = just_an(prefix, __nh_char_at0(tmpbuf) ? tmpbuf : bp);
         /* append remainder of original prefix */
-        prefix = strcat(_article, tmpbuf);
+        prefix = strcat(prefix, tmpbuf);
     }
     if (game.flags.debug && game.iflags.wizweight) {
         /* show weight for items (debug tourist info);
        "aum" is stolen from Crawl's "Arbitrary Unit of Measure" */
         /* wizard mode user has asked to see object weights */
-        if (with_price && bp_eos[-1] == 41) {
+        if (with_price && __nh_char_at0(__nh_advance_str(bp_eos, -1)) == 41) {
             do {
-                nh_snprintf("doname_base", 1700, bp_eos - 1, bpspaceleft + 1, ", %u aum)", obj.owt);
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = coerceCStr(bp).slice(0, -1) + nh_snprintf("doname_base", 1700, '', bpspaceleft + 1, ", %u aum)", obj.owt);
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
         } else {
             do {
-                nh_snprintf("doname_base", 1702, bp_eos - 0, bpspaceleft + 0, " (%u aum)", obj.owt);
-                bp_eos = eos(bp) , bpspaceleft = (bp_end - bp_eos);
+                bp = coerceCStr(bp) + nh_snprintf("doname_base", 1702, '', bpspaceleft + 0, " (%u aum)", obj.owt);
+                bp_eos = eos(bp) , bpspaceleft = 256 - 1 - strlen(bp);
             } while (0);
         }
         ((bp_eos));
@@ -1698,7 +1642,7 @@ export function doname_base(obj, doname_flags) {
            about a variable assignment that won't be subsequently used */
         ((bpspaceleft));
     }
-    bp = strprepend(bp, prefix);
+    bp = await strprepend(bp, prefix);
     if (strlen(bp) > 256 - 1) {
         /*
      * Last gasp bounds check.
@@ -1715,10 +1659,7 @@ export function doname_base(obj, doname_flags) {
      * space or one of them overflows without being detected.
      */
         paniclog("doname", bp);
-        /* ideally this will never happen; if xnamep is any obuf[]
-           other than the last, overflow here would be relatively
-           benign and we could probably keep going */
-        panic("doname: long object description overflow.");
+        await panic("doname: long object description overflow.");
     } else {
         let offsetbp = for_menu ? 4 : 0;
         if (strlen(bp) + offsetbp >= 256 - 1) {
@@ -1728,33 +1669,21 @@ export function doname_base(obj, doname_flags) {
                 tmpbuf = sprintf(tmpbuf, "long object description%s.", offsetbp ? " truncated for menu use" : "");
                 paniclog("doname", tmpbuf);
             }
-            bp[256 - 1 - offsetbp] = 0;
+            bp = __nh_char_write(bp, 256 - 1 - offsetbp, 0);
         }
     }
     return bp;
 }
-export function doname(obj) {
-    return doname_base(obj, 0);
+export async function doname(obj) {
+    return await doname_base(obj, 0);
 }
 /* Name of object including price. */
-export function doname_with_price(obj) {
-    return doname_base(obj, 1);
+export async function doname_with_price(obj) {
+    return await doname_base(obj, 1);
 }
 /* "some" instead of precise quantity if obj->dknown not set */
-export function doname_vague_quan(obj) {
-    /* Used by farlook.
-     * If it hasn't been seen up close and quantity is more than one,
-     * use "some" instead of the quantity: "some gold pieces" rather
-     * than "25 gold pieces".  This is suboptimal, to put it mildly,
-     * because lookhere and pickup report the precise amount.
-     * Picking the item up while blind also shows the precise amount
-     * for inventory display, then dropping it while still blind leaves
-     * obj->dknown unset so the count reverts to "some" for farlook.
-     *
-     * TODO: add obj->qknown flag for 'quantity known' on stackable
-     * items; it could overlay obj->cknown since no containers stack.
-     */
-    return doname_base(obj, 2);
+export async function doname_vague_quan(obj) {
+    return await doname_base(obj, 2);
 }
 /* used from invent.c */
 export function not_fully_identified(otmp) {
@@ -1788,7 +1717,7 @@ export function not_fully_identified(otmp) {
 /* format a corpse name (xname() omits monster type; doname() calls us);
    eatcorpse() also uses us for death reason when eating tainted glob */
 /* bitmask of CXN_xxx values */
-export function corpse_xname(otmp, adjective, cxn_flags) {
+export async function corpse_xname(otmp, adjective, cxn_flags) {
     let nambuf = null;
     let omndx = otmp.corpsenm;
     let ignore_quan = (cxn_flags & 1) != 0;
@@ -1800,7 +1729,7 @@ export function corpse_xname(otmp, adjective, cxn_flags) {
     let glob = (otmp.otyp != CORPSE && otmp.globby);
     let mnam = null;
     game.xnamep = nextobuf();
-    nambuf = game.xnamep + 80;
+    nambuf = __nh_advance_str(game.xnamep, 80);
     if (glob) {
         /* suppress "the" from "the unique monster corpse" */
         /* include "the" for "the woodchuck corpse */
@@ -1810,7 +1739,7 @@ export function corpse_xname(otmp, adjective, cxn_flags) {
     } else if (omndx == NON_PM) {
         mnam = "thing";
     } else {
-        mnam = obj_pmname(otmp);
+        mnam = await obj_pmname(otmp);
         if (the_unique_pm(game.mons[omndx]) || (((game.mons[omndx]).mflags2 & 524288) != 0)) {
             mnam = s_suffix(mnam);
             possessive = (1);
@@ -1829,11 +1758,7 @@ export function corpse_xname(otmp, adjective, cxn_flags) {
     } else if (the_prefix) {
         any_prefix = (0);
     }
-    /* Hand-port: C `*nambuf = '\0';` clears nambuf to empty before
-       strcat starts appending.  Translator emitted `void 0` so nambuf
-       carries the broken `game.xnamep + 80` string-concat junk forward
-       — fix by resetting to empty. */
-    nambuf = '';
+    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     /* can't use the() the way we use an() below because any capitalized
        Name causes it to assume a personal name and return Name as-is;
        that's usually the behavior wanted, but here we need to force "the"
@@ -1876,35 +1801,34 @@ export function corpse_xname(otmp, adjective, cxn_flags) {
     }
     if (any_prefix) {
         let obufp = null;
-        nambuf = strcpy(nambuf, obufp = an(nambuf));
+        nambuf = strcpy(nambuf, obufp = await an(nambuf));
         releaseobuf(obufp);
     }
     return nambuf;
 }
 /* xname doesn't include monster type for "corpse"; cxname does */
-export function cxname(obj) {
+export async function cxname(obj) {
     if (obj.otyp == CORPSE) {
-        return corpse_xname(obj, null, 0);
+        return await corpse_xname(obj, null, 0);
     }
-    return xname(obj);
+    return await xname(obj);
 }
 /* like cxname, but ignores quantity */
-export function cxname_singular(obj) {
+export async function cxname_singular(obj) {
     if (obj.otyp == CORPSE) {
-        return corpse_xname(obj, null, 1);
+        return await corpse_xname(obj, null, 1);
     }
-    return xname_flags(obj, 1);
+    return await xname_flags(obj, 1);
 }
 /* treat an object as fully ID'd when it might be used as reason for death */
-export function killer_xname(obj) {
+export async function killer_xname(obj) {
     let save_obj = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
     let save_ocknown = 0;
     let buf = null;
     let save_ocuname = null;
     let save_oname = null;
-    /* bypass object twiddling for artifacts */
     if (obj.oartifact) {
-        return bare_artifactname(obj);
+        return await bare_artifactname(obj);
     }
     /* remember original settings for core of the object;
        oextra structs other than oname don't matter here--since they
@@ -1939,7 +1863,7 @@ export function killer_xname(obj) {
     save_ocuname = game.objects[obj.otyp].oc_uname;
     game.objects[obj.otyp].oc_uname = null;
     if (obj.otyp == CORPSE) {
-        buf = corpse_xname(obj, null, 0);
+        buf = await corpse_xname(obj, null, 0);
     } else if (obj.otyp == SLIME_MOLD) {
         /* concession to "most unique deaths competition" in the annual
            devnull tournament, suppress player supplied fruit names because
@@ -1947,11 +1871,11 @@ export function killer_xname(obj) {
         buf = nextobuf();
         buf = sprintf(buf, "deadly slime mold%s", (((obj.quan) == 1) ? "" : "s"));
     } else {
-        buf = xname(obj);
+        buf = await xname(obj);
     }
     /* apply an article if appropriate; caller should always use KILLED_BY */
     if (obj.quan == 1 && !strstri(buf, "'s ") && !strstri(buf, "s' ")) {
-        buf = (obj_is_pname(obj) || the_unique_obj(obj)) ? the(buf) : an(buf);
+        buf = (obj_is_pname(obj) || the_unique_obj(obj)) ? await the(buf) : await an(buf);
     }
     game.objects[obj.otyp].oc_name_known = save_ocknown;
     game.objects[obj.otyp].oc_uname = save_ocuname;
@@ -2039,7 +1963,7 @@ export function short_oname(obj, func, altfunc, lenlimit) {
 /*
  * Used if only one of a collection of objects is named (e.g. in eat.c).
  */
-export function singular(otmp, func) {
+export async function singular(otmp, func) {
     let savequan = 0;
     let nam = null;
     /* using xname for corpses does not give the monster type */
@@ -2048,7 +1972,7 @@ export function singular(otmp, func) {
     }
     savequan = otmp.quan;
     otmp.quan = 1;
-    nam = (func)(otmp);
+    nam = await (func)(otmp);
     otmp.quan = savequan;
     return nam;
 }
@@ -2056,6 +1980,7 @@ export function singular(otmp, func) {
 export function just_an(outbuf, str) {
     let c0 = 0;
     if (Array.isArray(outbuf) && outbuf.length > 0) outbuf[0] = 0;
+    else if (typeof outbuf === 'string') outbuf = ''; /* C: outbuf[0] = nul; string outbufs rebind (§23.244) */
     c0 = lowc(__nh_char_at0(str));
     if (!__nh_char_at0(__nh_advance_str(str, 1)) || __nh_char_at0(__nh_advance_str(str, 1)) == 32) {
         outbuf = strcpy(outbuf, strchr("aefhilmnosx", c0) ? "an " : "a ");
@@ -2072,21 +1997,17 @@ export function just_an(outbuf, str) {
     }
     return outbuf;
 }
-export function an(str) {
+export async function an(str) {
     let buf = nextobuf();
-    const __anEmpty = (str == null)
-        || (typeof str === 'string' ? str.length === 0
-            : Array.isArray(str) ? (!str[0])
-            : !str.value);
-    if (__anEmpty) {
-        impossible("Alphabet soup: 'an(%s)'.", str ? "\"\"" : "<null>");
+    if (!str || !__nh_char_at0(str)) {
+        await impossible("Alphabet soup: 'an(%s)'.", str ? "\"\"" : "<null>");
         return strcpy(buf, "an []");
     }
     just_an(buf, str);
-    return strncat(buf, str, 256 - 1 - Strlen_(buf, "an", 2154));
+    return strncat(buf, str, 256 - 1 - await Strlen_(buf, "an", 2154));
 }
-export function An(str) {
-    let tmp = an(str);
+export async function An(str) {
+    let tmp = await an(str);
     tmp = (() => { const __s = tmp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return tmp;
 }
@@ -2094,31 +2015,19 @@ export function An(str) {
  * Prepend "the" if necessary; assumes str is a subject derived from xname.
  * Use type_is_pname() for monster names, not the().  the() is idempotent.
  */
-export function the(str) {
-    /* JS-faithful rewrite of C objnam.c:2170-2240.  The translator
-       emitted `*str` (C first-char deref) as `str.value`, which is
-       always undefined for JS strings — causing impossible() to fire
-       and "the []" to be returned for every call.  This rewrite uses
-       str.charCodeAt(0) and operates on JS strings throughout while
-       preserving C's branching semantics. */
+export async function the(str) {
     let aname = null;
+    let buf = nextobuf();
     let insert_the = (0);
-    /* Normalize char-buffer arg to JS string. */
-    if (Array.isArray(str)) {
-        let s = '';
-        for (let i = 0; i < str.length && str[i]; i++) s += String.fromCharCode(str[i]);
-        str = s;
-    } else if (typeof str !== 'string' && str != null) {
-        str = String(str);
+    if (!str || !__nh_char_at0(str)) {
+        await impossible("Alphabet soup: 'the(%s)'.", str ? "\"\"" : "<null>");
+        return strcpy(buf, "the []");
     }
-    if (!str || str.length === 0) {
-        impossible("Alphabet soup: 'the(%s)'.", str ? "\"\"" : "<null>");
-        return strcpy(nextobuf(), "the []");
-    }
-    const c0 = str.charCodeAt(0);
     if (!strncmpi(str, "the ", 4)) {
-        return String.fromCharCode(lowc(c0)) + str.slice(1);
-    } else if (c0 < 65 || c0 > 90 || CapitalMon(str) || (fruit_from_name(str, (1), null) && ((aname = artifact_name(str, null, (0))) == null || strncmpi(aname, "the ", 4) == 0))) {
+        buf = (() => { const __s = buf; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toLowerCase() + __t.slice(1) : __s; })();
+        strcpy({ get value() { return __nh_char_at0(__nh_advance_str(buf, 1)); }, set value(_v) { __nh_char_at0(__nh_advance_str(buf, 1)) = _v; } }, __nh_advance_str(str, 1));
+        return buf;
+    } else if (__nh_char_at0(str) < 65 || __nh_char_at0(str) > 90 || await CapitalMon(str) || (await fruit_from_name(str, (1), null) && ((aname = artifact_name(str, null, (0))) == null || strncmpi(aname, "the ", 4) == 0))) {
         /* some capitalized monster names want "the", others don't */
         /* treat named fruit as not a proper name, even if player
                   has assigned a capitalized proper name as his/her fruit,
@@ -2127,92 +2036,92 @@ export function the(str) {
         insert_the = (1);
     } else {
         /* Probably a proper name, might not need an article */
-        let tmp = Math.max(str.lastIndexOf(' '), str.lastIndexOf('-'));
-        if (tmp >= 0 && tmp + 1 < str.length) {
-            const next = str.charCodeAt(tmp + 1);
-            if (next < 65 || next > 90) {
-                /* some objects have capitalized adjectives in their names */
-                /* insert "the" unless we have an apostrophe (where we assume
+        let named = null;
+        let called = null;
+        let tmp = null;
+        let l = 0;
+        if (((tmp = strrchr(str, 32)) != null || (tmp = strrchr(str, 45)) != null) && (__nh_char_at0(__nh_advance_str(tmp, 1)) < 65 || __nh_char_at0(__nh_advance_str(tmp, 1)) > 90)) {
+            /* some objects have capitalized adjectives in their names */
+            /* insert "the" unless we have an apostrophe (where we assume
                we're dealing with "Unique's corpse" when "Unique" wasn't
                caught by CapitalMon() above) */
-                insert_the = (str.indexOf("'") < 0) ? 1 : 0;
-            } else if (str.indexOf(' ') < tmp) {
-                /* has spaces */
-                /* it needs an article if the name contains "of" */
-                const ofIdx = str.indexOf(' of ');
-                let namedIdx = str.indexOf(' named ');
-                const calledIdx = str.indexOf(' called ');
-                if (calledIdx >= 0 && (namedIdx < 0 || calledIdx < namedIdx)) {
-                    namedIdx = calledIdx;
-                }
-                if (ofIdx >= 0 && (namedIdx < 0 || ofIdx < namedIdx)) {
-                    insert_the = (1);
-                } else if (namedIdx < 0 && str.length >= 31 && str.endsWith("Platinum Yendorian Express Card")) {
-                    /* stupid special case: lacks "of" but needs "the" */
-                    insert_the = (1);
-                }
+            insert_the = !strchr(str, 39);
+        } else if (tmp && strchr(str, 32) < tmp) {
+            /* it needs an article if the name contains "of" */
+            tmp = strstri(str, " of ");
+            named = strstri(str, " named ");
+            called = strstri(str, " called ");
+            if (called && (!named || called < named)) {
+                named = called;
+            }
+            /* stupid special case: lacks "of" but needs "the" */
+            if (tmp && (!named || tmp < named)) {
+                insert_the = (1);
+            } else if (!named && (l = await Strlen_(str, "the", 2220)) >= 31 && !strcmp(__nh_advance_str(str, l - 31), "Platinum Yendorian Express Card")) {
+                insert_the = (1);
             }
         }
     }
-    const out = (insert_the ? "the " : "") + str;
-    /* Cap at 255 chars like the C buffer would. */
-    return out.length > 255 ? out.slice(0, 255) : out;
+    if (insert_the) {
+        buf = strcpy(buf, "the ");
+    } else {
+        buf = __nh_char_write(buf, 0, 0);
+    }
+    return strncat(buf, str, 256 - 1 - await Strlen_(buf, "the", 2230));
 }
-export function The(str) {
-    let tmp = the(str);
+export async function The(str) {
+    let tmp = await the(str);
     tmp = (() => { const __s = tmp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return tmp;
 }
 /* returns "count cxname(otmp)" or just cxname(otmp) if count == 1 */
-export function aobjnam(otmp, verb) {
+export async function aobjnam(otmp, verb) {
     let prefix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let bp = cxname(otmp);
+    let bp = await cxname(otmp);
     if (otmp.quan != 1) {
         prefix = sprintf(prefix, "%ld ", otmp.quan);
-        bp = strprepend(bp, prefix);
+        bp = await strprepend(bp, prefix);
     }
     if (verb) {
         bp = strcat(bp, " ");
-        bp = strcat(bp, otense(otmp, verb));
+        bp = strcat(bp, await otense(otmp, verb));
     }
     return bp;
 }
 /* combine yname and aobjnam eg "your count cxname(otmp)" */
-export function yobjnam(obj, verb) {
-    let s = aobjnam(obj, verb);
+export async function yobjnam(obj, verb) {
+    let s = await aobjnam(obj, verb);
     if (!((obj).where == 3) || !obj_is_pname(obj) || obj.oartifact >= ART_ORB_OF_DETECTION) {
-        /* leave off "your" for most of your artifacts, but prepend
-     * "your" for unique objects and "foo of bar" quest artifacts */
-        let outbuf = shk_your(nextobuf(), obj);
-        let space_left = 256 - 1 - Strlen_(outbuf, "yobjnam", 2271);
+        let outbuf = await shk_your(nextobuf(), obj);
+        let space_left = 256 - 1 - await Strlen_(outbuf, "yobjnam", 2271);
         s = strncat(outbuf, s, space_left);
     }
     return s;
 }
 /* combine Yname2 and aobjnam eg "Your count cxname(otmp)" */
-export function Yobjnam2(obj, verb) {
-    let s = yobjnam(obj, verb);
+export async function Yobjnam2(obj, verb) {
+    let s = await yobjnam(obj, verb);
     s = (() => { const __s = s; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return s;
 }
 /* like aobjnam, but prepend "The", not count, and use xname */
-export function Tobjnam(otmp, verb) {
-    let bp = The(xname(otmp));
+export async function Tobjnam(otmp, verb) {
+    let bp = await The(await xname(otmp));
     if (verb) {
         bp = strcat(bp, " ");
-        bp = strcat(bp, otense(otmp, verb));
+        bp = strcat(bp, await otense(otmp, verb));
     }
     return bp;
 }
 /* capitalized variant of doname() */
-export function Doname2(obj) {
-    let s = doname(obj);
+export async function Doname2(obj) {
+    let s = await doname(obj);
     s = (() => { const __s = s; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return s;
 }
 /* doname() for itemized buying of 'obj' from a shop */
 const __paydoname_and_contents = " and its contents";
-export function paydoname(obj) {
+export async function paydoname(obj) {
     let p = null;
     let save_cknown = obj.cknown;
     let save_wizweight = game.iflags.wizweight;
@@ -2223,7 +2132,7 @@ export function paydoname(obj) {
     game.iflags.wizweight = (0);
     /* suppress invent-style price; caller will add billing-style price */
     game.iflags.suppress_price++;
-    p = doname_base(obj, 0);
+    p = await doname_base(obj, 0);
     game.iflags.suppress_price--;
     game.iflags.wizweight = save_wizweight;
     if (((obj).cobj != null)) {
@@ -2237,7 +2146,7 @@ export function paydoname(obj) {
             } else if (!strncmp(p, "an ", 3)) {
                 p = __nh_advance_str(p, 3);
             }
-            p = strprepend(p, obj.unpaid ? "an unpaid " : "your ");
+            p = await strprepend(p, obj.unpaid ? "an unpaid " : "your ");
         }
         if (!obj.cknown) {
             if (obj.unpaid) {
@@ -2245,7 +2154,7 @@ export function paydoname(obj) {
                     p = strcat(p, __paydoname_and_contents);
                 }
             } else {
-                p = strprepend(p, "the contents of ");
+                p = await strprepend(p, "the contents of ");
             }
         }
     }
@@ -2253,18 +2162,18 @@ export function paydoname(obj) {
     return p;
 }
 /* returns "[your ]xname(obj)" or "Foobar's xname(obj)" or "the xname(obj)" */
-export function yname(obj) {
-    let s = cxname(obj);
+export async function yname(obj) {
+    let s = await cxname(obj);
     if (!((obj).where == 3) || !obj_is_pname(obj) || obj.oartifact >= ART_ORB_OF_DETECTION) {
-        let outbuf = shk_your(nextobuf(), obj);
-        let space_left = 256 - 1 - Strlen_(outbuf, "yname", 2368);
+        let outbuf = await shk_your(nextobuf(), obj);
+        let space_left = 256 - 1 - await Strlen_(outbuf, "yname", 2368);
         s = strncat(outbuf, s, space_left);
     }
     return s;
 }
 /* capitalized variant of yname() */
-export function Yname2(obj) {
-    let s = yname(obj);
+export async function Yname2(obj) {
+    let s = await yname(obj);
     s = (() => { const __s = s; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return s;
 }
@@ -2272,15 +2181,15 @@ export function Yname2(obj) {
  * or "Foobar's minimal_xname(obj)"
  * or "the minimal_xname(obj)"
  */
-export function ysimple_name(obj) {
+export async function ysimple_name(obj) {
     let outbuf = nextobuf();
-    let s = shk_your(outbuf, obj);
-    let space_left = 256 - 1 - Strlen_(s, "ysimple_name", 2395);
-    return strncat(s, minimal_xname(obj), space_left);
+    let s = await shk_your(outbuf, obj);
+    let space_left = 256 - 1 - await Strlen_(s, "ysimple_name", 2395);
+    return strncat(s, await minimal_xname(obj), space_left);
 }
 /* capitalized variant of ysimple_name() */
-export function Ysimple_name2(obj) {
-    let s = ysimple_name(obj);
+export async function Ysimple_name2(obj) {
+    let s = await ysimple_name(obj);
     s = (() => { const __s = s; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return s;
 }
@@ -2300,19 +2209,19 @@ export function Ysimple_name2(obj) {
      *  enough to added plural suffix or "an" or "the" prefix.]
      */
 /* "scroll" or "scrolls" */
-export function simpleonames(obj) {
+export async function simpleonames(obj) {
     let obufp = null;
-    let simpleoname = minimal_xname(obj);
+    let simpleoname = await minimal_xname(obj);
     if (obj.quan != 1) {
-        simpleoname = strcpy(simpleoname, obufp = makeplural(simpleoname));
+        simpleoname = strcpy(simpleoname, obufp = await makeplural(simpleoname));
         releaseobuf(obufp);
     }
     return simpleoname;
 }
 /* "a scroll" or "scrolls"; "a silver bell" or "the Bell of Opening" */
-export function ansimpleoname(obj) {
+export async function ansimpleoname(obj) {
     let obufp = null;
-    let simpleoname = simpleonames(obj);
+    let simpleoname = await simpleonames(obj);
     let otyp = obj.otyp;
     /* prefix with "the" if a unique item, or a fake one imitating same,
        has been formatted with its actual name (we let minimal_xname() handle
@@ -2321,24 +2230,21 @@ export function ansimpleoname(obj) {
         otyp = AMULET_OF_YENDOR;
     }
     if (game.objects[otyp].oc_unique && (game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name) && !strcmp(simpleoname, (game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name))) {
-        /* the() will allocate another obuf[]; we want to avoid using two */
-        obufp = the(simpleoname);
+        obufp = await the(simpleoname);
         simpleoname = strcpy(simpleoname, obufp);
         releaseobuf(obufp);
     } else if (obj.quan == 1) {
-        /* simpleoname[] is singular if quan==1, plural otherwise;
-           an() will allocate another obuf[]; we want to avoid using two */
-        obufp = an(simpleoname);
+        obufp = await an(simpleoname);
         simpleoname = strcpy(simpleoname, obufp);
         releaseobuf(obufp);
     }
     return simpleoname;
 }
 /* "the scroll" or "the scrolls" */
-export function thesimpleoname(obj) {
+export async function thesimpleoname(obj) {
     let obufp = null;
-    let simpleoname = simpleonames(obj);
-    obufp = the(simpleoname);
+    let simpleoname = await simpleonames(obj);
+    obufp = await the(simpleoname);
     simpleoname = strcpy(simpleoname, obufp);
     releaseobuf(obufp);
     return simpleoname;
@@ -2347,28 +2253,24 @@ export function thesimpleoname(obj) {
    items, we can't just use OBJ_NAME() because it doesn't always include
    the class (for instance "light" when we want "spellbook of light");
    minimal_xname() uses xname() to get that */
-export function actualoname(obj) {
+export async function actualoname(obj) {
     let res = null;
     game.iflags.override_ID = (1);
-    res = minimal_xname(obj);
+    res = await minimal_xname(obj);
     game.iflags.override_ID = (0);
     return res;
 }
 /* artifact's name without any object type or known/dknown/&c feedback */
-export function bare_artifactname(obj) {
+export async function bare_artifactname(obj) {
     let outbuf = null;
     if (obj.oartifact) {
         outbuf = nextobuf();
         outbuf = strcpy(outbuf, artiname(obj.oartifact));
         if (!strncmp(outbuf, "The ", 4)) {
-            if (typeof outbuf === 'string' && outbuf.length > 0) {
-                outbuf = String.fromCharCode(lowc(outbuf.charCodeAt(0))) + outbuf.slice(1);
-            } else if (Array.isArray(outbuf) && outbuf.length > 0) {
-                outbuf[0] = lowc(outbuf[0]);
-            }
+            outbuf = (() => { const __s = outbuf; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toLowerCase() + __t.slice(1) : __s; })();
         }
     } else {
-        outbuf = xname(obj);
+        outbuf = await xname(obj);
     }
     return outbuf;
 }
@@ -2376,7 +2278,7 @@ const wrp = ["wand", "ring", "potion", "scroll", "gem", "amulet", "spellbook", "
 /* for non-specific wishes */
 const wrpsym = [WAND_CLASS, RING_CLASS, POTION_CLASS, SCROLL_CLASS, GEM_CLASS, AMULET_CLASS, SPBOOK_CLASS, SPBOOK_CLASS, WEAPON_CLASS, ARMOR_CLASS, TOOL_CLASS, FOOD_CLASS, FOOD_CLASS];
 /* return form of the verb (input plural) if xname(otmp) were the subject */
-export function otense(otmp, verb) {
+export async function otense(otmp, verb) {
     let buf = null;
     /*
      * verb is given in plural (without trailing s).  Return as input
@@ -2384,7 +2286,7 @@ export function otense(otmp, verb) {
      * recomputing xname(otmp) at this time.
      */
     if (!((otmp).quan != 1 || ((otmp).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD)))) {
-        return vtense(null, verb);
+        return await vtense(null, verb);
     }
     buf = nextobuf();
     buf = strcpy(buf, verb);
@@ -2399,87 +2301,8 @@ const special_subjs = ["erinys", "manes", "Cyclops", "Hippocrates", "Pelias", "a
        wished for using the shorter form, so we include them here
        to accommodate usage by makesingular during wishing */
 /* return form of the verb (input plural) for present tense 3rd person subj */
-export function vtense(subj, verb) {
-    let buf = null;
-    let bspot = null;
-    let len = 0;
-    let ltmp = 0;
-    let sp = null;
-    let spot = null;
-    let spec = null;
-    sing: {
-        buf = nextobuf();
-        if (subj) {
-            /*
-     * verb is given in plural (without trailing s).  Return as input
-     * if subj appears to be plural.  Add special cases as necessary.
-     * Many hard cases can already be handled by using otense() instead.
-     * If this gets much bigger, consider decomposing makeplural.
-     * Note: monster names are not expected here (except before corpse).
-     *
-     * Special case: allow null sobj to get the singular 3rd person
-     * present tense form so we don't duplicate this code elsewhere.
-     */
-            if (!strncmpi(subj, "a ", 2) || !strncmpi(subj, "an ", 3)) {
-                break sing;
-            }
-            spot = null;
-            for (sp = subj; (sp = strchr(sp, 32)) != null; (sp = __nh_advance_str(sp, 1))) {
-                if (!strncmpi(sp, " of ", 4) || !strncmpi(sp, " from ", 6) || !strncmpi(sp, " called ", 8) || !strncmpi(sp, " named ", 7) || !strncmpi(sp, " labeled ", 9)) {
-                    if (sp != subj) {
-                        spot = sp - 1;
-                    }
-                    break;
-                }
-            }
-            len = strlen(subj);
-            if (!spot) {
-                spot = subj + len - 1;
-            }
-            if ((lowc(spot) == 115 && spot != subj && !strchr("us", lowc((spot - 1)))) || !((spot - 3) < subj || strncmpi((spot - 3), "eeth", 4)) || !((spot - 3) < subj || strncmpi((spot - 3), "feet", 4)) || !((spot - 1) < subj || strncmpi((spot - 1), "ia", 2)) || !((spot - 1) < subj || strncmpi((spot - 1), "ae", 2))) {
-                /*
-         * plural: anything that ends in 's', but not '*us' or '*ss'.
-         * Guess at a few other special cases that makeplural creates.
-         */
-                /* check for special cases to avoid false matches */
-                len = (spot - subj) + 1;
-                for (spec = special_subjs; spec; spec++) {
-                    ltmp = Strlen_(spec, "vtense", 2610);
-                    if (len == ltmp && !strncmpi(spec, subj, len)) {
-                        break sing;
-                    }
-                    /* also check for <prefix><space><special_subj>
-                   to catch things like "the invisible erinys" */
-                    if (len > ltmp && (spot - ltmp) == 32 && !strncmpi(spec, spot - ltmp + 1, ltmp)) {
-                        break sing;
-                    }
-                }
-                return strcpy(buf, verb);
-            }
-            /*
-         * 3rd person plural doesn't end in telltale 's';
-         * 2nd person singular behaves as if plural.
-         */
-            if (!strncmpi((subj), ("they"), -1) || !strncmpi((subj), ("you"), -1)) {
-                return strcpy(buf, verb);
-            }
-        }
-    }
-    buf = strcpy(buf, verb);
-    len = strlen(buf);
-    bspot = buf + len - 1;
-    if (!strncmpi((buf), ("are"), -1)) {
-        buf = strcasecpy(buf, "is");
-    } else if (!strncmpi((buf), ("have"), -1)) {
-        strcasecpy(bspot - 1, "s");
-    } else if (strchr("zxs", lowc(bspot)) || (len >= 2 && lowc(bspot) == 104 && strchr("cs", lowc((bspot - 1)))) || (len == 2 && lowc(bspot) == 111)) {
-        strcasecpy(bspot + 1, "es");
-    } else if (lowc(bspot) == 121 && !strchr(vowels, lowc((bspot - 1)))) {
-        bspot = strcasecpy(bspot, "ies");
-    } else {
-        strcasecpy(bspot + 1, "s");
-    }
-    return buf;
+export async function vtense(subj, verb) {
+    return __nh_hp_vtense(subj, verb);
 }
 // struct sing_plur: { sing, plur }
 /* word pairs that don't fit into formula-based transformations;
@@ -2502,42 +2325,26 @@ const as_is = ["boots", "shoes", "gloves", "lenses", "scales", "eyes", "gauntlet
 /* base string, pointer to eos(string) */
 /* true => makeplural, false => makesingular */
 /* another set like as_is[] */
-export function singplur_lookup(basestr, endstring, to_plural, alt_as_is) {
+export async function singplur_lookup(basestr, endstring, to_plural, alt_as_is) {
     let sp = null;
     let same = null;
     let other = null;
     let as = null;
     let al = 0;
-    let baselen = Strlen_(basestr, "singplur_lookup", 2716);
-    /* §23.232f — C: for (as = as_is; *as; ++as) ... walks the
-       null-terminated array of suffix words and checks whether basestr
-       ends with each (case-insensitive).  Translator emitted `as =
-       as_is` (whole array, truthy, ++as→NaN) — loop ran once and
-       all suffix tests evaluated NaN comparisons.  JS-faithful: use
-       basestr.slice(-al) to fetch the suffix. */
-    if (typeof basestr === 'string') {
-        for (const word of as_is) {
-            if (word == null) break;
-            al = word.length;
-            if (basestr.length >= al
-                && basestr.slice(-al).toLowerCase() === word.toLowerCase()) {
-                return (1);
-            }
+    let baselen = await Strlen_(basestr, "singplur_lookup", 2716);
+    {
+        /* string-mode as_is suffix matching (C: case-insensitive
+           endswith against the working segment [basestr, endstring)) */
+        const __base = (typeof basestr === 'string') ? basestr : '';
+        const __lower = __base.toLowerCase();
+        for (const __w of as_is) {
+            if (__w && __lower.endsWith(__w.toLowerCase())) return (1);
         }
         if (alt_as_is) {
-            for (const word of alt_as_is) {
-                if (word == null) break;
-                al = word.length;
-                if (basestr.length >= al
-                    && basestr.slice(-al).toLowerCase() === word.toLowerCase()) {
-                    return (1);
-                }
+            for (const __w of alt_as_is) {
+                if (__w && __lower.endsWith(__w.toLowerCase())) return (1);
             }
         }
-    } else {
-        /* Array (char-buffer) path: skip suffix loop — the original
-           translator emit was broken here too, and char-buffer
-           callers are rare in current production. */
     }
     /* Leave "craft" as a suffix as-is (aircraft, hovercraft);
       "craft" itself is (arguably) not included in our likely context */
@@ -2591,31 +2398,18 @@ const __singplur_compound_compounds = [" of ", " labeled ", " called ", " named 
 const __singplur_compound_compound_start = " -";
 export function singplur_compound(str) {
     /* if new entries are added, be sure to keep compound_start[] in sync */
-    /* JS-faithful rewrite of C objnam.c:singplur_compound.  The
-       translator emitted `for (p = str; p; ++p)` and `for (cmpd =
-       compounds; cmpd; ++cmpd)` — both broken: `++p` on a JS string
-       becomes NaN after one iteration, `oclass = *s` patterns don't
-       hold the cursor.  C semantic: walk str, at each char whose
-       value is in compound_start[], check whether the suffix matches
-       any compound word (case-insensitive).  Returns the matching
-       suffix (which the caller uses as the position pointer). */
-    if (str == null || str.length === 0) return null;
-    const asStr = (typeof str === 'string')
-        ? str
-        : String.fromCharCode(...Array.from(str).filter((b) => b));
-    for (let i = 0; i < asStr.length; i++) {
-        const ch = asStr[i];
+    let __nh_cmpd_idx = 0;
+    let p = null;
+    for (p = str; __nh_char_at0(p); (p = __nh_advance_str(p, 1))) {
         /* substring starting at p can only match if *p is found
            within compound_start[] */
-        if (__singplur_compound_compound_start.indexOf(ch) < 0) continue;
-        const suffix = asStr.slice(i);
+        if (!strchr(__singplur_compound_compound_start, __nh_char_at0(p))) {
+            continue;
+        }
         /* check current substring against all words in the compound[] list */
-        for (const cmpd of __singplur_compound_compounds) {
-            if (cmpd == null) break;
-            if (suffix.length >= cmpd.length
-                && suffix.slice(0, cmpd.length).toLowerCase()
-                    === cmpd.toLowerCase()) {
-                return suffix;
+        for (__nh_cmpd_idx = 0; __singplur_compound_compounds[__nh_cmpd_idx]; ++__nh_cmpd_idx) {
+            if (!strncmpi(p, __singplur_compound_compounds[__nh_cmpd_idx], strlen(__singplur_compound_compounds[__nh_cmpd_idx]))) {
+                return p;
             }
         }
     }
@@ -2641,186 +2435,8 @@ export function singplur_compound(str) {
  * Also misused by muse.c to convert 1st person present verbs to 2nd person.
  * 3.6.0: made case-insensitive.
  */
-const __makeplural_already_plural = ["ae", "eaux", "matzot", null];
-export function makeplural(oldstr) {
-    let spot = null;
-    let lo_c = 0;
-    let str = null;
-    let excess = null;
-    let len = 0;
-    let i = 0;
-    bottom: {
-        str = nextobuf();
-        excess = null;
-        if (typeof oldstr === 'string') {
-            oldstr = oldstr.replace(/^ +/, '');
-        } else if (Array.isArray(oldstr)) {
-            let __pi = 0;
-            while (__pi < oldstr.length && oldstr[__pi] === 32) __pi++;
-            if (__pi > 0) oldstr = oldstr.slice(__pi);
-        } else if (oldstr) {
-            while (oldstr.value == 32) {
-                oldstr++;
-            }
-        }
-        const __plEmpty = (oldstr == null)
-            || (typeof oldstr === 'string' ? oldstr.length === 0
-                : Array.isArray(oldstr) ? (!oldstr[0])
-                : !oldstr.value);
-        if (__plEmpty) {
-            impossible("plural of null?");
-            str = strcpy(str, "s");
-            return str;
-        }
-        /* makeplural() is sometimes used on monsters rather than objects
-       and sometimes pronouns are used for monsters, so check those;
-       unfortunately, "her" (which matches genders[1].him and [1].his)
-       and "it" (which matches genders[2].he and [2].him) are ambiguous;
-       we'll live with that; caller can fix things up if necessary */
-        /* makeplural() of pronouns isn't reversible but at least we can
-       force a singular value */
-        /* the output buffer might be the same as the prefix if caller
-       has already partially filled it */
-        /* prefix is already in the buffer */
-        str[0] = 0;
-        for (i = 0; i <= 2; ++i) {
-            if (!strncmpi((genders[i].he), (oldstr), -1)) {
-                str = strcpy(str, genders[3].he);
-            } else if (!strncmpi((genders[i].him), (oldstr), -1)) {
-                str = strcpy(str, genders[3].him);
-            } else if (!strncmpi((genders[i].his), (oldstr), -1)) {
-                str = strcpy(str, genders[3].his);
-            }
-            if (__nh_char_at0(str)) {
-                if (__nh_char_at0(oldstr) == highc(__nh_char_at0(oldstr))) {
-                    if (typeof str === 'string' && str.length > 0) {
-                        str = String.fromCharCode(highc(str.charCodeAt(0))) + str.slice(1);
-                    } else if (Array.isArray(str) && str.length > 0) {
-                        str[0] = highc(str[0]);
-                    }
-                }
-                return str;
-            }
-        }
-        str = strcpy(str, oldstr);
-        /*
-     * Skip changing "pair of" to "pairs of".  According to Webster, usual
-     * English usage is use pairs for humans, e.g. 3 pairs of dancers,
-     * and pair for objects and non-humans, e.g. 3 pair of boots.  We don't
-     * refer to pairs of humans in this game so just skip to the bottom.
-     */
-        if (!strncmpi(str, "pair of ", 8)) {
-            /* man/men ("Wiped out all cavemen.") */
-            /* exclude shamans and humans etc */
-            /* ium/ia (mycelia, baluchitheria) */
-            /* algae, larvae, hyphae (another fungus part) */
-            /* fungus/fungi, homunculus/homunculi, but buses, lotuses, wumpuses */
-            /* -eau/-eaux (gateau, chapeau...) */
-            /* 'bureaus' is the more common plural of 'bureau' */
-            /* matzoh/matzot, possible food name */
-            /* codex/spadix/neocortex and the like */
-            /* indices would have been ok too, but stick with indexes */
-            /* Ends in z, x, s, ch, sh; add an "es" */
-            /* Kludge to get "tomatoes" and "potatoes" right */
-            /* Ends in y preceded by consonant (note: also "qu") change to "ies" */
-            break bottom;
-        }
-        if ((spot = singplur_compound(str)) != null) {
-            /* look for "foo of bar" so that we can focus on "foo" */
-            excess = oldstr + (spot - str);
-            /* check for "detect <foo>" vs "<foo> detection" */
-            /* convert "<foo> detection" into "detect <foo>" */
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        } else {
-            spot = eos(str);
-        }
-        spot--;
-        while (spot > str && spot == 32) {
-            spot--;
-        }
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        /* Now spot is the last character of the string */
-        len = Strlen_(str, "makeplural", 2895);
-        if (len == 1 || !letter(spot)) {
-            strcpy(spot + 1, "'s");
-            break bottom;
-        }
-{
-            /* spot+1: synch up with makesingular's usage */
-            if (singplur_lookup(str, spot + 1, (1), __makeplural_already_plural)) {
-                /* avoid "nerf" -> "nerves", "serf" -> "serves" */
-                /* fall through to default (append 's') */
-                /* [aeioulr]f to [aeioulr]ves */
-                /* input doesn't end in 's' */
-                break bottom;
-            }
-            /* more of same, but not suitable for blanket loop checking */
-            if ((len == 2 && !strncmpi((str), ("ya"), -1)) || (len >= 3 && !strncmpi((spot - 2), (" ya"), -1))) {
-                break bottom;
-            }
-        }
-        if (len >= 3 && !strncmpi((spot - 2), ("man"), -1) && !badman(str, (1))) {
-            strcasecpy(spot - 1, "en");
-            break bottom;
-        }
-        if (lowc(spot) == 102) {
-            /* (staff handled via one_off[]) */
-            lo_c = lowc((spot - 1));
-            if (len >= 3 && !strncmpi((spot - 2), ("erf"), -1)) {
-                ;
-            } else if (strchr("lr", lo_c) || strchr(vowels, lo_c)) {
-                spot = strcasecpy(spot, "ves");
-                break bottom;
-            }
-        }
-        if (len >= 3 && !strncmpi((spot - 2), ("ium"), -1)) {
-            strcasecpy(spot - 2, "ia");
-            break bottom;
-        }
-        if ((len >= 4 && !strncmpi((spot - 3), ("alga"), -1)) || (len >= 5 && (!strncmpi((spot - 4), ("hypha"), -1) || !strncmpi((spot - 4), ("larva"), -1))) || (len >= 6 && !strncmpi((spot - 5), ("amoeba"), -1)) || (len >= 8 && (!strncmpi((spot - 7), ("vertebra"), -1)))) {
-            strcasecpy(spot + 1, "e");
-            break bottom;
-        }
-        if (len > 3 && !strncmpi((spot - 1), ("us"), -1) && !((len >= 5 && !strncmpi((spot - 4), ("lotus"), -1)) || (len >= 6 && !strncmpi((spot - 5), ("wumpus"), -1)))) {
-            strcasecpy(spot - 1, "i");
-            break bottom;
-        }
-        if (len >= 3 && !strncmpi((spot - 2), ("sis"), -1)) {
-            strcasecpy(spot - 1, "es");
-            break bottom;
-        }
-        if (len >= 3 && !strncmpi((spot - 2), ("eau"), -1) && ((spot - 5) < str || strncmpi(((spot - 5)), ("bureau"), -1))) {
-            strcasecpy(spot + 1, "x");
-            break bottom;
-        }
-        if (len >= 6 && (!strncmpi((spot - 5), ("matzoh"), -1) || !strncmpi((spot - 5), ("matzah"), -1))) {
-            strcasecpy(spot - 1, "ot");
-            break bottom;
-        }
-        if (len >= 5 && (!strncmpi((spot - 4), ("matzo"), -1) || !strncmpi((spot - 4), ("matza"), -1))) {
-            spot = strcasecpy(spot, "ot");
-            break bottom;
-        }
-        /* note: ox/oxen, VAX/VAXen, goose/geese */
-        lo_c = lowc(spot);
-        if (len >= 5 && (!strncmpi((spot - 2), ("dex"), -1) || !strncmpi((spot - 2), ("dix"), -1) || !strncmpi((spot - 2), ("tex"), -1)) && (strncmpi((spot - 4), ("index"), -1) != 0)) {
-            strcasecpy(spot - 1, "ices");
-            break bottom;
-        }
-        if (strchr("zxs", lo_c) || (len >= 2 && lo_c == 104 && strchr("cs", lowc((spot - 1))) && !(len >= 4 && lowc((spot - 1)) == 99 && ch_ksound(str))) || (len >= 4 && !strncmpi((spot - 2), ("ato"), -1)) || (len >= 5 && !strncmpi((spot - 4), ("dingo"), -1))) {
-            strcasecpy(spot + 1, "es");
-            break bottom;
-        }
-        if (lo_c == 121 && !strchr(vowels, lowc((spot - 1)))) {
-            spot = strcasecpy(spot, "ies");
-            break bottom;
-        }
-        strcasecpy(spot + 1, "s");
-    }
-    if (excess) {
-        str = strcat(str, excess);
-    }
-    return str;
+export async function makeplural(oldstr) {
+    return __nh_hp_makeplural(oldstr);
 }
 /*
  * Singularize a string the user typed in; this helps reduce the complexity
@@ -2834,23 +2450,26 @@ export function makeplural(oldstr) {
  * from plural, doesn't make much sense for them so we don't bother trying.
  * 3.6.0: made case-insensitive.
  */
-export function makesingular(oldstr) {
+export async function makesingular(oldstr) {
     let p = null;
     let bp = null;
     let excess = null;
     let str = null;
     bottom: {
+        /* Ends in y preceded by consonant (note: also "qu") change to "ies" */
         excess = null;
         str = nextobuf();
-        while (__nh_char_at0(oldstr) === 32) {
-            oldstr = __nh_advance_str(oldstr, 1);
+        if (oldstr) {
+            while (__nh_char_at0(oldstr) == 32) {
+                (oldstr = __nh_advance_str(oldstr, 1));
+            }
         }
         if (!oldstr || !__nh_char_at0(oldstr)) {
-            impossible("singular of null?");
-            str[0] = 0;
+            await impossible("singular of null?");
+            str = __nh_char_write(str, 0, 0);
             return str;
         }
-        str[0] = 0;
+        str = __nh_char_write(str, 0, 0); /* C: *str = '\0' — clear the rotating obuf (stale-leak fix) */
         if (!strncmpi((genders[3].he), (oldstr), -1)) {
             str = strcpy(str, genders[2].he);
         } else if (!strncmpi((genders[3].him), (oldstr), -1)) {
@@ -2860,49 +2479,96 @@ export function makesingular(oldstr) {
         }
         if (__nh_char_at0(str)) {
             if (__nh_char_at0(oldstr) == highc(__nh_char_at0(oldstr))) {
-                if (typeof str === 'string' && str.length > 0) {
-                    str = String.fromCharCode(highc(str.charCodeAt(0))) + str.slice(1);
-                } else if (Array.isArray(str) && str.length > 0) {
-                    str[0] = highc(str[0]);
-                }
+                str = (() => { const __s = str; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
             }
             return str;
         }
         bp = strcpy(str, oldstr);
         if ((p = singplur_compound(bp)) != null) {
             /* check for "foo of bar" so that we can focus on "foo" */
-            /* C: excess = oldstr + (p - bp); *p = '\0' — split the
-               compound at p.  In JS, p is a suffix of bp, so the
-               offset is strlen(bp) - strlen(p); the emitted
-               string-minus-string was NaN, making excess
-               "<oldstr>NaN" and the tail's strcat rebuild bp as
-               bp+bp+NaN — every "X of Y" wish (amulet of life
-               saving, ring of conflict, ...) corrupted its own
-               lookup string and failed (Q9 iter 60, seed0360
-               wish #3). */
-            const __off = strlen(bp) - strlen(p);
-            excess = __nh_advance_str(oldstr, __off);
-            bp = (typeof bp === 'string') ? bp.slice(0, __off) : bp;
+            excess = __nh_advance_str(oldstr, ((bp.length - p.length)));
+            /* C: *p = '\0' — truncate bp at the compound boundary
+               (patched; the emitted void-0 left bp whole and the
+               bottom strcat doubled the suffix). */
+            bp = (typeof bp === 'string') ? bp.slice(0, bp.length - p.length) : bp;
             p = __nh_advance_str(bp, strlen(bp));
         } else {
             p = eos(bp);
         }
-        /* dispense with some words which don't need singularization */
-        if (singplur_lookup(bp, p, (0), special_subjs)) {
+        if (await singplur_lookup(bp, p, (0), special_subjs)) {
             break bottom;
         }
-        if (p >= bp + 1 && lowc(p[-1]) == 115) {
+        /* String-mode singularization tail (C objnam.c:3066-3151);
+           the emitted tail below is a no-op on JS suffix-strings. */
+        if (typeof bp === 'string' && bp.length >= 1) {
+            const __L = bp.toLowerCase();
+            const __ends = (suf) => __L.endsWith(suf);
+            const __wordStart = (n) => (bp.length === n || bp[bp.length - n - 1] === ' ');
+            const __caseRepl = (str0, at, repl) => {
+                let out = str0.slice(0, at);
+                for (let i = 0; i < repl.length; i++) {
+                    const oc = str0.charCodeAt(at + i);
+                    let nc = repl.charCodeAt(i);
+                    if (oc >= 65 && oc <= 90 && nc >= 97 && nc <= 122) nc -= 32;
+                    else if (oc >= 97 && oc <= 122 && nc >= 65 && nc <= 90) nc += 32;
+                    out += String.fromCharCode(nc);
+                }
+                return out + str0.slice(at + repl.length);
+            };
+            let __done = false;
+            if (__ends('s')) {
+                if (__ends('es')) {
+                    if (__ends('ies')) {
+                        if (!(__ends('cookies') || (__ends('pies') && __wordStart(4))
+                              || (__ends('genies') && __wordStart(6))
+                              || __ends('mbies') || __ends('yries'))) {
+                            bp = __caseRepl(bp, bp.length - 3, 'y').slice(0, bp.length - 2);
+                            __done = true;
+                        }
+                    } else if (bp.length >= 4 && __ends('ves')
+                               && ('lr'.includes(__L[bp.length - 4]) || 'aeiou'.includes(__L[bp.length - 4]))) {
+                        if (!(__ends('cloves') || __ends('nerves'))) {
+                            bp = __caseRepl(bp, bp.length - 3, 'f').slice(0, bp.length - 2);
+                            __done = true;
+                        }
+                    } else if (__ends('eses') || __ends('oxes') || __ends('nxes')
+                               || __ends('ches') || __ends('uses') || __ends('shes')
+                               || __ends('sses') || __ends('atoes') || __ends('dingoes')
+                               || __ends('aleaxes')) {
+                        bp = bp.slice(0, -2);
+                        __done = true;
+                    }
+                } else if (__ends('us')) {
+                    if (!(__ends('tengus') || __ends('hezrous'))) __done = true;
+                } else if (__ends('ss') || __ends(' lens') || __L === 'lens') {
+                    __done = true;
+                }
+                if (!__done) bp = bp.slice(0, -1);
+            } else {
+                if (__ends('men') && !badman(bp, (0))) {
+                    bp = __caseRepl(bp, bp.length - 2, 'an');
+                } else if (__ends('matzot') || __ends('ae') || __ends('eaux')) {
+                    bp = bp.slice(0, -1);
+                } else if (bp.length >= 4 && __ends('ia')
+                           && 'lr'.includes(__L[bp.length - 3]) && __L[bp.length - 4] === 'e') {
+                    bp = __caseRepl(bp, bp.length - 1, 'um');
+                }
+            }
+            break bottom;
+        }
+        if (p >= __nh_advance_str(bp, 1) && lowc(__nh_char_at0(__nh_advance_str(p, -1))) == 115) {
             mins: {
-                if (p >= bp + 2 && lowc(p[-2]) == 101) {
-                    if (p >= bp + 3 && lowc(p[-3]) == 105) {
+                if (p >= __nh_advance_str(bp, 2) && lowc(__nh_char_at0(__nh_advance_str(p, -2))) == 101) {
+                    if (p >= __nh_advance_str(bp, 3) && lowc(__nh_char_at0(__nh_advance_str(p, -3))) == 105) {
                         /* remove -s or -es (boxes) or -ies (rubies) */
-                        if (!((p - 7) < bp || strncmpi(((p - 7)), ("cookies"), -1)) || (!((p - 4) < bp || strncmpi(((p - 4)), ("pies"), -1)) && (p - 4 == bp || p[-5] == 32)) || (!((p - 6) < bp || strncmpi(((p - 6)), ("genies"), -1)) && (p - 6 == bp || p[-7] == 32)) || !((p - 5) < bp || strncmpi(((p - 5)), ("mbies"), -1)) || !((p - 5) < bp || strncmpi(((p - 5)), ("yries"), -1))) {
+                        if (!((p - 7) < bp || strncmpi(((p - 7)), ("cookies"), -1)) || (!((p - 4) < bp || strncmpi(((p - 4)), ("pies"), -1)) && (p - 4 == bp || __nh_char_at0(__nh_advance_str(p, -5)) == 32)) || (!((p - 6) < bp || strncmpi(((p - 6)), ("genies"), -1)) && (p - 6 == bp || __nh_char_at0(__nh_advance_str(p, -7)) == 32)) || !((p - 5) < bp || strncmpi(((p - 5)), ("mbies"), -1)) || !((p - 5) < bp || strncmpi(((p - 5)), ("yries"), -1))) {
                             break mins;
                         }
                         strcasecpy(p - 3, "y");
+                        /* input doesn't end in 's' */
                         break bottom;
                     }
-                    if (p - 4 >= bp && (strchr("lr", lowc((p - 4))) || strchr(vowels, lowc((p - 4)))) && !((p - 3) < bp || strncmpi(((p - 3)), ("ves"), -1))) {
+                    if (p - 4 >= bp && (strchr("lr", lowc(__nh_char_at0((p - 4)))) || strchr(vowels, lowc(__nh_char_at0((p - 4))))) && !((p - 3) < bp || strncmpi(((p - 3)), ("ves"), -1))) {
                         /* avoid false match for "harpies" */
                         /* alternate djinni/djinn spelling; not really needed */
                         /* avoid false match for "progenies" */
@@ -2915,8 +2581,15 @@ export function makesingular(oldstr) {
                     }
                     /* ends in 's' but not 'es' */
                     if (!((p - 4) < bp || strncmpi(((p - 4)), ("eses"), -1)) || !((p - 4) < bp || strncmpi(((p - 4)), ("oxes"), -1)) || !((p - 4) < bp || strncmpi(((p - 4)), ("nxes"), -1)) || !((p - 4) < bp || strncmpi(((p - 4)), ("ches"), -1)) || !((p - 4) < bp || strncmpi(((p - 4)), ("uses"), -1)) || !((p - 4) < bp || strncmpi(((p - 4)), ("shes"), -1)) || !((p - 4) < bp || strncmpi(((p - 4)), ("sses"), -1)) || !((p - 5) < bp || strncmpi(((p - 5)), ("atoes"), -1)) || !((p - 7) < bp || strncmpi(((p - 7)), ("dingoes"), -1)) || !((p - 7) < bp || strncmpi(((p - 7)), ("Aleaxes"), -1))) {
+                        /* makeplural() of pronouns isn't reversible but at least we can
+       force a singular value */
                         /* note: nurses, axes but boxes, wumpuses */
                         /* matzot -> matzo, algae -> alga */
+                        /* check for "detect <foo>" vs "<foo> detection" */
+                        /* convert "<foo> detection" into "detect <foo>" */
+                        /* the output buffer might be the same as the prefix if caller
+       has already partially filled it */
+                        /* prefix is already in the buffer */
                         /* len = (unsigned) strlen(qbuf); */
                         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
                         break bottom;
@@ -2942,7 +2615,7 @@ export function makesingular(oldstr) {
             }
             /* balactheria -> balactherium */
             /* here we cannot find the plural suffix */
-            if (p - 4 >= bp && !strncmpi((p - 2), ("ia"), -1) && strchr("lr", lowc((p - 3))) && lowc((p - 4)) == 101) {
+            if (p - 4 >= bp && !strncmpi((p - 2), ("ia"), -1) && strchr("lr", lowc(__nh_char_at0((p - 3)))) && lowc(__nh_char_at0((p - 4))) == 101) {
                 strcasecpy(p - 1, "um");
             }
         }
@@ -2991,7 +2664,7 @@ export function badman(basestr, to_plural) {
         for (i = 0; i < (Math.trunc(36 /* sizeof(const char *const [36]) */ / 1 /* sizeof(const char *const) */)); i++) {
             al = strlen(__badman_no_men[i]);
             spot = endstr - (al + 3);
-            if (!((spot) < basestr || strncmpi((spot), __badman_no_men[i], al)) && (spot == basestr || (spot - 1) == 32)) {
+            if (!((spot) < basestr || strncmpi((spot), __badman_no_men[i], al)) && (spot == basestr || __nh_char_at0((spot - 1)) == 32)) {
                 return (1);
             }
         }
@@ -2999,7 +2672,7 @@ export function badman(basestr, to_plural) {
         for (i = 0; i < (Math.trunc(31 /* sizeof(const char *const [31]) */ / 1 /* sizeof(const char *const) */)); i++) {
             al = strlen(__badman_no_man[i]);
             spot = endstr - (al + 3);
-            if (!((spot) < basestr || strncmpi((spot), __badman_no_man[i], al)) && (spot == basestr || (spot - 1) == 32)) {
+            if (!((spot) < basestr || strncmpi((spot), __badman_no_man[i], al)) && (spot == basestr || __nh_char_at0((spot - 1)) == 32)) {
                 return (1);
             }
         }
@@ -3012,7 +2685,7 @@ export function badman(basestr, to_plural) {
 /* optional extra "of" handling */
 const __wishymatch_detect_SP = "detect ";
 const __wishymatch_SP_detection = " detection";
-export function wishymatch(u_str, o_str, retry_inverted) {
+export async function wishymatch(u_str, o_str, retry_inverted) {
     let p = null;
     let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     /* ignore spaces & hyphens and upper/lower case when comparing */
@@ -3027,30 +2700,21 @@ export function wishymatch(u_str, o_str, retry_inverted) {
         u_of = strstri(u_str, " of ");
         o_of = strstri(o_str, " of ");
         if (u_of && !o_of) {
-            buf = strcpy(buf, __nh_advance_str(u_of, 4));
-            /* copynchars wants the "bar" part already in buf, then
-               appends " " + the "foo" prefix from u_str (length
-               u_of - u_str = the index where " of " starts). */
-            const __ulen = (typeof u_str === 'string' && typeof u_of === 'string')
-                ? u_str.length - u_of.length : 0;
-            copynchars(eos(strcat(buf, " ")), u_str, __ulen);
-            if (fuzzymatch(buf, o_str, " -", (1))) {
+            const __wbuf = __nh_advance_str(u_of, 4) + " " + u_str.slice(0, u_str.length - u_of.length);
+            if (fuzzymatch(__wbuf, o_str, " -", (1))) {
                 return (1);
             }
         } else if (o_of && !u_of) {
-            buf = strcpy(buf, __nh_advance_str(o_of, 4));
-            const __olen = (typeof o_str === 'string' && typeof o_of === 'string')
-                ? o_str.length - o_of.length : 0;
-            copynchars(eos(strcat(buf, " ")), o_str, __olen);
-            if (fuzzymatch(u_str, buf, " -", (1))) {
+            const __wbuf = __nh_advance_str(o_of, 4) + " " + o_str.slice(0, o_str.length - o_of.length);
+            if (fuzzymatch(u_str, __wbuf, " -", (1))) {
                 return (1);
             }
         }
     }
-    /* [note: if something like "elven speed boots" ever gets added, these
+    if (!strncmp(o_str, "dwarvish ", 9)) {
+        /* [note: if something like "elven speed boots" ever gets added, these
        special cases should be changed to call wishymatch() recursively in
        order to get the "of" inversion handling] */
-    if (!strncmp(o_str, "dwarvish ", 9)) {
         if (!strncmpi(u_str, "dwarven ", 8)) {
             return fuzzymatch(__nh_advance_str(u_str, 8), __nh_advance_str(o_str, 9), " -", (1));
         }
@@ -3063,57 +2727,39 @@ export function wishymatch(u_str, o_str, retry_inverted) {
     } else if (strstri(o_str, "helm") && strstri(u_str, "helmet")) {
         buf = copynchars(buf, u_str, 256 /* sizeof(char [256]) */ - 1);
         buf = strsubst(buf, "helmet", "helm");
-        return wishymatch(buf, o_str, (1));
+        return await wishymatch(buf, o_str, (1));
     } else if (strstri(o_str, "gauntlets") && strstri(u_str, "gloves")) {
         /* -3: room to replace shorter "gloves" with longer "gauntlets" */
         buf = copynchars(buf, u_str, 256 /* sizeof(char [256]) */ - 1 - 3);
         buf = strsubst(buf, "gloves", "gauntlets");
-        return wishymatch(buf, o_str, (1));
+        return await wishymatch(buf, o_str, (1));
     } else if (!strncmp(o_str, __wishymatch_detect_SP, 8 /* sizeof(const char [8]) */ - 1)) {
-        /* Hand-port: C source temporarily truncates u_str at the " detection"
-           position (`*p = '\0'`), builds buf = "detect " + truncated u_str,
-           appends "s" if the truncated form is "monster", then restores
-           the space (`*p = ' '`).  JS strings are immutable — compute the
-           truncated form directly via slice instead. */
-        if (typeof u_str === 'string' && u_str.endsWith(__wishymatch_SP_detection)) {
-            const __uTruncated = u_str.slice(0, u_str.length - __wishymatch_SP_detection.length);
-            buf = strcpy(buf, __wishymatch_detect_SP);
-            buf = strcat(buf, __uTruncated);
+        if ((p = strstri(u_str, __wishymatch_SP_detection)) != null && !__nh_char_at0((__nh_advance_str(p, 11 /* sizeof(const char [11]) */) - 1))) {
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+            strcat(strcpy(buf, __wishymatch_detect_SP), u_str);
             /* "detect monster" -> "detect monsters" */
-            if (!strncmpi(__uTruncated, "monster", -1)) {
+            if (!strncmpi((u_str), ("monster"), -1)) {
                 buf = strcat(buf, "s");
             }
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
             return fuzzymatch(buf, o_str, " -", (1));
         }
     } else if (strstri(o_str, __wishymatch_SP_detection)) {
         if (!strncmpi(u_str, __wishymatch_detect_SP, 8 /* sizeof(const char [8]) */ - 1)) {
-            /* and the inverse, "<foo> detection" vs "detect <foo>" */
-            /* convert "detect <foo>s" into "<foo> detection" */
-            /* Hand-port: capture strcat return so " detection" suffix
-               is actually preserved in buf — translator drops the
-               assignment, so buf saw the singularized form but not the
-               suffix concat. */
-            p = makesingular(__nh_advance_str(u_str, 7));
-            buf = strcpy(buf, p);
-            buf = strcat(buf, __wishymatch_SP_detection);
+            p = await makesingular(__nh_advance_str(u_str, 8 /* sizeof(const char [8]) */) - 1);
+            strcat(strcpy(buf, p), __wishymatch_SP_detection);
             /* caller may be looping through objects[], so avoid
                churning through all the obufs */
             releaseobuf(p);
             return fuzzymatch(buf, o_str, " -", (1));
         }
     } else if (strstri(o_str, "ability")) {
-        if (typeof u_str === 'string' && u_str.endsWith("abilities")) {
+        if ((p = strstri(u_str, "abilities")) != null && !__nh_char_at0((__nh_advance_str(p, 10 /* sizeof(char [10]) */) - 1))) {
             /* when presented with "foo of bar", makesingular() used to
            singularize both foo & bar, but now only does so for foo */
             /* catch "{potion(s),ring} of {gain,restore,sustain} abilities" */
-            /* Hand-port: C uses `strncpy(buf, u_str, p-u_str)` then
-               `strcpy(buf + offset, "ability")` to splice the prefix +
-               "ability".  In JS, slice + concat is the immutable
-               equivalent.  The `(p + 9)` end-check was broken in
-               translator output (string-concat), so this branch was
-               dead and "abilities" wishes never matched. */
-            const __abIdx = u_str.length - "abilities".length;
-            buf = u_str.slice(0, __abIdx) + "ability";
+            buf = strncpy(buf, u_str, ((u_str.length - p.length)));
+            strcpy(buf + ((u_str.length - p.length)), "ability");
             return fuzzymatch(buf, o_str, " -", (1));
         }
     } else if (!strcmp(o_str, "aluminum")) {
@@ -3164,7 +2810,7 @@ export function rnd_otyp_by_wpnskill(skill) {
 }
 /* add to item's chance of being chosen; non-zero causes
                     * 0% random generation items to also be considered */
-export function rnd_otyp_by_namedesc(name, oclass, xtra_prob) {
+export async function rnd_otyp_by_namedesc(name, oclass, xtra_prob) {
     let i = 0;
     let n = 0;
     let validobjs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -3205,7 +2851,7 @@ export function rnd_otyp_by_namedesc(name, oclass, xtra_prob) {
         if ((zn = (game.obj_descr[(game.objects[i]).oc_name_idx].oc_name)) == null) {
             continue;
         }
-        if (wishymatch(name, zn, (1)) || (check_of && i != BELL_OF_OPENING && (i < minglob || i > maxglob) && (of = strstri(zn, " of ")) != null && wishymatch(name, (typeof of === 'string') ? of.slice(4) : of, (0))) || ((zn = (game.obj_descr[(game.objects[i]).oc_descr_idx].oc_descr)) != null && wishymatch(name, zn, (0))) || (zn && check_of && (of = strstri(zn, " of ")) != null && wishymatch(name, (typeof of === 'string') ? of.slice(4) : of, (0))) || ((zn = game.objects[i].oc_uname) != null && wishymatch(name, zn, (0)))) {
+        if (await wishymatch(name, zn, (1)) || (check_of && i != BELL_OF_OPENING && (i < minglob || i > maxglob) && (of = strstri(zn, " of ")) != null && await wishymatch(name, __nh_advance_str(of, 4), (0))) || ((zn = (game.obj_descr[(game.objects[i]).oc_descr_idx].oc_descr)) != null && await wishymatch(name, zn, (0))) || (zn && check_of && (of = strstri(zn, " of ")) != null && await wishymatch(name, __nh_advance_str(of, 4), (0))) || ((zn = game.objects[i].oc_uname) != null && await wishymatch(name, zn, (0)))) {
             validobjs[n++] = i;
             maxprob += (game.objects[i].oc_prob + xtra_prob);
         }
@@ -3229,8 +2875,8 @@ export function rnd_otyp_by_namedesc(name, oclass, xtra_prob) {
     }
     return STRANGE_OBJECT;
 }
-export function shiny_obj(oclass) {
-    return rnd_otyp_by_namedesc("shiny", oclass, 0);
+export async function shiny_obj(oclass) {
+    return await rnd_otyp_by_namedesc("shiny", oclass, 0);
 }
 /* set wall under hero undiggable/unphaseable from string */
 export function set_wallprop_from_str(bp) {
@@ -3247,7 +2893,7 @@ export function set_wallprop_from_str(bp) {
     }
 }
 /* in wizard mode, readobjnam() can accept wishes for traps and terrain */
-export function wizterrainwish(d) {
+export async function wizterrainwish(d) {
     let lev = null;
     let madeterrain = (0);
     let badterrain = (0);
@@ -3270,12 +2916,12 @@ export function wizterrainwish(d) {
         if (((trap) == HOLE || (trap) == TRAPDOOR) && !Can_fall_thru(game.u.uz)) {
             trap = ROCKTRAP;
         }
-        if ((t = maketrap(x, y, trap)) != null) {
+        if ((t = await maketrap(x, y, trap)) != null) {
             trap = t.ttyp;
             tname = trapname(trap, (1));
-            pline("%s%s.", An(tname), (trap != MAGIC_PORTAL) ? "" : " to nowhere");
+            await pline("%s%s.", await An(tname), (trap != MAGIC_PORTAL) ? "" : " to nowhere");
         } else {
-            pline("Creation of %s failed.", an(tname));
+            await pline("Creation of %s failed.", await an(tname));
         }
         return game.hands_obj;
     }
@@ -3292,14 +2938,14 @@ export function wizterrainwish(d) {
         }
         lev.flags = d.flags ? 1 : 0;
         lev.horizontal = d.blessed || !strncmpi(bp, "magic ", 6);
-        pline("A %sfountain.", lev.horizontal ? "magic " : "");
+        await pline("A %sfountain.", lev.horizontal ? "magic " : "");
         /* ("water" matches "potion of water" rather than terrain) */
         /* also matches "molten lava" */
         madeterrain = (1);
     } else if (!((p - 6) < bp || strncmpi(((p - 6)), ("throne"), -1))) {
         lev.typ = THRONE;
         lev.flags = d.flags ? 1 : 0;
-        pline("A throne.");
+        await pline("A throne.");
         madeterrain = (1);
     } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("sink"), -1))) {
         lev.typ = SINK;
@@ -3307,7 +2953,7 @@ export function wizterrainwish(d) {
             game.level.flags.nsinks++;
         }
         lev.flags = d.flags ? (1 | 2 | 4) : 0;
-        pline("A sink.");
+        await pline("A sink.");
         madeterrain = (1);
     } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("pool"), -1)) || !((p - 4) < bp || strncmpi(((p - 4)), ("moat"), -1)) || !((p - 13) < bp || strncmpi(((p - 13)), ("wall of water"), -1))) {
         let save_prop = 0;
@@ -3321,18 +2967,17 @@ export function wizterrainwish(d) {
             lev.flags &= ~28;
             lev.flags |= 0;
         }
-        del_engr_at(x, y);
+        await del_engr_at(x, y);
         if (!is_dbridge) {
             save_prop = game.u.uprops[HALLUC_RES].extrinsic;
             game.u.uprops[HALLUC_RES].extrinsic = 1;
             new_water = waterbody_name(x, y);
             game.u.uprops[HALLUC_RES].extrinsic = save_prop;
-            /* Must manually make kelp! */
-            pline("%s.", An(new_water));
+            await pline("%s.", await An(new_water));
         } else {
-            dbterrainmesg("Moat", x, y);
+            await dbterrainmesg("Moat", x, y);
         }
-        water_damage_chain(game.level.objects[x][y], (1));
+        await water_damage_chain(game.level.objects[x][y], (1));
         madeterrain = (1);
     } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("lava"), -1)) || !((p - 12) < bp || strncmpi(((p - 12)), ("wall of lava"), -1))) {
         ltyp = !((p - 12) < bp || strncmpi(((p - 12)), ("wall of lava"), -1)) ? LAVAWALL : LAVAPOOL;
@@ -3343,16 +2988,16 @@ export function wizterrainwish(d) {
             lev.flags &= ~28;
             lev.flags |= 4;
         }
-        del_engr_at(x, y);
+        await del_engr_at(x, y);
         if (!is_dbridge) {
-            pline("A %s of molten lava.", (lev.typ == LAVAPOOL) ? "pool" : "wall");
+            await pline("A %s of molten lava.", (lev.typ == LAVAPOOL) ? "pool" : "wall");
             if (!(((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) || ((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked)) || lev.typ == LAVAWALL) {
-                pooleffects((0));
+                await pooleffects((0));
             }
         } else {
-            dbterrainmesg("Lava", x, y);
+            await dbterrainmesg("Lava", x, y);
         }
-        fire_damage_chain(game.level.objects[x][y], (1), (1), x, y);
+        await fire_damage_chain(game.level.objects[x][y], (1), (1), x, y);
         madeterrain = (1);
     } else if (!((p - 3) < bp || strncmpi(((p - 3)), ("ice"), -1))) {
         if (!is_dbridge) {
@@ -3363,15 +3008,15 @@ export function wizterrainwish(d) {
             lev.flags &= ~28;
             lev.flags |= 8;
         }
-        del_engr_at(x, y);
+        await del_engr_at(x, y);
         if (!strncmpi(bp, "melting ", 8)) {
-            start_melt_ice_timeout(x, y, 0);
+            await start_melt_ice_timeout(x, y, 0);
         }
         if (!is_dbridge) {
             let icebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            pline("%s.", upstart(ice_descr(x, y, icebuf)));
+            await pline("%s.", upstart(ice_descr(x, y, icebuf)));
         } else {
-            dbterrainmesg("Ice", x, y);
+            await dbterrainmesg("Ice", x, y);
         }
         madeterrain = (1);
     } else if (!((p - 5) < bp || strncmpi(((p - 5)), ("altar"), -1))) {
@@ -3390,40 +3035,36 @@ export function wizterrainwish(d) {
             al = !rn2(6) ? (-128) : (rn2(1 + 2) - 1);
         }
         lev.flags = ((((al) == (-128)) ? 0 : ((al) == 1) ? 4 : ((al) + 2)));
-        pline("%s altar.", An(align_str(al)));
+        await pline("%s altar.", await An(align_str(al)));
         madeterrain = (1);
     } else if (!((p - 5) < bp || strncmpi(((p - 5)), ("grave"), -1)) || !((p - 9) < bp || strncmpi(((p - 9)), ("headstone"), -1))) {
-        make_grave(x, y, null);
+        await make_grave(x, y, null);
         if (((lev.typ) == GRAVE)) {
             lev.flags = 0;
             lev.horizontal = d.flags ? 1 : 0;
-            pline("A %sgrave.", lev.horizontal ? "disturbed " : "");
+            await pline("A %sgrave.", lev.horizontal ? "disturbed " : "");
             madeterrain = (1);
         } else {
-            pline("Can't place a grave here.");
+            await pline("Can't place a grave here.");
             badterrain = (1);
         }
     } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("tree"), -1))) {
         lev.typ = TREE;
         lev.flags = d.flags ? (1 | 2) : 0;
         set_wallprop_from_str(bp);
-        pline("A tree.");
+        await pline("A tree.");
         madeterrain = (1);
     } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("bars"), -1))) {
         lev.typ = IRONBARS;
         lev.flags = 0;
         set_wallprop_from_str(bp);
-        /* [FIXME: if this isn't a wall or door location where 'horizontal'
-            is already set up, that should be calculated for this spot.
-            Unfortunately, it can be tricky; placing one in open space
-            and then another adjacent might need to recalculate first one.] */
-        pline("Iron bars.");
+        await pline("Iron bars.");
         madeterrain = (1);
     } else if (!((p - 5) < bp || strncmpi(((p - 5)), ("cloud"), -1))) {
         lev.typ = CLOUD;
         lev.flags = 0;
-        pline("A cloud.");
-        del_engr_at(x, y);
+        await pline("A cloud.");
+        await del_engr_at(x, y);
         madeterrain = (1);
     } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("door"), -1)) || (d.doorless && !((p - 7) < bp || strncmpi(((p - 7)), ("doorway"), -1)))) {
         let dbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -3499,14 +3140,14 @@ export function wizterrainwish(d) {
                     dbuf = strcat(dbuf, "door");
                 }
             }
-            pline("%s.", upstart(an(dbuf)));
+            await pline("%s.", upstart(await an(dbuf)));
             madeterrain = (1);
         } else {
             dbuf = strcpy(dbuf, secret ? "secret door" : "door");
-            pline("%s requires door or wall location.", upstart(dbuf));
+            await pline("%s requires door or wall location.", upstart(dbuf));
             badterrain = (1);
         }
-    } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("wall"), -1)) && (bp == p - 4 || p[-5] == 32)) {
+    } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("wall"), -1)) && (bp == p - 4 || __nh_char_at0(__nh_advance_str(p, -5)) == 32)) {
         let wall = HWALL;
         if ((isok(game.u.ux, game.u.uy - 1) && ((game.level.locations[game.u.ux][game.u.uy - 1].typ) && (game.level.locations[game.u.ux][game.u.uy - 1].typ) <= DBWALL)) || (isok(game.u.ux, game.u.uy + 1) && ((game.level.locations[game.u.ux][game.u.uy + 1].typ) && (game.level.locations[game.u.ux][game.u.uy + 1].typ) <= DBWALL))) {
             wall = VWALL;
@@ -3515,53 +3156,47 @@ export function wizterrainwish(d) {
         lev.typ = wall;
         lev.flags = 0;
         set_wallprop_from_str(bp);
-        fix_wall_spines(((0) > (game.u.ux - 1) ? (0) : (game.u.ux - 1)), ((0) > (game.u.uy - 1) ? (0) : (game.u.uy - 1)), ((80) < (game.u.ux + 1) ? (80) : (game.u.ux + 1)), ((21) < (game.u.uy + 1) ? (21) : (game.u.uy + 1)));
-        pline("A wall.");
+        await fix_wall_spines(((0) > (game.u.ux - 1) ? (0) : (game.u.ux - 1)), ((0) > (game.u.uy - 1) ? (0) : (game.u.uy - 1)), ((80) < (game.u.ux + 1) ? (80) : (game.u.ux + 1)), ((21) < (game.u.uy + 1) ? (21) : (game.u.uy + 1)));
+        await pline("A wall.");
     } else if (!((p - 15) < bp || strncmpi(((p - 15)), ("secret corridor"), -1))) {
         if (lev.typ == CORR) {
             lev.typ = SCORR;
-            /* neither CORR nor SCORR uses 'flags' or 'horizontal' */
-            pline("Secret corridor.");
+            await pline("Secret corridor.");
             madeterrain = (1);
         } else {
-            pline("Secret corridor requires corridor location.");
+            await pline("Secret corridor requires corridor location.");
             badterrain = (1);
         }
     } else if (!((p - 4) < bp || strncmpi(((p - 4)), ("room"), -1)) || !((p - 5) < bp || strncmpi(((p - 5)), ("floor"), -1)) || !((p - 6) < bp || strncmpi(((p - 6)), ("ground"), -1))) {
         if (oldtyp == ROOM || (((oldtyp) >= STAIRS && (oldtyp) <= ALTAR) && (game.iflags.debug_overwrite_stairs || !((oldtyp) == LADDER || (oldtyp) == STAIRS))) || oldtyp == ICE || is_pool_or_lava(x, y)) {
             let t = null;
             lev.typ = ROOM;
-            pline("Room floor.");
+            await pline("Room floor.");
             if (((oldtyp) >= STAIRS && (oldtyp) <= ALTAR)) {
                 count_level_features();
             }
             if ((t = t_at(x, y)) != null && t.ttyp != MAGIC_PORTAL) {
-                deltrap(t);
+                await deltrap(t);
             }
             madeterrain = (1);
         } else if (is_dbridge) {
             lev.flags &= ~28;
             lev.flags |= 16;
-            dbterrainmesg("Floor", x, y);
+            await dbterrainmesg("Floor", x, y);
             madeterrain = (1);
         } else {
-            pline("Room|floor|ground not allowed here.");
+            await pline("Room|floor|ground not allowed here.");
             badterrain = (1);
         }
     }
     if (madeterrain) {
-        /* map the spot where the wish occurred */
-        feel_newsym(x, y);
+        await feel_newsym(x, y);
         if (game.u.uinwater && !is_pool(game.u.ux, game.u.uy)) {
-            /* hero started at <x,y> but might not be there anymore (create
-           lava, decline to die, and get teleported away to safety) */
-            /* u.uinwater = 0; leave the water */
-            set_uinwater(0);
-            /* [block/unblock_point handled by docrt -> vision_recalc] */
-            docrt();
+            await set_uinwater(0);
+            await docrt();
         } else {
             if (game.u.utrap && game.u.utraptype == TT_LAVA && !is_lava(game.u.ux, game.u.uy)) {
-                reset_utrap((0));
+                await reset_utrap((0));
             }
             recalc_block_point(x, y);
         }
@@ -3583,12 +3218,7 @@ export function wizterrainwish(d) {
                 lev.horizontal = 0;
             }
         }
-        /* note: lev->lit and lev->nondiggable retain their values even
-           though those might not make sense with the new terrain */
-        /* might have changed terrain from something that blocked
-           levitation and flying to something that doesn't (levitating
-           while in xorn form and replacing solid stone with furniture) */
-        switch_terrain();
+        await switch_terrain();
     }
     if (madeterrain || badterrain) {
         return game.hands_obj;
@@ -3596,8 +3226,8 @@ export function wizterrainwish(d) {
     return null;
 }
 /* message common to several wizterrainwish() results */
-export function dbterrainmesg(newtype, x, y) {
-    pline("%s %s the drawbridge.", newtype, (game.level.locations[x][y].typ == DRAWBRIDGE_UP) ? "in front of" : "under");
+export async function dbterrainmesg(newtype, x, y) {
+    await pline("%s %s the drawbridge.", newtype, (game.level.locations[x][y].typ == DRAWBRIDGE_UP) ? "in front of" : "under");
 }
 export function readobjnam_init(bp, d) {
     d.otmp = null;
@@ -3628,7 +3258,7 @@ export function readobjnam_preparse(d) {
     let res = 1;
     for (; ; ) {
         let l = 0;
-        if (!d.bp || !d.bp) {
+        if (!d.bp || !__nh_char_at0(d.bp)) {
             break;
         }
         res = 0;
@@ -3640,21 +3270,20 @@ export function readobjnam_preparse(d) {
             /* just increment `bp' by `l' below */
             d.cnt = atoi(d.bp);
             while (digit(__nh_char_at0(d.bp))) {
-                d.bp = __nh_advance_str(d.bp, 1);
+                (d.bp = __nh_advance_str(d.bp, 1));
             }
-            while (__nh_char_at0(d.bp) === 32) {
-                d.bp = __nh_advance_str(d.bp, 1);
+            while (__nh_char_at0(d.bp) == 32) {
+                (d.bp = __nh_advance_str(d.bp, 1));
             }
             l = 0;
-        } else if (__nh_char_at0(d.bp) === 43 || __nh_char_at0(d.bp) === 45) {
-            d.spesgn = (__nh_char_at0(d.bp) === 43) ? 1 : -1;
-            d.bp = __nh_advance_str(d.bp, 1);
+        } else if (__nh_char_at0(d.bp) == 43 || __nh_char_at0(d.bp) == 45) {
+            d.spesgn = ((d.bp = __nh_advance_str(d.bp, 1)) == 43) ? 1 : -1;
             d.spe = atoi(d.bp);
             while (digit(__nh_char_at0(d.bp))) {
-                d.bp = __nh_advance_str(d.bp, 1);
+                (d.bp = __nh_advance_str(d.bp, 1));
             }
-            while (__nh_char_at0(d.bp) === 32) {
-                d.bp = __nh_advance_str(d.bp, 1);
+            while (__nh_char_at0(d.bp) == 32) {
+                (d.bp = __nh_advance_str(d.bp, 1));
             }
             l = 0;
         } else if (!strncmpi(d.bp, "blessed ", l = 8) || !strncmpi(d.bp, "holy ", l = 5)) {
@@ -3740,7 +3369,7 @@ export function readobjnam_preparse(d) {
             /* "large" might be part of monster name (dog, cat, kobold,
                mimic) or object name (box, round shield) rather than
                prefix for glob size */
-            if (strncmpi(d.bp.slice(l), "glob", 4) && !strstri(d.bp.slice(l), " glob")) {
+            if (strncmpi(__nh_advance_str(d.bp, l), "glob", 4) && !strstri(__nh_advance_str(d.bp, l), " glob")) {
                 break;
             }
             d.gsize = 1;
@@ -3752,7 +3381,7 @@ export function readobjnam_preparse(d) {
                and less than 15 (owt < 300) */
             d.gsize = 2;
         } else if (!strncmpi(d.bp, "large ", l = 6)) {
-            if (strncmpi(d.bp.slice(l), "glob", 4) && !strstri(d.bp.slice(l), " glob")) {
+            if (strncmpi(__nh_advance_str(d.bp, l), "glob", 4) && !strstri(__nh_advance_str(d.bp, l), " glob")) {
                 break;
             }
             /* "very large " had "very " peeled off on previous iteration */
@@ -3792,31 +3421,17 @@ export function readobjnam_preparse(d) {
             if (save_bp) {
                 strsubst(d.bp, "neuter ", "") , l = 0;
             }
-        } else if ((!strncmpi(d.bp, "corpse ", l = 7) || !strncmpi(d.bp, "statue ", l = 7) || !strncmpi(d.bp, "figurine ", l = 9)) && !strncmpi(d.bp.slice(l), "of ", more_l = 3)) {
+        } else if ((!strncmpi(d.bp, "corpse ", l = 7) || !strncmpi(d.bp, "statue ", l = 7) || !strncmpi(d.bp, "figurine ", l = 9)) && !strncmpi(__nh_advance_str(d.bp, l), "of ", more_l = 3)) {
             /* we'll backtrack to here later */
             save_bp = d.bp;
             l += more_l , more_l = 0;
-            if (!strncmpi(d.bp.slice(l), "a ", more_l = 2) || !strncmpi(d.bp.slice(l), "an ", more_l = 3) || !strncmpi(d.bp.slice(l), "the ", more_l = 4)) {
+            if (!strncmpi(__nh_advance_str(d.bp, l), "a ", more_l = 2) || !strncmpi(__nh_advance_str(d.bp, l), "an ", more_l = 3) || !strncmpi(__nh_advance_str(d.bp, l), "the ", more_l = 4)) {
                 l += more_l;
             }
         } else {
             break;
         }
-        /* C: bp += l (pointer advance).  Translator emitted `d.bp += l`
-           which is a no-op for arrays (number cast then concat) and an
-           INFINITE LOOP for strings ("blessed +3 ..." + 8 → "blessed
-           +3 ...8" → next iter still matches "blessed" → hang).
-           Use slice() for strings, array re-slice for arrays.  Required
-           for any wish starting with a matched prefix ("blessed ",
-           "uncursed ", "an ", etc.) — without this, ^W with such a
-           wish hangs the engine. */
-        if (l > 0) {
-            if (typeof d.bp === 'string') {
-                d.bp = d.bp.slice(l);
-            } else if (Array.isArray(d.bp)) {
-                d.bp = d.bp.slice(l);
-            }
-        }
+        d.bp = __nh_advance_str(d.bp, l);
     }
     if (save_bp) {
         d.bp = save_bp;
@@ -3824,97 +3439,31 @@ export function readobjnam_preparse(d) {
     return res;
 }
 export function readobjnam_parse_charges(d) {
-    /* Translator gap: this block is C pointer-arith on d.bp / d.p —
-       `d.p[idx] = 0` (mutate-char), `++d.p` / `d.p += N` (advance),
-       `if (d.p == 58)` (compare to char-code 58 = ':'), `*pp = ++*p`
-       (copy-trailing loop) — none translate to JS string operations.
-       C semantics: find rightmost '(' in d.bp; strip "(...)" suffix
-       plus a preceding space; parse the parenthesized contents
-       ("lit)" → d.islit=1; "<spe>)" → d.spe; "<spe>:<rch>)" → both;
-       other → mismatched, drop everything after '(').  Re-append any
-       chars following ')' to the truncated d.bp. */
-    if (typeof d.bp === 'string' && d.bp.length > 1) {
-        const lastParen = d.bp.lastIndexOf('(');
-        if (lastParen >= 0) {
-            let keeptrailingchars = 1;
-            let prefix = d.bp.slice(0, lastParen);
-            if (prefix.length > 0 && prefix[prefix.length - 1] === ' ') {
-                prefix = prefix.slice(0, -1);
-            }
-            let inner = d.bp.slice(lastParen + 1);
-            if (inner.length >= 4 && inner.slice(0, 4).toLowerCase() === 'lit)') {
-                d.islit = 1;
-                inner = inner.slice(3);
-            } else {
-                const m = inner.match(/^(-?\d+)/);
-                if (m) {
-                    d.spe = parseInt(m[1], 10);
-                    inner = inner.slice(m[1].length);
-                } else {
-                    d.spe = 0;
-                }
-                if (inner.length > 0 && inner[0] === ':') {
-                    inner = inner.slice(1);
-                    d.rechrg = d.spe;
-                    const m2 = inner.match(/^(-?\d+)/);
-                    if (m2) {
-                        d.spe = parseInt(m2[1], 10);
-                        inner = inner.slice(m2[1].length);
-                    } else {
-                        d.spe = 0;
-                    }
-                }
-                if (inner.length === 0 || inner[0] !== ')') {
-                    d.spe = 0;
-                    d.rechrg = 0;
-                    /* mis-matched parentheses; rest of string will be ignored
-                     * [probably we should restore everything back to '('
-                     * instead since it might be part of "named ..."]
-                     */
-                    keeptrailingchars = 0;
-                } else {
-                    d.spesgn = 1;
-                }
-            }
-            if (keeptrailingchars) {
-                /* 'pp' points at 'pb's terminating '\0',
-                   'p' points at ')' and will be incremented past it */
-                const trailing = (inner.length > 0 && inner[0] === ')')
-                    ? inner.slice(1) : '';
-                d.bp = prefix + trailing;
-            } else {
-                d.bp = prefix;
-            }
-        }
-    } else if (strlen(d.bp) > 1 && (d.p = strrchr(d.bp, 40)) != null) {
-        /* Legacy char-array fallback (unchanged translator output).
-           Dormant — current readobjnam_preparse feeds d.bp as a JS
-           string, so this branch is reachable only by code paths
-           that pass a char-buffer through readobjnam_parse_charges. */
+    if (strlen(d.bp) > 1 && (d.p = strrchr(d.bp, 40)) != null) {
         let keeptrailingchars = (1);
         let idx = 0;
-        if (d.p > d.bp && d.p[-1] == 32) {
+        if (d.p > d.bp && __nh_char_at0(__nh_advance_str(d.p, -1)) == 32) {
             idx = -1;
         }
-        d.p[idx] = 0;
-        ++d.p;
+        d.p = __nh_char_write(d.p, idx, 0);
+        (d.p = __nh_advance_str(d.p, 1));
         if (!strncmpi(d.p, "lit)", 4)) {
             d.islit = 1;
-            d.p += 4 - 1;
+            d.p = __nh_advance_str(d.p, 4 - 1);
         } else {
             d.spe = atoi(d.p);
-            while (digit(d.p)) {
-                d.p++;
+            while (digit(__nh_char_at0(d.p))) {
+                (d.p = __nh_advance_str(d.p, 1));
             }
-            if (d.p == 58) {
-                d.p++;
+            if (__nh_char_at0(d.p) == 58) {
+                (d.p = __nh_advance_str(d.p, 1));
                 d.rechrg = d.spe;
                 d.spe = atoi(d.p);
-                while (digit(d.p)) {
-                    d.p++;
+                while (digit(__nh_char_at0(d.p))) {
+                    (d.p = __nh_advance_str(d.p, 1));
                 }
             }
-            if (d.p != 41) {
+            if (__nh_char_at0(d.p) != 41) {
                 d.spe = d.rechrg = 0;
                 /* mis-matched parentheses; rest of string will be ignored
                  * [probably we should restore everything back to '('
@@ -3930,8 +3479,8 @@ export function readobjnam_parse_charges(d) {
             /* 'pp' points at 'pb's terminating '\0',
                'p' points at ')' and will be incremented past it */
             do {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = ++d.p) */;
-            } while (d.p);
+                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0((d.p = __nh_advance_str(d.) */;
+            } while (__nh_char_at0(d.p));
         }
     }
     if (d.spe < 0) {
@@ -3953,9 +3502,10 @@ export function readobjnam_parse_charges(d) {
         d.rechrg = 7;
     }
 }
-export function readobjnam_postparse1(d) {
+export async function readobjnam_postparse1(d) {
     let i = 0;
-    /* now we have the actual name, as delivered by xname, say
+    if ((d.p = strstri(d.bp, " named ")) != null) {
+        /* now we have the actual name, as delivered by xname, say
      *  green potions called whisky
      *  scrolls labeled "QWERTY"
      *  egg
@@ -3964,79 +3514,36 @@ export function readobjnam_postparse1(d) {
      *  wand of wishing
      *  elven cloak
      */
-    /* Hand-port: C `*d.p = '\\0'; d.name = d.p + 7;` (truncate
-       d.bp at the " named " position and set d.name to the chars
-       after).  JS strings are immutable; translator emitted `d.p =
-       ''; d.name = d.p + 7;` which sets d.p to empty string and
-       d.name to "7" (string + number).  Correct semantics: compute
-       the index of " named " in d.bp, truncate d.bp at that index,
-       and set d.name to the slice after " named ".  Same pattern
-       for " called ", " labeled ", " labelled ", " of spinach". */
-    if (typeof d.bp === 'string') {
-        const __namedIdx = d.bp.toLowerCase().indexOf(" named ");
-        if (__namedIdx >= 0) {
-            /* note: if 'name' is too long, oname() will truncate it */
-            d.name = d.bp.slice(__namedIdx + 7);
-            d.bp = d.bp.slice(0, __namedIdx);
-        }
-        const __calledIdx = d.bp.toLowerCase().indexOf(" called ");
-        if (__calledIdx >= 0) {
-            /* note: if 'un' is too long, obj lookup just won't match anything */
-            d.un = d.bp.slice(__calledIdx + 8);
-            d.bp = d.bp.slice(0, __calledIdx);
-            /* "helmet called telepathy" is not "helmet" (a specific type)
+        d.p = '';
+        /* note: if 'name' is too long, oname() will truncate it */
+        d.name = __nh_advance_str(d.p, 7);
+    }
+    if ((d.p = strstri(d.bp, " called ")) != null) {
+        d.p = '';
+        /* note: if 'un' is too long, obj lookup just won't match anything */
+        d.un = __nh_advance_str(d.p, 8);
+        for (i = 0; i < (Math.trunc(19 /* sizeof(const struct o_range [19]) */ / 1 /* sizeof(const struct o_range) */)); i++) {
+            if (!strncmpi((d.bp), (o_ranges[i].name), -1)) {
+                /* "helmet called telepathy" is not "helmet" (a specific type)
          * "shield called reflection" is not "shield" (a general type)
          */
-            for (i = 0; i < (Math.trunc(19 / 1)); i++) {
-                if (!strncmpi((d.bp), (o_ranges[i].name), -1)) {
-                    d.oclass = o_ranges[i].oclass;
-                    return 1;
-                }
+                d.oclass = o_ranges[i].oclass;
+                return 1;
             }
-        }
-        const __labeledIdx = d.bp.toLowerCase().indexOf(" labeled ");
-        const __labelledIdx = d.bp.toLowerCase().indexOf(" labelled ");
-        if (__labeledIdx >= 0) {
-            d.dn = d.bp.slice(__labeledIdx + 9);
-            d.bp = d.bp.slice(0, __labeledIdx);
-        } else if (__labelledIdx >= 0) {
-            d.dn = d.bp.slice(__labelledIdx + 10);
-            d.bp = d.bp.slice(0, __labelledIdx);
-        }
-        const __spinachIdx = d.bp.toLowerCase().indexOf(" of spinach");
-        if (__spinachIdx >= 0) {
-            d.bp = d.bp.slice(0, __spinachIdx);
-            d.contents = 2;
-        }
-    } else {
-        /* Array-buf fallback: existing broken code remains for now. */
-        if ((d.p = strstri(d.bp, " named ")) != null) {
-            d.p = '';
-            d.name = d.p + 7;
-        }
-        if ((d.p = strstri(d.bp, " called ")) != null) {
-            d.p = '';
-            d.un = d.p + 8;
-            for (i = 0; i < (Math.trunc(19 / 1)); i++) {
-                if (!strncmpi((d.bp), (o_ranges[i].name), -1)) {
-                    d.oclass = o_ranges[i].oclass;
-                    return 1;
-                }
-            }
-        }
-        if ((d.p = strstri(d.bp, " labeled ")) != null) {
-            d.p = '';
-            d.dn = d.p + 9;
-        } else if ((d.p = strstri(d.bp, " labelled ")) != null) {
-            d.p = '';
-            d.dn = d.p + 10;
-        }
-        if ((d.p = strstri(d.bp, " of spinach")) != null) {
-            d.p = '';
-            d.contents = 2;
         }
     }
-    if ((d.p = strstri(d.bp, (game.obj_descr[(game.objects[AMULET_OF_YENDOR]).oc_descr_idx].oc_descr))) != null && (d.p == d.bp || d.p[-1] == 32)) {
+    if ((d.p = strstri(d.bp, " labeled ")) != null) {
+        d.p = '';
+        d.dn = __nh_advance_str(d.p, 9);
+    } else if ((d.p = strstri(d.bp, " labelled ")) != null) {
+        d.p = '';
+        d.dn = __nh_advance_str(d.p, 10);
+    }
+    if ((d.p = strstri(d.bp, " of spinach")) != null) {
+        d.p = '';
+        d.contents = 2;
+    }
+    if ((d.p = strstri(d.bp, (game.obj_descr[(game.objects[AMULET_OF_YENDOR]).oc_descr_idx].oc_descr))) != null && (d.p == d.bp || __nh_char_at0(__nh_advance_str(d.p, -1)) == 32)) {
         /* real vs fake is only useful for wizard mode but we'll accept its
        parsing in normal play (result is never real Amulet for that case) */
         /* avoid false hit on "* glass" */
@@ -4051,13 +3558,13 @@ export function readobjnam_postparse1(d) {
            loop above, these have to be in the right order when more
            than one is present (similar to worthless glass gems below) */
         if (!strncmpi(s, "cheap ", 6)) {
-            d.fake = 1 , s += 6;
+            d.fake = 1 , s = __nh_advance_str(s, 6);
         }
         if (!strncmpi(s, "plastic ", 8)) {
-            d.fake = 1 , s += 8;
+            d.fake = 1 , s = __nh_advance_str(s, 8);
         }
         if (!strncmpi(s, "imitation ", 10)) {
-            d.fake = 1 , s += 10;
+            d.fake = 1 , s = __nh_advance_str(s, 10);
         }
         ((s));
         /* suppress potential assigned-but-not-used complaint */
@@ -4100,9 +3607,8 @@ export function readobjnam_postparse1(d) {
      */
     i = strlen(d.bp);
     d.p = null;
-    if (!strncmpi((d.bp), ("glob"), -1) || !((d.bp + i - 5) < d.bp || strncmpi(((d.bp + i - 5)), (" glob"), -1)) || !strncmpi((d.bp), ("globs"), -1) || !((d.bp + i - 6) < d.bp || strncmpi(((d.bp + i - 6)), (" globs"), -1)) || (d.p = strstri(d.bp, "glob of ")) != null || (d.p = strstri(d.bp, "globs of ")) != null) {
-        /* check for "glob", "<foo> glob", and "glob of <foo>" */
-        d.mntmp = name_to_mon(!d.p ? d.bp : __nh_advance_str(strstri(d.p, " of "), 4), null);
+    if (!strncmpi((d.bp), ("glob"), -1) || !((__nh_advance_str(d.bp, i) - 5) < d.bp || strncmpi(((__nh_advance_str(d.bp, i) - 5)), (" glob"), -1)) || !strncmpi((d.bp), ("globs"), -1) || !((__nh_advance_str(d.bp, i) - 6) < d.bp || strncmpi(((__nh_advance_str(d.bp, i) - 6)), (" globs"), -1)) || (d.p = strstri(d.bp, "glob of ")) != null || (d.p = strstri(d.bp, "globs of ")) != null) {
+        d.mntmp = await name_to_mon(!d.p ? d.bp : (strstri(d.p, " of ") + 4), null);
         /* if we didn't recognize monster type, pick a valid one at random */
         if (d.mntmp == NON_PM) {
             d.mntmp = (rn2(PM_BLACK_PUDDING - PM_GRAY_OOZE) + (PM_GRAY_OOZE));
@@ -4125,7 +3631,10 @@ export function readobjnam_postparse1(d) {
         d.actualn = d.bp , d.dn = null;
         return 1;
     } else {
-        /*
+        if (!strstri(d.bp, "wand ") && !strstri(d.bp, "spellbook ") && !strstri(d.bp, "gauntlets ") && !strstri(d.bp, "gloves ") && !strstri(d.bp, "finger ")) {
+            if ((d.p = strstri(d.bp, "tin of ")) != null) {
+                if (!strncmpi((__nh_advance_str(d.p, 7)), ("spinach"), -1)) {
+                    /*
          * Find corpse type using "of" (figurine of an orc, tin of orc meat)
          * Don't check if it's a wand or spellbook.
          * (avoid "wand/finger of death" confusion).
@@ -4133,20 +3642,18 @@ export function readobjnam_postparse1(d) {
          * names "gauntlets of ogre power" and "gauntlets of giant strength"
          * (or the alternate spelling of those, "gloves of ...").
          */
-        if (!strstri(d.bp, "wand ") && !strstri(d.bp, "spellbook ") && !strstri(d.bp, "gauntlets ") && !strstri(d.bp, "gloves ") && !strstri(d.bp, "finger ")) {
-            if ((d.p = strstri(d.bp, "tin of ")) != null) {
-                const __dpAfter7 = __nh_advance_str(d.p, 7);
-                if (!strncmpi(__dpAfter7, ("spinach"), -1)) {
                     d.contents = 2;
                     d.mntmp = NON_PM;
                 } else {
-                    d.tmp = tin_variety_txt(__dpAfter7, { get value() { return d.tinv; }, set value(_v) { d.tinv = _v; } });
+                    d.tmp = tin_variety_txt(__nh_advance_str(d.p, 7), { get value() { return d.tinv; }, set value(_v) { d.tinv = _v; } });
                     d.tvariety = d.tinv;
-                    d.mntmp = name_to_mon(__nh_advance_str(__dpAfter7, d.tmp), { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } });
+                    d.mntmp = await name_to_mon(__nh_advance_str(d.p, 7) + d.tmp, { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } });
                 }
+                /* "tin of foo" would be caught above, but plain "tin" has
+           a random chance of yielding "tin wand" unless we do this */
                 d.typ = TIN;
                 return 2;
-            } else if ((d.p = strstri(d.bp, " of ")) != null && ((d.mntmp = name_to_mon(__nh_advance_str(d.p, 4), { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } })) >= LOW_PM)) {
+            } else if ((d.p = strstri(d.bp, " of ")) != null && ((d.mntmp = await name_to_mon(__nh_advance_str(d.p, 4), { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } })) >= LOW_PM)) {
                 d.p = '';
             }
         }
@@ -4157,27 +3664,27 @@ export function readobjnam_postparse1(d) {
         /* not the "wizard" monster! */
         /* 'of inversion', not Rider */
         let rest = null;
-        if (d.mntmp < LOW_PM && strlen(d.bp) > 2 && ((d.mntmp = name_to_monplus(d.bp, { get value() { return rest; }, set value(_v) { rest = _v; } }, { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } })) >= LOW_PM)) {
+        if (d.mntmp < LOW_PM && strlen(d.bp) > 2 && ((d.mntmp = await name_to_monplus(d.bp, { get value() { return rest; }, set value(_v) { rest = _v; } }, { get value() { return d.mgend; }, set value(_v) { d.mgend = _v; } })) >= LOW_PM)) {
             let obp = d.bp;
             /* 'rest' is a pointer past the matching portion; if that was
                an alternate name or a rank title rather than the canonical
                monster name we wouldn't otherwise know how much to skip */
             d.bp = rest;
             if (__nh_char_at0(d.bp) == 32) {
-                d.bp = __nh_advance_str(d.bp, 1);
-            } else if (!strncmpi(d.bp, "s ", 2)) {
+                (d.bp = __nh_advance_str(d.bp, 1));
+            } else if (!strncmpi(d.bp, "s ", 2) || (d.bp > d.origbp && !strncmpi(d.bp - 1, "s' ", 3))) {
                 d.bp = __nh_advance_str(d.bp, 2);
             } else if (!strncmpi(d.bp, "es ", 3) || !strncmpi(d.bp, "'s ", 3)) {
                 d.bp = __nh_advance_str(d.bp, 3);
-            } else if (!d.bp && !d.actualn && !d.dn && !d.un && !d.oclass) {
+            } else if (!__nh_char_at0(d.bp) && !d.actualn && !d.dn && !d.un && !d.oclass) {
                 /* no referent; they don't really mean a monster type */
                 d.bp = obp;
                 d.mntmp = NON_PM;
             }
         }
     }
-    if (d.bp && strncmpi((d.bp), ("tricks"), -1) && strncmpi((d.bp), ("clothes"), -1)) {
-        let sng = makesingular(d.bp);
+    if (__nh_char_at0(d.bp) && strncmpi((d.bp), ("tricks"), -1) && strncmpi((d.bp), ("clothes"), -1)) {
+        let sng = await makesingular(d.bp);
         if (strcmp(d.bp, sng)) {
             /* first change to singular if necessary */
             /* we want "tricks" to match "bag of tricks" [rnd_otyp_by_namedesc()]
@@ -4200,7 +3707,7 @@ export function readobjnam_postparse1(d) {
         let as = spellings;
         const __nhi_as_arr = as;
         for (let __nhi_as = 0; (as = __nhi_as_arr[__nhi_as]) && (as.sp); __nhi_as++) {
-            if (wishymatch(d.bp, as.sp, (1))) {
+            if (await wishymatch(d.bp, as.sp, (1))) {
                 /* Alternate spellings (pick-ax, silver sabre, &c) */
                 d.typ = as.ob;
                 return 2;
@@ -4208,35 +3715,13 @@ export function readobjnam_postparse1(d) {
         }
         /* can't use spellings list for this one due to shuffling */
         if (!strncmpi(d.bp, "grey spell", 10)) {
-            /* Hand-port: C `*(d->bp + 2) = 'a';` rewrites the 'e' in
-               "grey" to 'a' (UK→US "grey spell..." → "gray spell...").
-               Translator emitted `void 0`, so wishes containing "grey
-               spell" stayed UK-spelled and wishymatch's later
-               "dwarvish/elven/aluminium" canonicalization missed them. */
-            if (typeof d.bp === 'string') {
-                d.bp = d.bp.slice(0, 2) + 'a' + d.bp.slice(3);
-            } else if (Array.isArray(d.bp)) {
-                d.bp[2] = 97;
-            }
+            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 97) */;
         }
-        if (typeof d.bp === 'string') {
+        if ((d.p = strstri(d.bp, "armour")) != null) {
             /* skip past "armo", then copy remainder beyond "u" */
-            /* Hand-port: delete the 'u' to convert British "armour" →
-               "armor".  C used pointer-walk `*p = *(p+1)` which the
-               translator emitted as `void 0` (always-true while-loop
-               hazard).  String-slice deletion is the JS-correct
-               equivalent.  d.p is reassigned by `eos(d.bp)` at line
-               4041 so its post-block value is irrelevant here. */
-            const __armourIdx = d.bp.toLowerCase().indexOf('armour');
-            if (__armourIdx >= 0) {
-                d.bp = d.bp.slice(0, __armourIdx + 4) + d.bp.slice(__armourIdx + 5);
-            }
-        } else if ((d.p = strstri(d.bp, "armour")) != null) {
-            /* Array (char-buffer) fallback: in-place shift-left from
-               the 'u' position.  Same semantics as the C pointer-walk. */
-            d.p += 4;
-            while (d.p < d.bp.length - 1 && (d.bp[d.p] = d.bp[d.p + 1]) !== 0) {
-                ++d.p;
+            d.p = __nh_advance_str(d.p, 4);
+            while ((void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0((__nh_advance_str(d.p, 1))) */) != 0) {
+                (d.p = __nh_advance_str(d.p, 1));
             }
         }
     }
@@ -4247,32 +3732,8 @@ export function readobjnam_postparse1(d) {
         return 2;
     }
     d.p = eos(d.bp);
-    /* Translator gap: C `strncmpi(d.p - N, "literal", -1)` checks the
-       N-char suffix of d.bp.  In JS string-land, eos returns the
-       length and `d.p - N` is just a number — strncmpi(number, ...)
-       is broken (returns sign of (number - char_code(literal[0]))).
-       Use slice(-N).toLowerCase() for the JS-string fast path; keep
-       the broken pointer-arith for the legacy char-array path so
-       any remaining char-buffer caller still compiles. */
-    const __hasSuffix = (lit) => {
-        if (typeof d.bp === 'string') {
-            return d.bp.length >= lit.length
-                && d.bp.slice(-lit.length).toLowerCase() === lit;
-        }
-        return !((d.p - lit.length) < d.bp
-                 || strncmpi((d.p - lit.length), lit, -1));
-    };
-    const __midSuffix = (offsetFromEnd, lit) => {
-        if (typeof d.bp === 'string') {
-            const start = d.bp.length - offsetFromEnd;
-            return start >= 0
-                && d.bp.slice(start, start + lit.length).toLowerCase() === lit;
-        }
-        return !((d.p - offsetFromEnd) < d.bp
-                 || strncmpi((d.p - offsetFromEnd), lit, lit.length));
-    };
-    if (__hasSuffix('holy water')) {
-        if (__midSuffix(12, 'un')) {
+    if (!((d.p - 10) < d.bp || strncmpi(((d.p - 10)), ("holy water"), -1))) {
+        if (!((d.p - 10 - 2) < d.bp || strncmpi((d.p - 10 - 2), "un", 2))) {
             d.iscursed = 1 , d.blessed = d.uncursed = 0;
         /* this isn't needed for "[un]holy water" because adjective parsing
            handles holy==blessed and unholy==cursed and leaves "water" for
@@ -4287,8 +3748,8 @@ export function readobjnam_postparse1(d) {
     }
     if (!strncmpi(d.bp, "paperback", 9)) {
         /* accept "paperback" or "paperback book", reject "paperback spellbook" */
-        const dbp = __nh_advance_str(d.bp, 9);
-        if (!dbp || !strncmpi(dbp, " book", 5)) {
+        let dbp = __nh_advance_str(d.bp, 9);
+        if (!__nh_char_at0(dbp) || !strncmpi(dbp, " book", 5)) {
             d.typ = SPE_NOVEL;
             return 2;
         } else {
@@ -4298,20 +3759,20 @@ export function readobjnam_postparse1(d) {
             return 3;
         }
     }
-    if (d.unlabeled && __hasSuffix('scroll')) {
+    if (d.unlabeled && !((d.p - 6) < d.bp || strncmpi(((d.p - 6)), ("scroll"), -1))) {
         d.typ = SCR_BLANK_PAPER;
         return 2;
     }
-    if (d.unlabeled && __hasSuffix('spellbook')) {
+    if (d.unlabeled && !((d.p - 9) < d.bp || strncmpi(((d.p - 9)), ("spellbook"), -1))) {
         d.typ = SPE_BLANK_PAPER;
         return 2;
     }
-    if (__hasSuffix('orange') && d.mntmp == NON_PM) {
+    if (!((d.p - 6) < d.bp || strncmpi(((d.p - 6)), ("orange"), -1)) && d.mntmp == NON_PM) {
         /* specific food rather than color of gem/potion/spellbook[/scales] */
         d.typ = ORANGE;
         return 2;
     }
-    if (__hasSuffix('gold piece') || __hasSuffix('zorkmid') || !strncmpi((d.bp), ("gold"), -1) || !strncmpi((d.bp), ("money"), -1) || !strncmpi((d.bp), ("coin"), -1) || d.bp == GOLD_SYM) {
+    if (String(d.bp).toLowerCase().endsWith("gold piece") || String(d.bp).toLowerCase().endsWith("zorkmid") || !strncmpi((d.bp), ("gold"), -1) || !strncmpi((d.bp), ("money"), -1) || !strncmpi((d.bp), ("coin"), -1) || __nh_char_at0(d.bp) == GOLD_SYM) {
         /*
      * NOTE: Gold pieces are handled as objects nowadays, and therefore
      * this section should probably be reconsidered as well as the entire
@@ -4323,22 +3784,20 @@ export function readobjnam_postparse1(d) {
         } else if (d.cnt < 1) {
             d.cnt = 1;
         }
-        d.otmp = mksobj(GOLD_PIECE, (0), (0));
+        d.otmp = await mksobj(GOLD_PIECE, (0), (0));
         d.otmp.quan = d.cnt;
-        d.otmp.owt = weight(d.otmp);
+        d.otmp.owt = await weight(d.otmp);
         game.disp.botl = (1);
         return 3;
     }
-    if (strlen(d.bp) == 1 && (i = def_char_to_objclass(d.bp)) < MAXOCLASSES && i > ILLOBJ_CLASS && (i != VENOM_CLASS || game.flags.debug)) {
+    if (strlen(d.bp) == 1 && (i = def_char_to_objclass(__nh_char_at0(d.bp))) < MAXOCLASSES && i > ILLOBJ_CLASS && (i != VENOM_CLASS || game.flags.debug)) {
         /* check for single character object class code ("/" for wand, &c) */
         d.oclass = i;
         return 4;
     }
     if (strncmpi(d.bp, "enchant ", 8) && strncmpi(d.bp, "destroy ", 8) && strncmpi(d.bp, "detect food", 11) && strncmpi(d.bp, "food detection", 14) && strncmpi(d.bp, "ring mail", 9) && strncmpi(d.bp, "studded leather armor", 21) && strncmpi(d.bp, "leather armor", 13) && strncmpi(d.bp, "tooled horn", 11) && strncmpi(d.bp, "food ration", 11) && strncmpi(d.bp, "meat ring", 9)) {
         for (i = 0; i < (13 /* sizeof(const char [13]) */); i++) {
-            /* Search for class names: XXXXX potion, scroll of XXXXX.
-       Avoid false hits on, e.g., rings for "ring mail". */
-            let j = Strlen_(wrp[i], "readobjnam_postparse1", 4568);
+            let j = await Strlen_(wrp[i], "readobjnam_postparse1", 4568);
             if (!strncmpi(d.bp, wrp[i], j)) {
                 /* check for "<class> [ of ] something" */
                 /* check for "something <class>" */
@@ -4353,18 +3812,7 @@ export function readobjnam_postparse1(d) {
                 }
                 return 1;
             }
-            /* Translator gap: C suffix-check `strncmpi(eos(d.bp) - j,
-               wrp[i], -1)` checks if d.bp ends with the class name
-               (e.g. " wand").  In JS d.p is just the string length;
-               `d.p - j` is a number and strncmpi(number, ...) is
-               broken.  Same pattern as postparse1's other suffix
-               blocks.  Fix: typeof-string fast path using slice(-j);
-               legacy char-array fallback preserved. */
-            const __suffixMatch = (typeof d.bp === 'string')
-                ? (d.bp.length >= j
-                   && d.bp.slice(-j).toLowerCase() === wrp[i].toLowerCase())
-                : !((d.p - j) < d.bp || strncmpi(((d.p - j)), (wrp[i]), -1));
-            if (__suffixMatch) {
+            if (!((d.p - j) < d.bp || strncmpi(((d.p - j)), (wrp[i]), -1))) {
                 d.oclass = wrpsym[i];
                 if (d.oclass != AMULET_CLASS) {
                     /* for "foo amulet", leave the class name so that
@@ -4372,25 +3820,10 @@ export function readobjnam_postparse1(d) {
                    "amulet of foo"; other classes don't include their
                    class name in their full object names (where
                    "potion of healing" is just "healing", for instance) */
-                    /* Translator gap: C `d.p -= j; *d.p = 0;` truncates
-                       d.bp at the start of the class-name suffix; the
-                       second clause then strips a preceding space.  In
-                       JS string-land, d.p mutation is meaningless and
-                       *d.p = 0 is a no-op.  Slice-rewrite below. */
-                    if (typeof d.bp === 'string') {
-                        let __newBp = d.bp.slice(0, -j);
-                        if (__newBp.length > 0
-                            && __newBp[__newBp.length - 1] === ' ') {
-                            __newBp = __newBp.slice(0, -1);
-                        }
-                        d.bp = __newBp;
-                        d.p = d.bp.length;
-                    } else {
-                        d.p -= j;
-                        d.p = '';
-                        if (d.p > d.bp && d.p[-1] == 32) {
-                            d.p[-1] = 0;
-                        }
+                    d.p = __nh_advance_str(d.p, -(j));
+                    d.p = '';
+                    if (d.p > d.bp && __nh_char_at0(__nh_advance_str(d.p, -1)) == 32) {
+                        d.p = __nh_char_write(d.p, -1, 0);
                     }
                 } else {
                     let k = 0;
@@ -4405,11 +3838,11 @@ export function readobjnam_postparse1(d) {
                     /* check for "<shape> amulet"; strip off trailing
                        " amulet" for that w/o changing contents of d->bp */
                     l = strlen(d.bp) - j;
-                    if (l > 0 && d.bp[l - 1] == 32) {
+                    if (l > 0 && __nh_char_at0(__nh_advance_str(d.bp, l - 1)) == 32) {
                         l -= 1;
                     }
                     amubuf = copynchars(amubuf, d.bp, ((l) < (256 /* sizeof(char [256]) */ - 1) ? (l) : (256 /* sizeof(char [256]) */ - 1)));
-                    k = rnd_otyp_by_namedesc(amubuf, AMULET_CLASS, 0);
+                    k = await rnd_otyp_by_namedesc(amubuf, AMULET_CLASS, 0);
                     if (k != STRANGE_OBJECT) {
                         d.typ = k;
                         return 2;
@@ -4439,8 +3872,8 @@ export function readobjnam_postparse1(d) {
      */
         let beartrap = (lowc(__nh_char_at0(d.bp)) == 98);
         let zp = __nh_advance_str(d.bp, 4);
-        if (__nh_char_at0(zp) === 32) {
-            zp = __nh_advance_str(zp, 1);
+        if (__nh_char_at0(zp) == 32) {
+            (zp = __nh_advance_str(zp, 1));
         }
         if (!strncmpi(zp, beartrap ? "trap" : "mine", 4)) {
             /* embedded space is optional */
@@ -4451,7 +3884,7 @@ export function readobjnam_postparse1(d) {
                 /* "untrapped <foo>" or "<foo> object" */
                 d.typ = beartrap ? BEARTRAP : LAND_MINE;
                 return 2;
-            } else if (d.trapped == 1 || zp != 0) {
+            } else if (d.trapped == 1 || __nh_char_at0(zp) != 0) {
                 d.bp = strcpy(d.bp, trapname(beartrap ? BEAR_TRAP : LANDMINE, (1)));
                 /* "trapped <foo>" or "<foo> trap" (actually "<foo>*") */
                 /* use canonical trap spelling, skip object matching */
@@ -4470,37 +3903,14 @@ export function readobjnam_postparse2(d) {
             return 2;
         }
     }
-    /* Translator gap: C `strncmpi(eos(d.bp) - N, "literal", -1)`
-       checks the N-char suffix of d.bp (e.g. " stone" / " gem"), and
-       `d.p[idx] = 0` then truncates d.bp at that suffix.  In JS d.p
-       is the string length (per the eos JS-string fast path) so
-       `d.p - N` is just a number — strncmpi(number, ...) is broken.
-       Use slice(-N).toLowerCase() + slice(0, -N) for the JS fast
-       path; keep the broken pointer-arith for char-array callers. */
-    let __sfxStone = false, __sfxGem = false;
-    if (typeof d.bp === 'string') {
-        __sfxStone = d.bp.length >= 6 && d.bp.slice(-6).toLowerCase() === ' stone';
-        __sfxGem = d.bp.length >= 4 && d.bp.slice(-4).toLowerCase() === ' gem';
-    } else {
-        __sfxStone = !((d.p - 6) < d.bp || strncmpi(((d.p - 6)), (" stone"), -1));
-        __sfxGem = !((d.p - 4) < d.bp || strncmpi(((d.p - 4)), (" gem"), -1));
-    }
-    if (__sfxStone || __sfxGem) {
-        if (typeof d.bp === 'string') {
-            d.bp = d.bp.slice(0, __sfxGem ? -4 : -6);
-            d.p = d.bp.length;
-        } else {
-            d.p[__sfxGem ? -4 : -6] = 0;
-        }
+    if (!((d.p - 6) < d.bp || strncmpi(((d.p - 6)), (" stone"), -1)) || !((d.p - 4) < d.bp || strncmpi(((d.p - 4)), (" gem"), -1))) {
+        d.p = __nh_char_write(d.p, !strncmpi((d.p - 4), (" gem"), -1) ? -4 : -6, 0);
         d.oclass = GEM_CLASS;
         d.dn = d.actualn = d.bp;
         return 1;
     } else if (!strncmpi((d.bp), ("looking glass"), -1)) {
         ;
-    } else if ((typeof d.bp === 'string'
-                ? (d.bp.length >= 6 && d.bp.slice(-6).toLowerCase() === ' glass')
-                : !((d.p - 6) < d.bp || strncmpi(((d.p - 6)), (" glass"), -1)))
-               || !strncmpi((d.bp), ("glass"), -1)) {
+    } else if (!((d.p - 6) < d.bp || strncmpi(((d.p - 6)), (" glass"), -1)) || !strncmpi((d.bp), ("glass"), -1)) {
         let s = d.bp;
         if (d.broken || strstri(s, "broken")) {
             d.otmp = null;
@@ -4540,7 +3950,7 @@ export function readobjnam_postparse2(d) {
     }
     return 0;
 }
-export function readobjnam_postparse3(d) {
+export async function readobjnam_postparse3(d) {
     let i = 0;
     if (!d.oclass && d.actualn) {
         for (i = game.bases[GEM_CLASS]; i <= LAST_REAL_GEM; i++) {
@@ -4551,14 +3961,12 @@ export function readobjnam_postparse3(d) {
                 return 2;
             }
         }
-        /* "tin of foo" would be caught above, but plain "tin" has
-           a random chance of yielding "tin wand" unless we do this */
         if (!strncmpi((d.actualn), ("tin"), -1)) {
             d.typ = TIN;
             return 2;
         }
     }
-    if (((d.typ = rnd_otyp_by_namedesc(d.actualn, d.oclass, 1)) != STRANGE_OBJECT) || (d.dn != d.actualn && ((d.typ = rnd_otyp_by_namedesc(d.dn, d.oclass, 1)) != STRANGE_OBJECT)) || ((d.typ = rnd_otyp_by_namedesc(d.un, d.oclass, 1)) != STRANGE_OBJECT) || (d.origbp != d.actualn && ((d.typ = rnd_otyp_by_namedesc(d.origbp, d.oclass, 1)) != STRANGE_OBJECT))) {
+    if (((d.typ = await rnd_otyp_by_namedesc(d.actualn, d.oclass, 1)) != STRANGE_OBJECT) || (d.dn != d.actualn && ((d.typ = await rnd_otyp_by_namedesc(d.dn, d.oclass, 1)) != STRANGE_OBJECT)) || ((d.typ = await rnd_otyp_by_namedesc(d.un, d.oclass, 1)) != STRANGE_OBJECT) || (d.origbp != d.actualn && ((d.typ = await rnd_otyp_by_namedesc(d.origbp, d.oclass, 1)) != STRANGE_OBJECT))) {
         return 2;
     }
     d.typ = 0;
@@ -4586,24 +3994,6 @@ export function readobjnam_postparse3(d) {
         d.typ = TIN;
         return 2;
     }
-    /* Fruits must not mess up the ability to wish for real objects (since
-     * you can leave a fruit in a bones file and it will be added to
-     * another person's game), so they must be checked for last, after
-     * stripping all the possible prefixes and seeing if there's a real
-     * name in there.  So we have to save the full original name.  However,
-     * it's still possible to do things like "uncursed burnt Alaska",
-     * or worse yet, "2 burned 5 course meals", so we need to loop to
-     * strip off the prefixes again, this time stripping only the ones
-     * possible on food.
-     * We could get even more detailed so as to allow food names with
-     * prefixes that _are_ possible on food, so you could wish for
-     * "2 3 alarm chilis".  Currently this isn't allowed; options.c
-     * automatically sticks 'candied' in front of such names.
-     */
-    /* Note: not strcmpi.  2 fruits, one capital, one not, are possible.
-       Also not strncmp.  We used to ignore trailing text with it, but
-       that resulted in "grapefruit" matching "grape" if the latter came
-       earlier than the former in the fruit list. */
 {
         let fp = null;
         let l = 0;
@@ -4617,13 +4007,37 @@ export function readobjnam_postparse3(d) {
         cntf = 0;
         fp = d.fruitbuf;
         for (; ; ) {
-            if (!fp || !__nh_char_at0(fp)) break;
+            if (!fp || !__nh_char_at0(fp)) {
+                break;
+            }
             if (!strncmpi(fp, "an ", l = 3) || !strncmpi(fp, "a ", l = 2)) {
+                /* Fruits must not mess up the ability to wish for real objects (since
+     * you can leave a fruit in a bones file and it will be added to
+     * another person's game), so they must be checked for last, after
+     * stripping all the possible prefixes and seeing if there's a real
+     * name in there.  So we have to save the full original name.  However,
+     * it's still possible to do things like "uncursed burnt Alaska",
+     * or worse yet, "2 burned 5 course meals", so we need to loop to
+     * strip off the prefixes again, this time stripping only the ones
+     * possible on food.
+     * We could get even more detailed so as to allow food names with
+     * prefixes that _are_ possible on food, so you could wish for
+     * "2 3 alarm chilis".  Currently this isn't allowed; options.c
+     * automatically sticks 'candied' in front of such names.
+     */
+                /* Note: not strcmpi.  2 fruits, one capital, one not, are possible.
+       Also not strncmp.  We used to ignore trailing text with it, but
+       that resulted in "grapefruit" matching "grape" if the latter came
+       earlier than the former in the fruit list. */
                 cntf = 1;
             } else if (!cntf && digit(__nh_char_at0(fp))) {
                 cntf = atoi(fp);
-                while (digit(__nh_char_at0(fp))) fp = __nh_advance_str(fp, 1);
-                while (__nh_char_at0(fp) === 32) fp = __nh_advance_str(fp, 1);
+                while (digit(__nh_char_at0(fp))) {
+                    (fp = __nh_advance_str(fp, 1));
+                }
+                while (__nh_char_at0(fp) == 32) {
+                    (fp = __nh_advance_str(fp, 1));
+                }
                 l = 0;
             } else if (!strncmpi(fp, "blessed ", l = 8)) {
                 blessedf = 1;
@@ -4643,9 +4057,9 @@ export function readobjnam_postparse3(d) {
             let ftyp = 0;
             if (!strcmp(fp, f.fname)) {
                 ftyp = 1;
-            } else if (!strcmp(fp, makesingular(f.fname))) {
+            } else if (!strcmp(fp, await makesingular(f.fname))) {
                 ftyp = 2;
-            } else if (!strcmp(fp, makeplural(f.fname))) {
+            } else if (!strcmp(fp, await makeplural(f.fname))) {
                 ftyp = 3;
             }
             if (ftyp) {
@@ -4682,7 +4096,7 @@ export function readobjnam_postparse3(d) {
         let as = spellings;
         const __nhi_as_arr = as;
         for (let __nhi_as = 0; (as = __nhi_as_arr[__nhi_as]) && (as.sp); __nhi_as++) {
-            if (game.objects[as.ob].oc_class == d.oclass && wishymatch(d.bp, as.sp, (1))) {
+            if (game.objects[as.ob].oc_class == d.oclass && await wishymatch(d.bp, as.sp, (1))) {
                 d.typ = as.ob;
                 return 2;
             }
@@ -4697,7 +4111,7 @@ export function readobjnam_postparse3(d) {
  * if not an object return &hands_obj; if an error (no matching object),
  * return null.
  */
-export function readobjnam(bp, no_wish) {
+export async function readobjnam(bp, no_wish) {
     let d = { otmp: null, bp: null, origbp: null, oclass: 0, un: null, dn: null, actualn: null, name: null, p: null, cnt: 0, spe: 0, spesgn: 0, typ: 0, very: 0, rechrg: 0, blessed: 0, uncursed: 0, iscursed: 0, ispoisoned: 0, isgreased: 0, eroded: 0, eroded2: 0, erodeproof: 0, locked: 0, unlocked: 0, broken: 0, real: 0, fake: 0, halfeaten: 0, mntmp: 0, contents: 0, islit: 0, unlabeled: 0, ishistoric: 0, isdiluted: 0, trapped: 0, doorless: 0, open: 0, closed: 0, flags: 0, tmp: 0, tinv: 0, tvariety: 0, mgend: 0, wetness: 0, gsize: 0, ftype: 0, zombify: 0, globbuf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], fruitbuf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
     /* C uses goto srch/typfnd/any/wiztrap/retry from postparse1/2/3
        switch cases.  The translator left these as TODO no-ops which
@@ -4732,7 +4146,7 @@ export function readobjnam(bp, no_wish) {
             d.cnt = 1; /* will be changed to 2 if makesingular() changes string */
         }
         readobjnam_parse_charges(d);
-        const __pp1 = readobjnam_postparse1(d);
+        const __pp1 = await readobjnam_postparse1(d);
         if (__pp1 === 1) { __goto_srch = true; break; }
         if (__pp1 === 2) { __goto_typfnd = true; break; }
         if (__pp1 === 3) return d.otmp;
@@ -4754,7 +4168,7 @@ export function readobjnam(bp, no_wish) {
     if (__goto_srch && !__goto_typfnd && !__goto_any && !__goto_wiztrap && !__goto_retry) {
         let __srch_iter = 0;
         srch_loop: while (++__srch_iter < 10) {
-            const __pp3 = readobjnam_postparse3(d);
+            const __pp3 = await readobjnam_postparse3(d);
             if (__pp3 === 0) break;
             if (__pp3 === 1) continue;  /* goto srch */
             if (__pp3 === 2) { __goto_typfnd = true; break; }
@@ -4783,7 +4197,7 @@ export function readobjnam(bp, no_wish) {
            check is gated on `flags.debug && !d.oclass`. */
         if (game.flags.debug && !game.program_state.wizkit_wishing && !d.oclass) {
             /* [inline code moved to separate routine to unclutter readobjnam] */
-            if ((d.otmp = wizterrainwish(d)) != null) {
+            if ((d.otmp = await wizterrainwish(d)) != null) {
                 return d.otmp;
             }
         }
@@ -4848,7 +4262,7 @@ export function readobjnam(bp, no_wish) {
     /*
      * Create the object, then fine-tune it.
      */
-    d.otmp = d.typ ? mksobj(d.typ, (1), (0)) : mkobj(d.oclass, (0));
+    d.otmp = d.typ ? await mksobj(d.typ, (1), (0)) : await mkobj(d.oclass, (0));
     d.typ = d.otmp.otyp , d.oclass = d.otmp.oclass;
     if (d.otmp.globby) {
         /* if player specified a reasonable count, maybe honor it;
@@ -4858,7 +4272,7 @@ export function readobjnam(bp, no_wish) {
            weighing 40au instead of normal 20au; asking for 5 medium globs
            might produce 1 very large glob weighing 600au */
         d.otmp.quan = 1;
-        d.otmp.owt = weight(d.otmp);
+        d.otmp.owt = await weight(d.otmp);
         /* gsize 0: unspecified => small;
            1: small (1..5) => keep default owt for 1, yielding 20;
            2: medium (6..15) => use weight for 6, yielding 120;
@@ -4873,7 +4287,7 @@ export function readobjnam(bp, no_wish) {
             if (rn1cnt > 6 - d.gsize) {
                 rn1cnt = 6 - d.gsize;
             }
-            if (d.cnt > rn1cnt && (!game.flags.debug || game.program_state.wizkit_wishing || yn_function("Override glob weight limit?", ynchars, 110, (1)) != 121)) {
+            if (d.cnt > rn1cnt && (!game.flags.debug || game.program_state.wizkit_wishing || await yn_function("Override glob weight limit?", ynchars, 110, (1)) != 121)) {
                 d.cnt = rn1cnt;
             }
             d.otmp.owt *= d.cnt;
@@ -4892,10 +4306,10 @@ export function readobjnam(bp, no_wish) {
                    than 1 if mksobj() creates the item that way */
         /* WEAPON_CLASS test excludes gems, gray stones */
         /* make it viable light source */
-        place_object(d.otmp, game.u.ux, game.u.uy);
-        begin_burn(d.otmp, (0));
+        await place_object(d.otmp, game.u.ux, game.u.uy);
+        await begin_burn(d.otmp, (0));
         /* now release it for caller's use */
-        obj_extract_self(d.otmp);
+        await obj_extract_self(d.otmp);
     }
     if (d.spesgn == 0) {
         /* spe not specified; retain the randomly assigned value */
@@ -5017,15 +4431,15 @@ export function readobjnam(bp, no_wish) {
                         d.mntmp = genus(d.mntmp, 1);
                     }
                     /* this also sets hatch timer if appropriate */
-                    set_corpsenm(d.otmp, d.mntmp);
+                    await set_corpsenm(d.otmp, d.mntmp);
                 }
                 if (d.zombify && zombie_form(game.mons[d.mntmp])) {
-                    start_timer((rn2(5) + (10)), TIMER_OBJECT, ZOMBIFY_MON, obj_to_any(d.otmp));
+                    await start_timer((rn2(5) + (10)), TIMER_OBJECT, ZOMBIFY_MON, obj_to_any(d.otmp));
                 }
                 break;
             case EGG:
                 d.mntmp = can_be_hatched(d.mntmp);
-                set_corpsenm(d.otmp, d.mntmp);
+                await set_corpsenm(d.otmp, d.mntmp);
                 break;
             case FIGURINE:
                 if (!(game.mons[d.mntmp].geno & 4096) && (!(((game.mons[d.mntmp]).mflags2 & 8) != 0) || (((game.mons[d.mntmp]).mflags2 & 4) != 0)) && d.mntmp != PM_MAIL_DAEMON) {
@@ -5037,7 +4451,7 @@ export function readobjnam(bp, no_wish) {
                 if (((d.otmp).cobj != null) && ((game.mons[d.mntmp]).msize < 1)) {
                     /* this assumes that artifacts can't be randomly generated
                inside containers */
-                    delete_contents(d.otmp);
+                    await delete_contents(d.otmp);
                 }
                 break;
             case SCALE_MAIL:
@@ -5051,7 +4465,7 @@ export function readobjnam(bp, no_wish) {
         /* set blessed/cursed -- setting the fields directly is safe
      * since weight() is called below and addinv() will take care
      * of luck */
-        curse(d.otmp);
+        await curse(d.otmp);
     } else if (d.uncursed) {
         d.otmp.blessed = 0;
         d.otmp.cursed = ((game.u.uluck + game.u.moreluck) < 0 && !game.flags.debug);
@@ -5059,7 +4473,7 @@ export function readobjnam(bp, no_wish) {
         d.otmp.blessed = ((game.u.uluck + game.u.moreluck) >= 0 || game.flags.debug);
         d.otmp.cursed = ((game.u.uluck + game.u.moreluck) < 0 && !game.flags.debug);
     } else if (d.spesgn < 0) {
-        curse(d.otmp);
+        await curse(d.otmp);
     }
     if (erosion_matters(d.otmp)) {
         /* set eroded and erodeproof */
@@ -5107,8 +4521,8 @@ export function readobjnam(bp, no_wish) {
                 d.otmp.spe = 0;
             }
         } else if (((d.otmp).cobj != null)) {
-            delete_contents(d.otmp);
-            d.otmp.owt = weight(d.otmp);
+            await delete_contents(d.otmp);
+            d.otmp.owt = await weight(d.otmp);
         }
     }
     if (((d.otmp).otyp == LARGE_BOX || (d.otmp).otyp == CHEST)) {
@@ -5143,10 +4557,10 @@ export function readobjnam(bp, no_wish) {
             d.name = aname;
         }
         /* 3.6 tribute - fix up novel */
-        if (d.otmp.otyp == SPE_NOVEL && (novelname = lookup_novel(d.name, { get value() { return d.otmp.corpsenm; }, set value(_v) { d.otmp.corpsenm = _v; } })) != null) {
+        if (d.otmp.otyp == SPE_NOVEL && (novelname = await lookup_novel(d.name, { get value() { return d.otmp.corpsenm; }, set value(_v) { d.otmp.corpsenm = _v; } })) != null) {
             d.name = novelname;
         }
-        d.otmp = oname(d.otmp, d.name, 4);
+        d.otmp = await oname(d.otmp, d.name, 4);
         if (d.otmp.oartifact || d.name == aname) {
             /* name==aname => wished for artifact (otmp->oartifact => got it) */
             d.otmp.quan = 1;
@@ -5159,10 +4573,10 @@ export function readobjnam(bp, no_wish) {
     if ((is_quest_artifact(d.otmp) || (d.otmp.oartifact && rn2(nartifact_exist()) > 1)) && !game.flags.debug) {
         /* more wishing abuse: don't allow wishing for certain artifacts */
         /* and make them pay; charge them for the wish anyway! */
-        artifact_exists(d.otmp, safe_oname(d.otmp), (0), 0);
-        obfree(d.otmp, null);
+        await artifact_exists(d.otmp, safe_oname(d.otmp), (0), 0);
+        await obfree(d.otmp, null);
         d.otmp = game.hands_obj;
-        pline("For a moment, you feel %s in your %s, but it disappears!", c_common_strings.c_something, makeplural(body_part(HAND)));
+        await pline("For a moment, you feel %s in your %s, but it disappears!", c_common_strings.c_something, await makeplural(await body_part(HAND)));
         return d.otmp;
     }
     if (d.halfeaten && d.otmp.oclass == FOOD_CLASS) {
@@ -5173,10 +4587,10 @@ export function readobjnam(bp, no_wish) {
            anything that couldn't take more than one bite (1 nutrition;
            ought to check for one-bite instead but that's complicated) */
             d.otmp.oeaten = nut;
-            consume_oeaten(d.otmp, 1);
+            await consume_oeaten(d.otmp, 1);
         }
     }
-    d.otmp.owt = weight(d.otmp);
+    d.otmp.owt = await weight(d.otmp);
     if (d.very && d.otmp.otyp == HEAVY_IRON_BALL) {
         d.otmp.owt += WT_IRON_BALL_INCR;
     }
@@ -5213,7 +4627,7 @@ export function Japanese_item_name(i, ordinaryname) {
     }
     return ordinaryname;
 }
-export function armor_simple_name(armor) {
+export async function armor_simple_name(armor) {
     let result = null;
     let armcat = game.objects[armor.otyp].oc_subtyp;
     switch (armcat) {
@@ -5239,8 +4653,8 @@ export function armor_simple_name(armor) {
             result = shirt_simple_name(armor);
             break;
         default:
-            result = simpleonames(armor);
-            impossible("unknown armor category (%s => %u)", result, armcat);
+            result = await simpleonames(armor);
+            await impossible("unknown armor category (%s => %u)", result, armcat);
             break;
     }
     return result;
@@ -5351,13 +4765,13 @@ export function shield_simple_name(shield) {
 export function shirt_simple_name(shirt) {
     return "shirt";
 }
-export function mimic_obj_name(mtmp) {
+export async function mimic_obj_name(mtmp) {
     if (((mtmp).m_ap_type & 7) == M_AP_OBJECT) {
         if (mtmp.mappearance == GOLD_PIECE) {
             return "gold";
         }
         if (mtmp.mappearance != STRANGE_OBJECT) {
-            return simple_typename(mtmp.mappearance);
+            return await simple_typename(mtmp.mappearance);
         }
     }
     return "whatcha-may-callit";
@@ -5369,7 +4783,7 @@ export function mimic_obj_name(mtmp) {
  * last resort literal which should be very short), and an optional suffix.
  */
 /* output buffer */
-export function safe_qbuf(qbuf, qprefix, qsuffix, obj, func, altfunc, lastR) {
+export async function safe_qbuf(qbuf, qprefix, qsuffix, obj, func, altfunc, lastR) {
     let bufp = null;
     let endp = null;
     /* convert size_t (or int for ancient systems) to ordinary unsigned */
@@ -5379,18 +4793,14 @@ export function safe_qbuf(qbuf, qprefix, qsuffix, obj, func, altfunc, lastR) {
     let len_qsfx = (qsuffix ? strlen(qsuffix) : 0);
     let len_lastR = strlen(lastR);
     lenlimit = 128 - 1;
-    endp = qbuf + lenlimit;
+    endp = __nh_advance_str(qbuf, lenlimit);
     (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-    /* workaround for static analyzer issue */
-    /* sanity check, aimed mainly at paniclog (it's conceivable for
-       the result of short_oname() to be shorter than the length of
-       the last resort string, but we ignore that possibility here) */
     if (len_qpfx > lenlimit) {
-        impossible("safe_qbuf: prefix too long (%u characters).", len_qpfx);
+        await impossible("safe_qbuf: prefix too long (%u characters).", len_qpfx);
     } else if (len_qpfx + len_qsfx > lenlimit) {
-        impossible("safe_qbuf: suffix too long (%u + %u characters).", len_qpfx, len_qsfx);
+        await impossible("safe_qbuf: suffix too long (%u + %u characters).", len_qpfx, len_qsfx);
     } else if (len_qpfx + len_lastR + len_qsfx > lenlimit) {
-        impossible("safe_qbuf: filler too long (%u + %u + %u characters).", len_qpfx, len_lastR, len_qsfx);
+        await impossible("safe_qbuf: filler too long (%u + %u + %u characters).", len_qpfx, len_lastR, len_qsfx);
     }
     if (qbuf == qprefix) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
@@ -5400,17 +4810,17 @@ export function safe_qbuf(qbuf, qprefix, qsuffix, obj, func, altfunc, lastR) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
     } else {
         /* no prefix; output buffer starts out empty */
-        qbuf[0] = 0;
+        qbuf = __nh_char_write(qbuf, 0, 0);
     }
     len = strlen(qbuf);
     if (len + len_lastR + len_qsfx > lenlimit) {
         if (len < lenlimit) {
             /* too long; skip formatting, last resort output is truncated */
-            strncpy(qbuf[len], lastR, lenlimit - len);
+            strncpy({ get value() { return __nh_char_at0(__nh_advance_str(qbuf, len)); }, set value(_v) { __nh_char_at0(__nh_advance_str(qbuf, len)) = _v; } }, lastR, lenlimit - len);
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             len = strlen(qbuf);
             if (qsuffix && len < lenlimit) {
-                strncpy(qbuf[len], qsuffix, lenlimit - len);
+                strncpy({ get value() { return __nh_char_at0(__nh_advance_str(qbuf, len)); }, set value(_v) { __nh_char_at0(__nh_advance_str(qbuf, len)) = _v; } }, qsuffix, lenlimit - len);
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             }
         }
@@ -5433,24 +4843,176 @@ export function safe_qbuf(qbuf, qprefix, qsuffix, obj, func, altfunc, lastR) {
     return qbuf;
 }
 /*objnam.c*/
+/* 3: length of " (" + ")" which will enclose 'dn' */
 /* avoid spellbook of Book of the Dead */
+/* this maybe-nearby part used to be replicated in multiple callers */
+/* side-effects:  treat as having been seen up close;
+           cansee() is True hence hero isn't Blind so if 'func' is
+           the usual doname or xname, obj->dknown will become set
+           and then for an artifact, find_artifact() will be called */
+/* if we still don't have a match, try singularizing the target;
+       for exact match, that's trivial, but for prefix, it's hard */
+/* length of assumed plural fname */
+/* actually revised 'fname_k' */
 /* set up primary work buffer; the first 'PREFIX' bytes are set
        aside for use by doname() */
 /* last byte within the obuf[] */
+/*
+     * Maybe find a previously unseen artifact.
+     *
+     * Assumption 1: if an artifact object is being formatted, it is
+     *  being shown to the hero (on floor, or looking into container,
+     *  or probing a monster, or seeing a monster wield it).
+     * Assumption 2: if in a pile that has been stepped on, the
+     *  artifact won't be noticed for cases where the pile to too deep
+     *  to be auto-shown, unless the player explicitly looks at that
+     *  spot (via ':').  Might need to make an exception somehow (at
+     *  the point where the decision whether to auto-show gets made?)
+     *  when an artifact is on the top of the pile.
+     * Assumption 3: since this is used for livelog events, not being
+     *  100% correct won't negatively affect the player's current game.
+     *
+     * We use the real obj->dknown rather than the override_ID variant
+     * so that wizard-mode ^I doesn't cause a not-yet-seen artifact in
+     * inventory (picked up while blind, still blind) to become found.
+     */
 /* each must be identified individually */
+/* if the name should be plural, do that now, after overflow check;
+       it could make buf[] become shorter */
 /* default is "on" for types which don't use it */
+/* "the Nth arrow"; value will eventually be passed to an() or
+           The(), both of which correctly handle this "the " prefix */
+/* 'bp' will be within an obuf[] rather than at the start of one,
+       usually (but not always) pointing at &obuf[PREFIX];
+       gx.xnamep always points to the start of that buffer;
+       'bp_eos' and 'bpspaceleft' are used and updated by Concat*() macros */
+/* ok provided xname() bounds checking works */
+/* size_t cast: convert signed ptrdiff_t to unsigned size_t */
+/* 3.6.0 used "unlockable" here but that could be misunderstood
+               to mean "capable of being unlocked" rather than the intended
+               "not capable of being locked" */
+/* we count the number of separate stacks, which corresponds
+           to the number of inventory slots needed to be able to take
+           everything out if no merges occur */
+/* use alternate phrasing for non-weapons and for wielded ammo
+           (arrows, bolts), or missiles (darts, shuriken, boomerangs)
+           except when those are being actively dual-wielded where the
+           regular phrasing will list them as "in right hand" to
+           contrast with secondary weapon's "in left hand" */
 /* not ammo: "at the ready" */
+/* save current prefix, without "a "; might be empty */
+/* set prefix[] to "", "a ", or "an " */
+/* ideally this will never happen; if xnamep is any obuf[]
+           other than the last, overflow here would be relatively
+           benign and we could probably keep going */
+/* Used by farlook.
+     * If it hasn't been seen up close and quantity is more than one,
+     * use "some" instead of the quantity: "some gold pieces" rather
+     * than "25 gold pieces".  This is suboptimal, to put it mildly,
+     * because lookhere and pickup report the precise amount.
+     * Picking the item up while blind also shows the precise amount
+     * for inventory display, then dropping it while still blind leaves
+     * obj->dknown unset so the count reverts to "some" for farlook.
+     *
+     * TODO: add obj->qknown flag for 'quantity known' on stackable
+     * items; it could overlay obj->cknown since no containers stack.
+     */
 /* cursed partly eaten troll corpse */
+/* bypass object twiddling for artifacts */
 /* single letter; might be used for named fruit or a musical note */
 /* these probably shouldn't be handled here because doing so
                   impacts inventory when using them for named fruit */
-/* dispense with some words which don't need pluralization */
+/* leave off "your" for most of your artifacts, but prepend
+     * "your" for unique objects and "foo of bar" quest artifacts */
+/* the() will allocate another obuf[]; we want to avoid using two */
+/* simpleoname[] is singular if quan==1, plural otherwise;
+           an() will allocate another obuf[]; we want to avoid using two */
+/* dispense with some words which don't need singularization */
+/* and the inverse, "<foo> detection" vs "detect <foo>" */
+/* convert "detect <foo>s" into "<foo> detection" */
+/* Must manually make kelp! */
+/* [FIXME: if this isn't a wall or door location where 'horizontal'
+            is already set up, that should be calculated for this spot.
+            Unfortunately, it can be tricky; placing one in open space
+            and then another adjacent might need to recalculate first one.] */
+/* neither CORR nor SCORR uses 'flags' or 'horizontal' */
+/* map the spot where the wish occurred */
+/* hero started at <x,y> but might not be there anymore (create
+           lava, decline to die, and get teleported away to safety) */
+/* u.uinwater = 0; leave the water */
+/* [block/unblock_point handled by docrt -> vision_recalc] */
+/* note: lev->lit and lev->nondiggable retain their values even
+           though those might not make sense with the new terrain */
+/* might have changed terrain from something that blocked
+           levitation and flying to something that doesn't (levitating
+           while in xorn form and replacing solid stone with furniture) */
 /* D_CLOSED is implicit for secret doors */
 /* also clears blessedftn, disturbed */
 /* box/chest and wizard mode door */
 /* wizard mode fountain/sink/throne/tree and grave */
+/* check for "glob", "<foo> glob", and "glob of <foo>" */
+/* Search for class names: XXXXX potion, scroll of XXXXX.
+       Avoid false hits on, e.g., rings for "ring mail". */
 /* catch any other non-wishable objects (venom) */
 /* Dragon mail - depends on the order of objects & dragons. */
 /* <color> dragon scale mail */
 /* most suits fall into this category */
+/* workaround for static analyzer issue */
+/* sanity check, aimed mainly at paniclog (it's conceivable for
+       the result of short_oname() to be shorter than the length of
+       the last resort string, but we ignore that possibility here) */
+/*
+     * verb is given in plural (without trailing s).  Return as input
+     * if subj appears to be plural.  Add special cases as necessary.
+     * Many hard cases can already be handled by using otense() instead.
+     * If this gets much bigger, consider decomposing makeplural.
+     * Note: monster names are not expected here (except before corpse).
+     *
+     * Special case: allow null sobj to get the singular 3rd person
+     * present tense form so we don't duplicate this code elsewhere.
+     */
+/*
+         * plural: anything that ends in 's', but not '*us' or '*ss'.
+         * Guess at a few other special cases that makeplural creates.
+         */
+/* check for special cases to avoid false matches */
+/* also check for <prefix><space><special_subj>
+                   to catch things like "the invisible erinys" */
+/*
+         * 3rd person plural doesn't end in telltale 's';
+         * 2nd person singular behaves as if plural.
+         */
+/* Ends in z, x, s, ch, sh; add an "es" */
 /* like "y" case in makeplural */
+/* makeplural() is sometimes used on monsters rather than objects
+       and sometimes pronouns are used for monsters, so check those;
+       unfortunately, "her" (which matches genders[1].him and [1].his)
+       and "it" (which matches genders[2].he and [2].him) are ambiguous;
+       we'll live with that; caller can fix things up if necessary */
+/*
+     * Skip changing "pair of" to "pairs of".  According to Webster, usual
+     * English usage is use pairs for humans, e.g. 3 pairs of dancers,
+     * and pair for objects and non-humans, e.g. 3 pair of boots.  We don't
+     * refer to pairs of humans in this game so just skip to the bottom.
+     */
+/* look for "foo of bar" so that we can focus on "foo" */
+/* Now spot is the last character of the string */
+/* dispense with some words which don't need pluralization */
+/* spot+1: synch up with makesingular's usage */
+/* more of same, but not suitable for blanket loop checking */
+/* man/men ("Wiped out all cavemen.") */
+/* exclude shamans and humans etc */
+/* (staff handled via one_off[]) */
+/* avoid "nerf" -> "nerves", "serf" -> "serves" */
+/* fall through to default (append 's') */
+/* [aeioulr]f to [aeioulr]ves */
+/* ium/ia (mycelia, baluchitheria) */
+/* algae, larvae, hyphae (another fungus part) */
+/* fungus/fungi, homunculus/homunculi, but buses, lotuses, wumpuses */
+/* -eau/-eaux (gateau, chapeau...) */
+/* 'bureaus' is the more common plural of 'bureau' */
+/* matzoh/matzot, possible food name */
+/* note: ox/oxen, VAX/VAXen, goose/geese */
+/* codex/spadix/neocortex and the like */
+/* indices would have been ok too, but stick with indexes */
+/* Kludge to get "tomatoes" and "potatoes" right */

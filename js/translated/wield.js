@@ -100,28 +100,24 @@ const can_no_longer_twoweap = "can no longer wield two weapons at once";
  * responsibility to handle that.  It's also the caller's responsibility
  * to print the appropriate messages.
  */
-export function setuwep(obj) {
+export async function setuwep(obj) {
     let olduwep = game.uwep;
     if (obj == game.uwep) {
         /* no extra handling needed; this used to include a call to
        update_inventory() but that's already performed by setworn() */
         return;
     }
-    /* necessary to not set gu.unweapon */
-    setworn(obj, 256);
+    await setworn(obj, 256);
     /* handle Ogresmasher before Sunsword; even though they can't be happening
        at the same time, botl flag update should come before pline message */
     if (game.uwep == obj && ((game.uwep && game.uwep.oartifact == ART_OGRESMASHER) || (olduwep && olduwep.oartifact == ART_OGRESMASHER))) {
         game.disp.botl = (1);
     }
     if (game.uwep == obj && artifact_light(olduwep) && olduwep.lamplit) {
-        /* gaining or losing Con bonus */
-        /* This message isn't printed in the caller because it happens
-     * *whenever* Sunsword is unwielded, from whatever cause. */
-        end_burn(olduwep, (0));
+        await end_burn(olduwep, (0));
         /* there is a (soft) upper and lower limit to uwep->spe */
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            pline("%s shining.", Tobjnam(olduwep, "stop"));
+            await pline("%s shining.", await Tobjnam(olduwep, "stop"));
         }
     }
     if (game.uwep == obj && (is_art(game.uwep, ART_OGRESMASHER) || is_art(olduwep, ART_OGRESMASHER))) {
@@ -138,15 +134,14 @@ export function setuwep(obj) {
         game.unweapon = (1);
     }
 }
-export function cant_wield_corpse(obj) {
+export async function cant_wield_corpse(obj) {
     let kbuf = '';
     if (game.uarmg || obj.otyp != CORPSE || !((game.mons[obj.corpsenm]) == game.mons[PM_COCKATRICE] || (game.mons[obj.corpsenm]) == game.mons[PM_CHICKATRICE]) || (game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic)) {
         return (0);
     }
-    /* Prevent wielding cockatrice when not wearing gloves --KAA */
-    You("wield %s in your bare %s.", corpse_xname(obj, null, 4), makeplural(body_part(HAND)));
-    kbuf = sprintf(kbuf, "wielding %s bare-handed", killer_xname(obj));
-    instapetrify(kbuf);
+    await You("wield %s in your bare %s.", await corpse_xname(obj, null, 4), await makeplural(await body_part(HAND)));
+    kbuf = sprintf(kbuf, "wielding %s bare-handed", await killer_xname(obj));
+    await instapetrify(kbuf);
     return (1);
 }
 /* description of hands when not wielding anything; also used
@@ -154,41 +149,40 @@ export function cant_wield_corpse(obj) {
 export function empty_handed() {
     return game.uarmg ? "empty handed" : (((game.youmonst.data).mflags1 & 131072) != 0) ? "bare handed" : "not wielding anything";
 }
-export function ready_weapon(wep) {
+export async function ready_weapon(wep) {
     /* Separated function so swapping works easily */
     let res = 0;
     let was_twoweap = game.u.twoweap;
     let had_wep = (game.uwep != null);
     if (!wep) {
         if (game.uwep) {
-            You("are %s.", empty_handed());
-            /* quivering main weapon, so no longer wielding it */
-            setuwep(null);
+            await You("are %s.", empty_handed());
+            await setuwep(null);
             /* hero must have been life-saved to get here; use a turn */
             /* takes a turn even though it doesn't get wielded */
             /* Weapon WILL be wielded after this point */
             res = 1;
         } else {
-            You("are already %s.", empty_handed());
+            await You("are already %s.", empty_handed());
         }
-    } else if (wep.otyp == CORPSE && cant_wield_corpse(wep)) {
+    } else if (wep.otyp == CORPSE && await cant_wield_corpse(wep)) {
         res = 1;
     } else if (game.uarms && ((wep.oclass == WEAPON_CLASS || wep.oclass == TOOL_CLASS) && game.objects[wep.otyp].oc_big)) {
-        You("cannot wield a two-handed %s while wearing a shield.", (wep.oclass == WEAPON_CLASS && game.objects[wep.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[wep.otyp].oc_subtyp <= P_SABER) ? "sword" : wep.otyp == BATTLE_AXE ? "axe" : "weapon");
+        await You("cannot wield a two-handed %s while wearing a shield.", (wep.oclass == WEAPON_CLASS && game.objects[wep.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[wep.otyp].oc_subtyp <= P_SABER) ? "sword" : wep.otyp == BATTLE_AXE ? "axe" : "weapon");
         res = 4;
-    } else if (!retouch_object({ get value() { return wep; }, set value(_v) { wep = _v; } }, (0))) {
+    } else if (!await retouch_object({ get value() { return wep; }, set value(_v) { wep = _v; } }, (0))) {
         res = 1;
     } else {
         res = 1;
         if (((wep).cursed && (((wep).oclass == WEAPON_CLASS || ((wep).oclass == TOOL_CLASS && game.objects[(wep).otyp].oc_subtyp != P_NONE) || (wep).otyp == HEAVY_IRON_BALL || (wep).otyp == IRON_CHAIN) || (wep).otyp == TIN_OPENER))) {
-            let tmp = xname(wep);
+            let tmp = await xname(wep);
             let thestr = "The ";
-            if (strncmp(tmp, thestr, 4) && !strncmp(The(tmp), thestr, 4)) {
+            if (strncmp(tmp, thestr, 4) && !strncmp(await The(tmp), thestr, 4)) {
                 tmp = thestr;
             } else {
                 tmp = "";
             }
-            pline("%s%s %s to your %s%s!", tmp, aobjnam(wep, "weld"), (wep.quan == 1) ? "itself" : "themselves", ((wep.oclass == WEAPON_CLASS || wep.oclass == TOOL_CLASS) && game.objects[wep.otyp].oc_big) ? "" : ((game.u.uhandedness == 0) ? "dominant right " : "dominant left "), ((wep.oclass == WEAPON_CLASS || wep.oclass == TOOL_CLASS) && game.objects[wep.otyp].oc_big) ? makeplural(body_part(HAND)) : body_part(HAND));
+            await pline("%s%s %s to your %s%s!", tmp, await aobjnam(wep, "weld"), (wep.quan == 1) ? "itself" : "themselves", ((wep.oclass == WEAPON_CLASS || wep.oclass == TOOL_CLASS) && game.objects[wep.otyp].oc_big) ? "" : ((game.u.uhandedness == 0) ? "dominant right " : "dominant left "), ((wep.oclass == WEAPON_CLASS || wep.oclass == TOOL_CLASS) && game.objects[wep.otyp].oc_big) ? await makeplural(await body_part(HAND)) : await body_part(HAND));
             set_bknown(wep, 1);
         } else {
             /* The message must be printed before setuwep (since
@@ -204,36 +198,32 @@ export function ready_weapon(wep) {
             let dummy = wep.owornmask;
             wep.owornmask |= 256;
             if (wep.otyp == AKLYS && (wep.owornmask & 256) != 0) {
-                You("secure the tether.");
+                await You("secure the tether.");
             }
-            prinv(null, wep, 0);
+            await prinv(null, wep, 0);
             wep.owornmask = dummy;
         }
-        setuwep(wep);
+        await setuwep(wep);
         if (was_twoweap && !game.u.twoweap && game.flags.verbose) {
-            /* skip this message if we already got "empty handed" one above;
-               also, Null is not safe for neither TWOWEAPOK() or bimanual() */
             if (game.uwep) {
-                You("%s.", (((((game.uwep).oclass == WEAPON_CLASS) ? !((game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_BOW && game.objects[game.uwep.otyp].oc_subtyp <= P_CROSSBOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == GEM_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[game.uwep.otyp].oc_subtyp <= -P_BOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[game.uwep.otyp].oc_subtyp <= -P_DART)) : ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE)) && !((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big)) ? are_no_longer_twoweap : can_no_longer_twoweap));
+                await You("%s.", (((((game.uwep).oclass == WEAPON_CLASS) ? !((game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_BOW && game.objects[game.uwep.otyp].oc_subtyp <= P_CROSSBOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == GEM_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[game.uwep.otyp].oc_subtyp <= -P_BOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[game.uwep.otyp].oc_subtyp <= -P_DART)) : ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE)) && !((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big)) ? are_no_longer_twoweap : can_no_longer_twoweap));
             }
         }
         if (wep.oartifact) {
-            /* KMH -- Talking artifacts are finally implemented */
-            /* sets ECMD_TIME bit if artifact speaks */
-            res |= arti_speak(wep);
+            res |= await arti_speak(wep);
         }
         if (artifact_light(wep) && !wep.lamplit) {
-            begin_burn(wep, (0));
+            await begin_burn(wep, (0));
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                pline("%s to shine %s!", Tobjnam(wep, "begin"), arti_light_description(wep));
+                await pline("%s to shine %s!", await Tobjnam(wep, "begin"), arti_light_description(wep));
             }
         }
         if (wep.unpaid) {
             /* we'll get back to this someday, but it's not balanced yet */
             /* Elves are averse to wielding cold iron */
             let this_shkp = null;
-            if ((this_shkp = shop_keeper(inside_shop(game.u.ux, game.u.uy))) != null) {
-                pline("%s says \"You be careful with my %s!\"", shkname(this_shkp), xname(wep));
+            if ((this_shkp = await shop_keeper(inside_shop(game.u.ux, game.u.uy))) != null) {
+                await pline("%s says \"You be careful with my %s!\"", await shkname(this_shkp), await xname(wep));
             }
         }
     }
@@ -242,12 +232,12 @@ export function ready_weapon(wep) {
     }
     return res;
 }
-export function setuqwep(obj) {
-    setworn(obj, 512);
+export async function setuqwep(obj) {
+    await setworn(obj, 512);
     return;
 }
-export function setuswapwep(obj) {
-    setworn(obj, 1024);
+export async function setuswapwep(obj) {
+    await setworn(obj, 1024);
     return;
 }
 /* getobj callback for object to ready for throwing/shooting;
@@ -291,13 +281,12 @@ export function wield_ok(obj) {
     }
     return GETOBJ_DOWNPLAY;
 }
-export function finish_splitting(obj) {
-    /* obj was split off from something; give it its own invlet */
-    freeinv(obj);
-    addinv_nomerge(obj);
+export async function finish_splitting(obj) {
+    await freeinv(obj);
+    await addinv_nomerge(obj);
 }
 /* the #wield command - wield a weapon */
-export function dowield() {
+export async function dowield() {
     let qbuf = '';
     let wep = null;
     let oldwep = null;
@@ -307,7 +296,7 @@ export function dowield() {
        will_weld(), touch_petrifies(), etc. */
         game.multi = 0;
         if (((((game.youmonst.data).mflags1 & 8192) != 0) || ((game.youmonst.data).msize < 1))) {
-            pline("Don't be ridiculous!");
+            await pline("Don't be ridiculous!");
             return 4;
         }
         /* Keep going even if inventory is completely empty, since wielding '-'
@@ -315,58 +304,55 @@ export function dowield() {
        so redundantly. */
         /* forget last splitobj() before calling getobj() with GETOBJ_ALLOWCNT */
         clear_splitobjs();
-        if (!(wep = getobj("wield", wield_ok, 2 | 1))) {
+        if (!(wep = await getobj("wield", wield_ok, 2 | 1))) {
             return 2;
         } else if (wep == game.uwep) {
             already_wielded: {
             }
-            You("are already wielding that!");
+            await You("are already wielding that!");
             if (((wep).oclass == TOOL_CLASS && game.objects[(wep).otyp].oc_subtyp != P_NONE) || ((wep).otyp == TOWEL && (wep).spe > 0)) {
                 game.unweapon = (0);
             }
             return 4;
         } else if (welded(game.uwep)) {
-            weldmsg(game.uwep);
+            await weldmsg(game.uwep);
             /* previously interrupted armor removal mustn't be resumed */
             reset_remarm();
             /* if player chose a partial stack but can't wield it, undo split */
             if (wep.o_id && wep.o_id == game.context.objsplit.child_oid) {
-                /* if wep is the result of supplying a count to getobj()
-           we don't want to split something already wielded; for
-           any other item, we need to give it its own inventory slot */
-                unsplitobj(wep);
+                await unsplitobj(wep);
             }
             return 4;
         } else if (wep.o_id && wep.o_id == game.context.objsplit.child_oid) {
             if (game.uwep && game.uwep.o_id == game.context.objsplit.parent_oid) {
-                unsplitobj(wep);
+                await unsplitobj(wep);
                 /* wep was merged back to uwep, already_wielded uses wep */
                 wep = game.uwep;
-                You("are already wielding that!");
+                await You("are already wielding that!");
                 if (((wep).oclass == TOOL_CLASS && game.objects[(wep).otyp].oc_subtyp != P_NONE) || ((wep).otyp == TOWEL && (wep).spe > 0)) {
                     game.unweapon = (0);
                 }
                 return 4;
             }
-            finish_splitting(wep);
+            await finish_splitting(wep);
             break wielding;
         }
         if (wep == game.hands_obj) {
             /* Handle no object, or object in other slot */
             wep = null;
         } else if (wep == game.uswapwep) {
-            return doswapweapon();
+            return await doswapweapon();
         } else if (wep == game.uquiver) {
             if (game.uquiver.quan > 1 && inv_cnt((0)) < invlet_basic && splittable(game.uquiver)) {
-                qbuf = sprintf(qbuf, "You have %ld %s readied.  Wield one?", game.uquiver.quan, simpleonames(game.uquiver));
-                switch (yn_function(qbuf, ynqchars, 113, (1))) {
+                qbuf = sprintf(qbuf, "You have %ld %s readied.  Wield one?", game.uquiver.quan, await simpleonames(game.uquiver));
+                switch (await yn_function(qbuf, ynqchars, 113, (1))) {
                     /* offer to split stack if multiple are quivered */
                     /* offer to split stack if wielding more than 1 */
                     case 113:
                         return 0;
                     case 121:
-                        wep = splitobj(game.uquiver, 1);
-                        finish_splitting(wep);
+                        wep = await splitobj(game.uquiver, 1);
+                        await finish_splitting(wep);
                         break wielding;
                     default:
                         break;
@@ -376,71 +362,66 @@ export function dowield() {
                 let use_plural = (((game.uquiver).quan != 1 || ((game.uquiver).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) || ((game.uquiver).otyp == LENSES || (game.uquiver.oclass == ARMOR_CLASS && game.objects[game.uquiver.otyp].oc_subtyp == ARM_GLOVES) || (game.uquiver.oclass == ARMOR_CLASS && game.objects[game.uquiver.otyp].oc_subtyp == ARM_BOOTS)));
                 qbuf = sprintf(qbuf, "You have %s readied.  Wield %s instead?", !use_plural ? "that" : "those", !use_plural ? "it" : "them");
             }
-            if (yn_function(qbuf, ynqchars, 113, (1)) != 121) {
-                /* require confirmation to wield the quivered weapon */
-                Shk_Your(qbuf, game.uquiver);
-                pline("%s%s %s readied.", qbuf, simpleonames(game.uquiver), otense(game.uquiver, "remain"));
+            if (await yn_function(qbuf, ynqchars, 113, (1)) != 121) {
+                await Shk_Your(qbuf, game.uquiver);
+                await pline("%s%s %s readied.", qbuf, await simpleonames(game.uquiver), await otense(game.uquiver, "remain"));
                 return 0;
             }
-            /* wielding whole readied stack, so no longer quivered */
-            setuqwep(null);
+            await setuqwep(null);
         } else if (wep.owornmask & ((1 | 2 | 4 | 8 | 16 | 32 | 64) | ((131072 | 262144) | 65536 | 524288) | 1048576)) {
-            You("cannot wield that!");
+            await You("cannot wield that!");
             return 4;
         }
     }
     /* Unwield your current secondary weapon */
     oldwep = game.uwep;
-    /* Set your new primary weapon */
-    result = ready_weapon(wep);
+    result = await ready_weapon(wep);
     if (game.flags.pushweapon && oldwep && game.uwep != oldwep) {
-        setuswapwep(oldwep);
+        await setuswapwep(oldwep);
     }
-    untwoweapon();
+    await untwoweapon();
     return result;
 }
 /* the #swap command - swap wielded and secondary weapons */
-export function doswapweapon() {
+export async function doswapweapon() {
     let oldwep = null;
     let oldswap = null;
     let result = 0;
     game.multi = 0;
     if (((((game.youmonst.data).mflags1 & 8192) != 0) || ((game.youmonst.data).msize < 1))) {
-        pline("Don't be ridiculous!");
+        await pline("Don't be ridiculous!");
         return 4;
     }
     if (welded(game.uwep)) {
-        weldmsg(game.uwep);
+        await weldmsg(game.uwep);
         return 4;
     }
     oldwep = game.uwep;
     oldswap = game.uswapwep;
-    setuswapwep(null);
-    result = ready_weapon(oldswap);
+    await setuswapwep(null);
+    result = await ready_weapon(oldswap);
     if (game.uwep == oldwep) {
-        /* Set your new secondary weapon */
-        /* Wield failed for some reason */
-        setuswapwep(oldswap);
+        await setuswapwep(oldswap);
     } else {
-        setuswapwep(oldwep);
+        await setuswapwep(oldwep);
         if (game.uswapwep) {
-            prinv(null, game.uswapwep, 0);
+            await prinv(null, game.uswapwep, 0);
         } else {
-            You("have no secondary weapon readied.");
+            await You("have no secondary weapon readied.");
         }
     }
-    if (game.u.twoweap && !can_twoweapon()) {
-        untwoweapon();
+    if (game.u.twoweap && !await can_twoweapon()) {
+        await untwoweapon();
     }
     return result;
 }
 /* the #quiver command */
-export function dowieldquiver() {
-    return doquiver_core("ready");
+export async function dowieldquiver() {
+    return await doquiver_core("ready");
 }
 /* guts of #quiver command; also used by #fire when refilling empty quiver */
 /* "ready" or "fire" */
-export function doquiver_core(verb) {
+export async function doquiver_core(verb) {
     let qbuf = '';
     let newquiver = null;
     let res = 0;
@@ -451,63 +432,55 @@ export function doquiver_core(verb) {
         was_twoweap = game.u.twoweap;
         game.multi = 0;
         if (!game.invent) {
-            /* could accept '-' to empty quiver, but there's no point since
-           inventory is empty so uquiver is already Null */
-            You("have nothing to ready for firing.");
+            await You("have nothing to ready for firing.");
             return 0;
         }
         clear_splitobjs();
-        /* Prompt for a new quiver: "What do you want to {ready|fire}?" */
-        newquiver = getobj(verb, ready_ok, 2 | 1);
+        newquiver = await getobj(verb, ready_ok, 2 | 1);
         if (!newquiver) {
             return 2;
         } else if (newquiver == game.hands_obj) {
             if (game.uquiver) {
-                You("now have no ammunition readied.");
-                /* skip 'quivering: prinv()' */
-                setuqwep(null);
+                await You("now have no ammunition readied.");
+                await setuqwep(null);
             } else {
-                You("already have no ammunition readied!");
+                await You("already have no ammunition readied!");
             }
             return 0;
         } else if (newquiver.o_id == game.context.objsplit.child_oid) {
             if (game.uquiver && game.uquiver.o_id == game.context.objsplit.parent_oid) {
-                /* if newquiver is the result of supplying a count to getobj()
-           we don't want to split something already in the quiver;
-           for any other item, we need to give it its own inventory slot */
-                unsplitobj(newquiver);
-                pline("That ammunition is already readied!");
+                await unsplitobj(newquiver);
+                await pline("That ammunition is already readied!");
                 return 0;
             } else if (newquiver.oclass == COIN_CLASS) {
-                /* don't allow splitting a stack of coins into quiver */
-                You("can't ready only part of your gold.");
-                unsplitobj(newquiver);
+                await You("can't ready only part of your gold.");
+                await unsplitobj(newquiver);
                 return 0;
             }
-            finish_splitting(newquiver);
+            await finish_splitting(newquiver);
         } else if (newquiver == game.uquiver) {
             already_quivered: {
             }
-            pline("That ammunition is already readied!");
+            await pline("That ammunition is already readied!");
             return 0;
         } else if (newquiver.owornmask & ((1 | 2 | 4 | 8 | 16 | 32 | 64) | ((131072 | 262144) | 65536 | 524288) | 1048576)) {
-            You("cannot %s that!", verb);
+            await You("cannot %s that!", verb);
             return 0;
         } else if (newquiver == game.uwep) {
             let weld_res = !game.uwep.bknown;
             if (welded(game.uwep)) {
-                weldmsg(game.uwep);
+                await weldmsg(game.uwep);
                 reset_remarm();
                 return weld_res ? 1 : 0;
             }
             if (game.uwep.quan > 1 && inv_cnt((0)) < invlet_basic && splittable(game.uwep)) {
-                qbuf = sprintf(qbuf, "You are wielding %ld %s.  Ready %ld of them?", game.uwep.quan, simpleonames(game.uwep), game.uwep.quan - 1);
-                switch (yn_function(qbuf, ynqchars, 113, (1))) {
+                qbuf = sprintf(qbuf, "You are wielding %ld %s.  Ready %ld of them?", game.uwep.quan, await simpleonames(game.uwep), game.uwep.quan - 1);
+                switch (await yn_function(qbuf, ynqchars, 113, (1))) {
                     case 113:
                         return 0;
                     case 121:
-                        newquiver = splitobj(game.uwep, game.uwep.quan - 1);
-                        finish_splitting(newquiver);
+                        newquiver = await splitobj(game.uwep, game.uwep.quan - 1);
+                        await finish_splitting(newquiver);
                         break quivering;
                     default:
                         break;
@@ -517,24 +490,23 @@ export function doquiver_core(verb) {
                 let use_plural = (((game.uwep).quan != 1 || ((game.uwep).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) || ((game.uwep).otyp == LENSES || (game.uwep.oclass == ARMOR_CLASS && game.objects[game.uwep.otyp].oc_subtyp == ARM_GLOVES) || (game.uwep.oclass == ARMOR_CLASS && game.objects[game.uwep.otyp].oc_subtyp == ARM_BOOTS)));
                 qbuf = sprintf(qbuf, "You are wielding %s.  Ready %s instead?", !use_plural ? "that" : "those", !use_plural ? "it" : "them");
             }
-            if (yn_function(qbuf, ynqchars, 113, (1)) != 121) {
-                /* require confirmation to ready the main weapon */
-                Shk_Your(qbuf, game.uwep);
-                pline("%s%s %s wielded.", qbuf, simpleonames(game.uwep), otense(game.uwep, "remain"));
+            if (await yn_function(qbuf, ynqchars, 113, (1)) != 121) {
+                await Shk_Your(qbuf, game.uwep);
+                await pline("%s%s %s wielded.", qbuf, await simpleonames(game.uwep), await otense(game.uwep, "remain"));
                 return 0;
             }
-            setuwep(null);
-            untwoweapon();
+            await setuwep(null);
+            await untwoweapon();
             was_uwep = (1);
         } else if (newquiver == game.uswapwep) {
             if (game.uswapwep.quan > 1 && inv_cnt((0)) < invlet_basic && splittable(game.uswapwep)) {
-                qbuf = sprintf(qbuf, "%s %ld %s.  Ready %ld of them?", game.u.twoweap ? "You are dual wielding" : "Your alternate weapon is", game.uswapwep.quan, simpleonames(game.uswapwep), game.uswapwep.quan - 1);
-                switch (yn_function(qbuf, ynqchars, 113, (1))) {
+                qbuf = sprintf(qbuf, "%s %ld %s.  Ready %ld of them?", game.u.twoweap ? "You are dual wielding" : "Your alternate weapon is", game.uswapwep.quan, await simpleonames(game.uswapwep), game.uswapwep.quan - 1);
+                switch (await yn_function(qbuf, ynqchars, 113, (1))) {
                     case 113:
                         return 0;
                     case 121:
-                        newquiver = splitobj(game.uswapwep, game.uswapwep.quan - 1);
-                        finish_splitting(newquiver);
+                        newquiver = await splitobj(game.uswapwep, game.uswapwep.quan - 1);
+                        await finish_splitting(newquiver);
                         break quivering;
                     default:
                         break;
@@ -544,28 +516,21 @@ export function doquiver_core(verb) {
                 let use_plural = (((game.uswapwep).quan != 1 || ((game.uswapwep).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) || ((game.uswapwep).otyp == LENSES || (game.uswapwep.oclass == ARMOR_CLASS && game.objects[game.uswapwep.otyp].oc_subtyp == ARM_GLOVES) || (game.uswapwep.oclass == ARMOR_CLASS && game.objects[game.uswapwep.otyp].oc_subtyp == ARM_BOOTS)));
                 qbuf = sprintf(qbuf, "%s your %s weapon.  Ready %s instead?", !use_plural ? "That is" : "Those are", game.u.twoweap ? "second" : "alternate", !use_plural ? "it" : "them");
             }
-            if (yn_function(qbuf, ynqchars, 113, (1)) != 121) {
-                /* require confirmation to ready the alternate weapon */
-                Shk_Your(qbuf, game.uswapwep);
-                pline("%s%s %s %s.", qbuf, simpleonames(game.uswapwep), otense(game.uswapwep, "remain"), game.u.twoweap ? "wielded" : "as secondary weapon");
+            if (await yn_function(qbuf, ynqchars, 113, (1)) != 121) {
+                await Shk_Your(qbuf, game.uswapwep);
+                await pline("%s%s %s %s.", qbuf, await simpleonames(game.uswapwep), await otense(game.uswapwep, "remain"), game.u.twoweap ? "wielded" : "as secondary weapon");
                 return 0;
             }
-            /* quivering alternate weapon, so no more uswapwep */
-            setuswapwep(null);
-            untwoweapon();
+            await setuswapwep(null);
+            await untwoweapon();
         }
     }
     if (!strcmp(verb, "ready")) {
-        /* place item in quiver before printing so that inventory feedback
-           includes "(at the ready)" */
-        setuqwep(newquiver);
-        prinv(null, newquiver, 0);
+        await setuqwep(newquiver);
+        await prinv(null, newquiver, 0);
     } else {
-        /* verb=="fire", manually refilling quiver during 'f'ire */
-        /* prefix item with description of action, so don't want that to
-           include "(at the ready)" */
-        prinv("You ready:", newquiver, 0);
-        setuqwep(newquiver);
+        await prinv("You ready:", newquiver, 0);
+        await setuqwep(newquiver);
     }
     /* quiver is a convenience slot and manipulating it ordinarily
        consumes no time, but unwielding primary or secondary weapon
@@ -574,17 +539,17 @@ export function doquiver_core(verb) {
        something we're wielding that's vulnerable to its damage) */
     res = 0;
     if (was_uwep) {
-        You("are now %s.", empty_handed());
+        await You("are now %s.", empty_handed());
         res = 1;
     } else if (was_twoweap && !game.u.twoweap) {
-        You("%s.", are_no_longer_twoweap);
+        await You("%s.", are_no_longer_twoweap);
         res = 1;
     }
     return res ? 1 : 0;
 }
 /* used for #rub and for applying pick-axe, whip, grappling hook or polearm */
 /* "rub",&c */
-export function wield_tool(obj, verb) {
+export async function wield_tool(obj, verb) {
     let what = null;
     let more_than_1 = 0;
     if (game.uwep && obj == game.uwep) {
@@ -594,95 +559,91 @@ export function wield_tool(obj, verb) {
     if (!verb) {
         verb = "wield";
     }
-    what = xname(obj);
+    what = await xname(obj);
     more_than_1 = (obj.quan > 1 || strstri(what, "pair of ") != null || strstri(what, "s of ") != null);
     if (obj.owornmask & ((1 | 2 | 4 | 8 | 16 | 32 | 64) | ((131072 | 262144) | 65536 | 524288))) {
-        You_cant("%s %s while wearing %s.", verb, yname(obj), more_than_1 ? "them" : "it");
+        await You_cant("%s %s while wearing %s.", verb, await yname(obj), more_than_1 ? "them" : "it");
         return (0);
     }
     if (game.uwep && welded(game.uwep)) {
         if (game.flags.verbose) {
-            let hand = body_part(HAND);
+            let hand = await body_part(HAND);
             if (((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big)) {
-                hand = makeplural(hand);
+                hand = await makeplural(hand);
             }
             if (strstri(what, "pair of ") != null) {
                 more_than_1 = (0);
             }
-            pline("Since your weapon is welded to your %s, you cannot %s %s %s.", hand, verb, more_than_1 ? "those" : "that", xname(obj));
+            await pline("Since your weapon is welded to your %s, you cannot %s %s %s.", hand, verb, more_than_1 ? "those" : "that", await xname(obj));
         } else {
-            You_cant("do that.");
+            await You_cant("do that.");
         }
         return (0);
     }
     if (((((game.youmonst.data).mflags1 & 8192) != 0) || ((game.youmonst.data).msize < 1))) {
-        You_cant("hold %s strongly enough.", more_than_1 ? "them" : "it");
+        await You_cant("hold %s strongly enough.", more_than_1 ? "them" : "it");
         return (0);
     }
     if (game.uarms && ((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_big)) {
-        You("cannot %s a two-handed %s while wearing a shield.", verb, (obj.oclass == WEAPON_CLASS) ? "weapon" : "tool");
+        await You("cannot %s a two-handed %s while wearing a shield.", verb, (obj.oclass == WEAPON_CLASS) ? "weapon" : "tool");
         return (0);
     }
     if (game.uquiver == obj) {
-        setuqwep(null);
+        await setuqwep(null);
     }
     if (game.uswapwep == obj) {
-        doswapweapon();
+        await doswapweapon();
         if (game.uswapwep == obj) {
             return (0);
         }
     } else {
         let oldwep = game.uwep;
         if (((obj).cursed && (((obj).oclass == WEAPON_CLASS || ((obj).oclass == TOOL_CLASS && game.objects[(obj).otyp].oc_subtyp != P_NONE) || (obj).otyp == HEAVY_IRON_BALL || (obj).otyp == IRON_CHAIN) || (obj).otyp == TIN_OPENER))) {
-            /* hope none of ready_weapon()'s early returns apply here... */
-            ready_weapon(obj);
+            await ready_weapon(obj);
         } else {
-            You("now wield %s.", doname(obj));
-            setuwep(obj);
+            await You("now wield %s.", await doname(obj));
+            await setuwep(obj);
         }
         if (game.flags.pushweapon && oldwep && game.uwep != oldwep) {
-            setuswapwep(oldwep);
+            await setuswapwep(oldwep);
         }
     }
     if (game.uwep && game.uwep != obj) {
         return (0);
     }
-    /* rewielded old object after dying */
-    /* applying weapon or tool that gets wielded ends two-weapon combat */
     if (game.u.twoweap) {
-        untwoweapon();
+        await untwoweapon();
     }
     if (obj.oclass != WEAPON_CLASS) {
         game.unweapon = (1);
     }
     return (1);
 }
-export function can_twoweapon() {
+export async function can_twoweapon() {
     let otmp = null;
     if (!((((game.youmonst.data).mattk[0].aatyp == 254) + ((game.youmonst.data).mattk[1].aatyp == 254) + ((game.youmonst.data).mattk[2].aatyp == 254)) > 1)) {
         if ((game.u.umonnum != game.u.umonster)) {
-            You_cant("use two weapons in your current form.");
+            await You_cant("use two weapons in your current form.");
         } else {
-            pline("%s aren't able to use two weapons at once.", makeplural((game.flags.female && game.urole.name.f) ? game.urole.name.f : game.urole.name.m));
+            await pline("%s aren't able to use two weapons at once.", await makeplural((game.flags.female && game.urole.name.f) ? game.urole.name.f : game.urole.name.m));
         }
     } else if (!game.uwep || !game.uswapwep) {
-        let hand_s = body_part(HAND);
+        let hand_s = await body_part(HAND);
         if (!game.uwep && !game.uswapwep) {
-            hand_s = makeplural(hand_s);
+            hand_s = await makeplural(hand_s);
         }
-        /* "your hands are empty" or "your {left|right} hand is empty" */
-        Your("%s%s %s empty.", game.uwep ? "left " : game.uswapwep ? "right " : "", hand_s, vtense(hand_s, "are"));
+        await Your("%s%s %s empty.", game.uwep ? "left " : game.uswapwep ? "right " : "", hand_s, await vtense(hand_s, "are"));
     } else if (!(((game.uwep).oclass == WEAPON_CLASS) ? !((game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_BOW && game.objects[game.uwep.otyp].oc_subtyp <= P_CROSSBOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == GEM_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[game.uwep.otyp].oc_subtyp <= -P_BOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[game.uwep.otyp].oc_subtyp <= -P_DART)) : ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE)) || !(((game.uswapwep).oclass == WEAPON_CLASS) ? !((game.uswapwep.oclass == WEAPON_CLASS && game.objects[game.uswapwep.otyp].oc_subtyp >= P_BOW && game.objects[game.uswapwep.otyp].oc_subtyp <= P_CROSSBOW) || ((game.uswapwep.oclass == WEAPON_CLASS || game.uswapwep.oclass == GEM_CLASS) && game.objects[game.uswapwep.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[game.uswapwep.otyp].oc_subtyp <= -P_BOW) || ((game.uswapwep.oclass == WEAPON_CLASS || game.uswapwep.oclass == TOOL_CLASS) && game.objects[game.uswapwep.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[game.uswapwep.otyp].oc_subtyp <= -P_DART)) : ((game.uswapwep).oclass == TOOL_CLASS && game.objects[(game.uswapwep).otyp].oc_subtyp != P_NONE))) {
         otmp = !(((game.uwep).oclass == WEAPON_CLASS) ? !((game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_BOW && game.objects[game.uwep.otyp].oc_subtyp <= P_CROSSBOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == GEM_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[game.uwep.otyp].oc_subtyp <= -P_BOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[game.uwep.otyp].oc_subtyp <= -P_DART)) : ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE)) ? game.uwep : game.uswapwep;
-        pline("%s %s suitable %s weapon%s.", Yname2(otmp), ((otmp).quan != 1 || ((otmp).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "aren't" : "isn't a", (otmp == game.uwep) ? "primary" : "secondary", (((otmp.quan) == 1) ? "" : "s"));
+        await pline("%s %s suitable %s weapon%s.", await Yname2(otmp), ((otmp).quan != 1 || ((otmp).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "aren't" : "isn't a", (otmp == game.uwep) ? "primary" : "secondary", (((otmp.quan) == 1) ? "" : "s"));
     } else if (((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big) || ((game.uswapwep.oclass == WEAPON_CLASS || game.uswapwep.oclass == TOOL_CLASS) && game.objects[game.uswapwep.otyp].oc_big)) {
         otmp = ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big) ? game.uwep : game.uswapwep;
-        pline("%s isn't one-handed.", Yname2(otmp));
+        await pline("%s isn't one-handed.", await Yname2(otmp));
     } else if (game.uarms) {
-        You_cant("use two weapons while wearing a shield.");
+        await You_cant("use two weapons while wearing a shield.");
     } else if (game.uswapwep.oartifact) {
-        pline("%s being held second to another weapon!", Yobjnam2(game.uswapwep, "resist"));
-    } else if (game.uswapwep.otyp == CORPSE && cant_wield_corpse(game.uswapwep)) {
+        await pline("%s being held second to another weapon!", await Yobjnam2(game.uswapwep, "resist"));
+    } else if (game.uswapwep.otyp == CORPSE && await cant_wield_corpse(game.uswapwep)) {
         ;
     } else if (game.u.uprops[GLIB].intrinsic || game.uswapwep.cursed) {
         /* [Note: !TWOWEAPOK() check prevents ever getting here...] */
@@ -690,7 +651,7 @@ export function can_twoweapon() {
         if (!game.u.uprops[GLIB].intrinsic) {
             set_bknown(game.uswapwep, 1);
         }
-        drop_uswapwep();
+        await drop_uswapwep();
     } else {
         return (1);
     }
@@ -698,24 +659,18 @@ export function can_twoweapon() {
 }
 /* uswapwep has become cursed while in two-weapon combat mode or hero is
    attempting to dual-wield when it is already cursed or hands are slippery */
-export function drop_uswapwep() {
+export async function drop_uswapwep() {
     let left_hand = '';
     let obj = game.uswapwep;
-    left_hand = sprintf(left_hand, "left %s", body_part(HAND));
-    /* this used to use makeplural(body_part(HAND)) but in order to be
-       dual-wielded, or to get this far attempting to achieve that,
-       uswapwep must be one-handed; since it's secondary, the hand must
-       be the left one */
+    left_hand = sprintf(left_hand, "left %s", await body_part(HAND));
     if (!obj.cursed) {
-        pline("%s from your %s!", Yobjnam2(obj, "slip"), left_hand);
+        await pline("%s from your %s!", await Yobjnam2(obj, "slip"), left_hand);
     } else if (!game.u.twoweap) {
-        pline("%s your grasp and %s from your %s!", Yobjnam2(obj, "evade"), otense(obj, "drop"), left_hand);
-    /* already two-weaponing but can't anymore because uswapwep has
-           become cursed */
+        await pline("%s your grasp and %s from your %s!", await Yobjnam2(obj, "evade"), await otense(obj, "drop"), left_hand);
     } else {
-        Your("%s spasms and drops %s!", left_hand, yobjnam(obj, null));
+        await Your("%s spasms and drops %s!", left_hand, await yobjnam(obj, null));
     }
-    dropx(obj);
+    await dropx(obj);
 }
 export function set_twoweap(on_off) {
     if (on_off != game.u.twoweap) {
@@ -726,16 +681,15 @@ export function set_twoweap(on_off) {
     }
 }
 /* the #twoweapon command */
-export function dotwoweapon() {
+export async function dotwoweapon() {
     if (game.u.twoweap) {
-        /* You can always toggle it off */
-        You("switch to your primary weapon.");
+        await You("switch to your primary weapon.");
         set_twoweap((0));
         update_inventory();
         return 0;
     }
-    if (can_twoweapon()) {
-        You("begin two-weapon combat.");
+    if (await can_twoweapon()) {
+        await You("begin two-weapon combat.");
         set_twoweap((1));
         update_inventory();
         return (rnd(20) > (acurr(A_DEX))) ? 1 : 0;
@@ -748,41 +702,41 @@ export function dotwoweapon() {
  * 1.  The item has been eaten, stolen, burned away, or rotted away.
  * 2.  Making an item disappear for a bones pile.
  */
-export function uwepgone() {
+export async function uwepgone() {
     if (game.uwep) {
         if (artifact_light(game.uwep) && game.uwep.lamplit) {
-            end_burn(game.uwep, (0));
+            await end_burn(game.uwep, (0));
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                pline("%s shining.", Tobjnam(game.uwep, "stop"));
+                await pline("%s shining.", await Tobjnam(game.uwep, "stop"));
             }
         }
-        setworn(null, 256);
+        await setworn(null, 256);
         game.unweapon = (1);
         update_inventory();
     }
 }
-export function uswapwepgone() {
+export async function uswapwepgone() {
     if (game.uswapwep) {
-        setworn(null, 1024);
+        await setworn(null, 1024);
         update_inventory();
     }
 }
-export function uqwepgone() {
+export async function uqwepgone() {
     if (game.uquiver) {
-        setworn(null, 512);
+        await setworn(null, 512);
         update_inventory();
     }
 }
-export function untwoweapon() {
+export async function untwoweapon() {
     if (game.u.twoweap) {
-        You("%s.", can_no_longer_twoweap);
+        await You("%s.", can_no_longer_twoweap);
         set_twoweap((0));
         update_inventory();
     }
     return;
 }
 /* enchant wielded weapon */
-export function chwepon(otmp, amount) {
+export async function chwepon(otmp, amount) {
     let color = hcolor((amount < 0) ? c_color_names.c_black : c_color_names.c_blue);
     let xtime = null;
     let wepname = "";
@@ -792,21 +746,19 @@ export function chwepon(otmp, amount) {
         let buf = '';
         if (amount >= 0 && game.uwep && ((game.uwep).cursed && (((game.uwep).oclass == WEAPON_CLASS || ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE) || (game.uwep).otyp == HEAVY_IRON_BALL || (game.uwep).otyp == IRON_CHAIN) || (game.uwep).otyp == TIN_OPENER))) {
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                buf = sprintf(buf, "%s with %s aura.", Yobjnam2(game.uwep, "glow"), an(hcolor(c_color_names.c_amber)));
+                buf = sprintf(buf, "%s with %s aura.", await Yobjnam2(game.uwep, "glow"), await an(hcolor(c_color_names.c_amber)));
                 /* ok to bypass set_bknown() */
                 game.uwep.bknown = !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic));
             } else {
-                /* cursed tin opener is wielded in right hand */
-                buf = sprintf(buf, "Your right %s tingles.", body_part(HAND));
+                buf = sprintf(buf, "Your right %s tingles.", await body_part(HAND));
             }
-            uncurse(game.uwep);
+            await uncurse(game.uwep);
             update_inventory();
         } else {
-            buf = sprintf(buf, "Your %s %s.", makeplural(body_part(HAND)), (amount >= 0) ? "twitch" : "itch");
+            buf = sprintf(buf, "Your %s %s.", await makeplural(await body_part(HAND)), (amount >= 0) ? "twitch" : "itch");
         }
-        /* pline()+docall()+useup() */
-        strange_feeling(otmp, buf);
-        exercise(A_DEX, (amount >= 0));
+        await strange_feeling(otmp, buf);
+        await exercise(A_DEX, (amount >= 0));
         return 0;
     }
     if (otmp && otmp.oclass == SCROLL_CLASS) {
@@ -814,45 +766,41 @@ export function chwepon(otmp, amount) {
     }
     if (game.uwep.otyp == WORM_TOOTH && amount >= 0) {
         multiple = (game.uwep.quan > 1);
-        /* order: message, transformation, shop handling */
-        Your("%s %s much sharper now.", simpleonames(game.uwep), multiple ? "fuse, and become" : "is");
+        await Your("%s %s much sharper now.", await simpleonames(game.uwep), multiple ? "fuse, and become" : "is");
         game.uwep.otyp = CRYSKNIFE;
         game.uwep.oerodeproof = 0;
         if (multiple) {
             game.uwep.quan = 1;
-            game.uwep.owt = weight(game.uwep);
+            game.uwep.owt = await weight(game.uwep);
         }
         if (game.uwep.cursed) {
-            uncurse(game.uwep);
+            await uncurse(game.uwep);
         }
-        /* update shop bill to reflect new higher value */
-        /* update shop bill to reflect new higher price */
         if (game.uwep.unpaid) {
-            alter_cost(game.uwep, 0);
+            await alter_cost(game.uwep, 0);
         }
         if (otyp != STRANGE_OBJECT) {
-            discover_object((otyp), (1), (1), (1));
+            await discover_object((otyp), (1), (1), (1));
         }
         if (multiple) {
-            encumber_msg();
+            await encumber_msg();
         }
         return 1;
     } else if (game.uwep.otyp == CRYSKNIFE && amount < 0) {
         multiple = (game.uwep.quan > 1);
-        /* order matters: message, shop handling, transformation */
-        Your("%s %s much duller now.", simpleonames(game.uwep), multiple ? "fuse, and become" : "is");
-        costly_alteration(game.uwep, COST_DEGRD);
+        await Your("%s %s much duller now.", await simpleonames(game.uwep), multiple ? "fuse, and become" : "is");
+        await costly_alteration(game.uwep, COST_DEGRD);
         game.uwep.otyp = WORM_TOOTH;
         game.uwep.oerodeproof = 0;
         if (multiple) {
             game.uwep.quan = 1;
-            game.uwep.owt = weight(game.uwep);
+            game.uwep.owt = await weight(game.uwep);
         }
         if (otyp != STRANGE_OBJECT && otmp.bknown) {
-            discover_object((otyp), (1), (1), (1));
+            await discover_object((otyp), (1), (1), (1));
         }
         if (multiple) {
-            encumber_msg();
+            await encumber_msg();
         }
         return 1;
     }
@@ -861,51 +809,45 @@ export function chwepon(otmp, amount) {
     }
     if (amount < 0 && game.uwep.oartifact && restrict_name(game.uwep, wepname)) {
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            pline("%s %s.", Yobjnam2(game.uwep, "faintly glow"), color);
+            await pline("%s %s.", await Yobjnam2(game.uwep, "faintly glow"), color);
         }
         return 1;
     }
     if (((game.uwep.spe > 5 && amount >= 0) || (game.uwep.spe < -5 && amount < 0)) && rn2(3)) {
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            pline("%s %s for a while and then %s.", Yobjnam2(game.uwep, "violently glow"), color, otense(game.uwep, "evaporate"));
+            await pline("%s %s for a while and then %s.", await Yobjnam2(game.uwep, "violently glow"), color, await otense(game.uwep, "evaporate"));
         } else {
-            pline("%s.", Yobjnam2(game.uwep, "evaporate"));
+            await pline("%s.", await Yobjnam2(game.uwep, "evaporate"));
         }
-        /* let all of them disappear */
-        useupall(game.uwep);
+        await useupall(game.uwep);
         return 1;
     }
     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
         xtime = (amount * amount == 1) ? "moment" : "while";
-        pline("%s %s for a %s.", Yobjnam2(game.uwep, amount == 0 ? "violently glow" : "glow"), color, xtime);
+        await pline("%s %s for a %s.", await Yobjnam2(game.uwep, amount == 0 ? "violently glow" : "glow"), color, xtime);
         if (otyp != STRANGE_OBJECT && game.uwep.known && (amount > 0 || (amount < 0 && otmp.bknown))) {
-            discover_object((otyp), (1), (1), (1));
+            await discover_object((otyp), (1), (1), (1));
         }
     }
     if (amount < 0) {
-        costly_alteration(game.uwep, COST_DECHNT);
+        await costly_alteration(game.uwep, COST_DECHNT);
     }
     game.uwep.spe += amount;
     if (amount > 0) {
         if (game.uwep.cursed) {
-            uncurse(game.uwep);
+            await uncurse(game.uwep);
         }
         if (game.uwep.unpaid) {
-            alter_cost(game.uwep, 0);
+            await alter_cost(game.uwep, 0);
         }
     }
     if (is_art(game.uwep, ART_MAGICBANE) && game.uwep.spe >= 0) {
-        /*
-     * Enchantment, which normally improves a weapon, has an
-     * additional adverse reaction on Magicbane whose effects are
-     * spe dependent.  Give an obscure clue here.
-     */
-        Your("right %s %sches!", body_part(HAND), (((amount > 1) && (game.uwep.spe > 1)) ? "flin" : "it"));
+        await Your("right %s %sches!", await body_part(HAND), (((amount > 1) && (game.uwep.spe > 1)) ? "flin" : "it"));
     }
     /* an elven magic clue, cookie@keebler */
     /* elven weapons vibrate warningly when enchanted beyond a limit */
     if ((game.uwep.spe > 5) && (((game.uwep).otyp == ELVEN_ARROW || (game.uwep).otyp == ELVEN_SPEAR || (game.uwep).otyp == ELVEN_DAGGER || (game.uwep).otyp == ELVEN_SHORT_SWORD || (game.uwep).otyp == ELVEN_BROADSWORD || (game.uwep).otyp == ELVEN_BOW) || game.uwep.oartifact || !rn2(7))) {
-        pline("%s unexpectedly.", Yobjnam2(game.uwep, "suddenly vibrate"));
+        await pline("%s unexpectedly.", await Yobjnam2(game.uwep, "suddenly vibrate"));
     }
     return 1;
 }
@@ -916,18 +858,18 @@ export function welded(obj) {
     }
     return 0;
 }
-export function weldmsg(obj) {
+export async function weldmsg(obj) {
     let savewornmask = 0;
-    let hand = body_part(HAND);
+    let hand = await body_part(HAND);
     if (((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_big)) {
-        hand = makeplural(hand);
+        hand = await makeplural(hand);
     }
     savewornmask = obj.owornmask;
     /* suppress doname()'s "(weapon in hand)";
                           * Yobjnam2() doesn't actually need this because
                           * it is based on xname() rather than doname() */
     obj.owornmask = 0;
-    pline("%s welded to your %s!", Yobjnam2(obj, "are"), hand);
+    await pline("%s welded to your %s!", await Yobjnam2(obj, "are"), hand);
     obj.owornmask = savewornmask;
 }
 /* test whether monster's wielded weapon is stuck to hand/paw/whatever */
@@ -939,10 +881,68 @@ export function mwelded(obj) {
     return (0);
 }
 /*wield.c*/
+/* necessary to not set gu.unweapon */
+/* gaining or losing Con bonus */
+/* This message isn't printed in the caller because it happens
+     * *whenever* Sunsword is unwielded, from whatever cause. */
+/* Prevent wielding cockatrice when not wearing gloves --KAA */
 /* hands but no weapon and no gloves */
 /* alternate phrasing for paws or lack of hands */
+/* skip this message if we already got "empty handed" one above;
+               also, Null is not safe for neither TWOWEAPOK() or bimanual() */
+/* KMH -- Talking artifacts are finally implemented */
+/* sets ECMD_TIME bit if artifact speaks */
+/* obj was split off from something; give it its own invlet */
+/* if wep is the result of supplying a count to getobj()
+           we don't want to split something already wielded; for
+           any other item, we need to give it its own inventory slot */
 /* leave N-1 quivered, split off 1 to wield */
+/* require confirmation to wield the quivered weapon */
+/* wielding whole readied stack, so no longer quivered */
+/* Set your new primary weapon */
+/* Set your new secondary weapon */
+/* Wield failed for some reason */
+/* could accept '-' to empty quiver, but there's no point since
+           inventory is empty so uquiver is already Null */
+/* Prompt for a new quiver: "What do you want to {ready|fire}?" */
+/* skip 'quivering: prinv()' */
+/* if newquiver is the result of supplying a count to getobj()
+           we don't want to split something already in the quiver;
+           for any other item, we need to give it its own inventory slot */
+/* don't allow splitting a stack of coins into quiver */
 /* leave 1 wielded, split rest off and put into quiver */
+/* require confirmation to ready the main weapon */
+/* quivering main weapon, so no longer wielding it */
 /* leave 1 alt-wielded, split rest off and put into quiver */
+/* require confirmation to ready the alternate weapon */
+/* quivering alternate weapon, so no more uswapwep */
+/* place item in quiver before printing so that inventory feedback
+           includes "(at the ready)" */
+/* verb=="fire", manually refilling quiver during 'f'ire */
+/* prefix item with description of action, so don't want that to
+           include "(at the ready)" */
+/* hope none of ready_weapon()'s early returns apply here... */
+/* rewielded old object after dying */
+/* applying weapon or tool that gets wielded ends two-weapon combat */
+/* "your hands are empty" or "your {left|right} hand is empty" */
+/* already two-weaponing but can't anymore because uswapwep has
+           become cursed */
+/* this used to use makeplural(body_part(HAND)) but in order to be
+       dual-wielded, or to get this far attempting to achieve that,
+       uswapwep must be one-handed; since it's secondary, the hand must
+       be the left one */
 /* attempting to two-weapon while Glib */
 /* attempting to two-weapon when uswapwep is cursed */
+/* You can always toggle it off */
+/* cursed tin opener is wielded in right hand */
+/* pline()+docall()+useup() */
+/* order: message, transformation, shop handling */
+/* update shop bill to reflect new higher value */
+/* order matters: message, shop handling, transformation */
+/* let all of them disappear */
+/* update shop bill to reflect new higher price */
+/*
+     * Enchantment, which normally improves a weapon, has an
+     * additional adverse reaction on Magicbane whose effects are
+     * spe dependent.  Give an obscure clue here.
+     */

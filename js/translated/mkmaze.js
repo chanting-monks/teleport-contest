@@ -8,8 +8,9 @@ import { abs, sgn } from '../c2js-runtime/math.js';
 import { alloc, free, memcpy } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_advance_str, __nh_char_at0, atoi, strcat, strchr, strcmp, strcpy, strncmp, strrchr } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, strcat, strchr, strcmp, strcpy, strncmp, strrchr } from '../c2js-runtime/string.js';
 import { lift_covet_and_placebc, unplacebc_and_covet_placebc } from './ball.js';
 import { isok } from './cmd.js';
 import { is_ice, is_pool } from './dbridge.js';
@@ -63,7 +64,7 @@ export function is_solid(x, y) {
     return (!isok(x, y) || ((game.level.locations[x][y].typ) <= DBWALL));
 }
 /* set map terrain type, handling lava lit, ice melt timers, etc */
-export function set_levltyp(x, y, newtyp) {
+export async function set_levltyp(x, y, newtyp) {
     if (isok(x, y) && newtyp >= STONE && newtyp < MAX_TYPE) {
         let oldtyp = game.level.locations[x][y].typ;
         if (oldtyp == SDOOR && newtyp == AIR) {
@@ -86,8 +87,7 @@ export function set_levltyp(x, y, newtyp) {
                 game.level.locations[x][y].lit = 1;
             }
             if (was_ice && newtyp != ICE) {
-                /* frozen corpses resume rotting, no more ice to melt away */
-                obj_ice_effects(x, y, (1));
+                await obj_ice_effects(x, y, (1));
                 spot_stop_timers(x, y, MELT_ICE_AWAY);
             }
             if ((((oldtyp) == FOUNTAIN) != ((newtyp) == FOUNTAIN)) || (((oldtyp) == SINK) != ((newtyp) == SINK))) {
@@ -99,8 +99,8 @@ export function set_levltyp(x, y, newtyp) {
     return (0);
 }
 /* set map terrain type and light state */
-export function set_levltyp_lit(x, y, typ, lit) {
-    let ret = set_levltyp(x, y, typ);
+export async function set_levltyp_lit(x, y, typ, lit) {
+    let ret = await set_levltyp(x, y, typ);
     if (ret && isok(x, y)) {
         if (lit != -2) {
             if (((typ) == LAVAPOOL || (typ) == LAVAWALL)) {
@@ -157,7 +157,7 @@ export function extend_spine(locale, wall_there, dx, dy) {
     return spine;
 }
 /* Remove walls totally surrounded by stone */
-export function wall_cleanup(x1, y1, x2, y2) {
+export async function wall_cleanup(x1, y1, x2, y2) {
     let type = 0;
     let x = 0;
     let y = 0;
@@ -169,7 +169,7 @@ export function wall_cleanup(x1, y1, x2, y2) {
      * typ was there alone.
      */
     if (x1 < 0 || x2 >= 80 || x1 > x2 || y1 < 0 || y2 >= 21 || y1 > y2) {
-        panic("wall_cleanup: bad bounds (%d,%d) to (%d,%d)", x1, y1, x2, y2);
+        await panic("wall_cleanup: bad bounds (%d,%d) to (%d,%d)", x1, y1, x2, y2);
     }
     for (x = x1; x <= x2; x++) {
         for (y = y1; y <= y2; y++) {
@@ -190,7 +190,8 @@ export function wall_cleanup(x1, y1, x2, y2) {
 }
 /* Correct wall types so they extend and connect to each other */
 let __fix_wall_spines_spine_array = [VWALL, HWALL, HWALL, HWALL, VWALL, TRCORNER, TLCORNER, TDWALL, VWALL, BRCORNER, BLCORNER, TUWALL, VWALL, TLWALL, TRWALL, CROSSWALL];
-export function fix_wall_spines(x1, y1, x2, y2) {
+__nh_register_static(() => { __fix_wall_spines_spine_array = [VWALL, HWALL, HWALL, HWALL, VWALL, TRCORNER, TLCORNER, TDWALL, VWALL, BRCORNER, BLCORNER, TUWALL, VWALL, TLWALL, TRWALL, CROSSWALL]; });
+export async function fix_wall_spines(x1, y1, x2, y2) {
     let type = 0;
     let x = 0;
     let y = 0;
@@ -200,7 +201,7 @@ export function fix_wall_spines(x1, y1, x2, y2) {
     /* rock or wall status surrounding positions */
     let locale = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
     if (x1 < 0 || x2 >= 80 || x1 > x2 || y1 < 0 || y2 >= 21 || y1 > y2) {
-        panic("wall_extends: bad bounds (%d,%d) to (%d,%d)", x1, y1, x2, y2);
+        await panic("wall_extends: bad bounds (%d,%d) to (%d,%d)", x1, y1, x2, y2);
     }
     for (x = x1; x <= x2; x++) {
         for (y = y1; y <= y2; y++) {
@@ -228,11 +229,11 @@ export function fix_wall_spines(x1, y1, x2, y2) {
         }
     }
 }
-export function wallification(x1, y1, x2, y2) {
-    wall_cleanup(x1, y1, x2, y2);
-    fix_wall_spines(x1, y1, x2, y2);
+export async function wallification(x1, y1, x2, y2) {
+    await wall_cleanup(x1, y1, x2, y2);
+    await fix_wall_spines(x1, y1, x2, y2);
 }
-export function okay(x, y, dir) {
+export async function okay(x, y, dir) {
     do {
         switch (dir) {
             case 0:
@@ -249,7 +250,7 @@ export function okay(x, y, dir) {
                 --(x);
                 break;
             default:
-                panic("mz_move: bad direction %d", dir);
+                await panic("mz_move: bad direction %d", dir);
         }
     } while (0);
     do {
@@ -267,7 +268,7 @@ export function okay(x, y, dir) {
                 --(x);
                 break;
             default:
-                panic("mz_move: bad direction %d", dir);
+                await panic("mz_move: bad direction %d", dir);
         }
     } while (0);
     if (x < 3 || y < 3 || x > game.x_maze_max || y > game.y_maze_max || game.level.locations[x][y].typ != STONE) {
@@ -302,19 +303,14 @@ export function bad_location(x, y, nlx, nly, nhx, nhy) {
 }
 /* pick a location in area (lx, ly, hx, hy) but not in (nlx, nly, nhx, nhy)
    and place something (based on rtype) in that region */
-export function place_lregion(lx, ly, hx, hy, nlx, nly, nhx, nhy, rtype, lev) {
+export async function place_lregion(lx, ly, hx, hy, nlx, nly, nhx, nhy, rtype, lev) {
     let trycnt = 0;
     let oneshot = 0;
     let x = 0;
     let y = 0;
     if (!lx) {
         if (rtype == LR_BRANCH && game.nroom) {
-            /*
-         * if there are rooms and this a branch, let place_branch choose
-         * the branch location (to avoid putting branches in corridors).
-         */
-            /* place branch stair or portal */
-            place_branch(Is_branchlev(game.u.uz), 0, 0);
+            await place_branch(Is_branchlev(game.u.uz), 0, 0);
             /* no mazification right now */
             return;
         }
@@ -342,21 +338,21 @@ export function place_lregion(lx, ly, hx, hy, nlx, nly, nhx, nhy, rtype, lev) {
     for (trycnt = 0; trycnt < 200; trycnt++) {
         x = (rn2((hx - lx) + 1) + (lx));
         y = (rn2((hy - ly) + 1) + (ly));
-        if (put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, oneshot, lev)) {
+        if (await put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, oneshot, lev)) {
             return;
         }
     }
     /* then a deterministic one */
     for (x = lx; x <= hx; x++) {
         for (y = ly; y <= hy; y++) {
-            if (put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, (1), lev)) {
+            if (await put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, (1), lev)) {
                 return;
             }
         }
     }
-    impossible("Couldn't place lregion type %d!", rtype);
+    await impossible("Couldn't place lregion type %d!", rtype);
 }
-export function put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, oneshot, lev) {
+export async function put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, oneshot, lev) {
     let mtmp = null;
     if (bad_location(x, y, nlx, nly, nhx, nhy) || is_exclusion_zone(rtype, x, y)) {
         if (!oneshot) {
@@ -370,7 +366,7 @@ export function put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, oneshot, lev) 
                 if (((mtmp = (game.level.monsters[x][y])) != null) && mtmp.mtrapped) {
                     mtmp.mtrapped = 0;
                 }
-                deltrap(t);
+                await deltrap(t);
             }
             if (bad_location(x, y, nlx, nly, nhx, nhy) || is_exclusion_zone(rtype, x, y)) {
                 return (0);
@@ -384,26 +380,24 @@ export function put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, oneshot, lev) 
             /* something at temporary pool... */
             if ((mtmp = (game.level.monsters[x][y])) != null) {
                 if (oneshot) {
-                    /* "something" means the player in this case */
-                    /* move the monster if no choice, or just try again */
-                    if (!rloc(mtmp, 4)) {
-                        m_into_limbo(mtmp);
+                    if (!await rloc(mtmp, 4)) {
+                        await m_into_limbo(mtmp);
                     }
                 } else {
                     return (0);
                 }
             }
-            u_on_newpos(x, y);
+            await u_on_newpos(x, y);
             break;
         case LR_PORTAL:
-            mkportal(x, y, lev.dnum, lev.dlevel);
+            await mkportal(x, y, lev.dnum, lev.dlevel);
             break;
         case LR_DOWNSTAIR:
         case LR_UPSTAIR:
-            mkstairs(x, y, rtype, null, (0));
+            await mkstairs(x, y, rtype, null, (0));
             break;
         case LR_BRANCH:
-            place_branch(Is_branchlev(game.u.uz), x, y);
+            await place_branch(Is_branchlev(game.u.uz), x, y);
             break;
     }
     return (1);
@@ -411,7 +405,7 @@ export function put_lregion_here(x, y, nlx, nly, nhx, nhy, rtype, oneshot, lev) 
 /* fix up Baalzebub's lair, which depicts a level-sized beetle;
    its legs are walls within solid rock--regular wallification
    classifies them as superfluous and gets rid of them */
-export function baalz_fixup() {
+export async function baalz_fixup() {
     let mtmp = null;
     let x = 0;
     let y = 0;
@@ -475,7 +469,7 @@ export function baalz_fixup() {
             }
         }
     }
-    wallification(((game.bughack.inarea.x1 - 2) > (1) ? (game.bughack.inarea.x1 - 2) : (1)), ((game.bughack.inarea.y1 - 2) > (0) ? (game.bughack.inarea.y1 - 2) : (0)), ((game.bughack.inarea.x2 + 2) < (80 - 1) ? (game.bughack.inarea.x2 + 2) : (80 - 1)), ((game.bughack.inarea.y2 + 2) < (21 - 1) ? (game.bughack.inarea.y2 + 2) : (21 - 1)));
+    await wallification(((game.bughack.inarea.x1 - 2) > (1) ? (game.bughack.inarea.x1 - 2) : (1)), ((game.bughack.inarea.y1 - 2) > (0) ? (game.bughack.inarea.y1 - 2) : (0)), ((game.bughack.inarea.x2 + 2) < (80 - 1) ? (game.bughack.inarea.x2 + 2) : (80 - 1)), ((game.bughack.inarea.y2 + 2) < (21 - 1) ? (game.bughack.inarea.y2 + 2) : (21 - 1)));
     /* bughack hack for rear-most legs on baalz level; first joint on
        both top and bottom gets a bogus extra connection to room area,
        producing unwanted rectangles; change back to separated legs */
@@ -484,7 +478,7 @@ export function baalz_fixup() {
         game.level.locations[x][y].typ = (game.level.locations[x][y].typ == TLWALL) ? BRCORNER : BLCORNER;
         game.level.locations[x][y + 1].typ = HWALL;
         if ((mtmp = (game.level.monsters[x][y])) != null) {
-            rloc(mtmp, 1 | 4);
+            await rloc(mtmp, 1 | 4);
         }
     }
     x = game.bughack.delarea.x2 , y = game.bughack.delarea.y2;
@@ -492,7 +486,7 @@ export function baalz_fixup() {
         game.level.locations[x][y].typ = (game.level.locations[x][y].typ == TLWALL) ? TRCORNER : TLCORNER;
         game.level.locations[x][y - 1].typ = HWALL;
         if ((mtmp = (game.level.monsters[x][y])) != null) {
-            rloc(mtmp, 1 | 4);
+            await rloc(mtmp, 1 | 4);
         }
     }
     /* reset bughack region; set low end to <COLNO,ROWNO> so that
@@ -504,7 +498,7 @@ export function baalz_fixup() {
     game.bughack.inarea.y2 = game.bughack.delarea.y2 = 0;
 }
 /* this is special stuff that the level compiler cannot (yet) handle */
-export function fixup_special() {
+export async function fixup_special() {
     let r = game.lregions;
     let sp = null;
     let lev = { dnum: 0, dlevel: 0 };
@@ -514,23 +508,13 @@ export function fixup_special() {
     let added_branch = (0);
     if ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) || (((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level))))) {
         game.level.flags.hero_memory = 0;
-        /* water level is an odd beast - it has to be set up
-           before calling place_lregions etc. */
-        setup_waterlevel();
+        await setup_waterlevel();
     }
-    /* Hand-port (Q9 iter 50): the emit dropped BOTH the `r++`
-       pointer walk (re-read per index instead) AND the
-       `goto place_it` chain -- LR_BRANCH fell through LR_PORTAL's
-       rname parse into a bare break, so stored sp_lev lregions
-       were NEVER placed via their fixed regions (the branch then
-       placed via the all-zero fallback over the whole map). */
-    for (x = 0; x < game.num_lregions; x++) {
-        r = game.lregions[x];
+    for (x = 0; x < game.num_lregions; x++ , (r = __nh_blackhole)) {
         switch (r.rtype) {
             case LR_BRANCH:
                 added_branch = (1);
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
-                break;
+                /* TODO Phase 5+: goto place_it (label not in scope of break) */
             case LR_PORTAL:
                 if (__nh_char_at0(r.rname.str) >= 48 && __nh_char_at0(r.rname.str) <= 57) {
                     Object.assign(lev, game.u.uz);
@@ -539,11 +523,10 @@ export function fixup_special() {
                     sp = find_level(r.rname.str);
                     Object.assign(lev, sp.dlevel);
                 }
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
-                break;
+                ;
             case LR_UPSTAIR:
             case LR_DOWNSTAIR:
-                place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
+                // TODO LabelStmt place_it not at compound-stmt level
                 break;
             case LR_TELE:
             case LR_UPTELE:
@@ -576,8 +559,7 @@ export function fixup_special() {
         }
     }
     if (!added_branch && Is_branchlev(game.u.uz)) {
-        /* place dungeon branch if not placed above */
-        place_lregion(0, 0, 0, 0, 0, 0, 0, 0, LR_BRANCH, null);
+        await place_lregion(0, 0, 0, 0, 0, 0, 0, 0, LR_BRANCH, null);
     }
     if ((((((game.dungeon_topology.d_medusa_level)).dlevel || ((game.dungeon_topology.d_medusa_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_medusa_level))))) {
         /* Still need to add some stuff to level file */
@@ -590,23 +572,21 @@ export function fixup_special() {
             y = somey(croom);
             if (goodpos(x, y, null, 0)) {
                 let tryct2 = 0;
-                otmp = mk_tt_object(STATUE, x, y);
+                otmp = await mk_tt_object(STATUE, x, y);
                 while (++tryct2 < 100 && otmp && (poly_when_stoned(game.mons[otmp.corpsenm]) || (((game.mons[otmp.corpsenm]).mresists & (128)) != 0))) {
-                    /* set_corpsenm() handles weight too */
-                    set_corpsenm(otmp, rndmonnum());
+                    await set_corpsenm(otmp, await rndmonnum());
                 }
             }
         }
         if (rn2(2)) {
-            otmp = mk_tt_object(STATUE, somex(croom), somey(croom));
-        /* Medusa statues don't contain books */
+            otmp = await mk_tt_object(STATUE, somex(croom), somey(croom));
         } else {
-            otmp = mkcorpstat(STATUE, null, null, somex(croom), somey(croom), 0);
+            otmp = await mkcorpstat(STATUE, null, null, somex(croom), somey(croom), 0);
         }
         if (otmp) {
             tryct = 0;
             while (++tryct < 100 && ((((game.mons[otmp.corpsenm]).mresists & (128)) != 0) || poly_when_stoned(game.mons[otmp.corpsenm]))) {
-                set_corpsenm(otmp, rndmonnum());
+                await set_corpsenm(otmp, await rndmonnum());
             }
         }
     } else if ((game.urole.mnum == (PM_CLERIC)) && In_quest(game.u.uz)) {
@@ -615,10 +595,9 @@ export function fixup_special() {
     } else if ((((((game.dungeon_topology.d_stronghold_level)).dlevel || ((game.dungeon_topology.d_stronghold_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_stronghold_level))))) {
         game.level.flags.graveyard = 1;
     } else if (on_level(game.u.uz, (game.dungeon_topology.d_baalzebub_level))) {
-        /* custom wallify the "beetle" potion of the level */
-        baalz_fixup();
+        await baalz_fixup();
     } else if (game.u.uz.dnum == (game.dungeon_topology.d_mines_dnum) && game.ransacked) {
-        stolen_booty();
+        await stolen_booty();
     }
     if ((sp = Is_special(game.u.uz)) != null && sp.flags.town) {
         game.level.flags.has_town = 1;
@@ -633,7 +612,7 @@ export function check_ransacked(s) {
     game.ransacked = (game.u.uz.dnum == (game.dungeon_topology.d_mines_dnum) && !strcmp(s, "minetn-1"));
 }
 const orcfruit = ["paddle cactus", "dwarven root"];
-export function migrate_orc(mtmp, mflags) {
+export async function migrate_orc(mtmp, mflags) {
     let nlev = 0;
     let max_depth = 0;
     let cur_depth = 0;
@@ -661,10 +640,10 @@ export function migrate_orc(mtmp, mflags) {
         }
         mtmp.migflags = (mtmp.migflags & ~8192);
     }
-    get_level(dest, nlev);
-    migrate_to_level(mtmp, ledger_no(dest), 0, null);
+    await get_level(dest, nlev);
+    await migrate_to_level(mtmp, ledger_no(dest), 0, null);
 }
-export function shiny_orc_stuff(mtmp) {
+export async function shiny_orc_stuff(mtmp) {
     let gemprob = 0;
     let goldprob = 0;
     let otyp = 0;
@@ -673,45 +652,44 @@ export function shiny_orc_stuff(mtmp) {
     goldprob = is_captain ? 600 : 300;
     gemprob = Math.trunc(goldprob / 4);
     if (rn2(1000) < goldprob) {
-        if ((otmp = mksobj(GOLD_PIECE, (1), (0))) != null) {
+        if ((otmp = await mksobj(GOLD_PIECE, (1), (0))) != null) {
             otmp.quan = 1 + rnd(goldprob);
-            otmp.owt = weight(otmp);
-            add_to_minv(mtmp, otmp);
+            otmp.owt = await weight(otmp);
+            await add_to_minv(mtmp, otmp);
         }
     }
     if (rn2(1000) < gemprob) {
-        if ((otmp = mkobj(GEM_CLASS, (0))) != null) {
+        if ((otmp = await mkobj(GEM_CLASS, (0))) != null) {
             if (otmp.otyp == ROCK) {
-                dealloc_obj(otmp);
+                await dealloc_obj(otmp);
             } else {
-                add_to_minv(mtmp, otmp);
+                await add_to_minv(mtmp, otmp);
             }
         }
     }
     if (is_captain || !rn2(8)) {
-        otyp = shiny_obj(RING_CLASS);
-        if (otyp != STRANGE_OBJECT && (otmp = mksobj(otyp, (1), (0))) != null) {
-            add_to_minv(mtmp, otmp);
+        otyp = await shiny_obj(RING_CLASS);
+        if (otyp != STRANGE_OBJECT && (otmp = await mksobj(otyp, (1), (0))) != null) {
+            await add_to_minv(mtmp, otmp);
         }
     }
 }
-export function migr_booty_item(otyp, gang) {
+export async function migr_booty_item(otyp, gang) {
     let otmp = null;
-    otmp = mksobj_migr_to_species(otyp, 128, (1), (0));
+    otmp = await mksobj_migr_to_species(otyp, 128, (1), (0));
     if (otmp && gang) {
-        /* removes old name if present */
-        new_oname(otmp, Strlen_(gang, "migr_booty_item", 786) + 1);
+        new_oname(otmp, await Strlen_(gang, "migr_booty_item", 786) + 1);
         (otmp).oextra.oname = strcpy(((otmp).oextra.oname), gang);
         if (game.objects[otyp].oc_class == FOOD_CLASS) {
             if (otyp == SLIME_MOLD) {
-                otmp.spe = fruitadd(orcfruit[rn2((Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)))], null);
+                otmp.spe = await fruitadd(orcfruit[rn2((Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)))], null);
             }
             otmp.quan += rn2(3);
-            otmp.owt = weight(otmp);
+            otmp.owt = await weight(otmp);
         }
     }
 }
-export function stolen_booty() {
+export async function stolen_booty() {
     let gang = null;
     let gang_name = '';
     let mtmp = null;
@@ -734,25 +712,24 @@ export function stolen_booty() {
     /* create the stuff that the gang took */
     cnt = rnd(4);
     for (i = 0; i < cnt; ++i) {
-        migr_booty_item(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, gang);
+        await migr_booty_item(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, gang);
     }
     cnt = rnd(3);
     for (i = 0; i < cnt; ++i) {
-        migr_booty_item(SKELETON_KEY, gang);
+        await migr_booty_item(SKELETON_KEY, gang);
     }
     otyp = (rn2((GAUNTLETS_OF_DEXTERITY - LEATHER_GLOVES) + 1) + (LEATHER_GLOVES));
-    migr_booty_item(otyp, gang);
+    await migr_booty_item(otyp, gang);
     cnt = rnd(10);
     for (i = 0; i < cnt; ++i) {
         /* Food items - but no lembas! (or some other weird things) */
         otyp = (rn2(TIN - TRIPE_RATION + 1) + (TRIPE_RATION));
         if (otyp != LEMBAS_WAFER && (game.objects[otyp].oc_prob != 0 || otyp == C_RATION || otyp == K_RATION) && otyp != CORPSE && otyp != EGG && otyp != TIN) {
-            migr_booty_item(otyp, gang);
+            await migr_booty_item(otyp, gang);
         }
     }
-    migr_booty_item(rn2(2) ? LONG_SWORD : SILVER_SABER, gang);
-    /* create the leader of the orc gang */
-    mtmp = makemon(game.mons[PM_ORC_CAPTAIN], 0, 0, 64);
+    await migr_booty_item(rn2(2) ? LONG_SWORD : SILVER_SABER, gang);
+    mtmp = await makemon(game.mons[PM_ORC_CAPTAIN], 0, 0, 64);
     if (mtmp) {
         /* exclude meat <anything>, globs of <anything>, kelp
                which all have random generation probability of 0
@@ -762,8 +739,8 @@ export function stolen_booty() {
         mtmp = christen_monst(mtmp, upstart(gang));
         mtmp.mpeaceful = 0;
         set_malign(mtmp);
-        shiny_orc_stuff(mtmp);
-        migrate_orc(mtmp, 1);
+        await shiny_orc_stuff(mtmp);
+        await migrate_orc(mtmp, 1);
     }
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
         /* Make most of the orcs on the level be part of the invading gang */
@@ -794,10 +771,10 @@ export function stolen_booty() {
     for (i = 0; i < cnt; ++i) {
         let mtyp = 0;
         mtyp = rn2((PM_ORC_SHAMAN - PM_ORC) + 1) + PM_ORC;
-        mtmp = makemon(game.mons[mtyp], 0, 0, 64);
+        mtmp = await makemon(game.mons[mtyp], 0, 0, 64);
         if (mtmp) {
-            shiny_orc_stuff(mtmp);
-            migrate_orc(mtmp, 0);
+            await shiny_orc_stuff(mtmp);
+            await migrate_orc(mtmp, 0);
         }
     }
     game.ransacked = 0;
@@ -805,7 +782,7 @@ export function stolen_booty() {
 export function maze_inbounds(x, y) {
     return (x >= 2 && y >= 2 && x < game.x_maze_max && y < game.y_maze_max && isok(x, y));
 }
-export function maze_remove_deadends(typ) {
+export async function maze_remove_deadends(typ) {
     let dirok = '';
     let x = 0;
     let y = 0;
@@ -841,7 +818,7 @@ export function maze_remove_deadends(typ) {
                                 --(dx);
                                 break;
                             default:
-                                panic("mz_move: bad direction %d", dir);
+                                await panic("mz_move: bad direction %d", dir);
                         }
                     } while (0);
                     if (!maze_inbounds(dx, dy)) {
@@ -863,7 +840,7 @@ export function maze_remove_deadends(typ) {
                                 --(dx2);
                                 break;
                             default:
-                                panic("mz_move: bad direction %d", dir);
+                                await panic("mz_move: bad direction %d", dir);
                         }
                     } while (0);
                     do {
@@ -881,7 +858,7 @@ export function maze_remove_deadends(typ) {
                                 --(dx2);
                                 break;
                             default:
-                                panic("mz_move: bad direction %d", dir);
+                                await panic("mz_move: bad direction %d", dir);
                         }
                     } while (0);
                     if (!maze_inbounds(dx2, dy2)) {
@@ -889,14 +866,14 @@ export function maze_remove_deadends(typ) {
                         continue;
                     }
                     if (!((game.level.locations[dx][dy].typ) >= DOOR) && ((game.level.locations[dx2][dy2].typ) >= DOOR)) {
-                        dirok[idx++] = dir;
+                        dirok = __nh_char_write(dirok, idx++, dir);
                         idx2++;
                     }
                 }
                 if (idx2 >= 3 && idx > 0) {
                     dx = x;
                     dy = y;
-                    dir = dirok[rn2(idx)];
+                    dir = __nh_char_at0(__nh_advance_str(dirok, rn2(idx)));
                     do {
                         switch (dir) {
                             case 0:
@@ -912,7 +889,7 @@ export function maze_remove_deadends(typ) {
                                 --(dx);
                                 break;
                             default:
-                                panic("mz_move: bad direction %d", dir);
+                                await panic("mz_move: bad direction %d", dir);
                         }
                     } while (0);
                     game.level.locations[dx][dy].typ = typ;
@@ -924,7 +901,7 @@ export function maze_remove_deadends(typ) {
 /* Create a maze with specified corridor width and wall thickness
  * TODO: rewrite walkfrom so it works on temp space, not levl
  */
-export function create_maze(corrwid, wallthick, rmdeadends) {
+export async function create_maze(corrwid, wallthick, rmdeadends) {
     let x = 0;
     let y = 0;
     let mm = { x: 0, y: 0 };
@@ -969,9 +946,9 @@ export function create_maze(corrwid, wallthick, rmdeadends) {
     game.x_maze_max = (rdx * 2);
     game.y_maze_max = (rdy * 2);
     maze0xy(mm);
-    walkfrom(mm.x, mm.y, 0);
+    await walkfrom(mm.x, mm.y, 0);
     if (rmdeadends) {
-        maze_remove_deadends((game.level.flags.corrmaze) ? CORR : ROOM);
+        await maze_remove_deadends((game.level.flags.corrmaze) ? CORR : ROOM);
     }
     game.x_maze_max = tmp_xmax;
     game.y_maze_max = tmp_ymax;
@@ -1011,7 +988,7 @@ export function create_maze(corrwid, wallthick, rmdeadends) {
         }
     }
 }
-export function pick_vibrasquare_location() {
+export async function pick_vibrasquare_location() {
     let x = 0;
     let y = 0;
     let stway = null;
@@ -1034,7 +1011,7 @@ export function pick_vibrasquare_location() {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/mkmaze.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("svi.inv_pos: maze is too small! (%d x %d)", game.x_maze_max, game.y_maze_max);
+                await pline("svi.inv_pos: maze is too small! (%d x %d)", game.x_maze_max, game.y_maze_max);
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -1054,31 +1031,31 @@ export function pick_vibrasquare_location() {
     game.inv_pos.y = y;
 }
 /* add objects and monsters to random maze */
-export function populate_maze() {
+export async function populate_maze() {
     let i = 0;
     let mm = { x: 0, y: 0 };
     for (i = (rn2(8) + (11)); i; i--) {
-        mazexy(mm);
-        mkobj_at(rn2(2) ? GEM_CLASS : RANDOM_CLASS, mm.x, mm.y, (1));
+        await mazexy(mm);
+        await mkobj_at(rn2(2) ? GEM_CLASS : RANDOM_CLASS, mm.x, mm.y, (1));
     }
     for (i = (rn2(10) + (2)); i; i--) {
-        mazexy(mm);
-        mksobj_at(BOULDER, mm.x, mm.y, (1), (0));
+        await mazexy(mm);
+        await mksobj_at(BOULDER, mm.x, mm.y, (1), (0));
     }
     for (i = rn2(3); i; i--) {
-        mazexy(mm);
-        makemon(game.mons[PM_MINOTAUR], mm.x, mm.y, 0);
+        await mazexy(mm);
+        await makemon(game.mons[PM_MINOTAUR], mm.x, mm.y, 0);
     }
     for (i = (rn2(5) + (7)); i; i--) {
-        mazexy(mm);
-        makemon(null, mm.x, mm.y, 0);
+        await mazexy(mm);
+        await makemon(null, mm.x, mm.y, 0);
     }
     for (i = (rn2(6) + (7)); i; i--) {
-        mazexy(mm);
-        mkgold(0, mm.x, mm.y);
+        await mazexy(mm);
+        await mkgold(0, mm.x, mm.y);
     }
     for (i = (rn2(6) + (7)); i; i--) {
-        mktrap(0, 2, null, null);
+        await mktrap(0, 2, null, null);
     }
 }
 export async function makemaz(s) {
@@ -1135,35 +1112,32 @@ export async function makemaz(s) {
         protofile = strcat(protofile, ".lua");
         game.in_mk_themerooms = (0);
         if (await load_special(protofile)) {
-            /* some levels can end up with monsters
-               on dead mon list, including light source monsters */
-            dmonsfree();
+            await dmonsfree();
             return;
         }
-        impossible("Couldn't load \"%s\" - making a maze.", protofile);
+        await impossible("Couldn't load \"%s\" - making a maze.", protofile);
     }
     game.level.flags.is_maze_lev = 1;
     game.level.flags.corrmaze = !rn2(3);
     if (!Invocation_lev(game.u.uz) && rn2(2)) {
-        create_maze(-1, -1, !rn2(5));
+        await create_maze(-1, -1, !rn2(5));
     } else {
-        create_maze(1, 1, (0));
+        await create_maze(1, 1, (0));
     }
     if (!game.level.flags.corrmaze) {
-        wallification(2, 2, game.x_maze_max, game.y_maze_max);
+        await wallification(2, 2, game.x_maze_max, game.y_maze_max);
     }
-    mazexy(mm);
-    mkstairs(mm.x, mm.y, 1, null, (0));
+    await mazexy(mm);
+    await mkstairs(mm.x, mm.y, 1, null, (0));
     if (!Invocation_lev(game.u.uz)) {
-        mazexy(mm);
-        mkstairs(mm.x, mm.y, 0, null, (0));
+        await mazexy(mm);
+        await mkstairs(mm.x, mm.y, 0, null, (0));
     } else {
-        /* choose "vibrating square" location */
-        pick_vibrasquare_location();
-        maketrap(game.inv_pos.x, game.inv_pos.y, VIBRATING_SQUARE);
+        await pick_vibrasquare_location();
+        await maketrap(game.inv_pos.x, game.inv_pos.y, VIBRATING_SQUARE);
     }
-    place_branch(Is_branchlev(game.u.uz), 0, 0);
-    populate_maze();
+    await place_branch(Is_branchlev(game.u.uz), 0, 0);
+    await populate_maze();
 }
 /* Make the mazewalk iterative by faking a stack.  This is needed to
  * ensure the mazewalk is successful in the limited stack space of
@@ -1174,7 +1148,7 @@ export async function makemaz(s) {
 /* char's are OK */
 /* might still be on edge of MAP, so don't overwrite */
 /* !MICRO */
-export function walkfrom(x, y, typ) {
+export async function walkfrom(x, y, typ) {
     fnEnter("walkfrom", "mkmaze.c", 0);
     let q = 0;
     let a = 0;
@@ -1194,7 +1168,7 @@ export function walkfrom(x, y, typ) {
     while (1) {
         q = 0;
         for (a = 0; a < 4; a++) {
-            if (okay(x, y, a)) {
+            if (await okay(x, y, a)) {
                 dirs[q++] = a;
             }
         }
@@ -1217,7 +1191,7 @@ export function walkfrom(x, y, typ) {
                     --(x);
                     break;
                 default:
-                    panic("mz_move: bad direction %d", dir);
+                    await panic("mz_move: bad direction %d", dir);
             }
         } while (0);
         game.level.locations[x][y].typ = typ;
@@ -1236,16 +1210,16 @@ export function walkfrom(x, y, typ) {
                     --(x);
                     break;
                 default:
-                    panic("mz_move: bad direction %d", dir);
+                    await panic("mz_move: bad direction %d", dir);
             }
         } while (0);
-        walkfrom(x, y, typ);
+        await walkfrom(x, y, typ);
     }
 }
 /* ?MICRO */
 /* find random point in generated corridors,
    so we don't create items in moats, bunkers, or walls */
-export function mazexy(cc) {
+export async function mazexy(cc) {
     let x = 0;
     let y = 0;
     let allowedtyp = (game.level.flags.corrmaze ? CORR : ROOM);
@@ -1276,8 +1250,7 @@ export function mazexy(cc) {
             }
         }
     }
-    /* every spot on the area of map allowed for mazes has been rejected */
-    panic("mazexy: can't find a place!");
+    await panic("mazexy: can't find a place!");
     return;
 }
 export function get_level_extends(left, top, right, bottom) {
@@ -1293,12 +1266,6 @@ export function get_level_extends(left, top, right, bottom) {
     let ymax = 0;
     found = nonwall = (0);
     for (xmin = 0; !found && xmin <= 80; xmin++) {
-        /* Hand-port: C reads levl[COLNO][.] past the array on an
-           all-STONE level (latent overflow, harmless in C's memory
-           model); JS locations[80] is undefined -- stop the scan
-           instead (found stays 0, same outcome as C's garbage read
-           not matching). */
-        if (!game.level.locations[xmin]) break;
         lev = game.level.locations[xmin][0];
         for (y = 0; y <= 21 - 1; y++) {
             lev = game.level.locations[xmin][y];
@@ -1335,8 +1302,6 @@ export function get_level_extends(left, top, right, bottom) {
     }
     found = nonwall = (0);
     for (ymin = 0; !found && ymin <= 21; ymin++) {        for (x = xmin; x <= xmax; x++) {
-            /* Hand-port: same overflow class as the xmin scan. */
-            if (!game.level.locations[x] || game.level.locations[x][ymin] === undefined) continue;
             typ = game.level.locations[x][ymin].typ;
             if (typ != STONE) {
                 found = (1);
@@ -1402,18 +1367,16 @@ export function bound_digging() {
         }
     }
 }
-export function mkportal(x, y, todnum, todlevel) {
-    /* a portal "trap" must be matched by a
-       portal in the destination dungeon/dlevel */
-    let ttmp = maketrap(x, y, MAGIC_PORTAL);
+export async function mkportal(x, y, todnum, todlevel) {
+    let ttmp = await maketrap(x, y, MAGIC_PORTAL);
     if (!ttmp) {
-        impossible("portal on top of portal?");
+        await impossible("portal on top of portal?");
         return;
     }
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/mkmaze.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("mkportal: at <%d,%d>, to %s, level %d", x, y, game.dungeons[todnum].dname, todlevel);
+            await pline("mkportal: at <%d,%d>, to %s, level %d", x, y, game.dungeons[todnum].dname, todlevel);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -1423,7 +1386,7 @@ export function mkportal(x, y, todnum, todlevel) {
 }
 /* augment the Plane of Fire; called from goto_level() when arriving and
    moveloop_core() when on the level */
-export function fumaroles() {
+export async function fumaroles() {
     let n = 0;
     let nmax = rn2(3);
     let sizemin = 5;
@@ -1441,7 +1404,7 @@ export function fumaroles() {
         let x = (rn2(80 - 4) + (3));
         let y = (rn2(21 - 4) + (3));
         if (game.level.locations[x][y].typ == LAVAPOOL) {
-            let r = create_gas_cloud(x, y, (rn2(10) + (sizemin)), (rn2(10) + (5)));
+            let r = await create_gas_cloud(x, y, (rn2(10) + (sizemin)), (rn2(10) + (5)));
             ((r).player_flags |= 2);
             snd = (1);
             if (dist2((x), (y), game.u.ux, game.u.uy) < 15) {
@@ -1450,7 +1413,7 @@ export function fumaroles() {
         }
     }
     if (snd && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-        Norep("You hear a %swhoosh!", loud ? "loud " : "");
+        await Norep("You hear a %swhoosh!", loud ? "loud " : "");
     }
 }
 /*
@@ -1467,7 +1430,8 @@ game.hero_bubble = null;
 const __movebubbles_water_pos = { glyph: (((S_water) - S_grave) + GLYPH_CMAP_B_OFF), typ: WATER, seenv: 0, flags: 0, horizontal: 0, lit: 0, waslit: 0, roomno: 0, edge: 0, candig: 0 };
 const __movebubbles_air_pos = { glyph: (((S_cloud) - S_grave) + GLYPH_CMAP_B_OFF), typ: AIR, seenv: 0, flags: 0, horizontal: 0, lit: 1, waslit: 0, roomno: 0, edge: 0, candig: 0 };
 let __movebubbles_up = (0);
-export function movebubbles() {
+__nh_register_static(() => { __movebubbles_up = (0); });
+export async function movebubbles() {
     /*
      * These bit masks make visually pleasing bubbles on a normal aspect
      * 25x80 terminal, which naturally results in them being mathematically
@@ -1483,30 +1447,24 @@ export function movebubbles() {
     let i = 0;
     let j = 0;
     let bcpin = 0;
-    /* set up the portal the first time bubbles are moved */
     if (!game.wportal) {
-        set_wportal();
+        await set_wportal();
     }
-    vision_recalc(2);
+    await vision_recalc(2);
     game.hero_bubble = null;
     if ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level))))) {
-        /* keep attached ball&chain separate from bubble objects */
         if ((game.uball != null)) {
-            bcpin = unplacebc_and_covet_placebc();
+            bcpin = await unplacebc_and_covet_placebc();
         }
         for (b = __movebubbles_up ? game.bbubbles : game.ebubbles; b; b = __movebubbles_up ? b.next : b.prev) {
-            /*
-         * Pick up everything inside of a bubble then fill all bubble
-         * locations.
-         */
             if (b.cons) {
-                panic("movebubbles: cons != null");
+                await panic("movebubbles: cons != null");
             }
             for (i = 0 , x = b.x; i < b.bm[0]; i++ , x++) {
                 for (j = 0 , y = b.y; j < b.bm[1]; j++ , y++) {
                     if (b.bm[j + 2] & (1 << i)) {
                         if (!isok(x, y)) {
-                            impossible("movebubbles: bad pos (%d,%d)", x, y);
+                            await impossible("movebubbles: bad pos (%d,%d)", x, y);
                             continue;
                         }
                         if ((game.level.objects[x][y] != null)) {
@@ -1514,7 +1472,7 @@ export function movebubbles() {
                             let olist = null;
                             let otmp = null;
                             while ((otmp = game.level.objects[x][y]) != null) {
-                                remove_object(otmp);
+                                await remove_object(otmp);
                                 otmp.ox = otmp.oy = 0;
                                 otmp.v.v_nexthere = olist;
                                 olist = otmp;
@@ -1537,11 +1495,11 @@ export function movebubbles() {
                             cons.next = b.cons;
                             b.cons = cons;
                             if (mon.wormno) {
-                                remove_worm(mon);
+                                await remove_worm(mon);
                             } else {
                                 game.level.monsters[x][y] = null;
                             }
-                            newsym(x, y);
+                            await newsym(x, y);
                             mon.mx = mon.my = 0;
                             mon.mstate |= 16;
                         }
@@ -1599,16 +1557,16 @@ export function movebubbles() {
     for (b = __movebubbles_up ? game.bbubbles : game.ebubbles; b; b = __movebubbles_up ? b.next : b.prev) {
         let rx = rn2(3);
         let ry = rn2(3);
-        mv_bubble(b, b.dx + 1 - (!b.dx ? rx : (rx ? 1 : 0)), b.dy + 1 - (!b.dy ? ry : (ry ? 1 : 0)), (0));
+        await mv_bubble(b, b.dx + 1 - (!b.dx ? rx : (rx ? 1 : 0)), b.dy + 1 - (!b.dy ? ry : (ry ? 1 : 0)), (0));
     }
     /* put attached ball&chain back */
     if ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) && (game.uball != null)) {
-        lift_covet_and_placebc(bcpin);
+        await lift_covet_and_placebc(bcpin);
     }
     game.vision_full_recalc = 1;
 }
 /* when moving in water, possibly (1 in 3) alter the intended destination */
-export function water_friction() {
+export async function water_friction() {
     let x = 0;
     let y = 0;
     let dx = 0;
@@ -1640,7 +1598,7 @@ export function water_friction() {
         eff = (1);
     }
     if (eff) {
-        pline("Water turbulence affects your movements.");
+        await pline("Water turbulence affects your movements.");
     }
 }
 export function save_waterlevel(nhfp) {
@@ -1668,7 +1626,7 @@ export function save_waterlevel(nhfp) {
 }
 /* !SFCTOOL */
 /* restoring air bubbles on Plane of Water or clouds on Plane of Air */
-export function restore_waterlevel(nhfp) {
+export async function restore_waterlevel(nhfp) {
     let b = null;
     let btmp = null;
     let i = 0;
@@ -1694,7 +1652,7 @@ export function restore_waterlevel(nhfp) {
             game.bbubbles = b;
             b.prev = null;
         }
-        mv_bubble(b, 0, 0, (1));
+        await mv_bubble(b, 0, 0, (1));
     }
     game.ebubbles = b;
     if (b) {
@@ -1702,22 +1660,20 @@ export function restore_waterlevel(nhfp) {
     } else {
         /* avoid "saving and reloading may fix this" */
         game.program_state.something_worth_saving = 0;
-        /* during restore, information about what level this is might not
-           be available so we're wishy-washy about what we describe */
-        impossible("No %s to restore?", ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) || (((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.uz_save, (game.dungeon_topology.d_water_level))))) ? "air bubbles" : ((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) || (((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.uz_save, (game.dungeon_topology.d_air_level))))) ? "clouds" : "air bubbles or clouds");
+        await impossible("No %s to restore?", ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) || (((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.uz_save, (game.dungeon_topology.d_water_level))))) ? "air bubbles" : ((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) || (((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.uz_save, (game.dungeon_topology.d_air_level))))) ? "clouds" : "air bubbles or clouds");
         game.program_state.something_worth_saving = 1;
     }
 }
-export function set_wportal() {
+export async function set_wportal() {
     /* there better be only one magic portal on water level... */
     for (game.wportal = game.ftrap; game.wportal; game.wportal = game.wportal.ntrap) {
         if (game.wportal.ttyp == MAGIC_PORTAL) {
             return;
         }
     }
-    impossible("set_wportal(): no portal!");
+    await impossible("set_wportal(): no portal!");
 }
-export function setup_waterlevel() {
+export async function setup_waterlevel() {
     let typ = 0;
     let glyph = 0;
     let x = 0;
@@ -1725,7 +1681,7 @@ export function setup_waterlevel() {
     let xskip = 0;
     let yskip = 0;
     if (!(((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) && !(((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level))))) {
-        panic("setup_waterlevel(): [%d:%d] neither 'Water' nor 'Air'", game.u.uz.dnum, game.u.uz.dlevel);
+        await panic("setup_waterlevel(): [%d:%d] neither 'Water' nor 'Air'", game.u.uz.dnum, game.u.uz.dlevel);
     }
     /* ouch, hardcoded... (file scope statics and used in bxmin,bymax,&c) */
     game.xmin = 3;
@@ -1759,7 +1715,7 @@ export function setup_waterlevel() {
     }
     for (x = (game.xmin + 1); x <= (game.xmax - 1); x += xskip) {
         for (y = (game.ymin + 1); y <= (game.ymax - 1); y += yskip) {
-            mk_bubble(x, y, rn2(7));
+            await mk_bubble(x, y, rn2(7));
         }
     }
 }
@@ -1780,17 +1736,17 @@ const __mk_bubble_bm6 = [6, 4, 30, 63, 63, 30];
 const __mk_bubble_bm7 = [7, 4, 62, 127, 127, 62];
 const __mk_bubble_bm8 = [8, 4, 126, 255, 255, 126];
 const __mk_bubble_bmask = [__mk_bubble_bm2, __mk_bubble_bm3, __mk_bubble_bm4, __mk_bubble_bm5, __mk_bubble_bm6, __mk_bubble_bm7, __mk_bubble_bm8];
-export function mk_bubble(x, y, n) {
+export async function mk_bubble(x, y, n) {
     let b = null;
     if (x >= (game.xmax - 1) || y >= (game.ymax - 1)) {
         return;
     }
     if (n >= (Math.trunc(7 /* sizeof(const uchar *const [7]) */ / 1 /* sizeof(const uchar *const) */))) {
-        impossible("n too large (mk_bubble)");
+        await impossible("n too large (mk_bubble)");
         n = (Math.trunc(7 /* sizeof(const uchar *const [7]) */ / 1 /* sizeof(const uchar *const) */)) - 1;
     }
     if (__mk_bubble_bmask[n][1] > 4) {
-        panic("bmask size is larger than MAX_BMASK");
+        await panic("bmask size is larger than MAX_BMASK");
     }
     b = alloc(1 /* sizeof(struct bubble) */);
     if ((x + __mk_bubble_bmask[n][0] - 1) > (game.xmax - 1)) {
@@ -1817,7 +1773,7 @@ export function mk_bubble(x, y, n) {
     }
     b.next = null;
     game.ebubbles = b;
-    mv_bubble(b, 0, 0, (1));
+    await mv_bubble(b, 0, 0, (1));
 }
 /* maybe change the movement direction of the bubble hero is in */
 export function maybe_adjust_hero_bubble() {
@@ -1840,7 +1796,7 @@ export function maybe_adjust_hero_bubble() {
  * in the immediate neighborhood of one, he/she may get sucked inside.
  * This property also makes leaving a bubble slightly difficult.
  */
-export function mv_bubble(b, dx, dy, ini) {
+export async function mv_bubble(b, dx, dy, ini) {
     let i = 0;
     let j = 0;
     let colli = 0;
@@ -1871,19 +1827,19 @@ export function mv_bubble(b, dx, dy, ini) {
             colli |= 1;
         }
         if (b.x < (game.xmin + 1)) {
-            pline("bubble xmin: x = %d, xmin = %d", b.x, (game.xmin + 1));
+            await pline("bubble xmin: x = %d, xmin = %d", b.x, (game.xmin + 1));
             b.x = (game.xmin + 1);
         }
         if (b.y < (game.ymin + 1)) {
-            pline("bubble ymin: y = %d, ymin = %d", b.y, (game.ymin + 1));
+            await pline("bubble ymin: y = %d, ymin = %d", b.y, (game.ymin + 1));
             b.y = (game.ymin + 1);
         }
         if ((b.x + b.bm[0] - 1) > (game.xmax - 1)) {
-            pline("bubble xmax: x = %d, xmax = %d", b.x + b.bm[0] - 1, (game.xmax - 1));
+            await pline("bubble xmax: x = %d, xmax = %d", b.x + b.bm[0] - 1, (game.xmax - 1));
             b.x = (game.xmax - 1) - b.bm[0] + 1;
         }
         if ((b.y + b.bm[1] - 1) > (game.ymax - 1)) {
-            pline("bubble ymax: y = %d, ymax = %d", b.y + b.bm[1] - 1, (game.ymax - 1));
+            await pline("bubble ymax: y = %d, ymax = %d", b.y + b.bm[1] - 1, (game.ymax - 1));
             b.y = (game.ymax - 1) - b.bm[1] + 1;
         }
         /* bounce if we're trying to move off the border */
@@ -1930,18 +1886,16 @@ export function mv_bubble(b, dx, dy, ini) {
                         let otmp = null;
                         for (olist = cons.list; olist; olist = otmp) {
                             otmp = olist.v.v_nexthere;
-                            place_object(olist, cons.x, cons.y);
-                            stackobj(olist);
+                            await place_object(olist, cons.x, cons.y);
+                            await stackobj(olist);
                         }
                         break;
                     }
                 case CONS_MON:
 {
                         let mon = cons.list;
-                        /* mnearto() might fail. We can jump right to elemental_clog
-                   from here rather than deal_with_overcrowding() */
-                        if (!mnearto(mon, cons.x, cons.y, (1), 4)) {
-                            elemental_clog(mon);
+                        if (!await mnearto(mon, cons.x, cons.y, (1), 4)) {
+                            await elemental_clog(mon);
                         }
                         break;
                     }
@@ -1950,10 +1904,10 @@ export function mv_bubble(b, dx, dy, ini) {
                         let mtmp = (game.level.monsters[cons.x][cons.y]);
                         let ux0 = game.u.ux;
                         let uy0 = game.u.uy;
-                        u_on_newpos(cons.x, cons.y);
-                        newsym(ux0, uy0);
+                        await u_on_newpos(cons.x, cons.y);
+                        await newsym(ux0, uy0);
                         if (mtmp) {
-                            mnexto(mtmp, 4);
+                            await mnexto(mtmp, 4);
                         }
                         break;
                     }
@@ -1965,7 +1919,7 @@ export function mv_bubble(b, dx, dy, ini) {
                         break;
                     }
                 default:
-                    impossible("mv_bubble: unknown bubble contents");
+                    await impossible("mv_bubble: unknown bubble contents");
                     break;
             }
             free(cons);
@@ -1993,5 +1947,37 @@ export function mv_bubble(b, dx, dy, ini) {
 }
 /* !SFCTOOL */
 /*mkmaze.c*/
+/* frozen corpses resume rotting, no more ice to melt away */
+/*
+         * if there are rooms and this a branch, let place_branch choose
+         * the branch location (to avoid putting branches in corridors).
+         */
+/* "something" means the player in this case */
+/* move the monster if no choice, or just try again */
+/* water level is an odd beast - it has to be set up
+           before calling place_lregions etc. */
+/* place dungeon branch if not placed above */
+/* set_corpsenm() handles weight too */
+/* Medusa statues don't contain books */
+/* custom wallify the "beetle" potion of the level */
+/* removes old name if present */
+/* create the leader of the orc gang */
 /* isok() test is superfluous here (unless something has
                clobbered the static *_maze_max variables) */
+/* some levels can end up with monsters
+               on dead mon list, including light source monsters */
+/* choose "vibrating square" location */
+/* place branch stair or portal */
+/* every spot on the area of map allowed for mazes has been rejected */
+/* a portal "trap" must be matched by a
+       portal in the destination dungeon/dlevel */
+/* set up the portal the first time bubbles are moved */
+/* keep attached ball&chain separate from bubble objects */
+/*
+         * Pick up everything inside of a bubble then fill all bubble
+         * locations.
+         */
+/* during restore, information about what level this is might not
+           be available so we're wishy-washy about what we describe */
+/* mnearto() might fail. We can jump right to elemental_clog
+                   from here rather than deal_with_overcrowding() */

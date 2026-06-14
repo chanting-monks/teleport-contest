@@ -78,14 +78,14 @@ export function save_track(nhfp) {
     }
 }
 /* restore the hero tracking info */
-export function rest_track(nhfp) {
+export async function rest_track(nhfp) {
     let i = 0;
     sfi_int(nhfp, { get value() { return game.utcnt; }, set value(_v) { game.utcnt = _v; } }, "track-utcnt");
     ;
     sfi_int(nhfp, { get value() { return game.utpnt; }, set value(_v) { game.utpnt = _v; } }, "track-utpnt");
     ;
     if (game.utcnt > 100 || game.utpnt > 100) {
-        panic("rest_track: impossible pt counts");
+        await panic("rest_track: impossible pt counts");
     }
     for (i = 0; i < game.utcnt; i++) {
         sfi_nhcoord(nhfp, game.utrack[i], "utrack");

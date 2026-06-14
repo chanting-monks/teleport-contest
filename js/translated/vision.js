@@ -23,6 +23,7 @@
 import { game } from '../gstate.js';
 import { memset } from '../c2js-runtime/memory.js';
 import { panic } from '../c2js-runtime/panic.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { isok } from './cmd.js';
 import { is_moat, is_pool } from './dbridge.js';
 import { detecting } from './detect.js';
@@ -272,7 +273,7 @@ export function get_unused_cs(rows, rmin, rmax) {
  * We set the in_sight bit here as well to escape a bug that shows up
  * due to the one-sided lit wall hack.
  */
-export function rogue_vision(next, rmin, rmax) {
+export async function rogue_vision(next, rmin, rmax) {
     let rnum = game.level.locations[game.u.ux][game.u.uy].roomno - 3;
     let start = 0;
     let stop = 0;
@@ -323,7 +324,7 @@ export function rogue_vision(next, rmin, rmax) {
              * So, we have to do it here.
              */
             if (in_door && (zx == game.u.ux || zy == game.u.uy)) {
-                newsym(zx, zy);
+                await newsym(zx, zy);
             }
         }
     }
@@ -431,7 +432,8 @@ export function rogue_vision(next, rmin, rmax) {
  *      + Just before bubbles are moved. [movebubbles()]
  */
 let __vision_recalc_colbump = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-export function vision_recalc(control) {
+__nh_register_static(() => { __vision_recalc_colbump = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; });
+export async function vision_recalc(control) {
     let temp_array = null;
     let next_array = null;
     let next_row = null;
@@ -475,18 +477,7 @@ export function vision_recalc(control) {
         if (game.u.uswallow || control == 2) {
             ;
         } else if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            /* You see nothing, nothing can see you --- if swallowed or refreshing. */
-            /* do nothing -- get_unused_cs() nulls out the new work area */
-            /*
-         * Calculate the could_see array even when blind so that monsters
-         * can see you, even if you can't see them.  Note that the current
-         * setup allows:
-         *
-         *      + Monsters to see with the "new" vision, even on the rogue
-         *        level.
-         *      + Monsters can see you even when you're in a pit.
-         */
-            view_from(game.u.uy, game.u.ux, next_array, next_rmin, next_rmax, 0, null, null);
+            await view_from(game.u.uy, game.u.ux, next_array, next_rmin, next_rmax, 0, null, null);
             /*
          * Our own version of the update loop below.  We know we can't see
          * anything, so we only need to update positions we used to be able
@@ -505,27 +496,14 @@ export function vision_recalc(control) {
                 stop = ((game.viz_rmax[row]) > (next_rmax[row]) ? (game.viz_rmax[row]) : (next_rmax[row]));
                 for (col = start; col <= stop; col++) {
                     if (old_row[col] & 2) {
-                        /*
-             * At this point we know that the row position is *not* in normal
-             * sight.  That is, the position could be seen, but is dark
-             * or LOS is just plain blocked.
-             *
-             * Update the position if:
-             * o If the old one *was* in sight.  We may need to clean up
-             *   the glyph -- E.g. darken room spot, etc.
-             * o If we now could see the location (yet the location is not
-             *   lit), but previously we couldn't see the location, or vice
-             *   versa.  Update the spot because there may be an
-             *   infrared monster there.
-             */
-                        newsym(col, row);
+                        await newsym(col, row);
                     }
                 }
             }
             /* skip the normal update loop */
             break skip;
         } else if ((((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
-            rogue_vision(next_array, next_rmin, next_rmax);
+            await rogue_vision(next_array, next_rmin, next_rmax);
         } else {
             let lo_col = 0;
             let has_night_vision = 1;
@@ -564,7 +542,7 @@ export function vision_recalc(control) {
                     }
                 }
             } else {
-                view_from(game.u.uy, game.u.ux, next_array, next_rmin, next_rmax, 0, null, null);
+                await view_from(game.u.uy, game.u.ux, next_array, next_rmin, next_rmax, 0, null, null);
             }
             if (game.u.xray_range >= 0) {
                 if (game.u.xray_range) {
@@ -590,7 +568,7 @@ export function vision_recalc(control) {
                             game.level.locations[col][row].seenv = (255);
                             /* Update if previously not in sight or new angle. */
                             if (!(old_row_val & 2) || oldseenv != (255)) {
-                                newsym(col, row);
+                                await newsym(col, row);
                             }
                         }
                         next_rmin[row] = ((start) < (next_rmin[row]) ? (start) : (next_rmin[row]));
@@ -663,15 +641,7 @@ export function vision_recalc(control) {
             stop = ((game.viz_rmax[row]) > (next_rmax[row]) ? (game.viz_rmax[row]) : (next_rmax[row]));
             /* col-walk fixed */
             sv = seenv_matrix[dy + 1][start < game.u.ux ? 0 : (start > game.u.ux ? 2 : 1)];
-            /* Hand-port: C advances `col++, sv += colbump[col]` -- a
-               pointer bump into seenv_matrix's row when the walk
-               crosses u.ux.  The emit dropped the comma-increment
-               entirely (infinite loop, masked until iter 44's
-               seenv_matrix pre-install let execution reach it).
-               Recompute sv from col each iteration -- semantically
-               identical to the bump. */
-            for (col = start; col <= stop; col++) {
-                sv = seenv_matrix[dy + 1][col < game.u.ux ? 0 : (col > game.u.ux ? 2 : 1)];
+            for (col = start; col <= stop; col++, sv = seenv_matrix[dy + 1][col < game.u.ux ? 0 : (col > game.u.ux ? 2 : 1)]) {
                 lev = game.level.locations[col][row];
                 if (next_row[col] & 2) {
                     /*
@@ -681,7 +651,7 @@ export function vision_recalc(control) {
                     lev.seenv |= (sv);
                     /* Update pos if previously not in sight or new angle. */
                     if (!(old_row[col] & 2) || oldseenv != lev.seenv) {
-                        newsym(col, row);
+                        await newsym(col, row);
                     }
                 } else if ((next_row[col] & 1) && (lev.lit || (next_row[col] & 4))) {
                     if ((((lev.typ) == DOOR) || lev.typ == SDOOR || ((lev.typ) && (lev.typ) <= DBWALL)) && !game.viz_clear[row][col]) {
@@ -704,12 +674,12 @@ export function vision_recalc(control) {
                             /* Update pos if previously not in sight or new
                          * angle.*/
                             if (!(old_row[col] & 2) || oldseenv != lev.seenv) {
-                                newsym(col, row);
+                                await newsym(col, row);
                             }
                         } else {
                             if ((old_row[col] & 2) || ((next_row[col] & 1) ^ (old_row[col] & 1))) {
                                 if (col != 0) {
-                                    newsym(col, row);
+                                    await newsym(col, row);
                                 }
                             }
                         }
@@ -718,7 +688,7 @@ export function vision_recalc(control) {
                         oldseenv = lev.seenv;
                         lev.seenv |= (sv);
                         if (!(old_row[col] & 2) || oldseenv != lev.seenv) {
-                            newsym(col, row);
+                            await newsym(col, row);
                         }
                     }
                 } else if ((next_row[col] & 1) && lev.waslit) {
@@ -730,19 +700,13 @@ export function vision_recalc(control) {
                  * and update the location.
                  */
                     lev.waslit = 0;
-                    newsym(col, row);
+                    await newsym(col, row);
                 } else {
                     not_in_sight: {
                     }
                     if ((old_row[col] & 2) || ((next_row[col] & 1) ^ (old_row[col] & 1))) {
-                        /*
-                     * TEMPORARY?  Sometimes we get here with col==0 and
-                     * newsym()'s impossible() for !isok() is being
-                     * triggered, so avoid calling it for <0,y>; other bad
-                     * coordinates will produce a panic() as they should.
-                     */
                         if (col != 0) {
-                            newsym(col, row);
+                            await newsym(col, row);
                         }
                     }
                 }
@@ -750,19 +714,14 @@ export function vision_recalc(control) {
         }
         (__vision_recalc_colbump[game.u.ux + 1] = 0, __vision_recalc_colbump[game.u.ux] = 0);
     }
-    /* This newsym() caused a crash delivering msg about failure to open
-     * dungeon file init_dungeons() -> panic() -> done(11) ->
-     * vision_recalc(2) -> newsym() -> crash!  u.ux and u.uy are 0 and
-     * program_state.panicking == 1 under those circumstances
-     */
     if (!game.program_state.panicking) {
-        newsym(game.u.ux, game.u.uy);
+        await newsym(game.u.ux, game.u.uy);
     }
     /* Make sure the hero shows up! */
     /* Set the new min and max pointers. */
     game.viz_rmin = next_rmin;
     game.viz_rmax = next_rmax;
-    notice_all_mons((1));
+    await notice_all_mons((1));
 }
 /*
  * block_point()
@@ -2115,7 +2074,7 @@ export function left_side(row, left_mark, right, limits) {
  *   func           function to call on each spot
  *   arg            argument for func
  */
-export function view_from(srow, scol, loc_cs_rows, left_most, right_most, range, func, arg) {
+export async function view_from(srow, scol, loc_cs_rows, left_most, right_most, range, func, arg) {
     let i = 0;
     let rowp = null;
     let nrow = 0;
@@ -2147,7 +2106,7 @@ export function view_from(srow, scol, loc_cs_rows, left_most, right_most, range,
     }
     if (range) {
         if (range > 15 || range < 1) {
-            panic("view_from called with range %d", range);
+            await panic("view_from called with range %d", range);
         }
         limits = (circle_data[circle_start[range]]) + 1;
         if (left < scol - range) {
@@ -2212,10 +2171,9 @@ export function view_from(srow, scol, loc_cs_rows, left_most, right_most, range,
  * will call "func" when necessary.  If the hero is the center, use the
  * vision matrix and reduce extra work.
  */
-export function do_clear_area(scol, srow, range, func, arg) {
+export async function do_clear_area(scol, srow, range, func, arg) {
     if (scol != game.u.ux || srow != game.u.uy) {
-        /* If not centered on hero, do the hard work of figuring the area */
-        view_from(srow, scol, null, null, null, range, func, arg);
+        await view_from(srow, scol, null, null, null, range, func, arg);
     } else {
         let x = 0;
         let y = 0;
@@ -2229,10 +2187,10 @@ export function do_clear_area(scol, srow, range, func, arg) {
            [this probably ought to be an arg supplied by our caller...] */
         override_vision = (detecting(func) && ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) || (((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level))))));
         if (range > 15 || range < 1) {
-            panic("do_clear_area:  illegal range %d", range);
+            await panic("do_clear_area:  illegal range %d", range);
         }
         if (game.vision_full_recalc) {
-            vision_recalc(0);
+            await vision_recalc(0);
         }
         limits = (circle_data[circle_start[range]]);
         if ((max_y = (srow + range)) >= 21) {
@@ -2290,3 +2248,39 @@ export function howmonseen(mon) {
     return how_seen;
 }
 /*vision.c*/
+/* You see nothing, nothing can see you --- if swallowed or refreshing. */
+/* do nothing -- get_unused_cs() nulls out the new work area */
+/*
+         * Calculate the could_see array even when blind so that monsters
+         * can see you, even if you can't see them.  Note that the current
+         * setup allows:
+         *
+         *      + Monsters to see with the "new" vision, even on the rogue
+         *        level.
+         *      + Monsters can see you even when you're in a pit.
+         */
+/*
+             * At this point we know that the row position is *not* in normal
+             * sight.  That is, the position could be seen, but is dark
+             * or LOS is just plain blocked.
+             *
+             * Update the position if:
+             * o If the old one *was* in sight.  We may need to clean up
+             *   the glyph -- E.g. darken room spot, etc.
+             * o If we now could see the location (yet the location is not
+             *   lit), but previously we couldn't see the location, or vice
+             *   versa.  Update the spot because there may be an
+             *   infrared monster there.
+             */
+/*
+                     * TEMPORARY?  Sometimes we get here with col==0 and
+                     * newsym()'s impossible() for !isok() is being
+                     * triggered, so avoid calling it for <0,y>; other bad
+                     * coordinates will produce a panic() as they should.
+                     */
+/* This newsym() caused a crash delivering msg about failure to open
+     * dungeon file init_dungeons() -> panic() -> done(11) ->
+     * vision_recalc(2) -> newsym() -> crash!  u.ux and u.uy are 0 and
+     * program_state.panicking == 1 under those circumstances
+     */
+/* If not centered on hero, do the hard work of figuring the area */

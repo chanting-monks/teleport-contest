@@ -16,7 +16,8 @@ import { sgn } from '../c2js-runtime/math.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, You_hear, Your, pline, pline_The } from '../c2js-runtime/pline.js';
-import { qsort } from '../c2js-runtime/qsort.js';
+import { qsort , qsort_async } from '../c2js-runtime/qsort.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { strchr, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
@@ -134,7 +135,7 @@ export function spell_let_to_idx(ilet) {
     return -1;
 }
 /* TRUE: book should be destroyed by caller */
-export function cursed_book(bp) {
+export async function cursed_book(bp) {
     let was_in_use = 0;
     let lev = game.objects[bp.otyp].oc_oc2;
     let dmg = 0;
@@ -148,72 +149,72 @@ export function cursed_book(bp) {
      * just hypothetical.)
      */
         case 0:
-            You_feel("a wrenching sensation.");
-            tele();
+            await You_feel("a wrenching sensation.");
+            await tele();
             break;
         case 1:
-            You_feel("threatened.");
-            aggravate();
+            await You_feel("threatened.");
+            await aggravate();
             break;
         case 2:
-            make_blinded((game.u.uprops[BLINDED].intrinsic & 16777215) + (rn2(100) + (250)), (1));
+            await make_blinded((game.u.uprops[BLINDED].intrinsic & 16777215) + (rn2(100) + (250)), (1));
             break;
         case 3:
-            take_gold();
+            await take_gold();
             break;
         case 4:
-            pline("These runes were just too much to comprehend.");
-            make_confused(game.u.uprops[CONFUSION].intrinsic + (rn2(7) + (16)), (0));
+            await pline("These runes were just too much to comprehend.");
+            await make_confused(game.u.uprops[CONFUSION].intrinsic + (rn2(7) + (16)), (0));
             break;
         case 5:
-            pline_The("book was coated with contact poison!");
+            await pline_The("book was coated with contact poison!");
             if (game.uarmg) {
-                erode_obj(game.uarmg, "gloves", 3, 1 | 4);
+                await erode_obj(game.uarmg, "gloves", 3, 1 | 4);
                 break;
             }
             /* temp disable in_use; death should not destroy the book */
             was_in_use = bp.in_use;
             bp.in_use = (0);
-            poison_strdmg((game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) ? (rn2(2) + (1)) : (rn2(4) + (3)), rnd((game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) ? 6 : 10), "contact-poisoned spellbook", 0);
+            await poison_strdmg((game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) ? (rn2(2) + (1)) : (rn2(4) + (3)), rnd((game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) ? 6 : 10), "contact-poisoned spellbook", 0);
             bp.in_use = was_in_use;
             break;
         case 6:
             if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                pline_The("book %s, but you are unharmed!", explodes);
+                await shieldeff(game.u.ux, game.u.uy);
+                await pline_The("book %s, but you are unharmed!", explodes);
             } else {
-                pline("As you read the book, it %s in your %s!", explodes, body_part(FACE));
+                await pline("As you read the book, it %s in your %s!", explodes, await body_part(FACE));
                 dmg = 2 * rnd(10) + 5;
-                losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "exploding rune", 0);
+                await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "exploding rune", 0);
             }
             /* once had enough but have lost some since */
             return (1);
         default:
-            rndcurse();
+            await rndcurse();
             break;
     }
     return (0);
 }
 /* study while confused: returns TRUE if the book is destroyed */
-export function confused_book(spellbook) {
+export async function confused_book(spellbook) {
     let gone = (0);
     if (!rn2(3) && spellbook.otyp != SPE_BOOK_OF_THE_DEAD) {
         /* in case called from learn() */
         /* Books are often wiser than their readers (Rus.) */
         spellbook.in_use = (1);
-        pline("Being confused you have difficulties in controlling your actions.");
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
-        You("accidentally tear the spellbook to pieces.");
-        trycall(spellbook);
-        useup(spellbook);
+        await pline("Being confused you have difficulties in controlling your actions.");
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+        await You("accidentally tear the spellbook to pieces.");
+        await trycall(spellbook);
+        await useup(spellbook);
         gone = (1);
     } else {
-        You("find yourself reading the %s line over and over again.", spellbook == game.context.spbook.book ? "next" : "first");
+        await You("find yourself reading the %s line over and over again.", spellbook == game.context.spbook.book ? "next" : "first");
     }
     return gone;
 }
 /* pacify or tame an undead monster */
-export function deadbook_pacify_undead(mtmp) {
+export async function deadbook_pacify_undead(mtmp) {
     if (((((mtmp.data).mflags2 & 2) != 0) || ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER)) && ((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
         mtmp.mpeaceful = (1);
         if (sgn(mtmp.data.maligntyp) == sgn(game.u.ualign.type) && dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) < 4) {
@@ -222,22 +223,21 @@ export function deadbook_pacify_undead(mtmp) {
                     mtmp.mtame++;
                 }
             } else {
-                tamedog(mtmp, null, (1));
+                await tamedog(mtmp, null, (1));
             }
         } else {
-            monflee(mtmp, 0, (0), (1));
+            await monflee(mtmp, 0, (0), (1));
         }
     }
 }
 /* special effects for the Book of the Dead; reading it while blind is
    allowed so that needs to be taken into account too */
-export function deadbook(book2) {
+export async function deadbook(book2) {
     let mtmp = null;
     let mm = { x: 0, y: 0 };
-    You("turn the pages of the Book of the Dead...");
-    discover_object((SPE_BOOK_OF_THE_DEAD), (1), (1), (1));
-    /* in case blind now and hasn't been seen yet */
-    observe_object(book2);
+    await You("turn the pages of the Book of the Dead...");
+    await discover_object((SPE_BOOK_OF_THE_DEAD), (1), (1), (1));
+    await observe_object(book2);
     /* KMH -- Need ->known to avoid "_a_ Book of the Dead" */
     book2.known = 1;
     if (invocation_pos(game.u.ux, game.u.uy) && !On_stairs(game.u.ux, game.u.uy)) {
@@ -246,17 +246,17 @@ export function deadbook(book2) {
         let arti2_primed = (0);
         let arti_cursed = (0);
         if (book2.cursed) {
-            pline_The("%s!", ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "Book seems to be ignoring you" : "runes appear scrambled.  You can't read them");
+            await pline_The("%s!", ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "Book seems to be ignoring you" : "runes appear scrambled.  You can't read them");
             return;
         }
         if (!game.u.uhave.bell || !game.u.uhave.menorah) {
-            pline("A chill runs down your %s.", body_part(SPINE));
+            await pline("A chill runs down your %s.", await body_part(SPINE));
             if (!game.u.uhave.bell) {
                 ;
-                You_hear("a faint chime...");
+                await You_hear("a faint chime...");
             }
             if (!game.u.uhave.menorah) {
-                pline("Vlad's doppelganger is amused.");
+                await pline("Vlad's doppelganger is amused.");
             }
             return;
         }
@@ -277,16 +277,14 @@ export function deadbook(book2) {
             }
         }
         if (arti_cursed) {
-            pline_The("invocation fails!");
-            /* this used to say "your artifacts" but the invocation tools
-               are not artifacts */
-            pline("At least one of your relics is cursed...");
+            await pline_The("invocation fails!");
+            await pline("At least one of your relics is cursed...");
         } else if (arti1_primed && arti2_primed) {
             /* time til next intervene() */
             let soon = d(2, 6);
-            mkinvokearea();
+            await mkinvokearea();
             game.u.uevent.invoked = 1;
-            record_achievement(ACH_INVK);
+            await record_achievement(ACH_INVK);
             /* in case you haven't killed the Wizard yet, behave as if
                you just did */
             game.u.uevent.udemigod = 1;
@@ -294,21 +292,19 @@ export function deadbook(book2) {
                 game.u.udg_cnt = soon;
             }
         } else {
-            /* at least one relic not prepared properly */
-            You("have a feeling that %s is amiss...", c_common_strings.c_something);
-            You("raised the dead!");
-            if (!rn2(3) && ((mtmp = makemon(game.mons[PM_MASTER_LICH], game.u.ux, game.u.uy, 1)) != null || (mtmp = makemon(game.mons[PM_NALFESHNEE], game.u.ux, game.u.uy, 1)) != null)) {
+            await You("have a feeling that %s is amiss...", c_common_strings.c_something);
+            await You("raised the dead!");
+            if (!rn2(3) && ((mtmp = await makemon(game.mons[PM_MASTER_LICH], game.u.ux, game.u.uy, 1)) != null || (mtmp = await makemon(game.mons[PM_NALFESHNEE], game.u.ux, game.u.uy, 1)) != null)) {
                 /* when not an invocation situation */
                 /* first maybe place a dangerous adversary */
                 mtmp.mpeaceful = 0;
                 set_malign(mtmp);
             }
-            /* next handle the affect on things you're carrying */
-            unturn_dead(game.youmonst);
+            await unturn_dead(game.youmonst);
             /* last place some monsters around you */
             mm.x = game.u.ux;
             mm.y = game.u.uy;
-            mkundead(mm, (1), 1);
+            await mkundead(mm, (1), 1);
             return;
         }
         return;
@@ -316,40 +312,40 @@ export function deadbook(book2) {
     if (book2.cursed) {
         raise_dead: {
         }
-        You("raised the dead!");
-        if (!rn2(3) && ((mtmp = makemon(game.mons[PM_MASTER_LICH], game.u.ux, game.u.uy, 1)) != null || (mtmp = makemon(game.mons[PM_NALFESHNEE], game.u.ux, game.u.uy, 1)) != null)) {
+        await You("raised the dead!");
+        if (!rn2(3) && ((mtmp = await makemon(game.mons[PM_MASTER_LICH], game.u.ux, game.u.uy, 1)) != null || (mtmp = await makemon(game.mons[PM_NALFESHNEE], game.u.ux, game.u.uy, 1)) != null)) {
             mtmp.mpeaceful = 0;
             set_malign(mtmp);
         }
-        unturn_dead(game.youmonst);
+        await unturn_dead(game.youmonst);
         mm.x = game.u.ux;
         mm.y = game.u.uy;
-        mkundead(mm, (1), 1);
+        await mkundead(mm, (1), 1);
     } else if (book2.blessed) {
-        iter_mons(deadbook_pacify_undead);
+        await iter_mons(deadbook_pacify_undead);
     } else {
         switch (rn2(3)) {
             case 0:
-                Your("ancestors are annoyed with you!");
+                await Your("ancestors are annoyed with you!");
                 break;
             case 1:
-                pline_The("headstones in the cemetery begin to move!");
+                await pline_The("headstones in the cemetery begin to move!");
                 break;
             default:
-                pline("Oh my!  Your name appears in the book!");
+                await pline("Oh my!  Your name appears in the book!");
         }
     }
     return;
 }
 /* 'book' has just become cursed; if we're reading it, interrupt */
-export function book_cursed(book) {
+export async function book_cursed(book) {
     if (book.cursed && game.multi >= 0 && game.occupation == learn && game.context.spbook.book == book) {
-        pline("%s shut!", Tobjnam(book, "slam"));
+        await pline("%s shut!", await Tobjnam(book, "slam"));
         set_bknown(book, 1);
-        stop_occupation();
+        await stop_occupation();
     }
 }
-export function learn() {
+export async function learn() {
     let i = 0;
     let booktype = 0;
     let splname = '';
@@ -362,8 +358,7 @@ export function learn() {
         game.context.spbook.delay++;
     }
     if (game.u.uprops[CONFUSION].intrinsic) {
-        /* became confused while learning */
-        confused_book(book);
+        await confused_book(book);
         /* in case reading has been interrupted earlier, discard context */
         game.context.spbook.book = null;
         game.context.spbook.o_id = 0;
@@ -378,10 +373,10 @@ export function learn() {
         game.context.spbook.delay++;
         return 1;
     }
-    exercise(A_WIS, (1));
+    await exercise(A_WIS, (1));
     booktype = book.otyp;
     if (booktype == SPE_BOOK_OF_THE_DEAD) {
-        deadbook(book);
+        await deadbook(book);
         return 0;
     }
     splname = sprintf(splname, game.objects[booktype].oc_name_known ? "\"%s\"" : "the \"%s\" spell", (game.obj_descr[(game.objects[booktype]).oc_name_idx].oc_name));
@@ -391,29 +386,23 @@ export function learn() {
         }
     }
     if (i == MAXSPELL) {
-        impossible("Too many spells memorized!");
+        await impossible("Too many spells memorized!");
     } else if (game.spl_book[i].sp_id == booktype) {
         if (book.usecount > 3) {
-            /* normal book can be read and re-read a total of 4 times */
-            pline("This spellbook is too faint to be read any more.");
+            await pline("This spellbook is too faint to be read any more.");
             book.otyp = booktype = SPE_BLANK_PAPER;
             faded_to_blank = (1);
             /* reset spestudied as if polymorph had taken place */
             book.usecount = rn2(book.usecount);
         } else {
-            Your("knowledge of %s is %s.", splname, game.spl_book[i].sp_know ? "keener" : "restored");
+            await Your("knowledge of %s is %s.", splname, game.spl_book[i].sp_know ? "keener" : "restored");
             (game.spl_book[i].sp_know = 20000 + (1));
             book.usecount++;
-            exercise(A_WIS, (1));
+            await exercise(A_WIS, (1));
         }
     } else {
         if (book.usecount >= 3) {
-            /* (spellid(i) == NO_SPELL) */
-            /* for a normal book, spestudied will be zero, but for
-           a polymorphed one, spestudied will be non-zero and
-           one less reading is available than when re-learning */
-            /* pre-used due to being the product of polymorph */
-            pline("This spellbook is too faint to read even once.");
+            await pline("This spellbook is too faint to read even once.");
             book.otyp = booktype = SPE_BLANK_PAPER;
             faded_to_blank = (1);
             book.usecount = rn2(book.usecount);
@@ -423,15 +412,14 @@ export function learn() {
             (game.spl_book[i].sp_know = 20000 + (1));
             book.usecount++;
             if (!i) {
-                You("learn %s.", splname);
-            /* first is always 'a', so no need to mention the letter */
+                await You("learn %s.", splname);
             } else {
-                You("add %s to your repertoire, as '%c'.", splname, (((i < 26) ? (97 + i) : (65 + i - 26))));
+                await You("add %s to your repertoire, as '%c'.", splname, (((i < 26) ? (97 + i) : (65 + i - 26))));
             }
         }
     }
     if (i < MAXSPELL) {
-        discover_object((booktype), (1), (1), (1));
+        await discover_object((booktype), (1), (1), (1));
         /* might be learning a new spellbook type or spellbook of blank paper;
            if so, persistent inventory will get updated */
         /* makeknown() calls update_inventory() when discovering something
@@ -444,26 +432,26 @@ export function learn() {
         }
     }
     if (book.cursed) {
-        if (cursed_book(book)) {
-            useup(book);
+        if (await cursed_book(book)) {
+            await useup(book);
             game.context.spbook.book = null;
             game.context.spbook.o_id = 0;
             return 0;
         }
     }
     if (costly) {
-        check_unpaid(book);
+        await check_unpaid(book);
     }
     game.context.spbook.book = null;
     game.context.spbook.o_id = 0;
     return 0;
 }
-export function study_book(spellbook) {
+export async function study_book(spellbook) {
     let booktype = spellbook.otyp;
     let i = 0;
     let confused = (game.u.uprops[CONFUSION].intrinsic != 0);
     let too_hard = (0);
-    if (!confused && !(game.u.uprops[SLEEP_RES].intrinsic || game.u.uprops[SLEEP_RES].extrinsic) && objdescr_is(spellbook, "dull")) {
+    if (!confused && !(game.u.uprops[SLEEP_RES].intrinsic || game.u.uprops[SLEEP_RES].extrinsic) && await objdescr_is(spellbook, "dull")) {
         /* attempting to read dull book may make hero fall asleep */
         let eyes = null;
         let dullbook = rnd(25) - (acurr(A_WIS));
@@ -472,25 +460,22 @@ export function study_book(spellbook) {
             dullbook -= rnd(game.objects[booktype].oc_oc2);
         }
         if (dullbook > 0) {
-            eyes = body_part(EYE);
+            eyes = await body_part(EYE);
             if ((!(((game.youmonst.data).mflags1 & 4096) == 0) ? 0 : ((game.youmonst.data) == game.mons[PM_CYCLOPS] || (game.youmonst.data) == game.mons[PM_FLOATING_EYE]) ? 1 : 2) > 1) {
-                eyes = makeplural(eyes);
+                eyes = await makeplural(eyes);
             }
-            pline("This book is so dull that you can't keep your %s open.", eyes);
+            await pline("This book is so dull that you can't keep your %s open.", eyes);
             dullbook += rnd(2 * game.objects[booktype].oc_oc2);
-            fall_asleep(-dullbook, (1));
+            await fall_asleep(-dullbook, (1));
             return 1;
         }
     }
     if (game.context.spbook.delay && !confused && spellbook == game.context.spbook.book && booktype != SPE_BLANK_PAPER) {
-        /* handle the sequence: start reading, get interrupted, have
-           svc.context.spbook.book become erased somehow, resume reading it */
-        You("continue your efforts to %s.", (booktype == SPE_NOVEL) ? "read the novel" : "memorize the spell");
+        await You("continue your efforts to %s.", (booktype == SPE_NOVEL) ? "read the novel" : "memorize the spell");
     } else {
         if (booktype == SPE_BLANK_PAPER) {
-            /* KMH -- Simplified this code */
-            pline("This spellbook is all blank.");
-            discover_object((booktype), (1), (1), (1));
+            await pline("This spellbook is all blank.");
+            await discover_object((booktype), (1), (1), (1));
             return 1;
         }
         if (booktype == SPE_NOVEL) {
@@ -500,13 +485,12 @@ export function study_book(spellbook) {
                 if (!game.u.uconduct.literate++) {
                     livelog_printf(32, "became literate by reading %s", tribtitle);
                 }
-                check_unpaid(spellbook);
-                discover_object((booktype), (1), (1), (1));
+                await check_unpaid(spellbook);
+                await discover_object((booktype), (1), (1), (1));
                 if (!game.u.uevent.read_tribute) {
-                    record_achievement(ACH_NOVL);
-                    /* give bonus of 20 xp and 4*20+0 pts */
-                    more_experienced(20, 0);
-                    newexplevel();
+                    await record_achievement(ACH_NOVL);
+                    await more_experienced(20, 0);
+                    await newexplevel();
                     game.u.uevent.read_tribute = 1;
                 }
             }
@@ -529,7 +513,7 @@ export function study_book(spellbook) {
                 game.context.spbook.delay = -8 * game.objects[booktype].oc_delay;
                 break;
             default:
-                impossible("Unknown spellbook level %d, book %d;", game.objects[booktype].oc_oc2, booktype);
+                await impossible("Unknown spellbook level %d, book %d;", game.objects[booktype].oc_oc2, booktype);
                 return 0;
         }
         /* check to see if we already know it and want to refresh our memory */
@@ -539,11 +523,9 @@ export function study_book(spellbook) {
             }
         }
         if (game.spl_book[i].sp_id == booktype && game.spl_book[i].sp_know > Math.trunc(20000 / 10)) {
-            You("know \"%s\" quite well already.", (game.obj_descr[(game.objects[booktype]).oc_name_idx].oc_name));
-            discover_object((booktype), (1), (1), (1));
-            /* hero has just been told what spell this book is for; it may
-               have been undiscovered if spell was learned via divine gift */
-            if (yn_function("Refresh your memory anyway?", ynchars, 110, (1)) == 110) {
+            await You("know \"%s\" quite well already.", (game.obj_descr[(game.objects[booktype]).oc_name_idx].oc_name));
+            await discover_object((booktype), (1), (1), (1));
+            if (await yn_function("Refresh your memory anyway?", ynchars, 110, (1)) == 110) {
                 return 0;
             }
         }
@@ -558,7 +540,7 @@ export function study_book(spellbook) {
                     /* only wizards know if a spell is too difficult */
                     let qbuf = '';
                     qbuf = sprintf(qbuf, "This spellbook is %sdifficult to comprehend.  Continue?", (read_ability < 12 ? "very " : ""));
-                    if (yn_function(qbuf, ynchars, 110, (1)) != 121) {
+                    if (await yn_function(qbuf, ynchars, 110, (1)) != 121) {
                         spellbook.in_use = (0);
                         return 1;
                     }
@@ -570,23 +552,23 @@ export function study_book(spellbook) {
             }
         }
         if (too_hard) {
-            let gone = cursed_book(spellbook);
+            let gone = await cursed_book(spellbook);
             nomul(game.context.spbook.delay);
             game.multi_reason = "reading a book";
             game.nomovemsg = null;
             game.context.spbook.delay = 0;
             if (gone || !rn2(3)) {
                 if (!gone) {
-                    pline_The("spellbook crumbles to dust!");
+                    await pline_The("spellbook crumbles to dust!");
                 }
-                trycall(spellbook);
-                useup(spellbook);
+                await trycall(spellbook);
+                await useup(spellbook);
             } else {
                 spellbook.in_use = (0);
             }
             return 1;
         } else if (confused) {
-            if (!confused_book(spellbook)) {
+            if (!await confused_book(spellbook)) {
                 spellbook.in_use = (0);
             }
             nomul(game.context.spbook.delay);
@@ -596,7 +578,7 @@ export function study_book(spellbook) {
             return 1;
         }
         spellbook.in_use = (0);
-        You("begin to %s the runes.", spellbook.otyp == SPE_BOOK_OF_THE_DEAD ? "recite" : "memorize");
+        await You("begin to %s the runes.", spellbook.otyp == SPE_BOOK_OF_THE_DEAD ? "recite" : "memorize");
     }
     game.context.spbook.book = spellbook;
     if (game.context.spbook.book) {
@@ -642,23 +624,15 @@ export function age_spells() {
 }
 /* return True if spellcasting is inhibited;
    only covers a small subset of reasons why casting won't work */
-export function rejectcasting() {
+export async function rejectcasting() {
     if (game.u.uprops[STUNNED].intrinsic) {
-        /* rejections which take place before selecting a particular spell */
-        You("are too impaired to cast a spell.");
+        await You("are too impaired to cast a spell.");
         return (1);
     } else if (!can_chant(game.youmonst)) {
-        You("are unable to chant the incantation.");
+        await You("are unable to chant the incantation.");
         return (1);
     } else if (!freehand() && !(game.uwep && game.uwep.otyp == QUARTERSTAFF)) {
-        /* Note: !freehand() occurs when weapon and shield (or two-handed
-         * weapon) are welded to hands, so "arms" probably doesn't need
-         * to be makeplural(bodypart(ARM)).
-         *
-         * But why isn't lack of free arms (for gesturing) an issue when
-         * poly'd hero has no limbs?
-         */
-        Your("arms are not free to cast!");
+        await Your("arms are not free to cast!");
         return (1);
     }
     return (0);
@@ -667,7 +641,7 @@ export function rejectcasting() {
  * Return TRUE if a spell was picked, with the spell index in the return
  * parameter.  Otherwise return FALSE.
  */
-export function getspell(spell_no) {
+export async function getspell(spell_no) {
     let nspells = 0;
     let idx = 0;
     let retry_limit = 0;
@@ -678,10 +652,10 @@ export function getspell(spell_no) {
     let cmdq = null;
     nspells = num_spells();
     if (!nspells) {
-        You("don't know any spells right now.");
+        await You("don't know any spells right now.");
         return (0);
     }
-    if (rejectcasting()) {
+    if (await rejectcasting()) {
         return (0);
     }
     if ((cmdq = cmdq_pop()) != null) {
@@ -712,70 +686,66 @@ export function getspell(spell_no) {
         qbuf = nh_snprintf("getspell", 755, qbuf, 128 /* sizeof(char [128]) */, "Cast which spell? [%s *?]", lets);
         for (retry_limit = 0; ; ++retry_limit) {
             if (retry_limit == 10) {
-                /* this assumes that there are at most 52 spells... */
-                /* limit is mainly to prevent the fuzzer from getting stuck
-                   since hangup should hit the 'quitchars' case; fuzzer
-                   would too, but after an arbitrary number of attempts */
-                pline("That's enough tries.");
+                await pline("That's enough tries.");
                 return (0);
             }
-            ilet = yn_function(qbuf, null, 0, (1));
+            ilet = await yn_function(qbuf, null, 0, (1));
             if (ilet == 42 || ilet == 63) {
                 break;
             }
             if (strchr(quitchars, ilet)) {
-                pline("%s", c_common_strings.c_Never_mind);
+                await pline("%s", c_common_strings.c_Never_mind);
                 return (0);
             }
             idx = spell_let_to_idx(ilet);
             if (idx < 0 || idx >= nspells) {
-                You("don't know that spell.");
+                await You("don't know that spell.");
                 continue;
             }
             spell_no.value = idx;
             return (1);
         }
     }
-    return dospellmenu("Choose which spell to cast", (-2), spell_no);
+    return await dospellmenu("Choose which spell to cast", (-2), spell_no);
 }
 /* #wizcast - cast any spell even without knowing it */
-export function dowizcast() {
+export async function dowizcast() {
     let win = 0;
     let selected = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let n = 0;
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; i < MAXSPELL; i++) {
         n = (SPE_DIG + i);
         if (n >= SPE_BLANK_PAPER) {
             break;
         }
         any.a_int = n;
-        add_menu(win, nul_glyphinfo, any, 0, 0, 0, 8, (game.obj_descr[(game.objects[n]).oc_name_idx].oc_name), 0);
+        await add_menu(win, nul_glyphinfo, any, 0, 0, 0, 8, (game.obj_descr[(game.objects[n]).oc_name_idx].oc_name), 0);
     }
     (game.windowprocs.win_end_menu)(win, "Cast which spell?");
-    n = select_menu(win, 1, selected);
+    n = await select_menu(win, 1, selected);
     (game.windowprocs.win_destroy_nhwindow)(win);
     if (n > 0) {
         i = selected[0].item.a_int;
         free(selected);
-        return spelleffects(i, (0), (1));
+        return await spelleffects(i, (0), (1));
     }
     return 0;
 }
 /* the #cast command -- cast a spell */
-export function docast() {
+export async function docast() {
     let spell_no = 0;
-    if (getspell({ get value() { return spell_no; }, set value(_v) { spell_no = _v; } })) {
+    if (await getspell({ get value() { return spell_no; }, set value(_v) { spell_no = _v; } })) {
         cmdq_add_key(CQ_REPEAT, (((spell_no < 26) ? (97 + spell_no) : (65 + spell_no - 26))));
-        return spelleffects(game.spl_book[spell_no].sp_id, (0), (0));
+        return await spelleffects(game.spl_book[spell_no].sp_id, (0), (0));
     }
     return 4;
 }
-export function spelltypemnemonic(skill) {
+export async function spelltypemnemonic(skill) {
     switch (skill) {
         case P_ATTACK_SPELL:
             return "attack";
@@ -792,7 +762,7 @@ export function spelltypemnemonic(skill) {
         case P_MATTER_SPELL:
             return "matter";
         default:
-            impossible("Unknown spell skill, %d;", skill);
+            await impossible("Unknown spell skill, %d;", skill);
             return "";
     }
 }
@@ -801,7 +771,7 @@ export function spell_skilltype(booktype) {
 }
 /* Wizards learn what spellbooks look like based on their skill in the
    spell's school */
-export function skill_based_spellbook_id() {
+export async function skill_based_spellbook_id() {
     if (!(game.urole.mnum == (PM_WIZARD))) {
         return;
     }
@@ -831,7 +801,7 @@ export function skill_based_spellbook_id() {
                 break;
         }
         if (game.objects[booktype].oc_oc2 <= known_up_to_level) {
-            discover_object(booktype, (1), (0), (0));
+            await discover_object(booktype, (1), (0), (0));
         }
     }
 }
@@ -859,7 +829,7 @@ export function skill_based_spellbook_id() {
 
    zap is passed by value, so the move-forward doesn't change the passed
    argument. */
-export function propagate_chain_lightning(clq, zap) {
+export async function propagate_chain_lightning(clq, zap) {
     let mon = null;
     zap.x += xdir[zap.dir];
     zap.y += ydir[zap.dir];
@@ -875,13 +845,7 @@ export function propagate_chain_lightning(clq, zap) {
     if (mon && mon.mpeaceful) {
         return;
     }
-    /* chain lightning avoids peaceful and tame monsters */
-    /* When hitting a monster that isn't electricity-resistant, a
-       particular chain lightning zap regains all its power, allowing it to
-       chain to other monsters; upon hitting a shock-resistant monster it
-       can't continue any further, but we let it hit the monster to show
-       the shield effect */
-    if (mon && !Resists_Elem(mon, SHOCK_RES) && !defended(mon, 6)) {
+    if (mon && !await Resists_Elem(mon, SHOCK_RES) && !await defended(mon, 6)) {
         zap.strength = 3;
     } else if (mon) {
         zap.strength = 0;
@@ -901,22 +865,19 @@ export function propagate_chain_lightning(clq, zap) {
     /* This array access must be inbounds due to the CHAIN_LIGHTNING_LIMIT
        check earlier. */
     Object.assign(clq.q[clq.tail++], zap);
-    tmp_at((-6), zapdir_to_glyph(xdir[zap.dir], ydir[zap.dir], clq.displayed_beam));
-    tmp_at(zap.x, zap.y);
+    await tmp_at((-6), await zapdir_to_glyph(xdir[zap.dir], ydir[zap.dir], clq.displayed_beam));
+    await tmp_at(zap.x, zap.y);
 }
-export function cast_chain_lightning() {
+export async function cast_chain_lightning() {
     let clq = { q: [{ dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }, { dir: 0, x: 0, y: 0, strength: 0 }], head: 0, tail: 0, displayed_beam: (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? rn2_on_display_rng(6) : (6 - 1) };
     if (game.u.uswallow) {
         return;
     }
-    /* set the type of beam we're using; the direction here is arbitrary
-       because we change the beam direction just before drawing the beam
-       anyway */
-    tmp_at((-1), zapdir_to_glyph(0, 1, clq.displayed_beam));
+    await tmp_at((-1), await zapdir_to_glyph(0, 1, clq.displayed_beam));
     for (let dir = 0; dir < (N_DIRS_Z - 2); dir++) {
         /* start by propagating in all directions from the caster */
         let zap = { dir: dir, x: game.u.ux, y: game.u.uy, strength: 2 };
-        propagate_chain_lightning(clq, zap);
+        await propagate_chain_lightning(clq, zap);
     }
     (game.windowprocs.win_delay_output)();
     while (clq.head < clq.tail) {
@@ -930,23 +891,19 @@ export function cast_chain_lightning() {
                 let unused = null;
                 let dmg = 0;
                 game.notonhead = (mon.mx != game.bhitpos.x || mon.my != game.bhitpos.y);
-                dmg = zhitm(mon, (10 + (6 - 1)), 2, { get value() { return unused; }, set value(_v) { unused = _v; } });
+                dmg = await zhitm(mon, (10 + (6 - 1)), 2, { get value() { return unused; }, set value(_v) { unused = _v; } });
                 if (dmg) {
                     if (((mon).mhp < 1)) {
-                        /* mon has been damaged, but we haven't yet printed the
-                       messages or given kill credit; assume the hero can
-                       sense their spell hitting monsters, because they can
-                       steer it away from peacefuls */
-                        xkilled(mon, 0);
+                        await xkilled(mon, 0);
                     } else {
-                        pline("You shock %s%s", mon_nam(mon), exclam(dmg));
+                        await pline("You shock %s%s", await mon_nam(mon), exclam(dmg));
                         /* if a long worm, only map 'I' for its head */
                         if (!canseemon(mon) && !game.notonhead) {
-                            map_invisible(zap.x, zap.y);
+                            await map_invisible(zap.x, zap.y);
                         }
                     }
                 } else if (canseemon(mon)) {
-                    pline("%s resists.", Monnam(mon));
+                    await pline("%s resists.", await Monnam(mon));
                 }
                 if (!((mon).mhp < 1)) {
                     /* wakeup is via attack, but since mon is already
@@ -955,7 +912,7 @@ export function cast_chain_lightning() {
                        it as seeing hero attack a peaceful; mimic will be
                        exposed; forcefight makes hider unhide */
                     game.context.forcefight++;
-                    wakeup(mon, (0));
+                    await wakeup(mon, (0));
                     game.context.forcefight--;
                 }
             }
@@ -969,7 +926,7 @@ export function cast_chain_lightning() {
             }
             /* happens upon hitting a shock-resistant monster */
             zap.strength--;
-            propagate_chain_lightning(clq, zap);
+            await propagate_chain_lightning(clq, zap);
             if (zap.strength < 2) {
                 zap.strength = 0;
             } else if (game.u.uen > 0) {
@@ -977,17 +934,17 @@ export function cast_chain_lightning() {
             }
             /* propagating past mons increases Pw cost a bit */
             zap.dir = (((zap.dir) + 7) % (N_DIRS_Z - 2));
-            propagate_chain_lightning(clq, zap);
+            await propagate_chain_lightning(clq, zap);
             zap.dir = (((zap.dir) + 2) % (N_DIRS_Z - 2));
-            propagate_chain_lightning(clq, zap);
+            await propagate_chain_lightning(clq, zap);
         }
         (game.windowprocs.win_delay_output)();
     }
     (game.windowprocs.win_delay_output)();
     (game.windowprocs.win_delay_output)();
-    tmp_at((-7), 0);
+    await tmp_at((-7), 0);
 }
-export function cast_protection() {
+export async function cast_protection() {
     let l = game.u.ulevel;
     let loglev = 0;
     let gain = 0;
@@ -1030,12 +987,12 @@ export function cast_protection() {
             let hgolden = hcolor(c_color_names.c_golden);
             let atmosphere = null;
             if (game.u.uspellprot) {
-                pline_The("%s haze around you becomes more dense.", hgolden);
+                await pline_The("%s haze around you becomes more dense.", hgolden);
             } else {
                 let pm = game.u.ustuck ? game.u.ustuck.data : null;
                 rmtyp = game.level.locations[game.u.ux][game.u.uy].typ;
                 atmosphere = (pm && game.u.uswallow) ? ((pm == game.mons[PM_FOG_CLOUD]) ? "mist" : ((pm).mlet == S_VORTEX || (pm) == game.mons[PM_AIR_ELEMENTAL]) ? "maelstrom" : (dmgtype_fromattack((pm), 28, 11) != null) ? "folds" : (((pm).mflags1 & 262144) != 0) ? "maw" : "ooze") : (game.u.uinwater ? hliquid("water") : (rmtyp == CLOUD) ? "cloud" : ((rmtyp) == TREE || (game.level.flags.arboreal && (rmtyp) == STONE)) ? "vegetation" : ((rmtyp) <= DBWALL) ? "stone" : "air");
-                pline_The("%s around you begins to shimmer with %s haze.", atmosphere, an(hgolden));
+                await pline_The("%s around you begins to shimmer with %s haze.", atmosphere, await an(hgolden));
             }
         }
         game.u.uspellprot += gain;
@@ -1045,11 +1002,11 @@ export function cast_protection() {
         }
         find_ac();
     } else {
-        Your("skin feels warm for a moment.");
+        await Your("skin feels warm for a moment.");
     }
 }
 /* attempting to cast a forgotten spell will cause disorientation */
-export function spell_backfire(spell) {
+export async function spell_backfire(spell) {
     let duration = ((game.spl_book[spell].sp_lev + 1) * 3);
     let old_stun = (game.u.uprops[STUNNED].intrinsic & 16777215);
     let old_conf = (game.u.uprops[CONFUSION].intrinsic & 16777215);
@@ -1058,30 +1015,30 @@ export function spell_backfire(spell) {
         case 1:
         case 2:
         case 3:
-            make_confused(old_conf + duration, (0));
+            await make_confused(old_conf + duration, (0));
             break;
         case 4:
         case 5:
         case 6:
-            make_confused(old_conf + Math.trunc(2 * duration / 3), (0));
-            make_stunned(old_stun + Math.trunc(duration / 3), (0));
+            await make_confused(old_conf + Math.trunc(2 * duration / 3), (0));
+            await make_stunned(old_stun + Math.trunc(duration / 3), (0));
             break;
         case 7:
         case 8:
-            make_stunned(old_stun + Math.trunc(2 * duration / 3), (0));
-            make_confused(old_conf + Math.trunc(duration / 3), (0));
+            await make_stunned(old_stun + Math.trunc(2 * duration / 3), (0));
+            await make_confused(old_conf + Math.trunc(duration / 3), (0));
             break;
         case 9:
-            make_stunned(old_stun + duration, (0));
+            await make_stunned(old_stun + duration, (0));
             break;
     }
     return;
 }
-export function spelleffects_check(spell, res, energy) {
+export async function spelleffects_check(spell, res, energy) {
     let chance = 0;
     let confused = (game.u.uprops[CONFUSION].intrinsic != 0);
     energy.value = 0;
-    if ((spell == (-1)) || rejectcasting()) {
+    if ((spell == (-1)) || await rejectcasting()) {
         /*
      * Reject attempting to cast while stunned or with no free hands.
      * Already done in getspell() to stop casting before choosing
@@ -1100,13 +1057,9 @@ export function spelleffects_check(spell, res, energy) {
      */
     energy.value = ((game.spl_book[spell].sp_lev) * 5);
     if (game.spl_book[spell].sp_know <= 0) {
-        /*
-     * Spell casting no longer affects knowledge of the spell. A
-     * decrement of spell knowledge is done every turn.
-     */
-        Your("knowledge of this spell is twisted.");
-        pline("It invokes nightmarish images in your mind...");
-        spell_backfire(spell);
+        await Your("knowledge of this spell is twisted.");
+        await pline("It invokes nightmarish images in your mind...");
+        await spell_backfire(spell);
         game.u.uen -= rnd(energy.value);
         if (game.u.uen < 0) {
             game.u.uen = 0;
@@ -1116,33 +1069,28 @@ export function spelleffects_check(spell, res, energy) {
         res.value = 1;
         return (1);
     } else if (game.spl_book[spell].sp_know <= Math.trunc(20000 / 200)) {
-        You("strain to recall the spell.");
+        await You("strain to recall the spell.");
     } else if (game.spl_book[spell].sp_know <= Math.trunc(20000 / 40)) {
-        You("have difficulty remembering the spell.");
+        await You("have difficulty remembering the spell.");
     } else if (game.spl_book[spell].sp_know <= Math.trunc(20000 / 20)) {
-        Your("knowledge of this spell is growing faint.");
+        await Your("knowledge of this spell is growing faint.");
     } else if (game.spl_book[spell].sp_know <= Math.trunc(20000 / 10)) {
-        Your("recall of this spell is gradually fading.");
+        await Your("recall of this spell is gradually fading.");
     }
     if (game.u.uhunger <= 10 && game.spl_book[spell].sp_id != SPE_DETECT_FOOD) {
-        You("are too hungry to cast that spell.");
+        await You("are too hungry to cast that spell.");
         res.value = 0;
         return (1);
     } else if ((acurr(A_STR)) < 4 && game.spl_book[spell].sp_id != SPE_RESTORE_ABILITY) {
-        You("lack the strength to cast spells.");
+        await You("lack the strength to cast spells.");
         res.value = 0;
         return (1);
-    } else if (check_capacity("Your concentration falters while carrying so much stuff.")) {
+    } else if (await check_capacity("Your concentration falters while carrying so much stuff.")) {
         res.value = 1;
         return (1);
     }
     if (game.u.uhave.amulet && game.u.uen >= energy.value) {
-        /* if the cast attempt is already going to fail due to insufficient
-       energy (ie, u.uen < energy), the Amulet's drain effect won't kick
-       in and no turn will be consumed; however, when it does kick in,
-       the attempt may fail due to lack of energy after the draining, in
-       which case a turn will be used up in addition to the energy loss */
-        You_feel("the amulet draining your energy away.");
+        await You_feel("the amulet draining your energy away.");
         /* this used to be 'energy += rnd(2 * energy)' (without 'res'),
            so if amulet-induced cost was more than u.uen, nothing
            (except the "don't have enough energy" message) happened
@@ -1157,16 +1105,7 @@ export function spelleffects_check(spell, res, energy) {
         res.value = 1;
     }
     if (energy.value > game.u.uen) {
-        /*
-         * Hero has insufficient energy/power to cast the spell.
-         * Augment the message when current energy is at maximum.
-         * "yet": mainly for level 1 characters who already know a spell
-         * but don't start with enough energy to cast it.
-         * "anymore": maximum energy was high enough at some point but
-         * isn't now (lost energy when losing levels or polymorphing into
-         * new person or had some stripped away by traps or monsters).
-         */
-        You("don't have enough energy to cast that spell%s.", (game.u.uen < game.u.uenmax) ? "" : (energy.value > game.u.uenpeak) ? " yet" : " anymore");
+        await You("don't have enough energy to cast that spell%s.", (game.u.uen < game.u.uenmax) ? "" : (energy.value > game.u.uenpeak) ? " yet" : " anymore");
         return (1);
     } else {
         if (game.spl_book[spell].sp_id != SPE_DETECT_FOOD) {
@@ -1217,12 +1156,12 @@ export function spelleffects_check(spell, res, energy) {
             if (hungr > game.u.uhunger - 3) {
                 hungr = game.u.uhunger - 3;
             }
-            morehungry(hungr);
+            await morehungry(hungr);
         }
     }
-    chance = percent_success(spell);
+    chance = await percent_success(spell);
     if (confused || (rnd(100) > chance)) {
-        You("fail to cast the spell correctly.");
+        await You("fail to cast the spell correctly.");
         game.u.uen -= Math.trunc(energy.value / 2);
         game.disp.botl = (1);
         res.value = 1;
@@ -1232,7 +1171,7 @@ export function spelleffects_check(spell, res, energy) {
 }
 /* hero casts a spell of type spell_otyp, eg. SPE_SLEEP.
    hero must know the spell (unless force is TRUE). */
-export function spelleffects(spell_otyp, atme, force) {
+export async function spelleffects(spell_otyp, atme, force) {
     let spell = force ? spell_otyp : spell_idx(spell_otyp);
     let energy = 0;
     let damage = 0;
@@ -1244,14 +1183,13 @@ export function spelleffects(spell_otyp, atme, force) {
     let physical_damage = (0);
     let pseudo = null;
     let cc = { x: 0, y: 0 };
-    if (!force && spelleffects_check(spell, { get value() { return res; }, set value(_v) { res = _v; } }, { get value() { return energy; }, set value(_v) { energy = _v; } })) {
+    if (!force && await spelleffects_check(spell, { get value() { return res; }, set value(_v) { res = _v; } }, { get value() { return energy; }, set value(_v) { energy = _v; } })) {
         return res;
     }
     game.u.uen -= energy;
     game.disp.botl = (1);
-    exercise(A_WIS, (1));
-    /* pseudo is a temporary "false" object containing the spell stats */
-    pseudo = mksobj(force ? spell : game.spl_book[spell].sp_id, (0), (0));
+    await exercise(A_WIS, (1));
+    pseudo = await mksobj(force ? spell : game.spl_book[spell].sp_id, (0), (0));
     pseudo.blessed = pseudo.cursed = 0;
     pseudo.quan = 20;
     /*
@@ -1265,7 +1203,7 @@ export function spelleffects(spell_otyp, atme, force) {
         case SPE_FIREBALL:
         case SPE_CONE_OF_COLD:
             if (role_skill >= P_SKILLED) {
-                if (throwspell()) {
+                if (await throwspell()) {
                     /*
      * At first spells act as expected.  As the hero increases in skill
      * with the appropriate spell type, some spells increase in their
@@ -1277,13 +1215,13 @@ export function spelleffects(spell_otyp, atme, force) {
                     n = rnd(8) + 1;
                     while (n--) {
                         if (!game.u.dx && !game.u.dy && !game.u.dz) {
-                            if ((damage = zapyourself(pseudo, (1))) != 0) {
+                            if ((damage = await zapyourself(pseudo, (1))) != 0) {
                                 let buf = '';
                                 buf = sprintf(buf, "zapped %sself with a spell", (genders[game.flags.female ? 1 : 0].him));
-                                losehp(damage, buf, 2);
+                                await losehp(damage, buf, 2);
                             }
                         } else {
-                            explode(game.u.dx, game.u.dy, otyp - SPE_MAGIC_MISSILE + 10, spell_damage_bonus(Math.trunc(game.u.ulevel / 2) + 1), 0, (otyp == SPE_CONE_OF_COLD) ? EXPL_FROSTY : EXPL_FIERY);
+                            await explode(game.u.dx, game.u.dy, otyp - SPE_MAGIC_MISSILE + 10, spell_damage_bonus(Math.trunc(game.u.ulevel / 2) + 1), 0, (otyp == SPE_CONE_OF_COLD) ? EXPL_FROSTY : EXPL_FIERY);
                         }
                         game.u.dx = cc.x + rnd(3) - 2;
                         game.u.dy = cc.y + rnd(3) - 2;
@@ -1328,32 +1266,23 @@ export function spelleffects(spell_otyp, atme, force) {
                 }
                 if (atme) {
                     game.u.dx = game.u.dy = game.u.dz = 0;
-                } else if (!getdir(null)) {
-                    /* getdir cancelled, re-use previous direction */
-                    /*
-                 * FIXME:  reusing previous direction only makes sense
-                 * if there is an actual previous direction.  When there
-                 * isn't one, the spell gets cast at self which is rarely
-                 * what the player intended.  Unfortunately, the way
-                 * spelleffects() is organized means that aborting with
-                 * "nevermind" is not an option.
-                 */
-                    pline_The("magical energy is released!");
+                } else if (!await getdir(null)) {
+                    await pline_The("magical energy is released!");
                 }
                 if (!game.u.dx && !game.u.dy && !game.u.dz) {
-                    if ((damage = zapyourself(pseudo, (1))) != 0) {
+                    if ((damage = await zapyourself(pseudo, (1))) != 0) {
                         let buf = '';
                         buf = sprintf(buf, "zapped %sself with a spell", (genders[game.flags.female ? 1 : 0].him));
                         if (physical_damage) {
                             damage = (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((damage) + 1) / 2)) : (damage));
                         }
-                        losehp(damage, buf, 2);
+                        await losehp(damage, buf, 2);
                     }
                 } else {
-                    weffects(pseudo);
+                    await weffects(pseudo);
                 }
             } else {
-                weffects(pseudo);
+                await weffects(pseudo);
             }
             update_inventory();
             break;
@@ -1370,7 +1299,7 @@ export function spelleffects(spell_otyp, atme, force) {
             ;
         case SPE_MAGIC_MAPPING:
         case SPE_CREATE_MONSTER:
-            seffects(pseudo);
+            await seffects(pseudo);
             break;
         /* these are all duplicates of potion effects */
         case SPE_HASTE_SELF:
@@ -1383,11 +1312,11 @@ export function spelleffects(spell_otyp, atme, force) {
             }
             ;
         case SPE_INVISIBILITY:
-            peffects(pseudo);
+            await peffects(pseudo);
             break;
         /* end of potion-like spells */
         case SPE_CURE_BLINDNESS:
-            healup(0, 0, (0), (1));
+            await healup(0, 0, (0), (1));
             break;
         case SPE_CURE_SICKNESS:
 {
@@ -1395,58 +1324,48 @@ export function spelleffects(spell_otyp, atme, force) {
                 /* high skill yields effect equivalent to blessed potion */
                 let was_sick = !!game.u.uprops[SICK].intrinsic;
                 let was_slimed = !!game.u.uprops[SLIMED].intrinsic;
-                /* cure conditions (which updates status) before feedback */
-                healup(0, 0, (1), (0));
-                /*
-         *  Sick + !Slimed -- You are no longer ill.
-         * !Sick + !Slimed -- You are not ill.
-         * !Sick +  Slimed -- The slime disappears.
-         *  Sick +  Slimed -- You are no longer ill.  The slime disappears.
-         */
+                await healup(0, 0, (1), (0));
                 if (was_sick || !was_slimed) {
-                    You("are %s ill.", was_sick ? "no longer" : "not");
+                    await You("are %s ill.", was_sick ? "no longer" : "not");
                 }
                 if (was_slimed) {
-                    make_slimed(0, "The slime disappears!");
+                    await make_slimed(0, "The slime disappears!");
                 }
                 break;
             }
         case SPE_CREATE_FAMILIAR:
-            make_familiar(null, game.u.ux, game.u.uy, (0));
+            await make_familiar(null, game.u.ux, game.u.uy, (0));
             break;
         case SPE_CLAIRVOYANCE:
             if (!game.u.uprops[CLAIRVOYANT].blocked) {
                 if (role_skill >= P_SKILLED) {
                     pseudo.blessed = 1;
                 }
-                /* detect monsters as well as map */
-                /* at present, only one thing blocks clairvoyance */
-                do_vicinity_map(pseudo);
+                await do_vicinity_map(pseudo);
             } else if (game.uarmh && game.uarmh.otyp == CORNUTHAUM) {
-                You("sense a pointy hat on top of your %s.", body_part(HEAD));
+                await You("sense a pointy hat on top of your %s.", await body_part(HEAD));
             }
             break;
         case SPE_PROTECTION:
-            cast_protection();
+            await cast_protection();
             break;
         case SPE_JUMPING:
-            if (!(jump(((role_skill) > (1) ? (role_skill) : (1))) & 1)) {
-                pline("%s", c_common_strings.c_nothing_happens);
+            if (!(await jump(((role_skill) > (1) ? (role_skill) : (1))) & 1)) {
+                await pline("%s", c_common_strings.c_nothing_happens);
             }
             break;
         case SPE_CHAIN_LIGHTNING:
-            cast_chain_lightning();
+            await cast_chain_lightning();
             break;
         default:
-            impossible("Unknown spell %d attempted.", spell);
-            obfree(pseudo, null);
+            await impossible("Unknown spell %d attempted.", spell);
+            await obfree(pseudo, null);
             return 0;
     }
-    /* gain skill for successful cast */
     if (!force) {
-        use_skill(skill, game.spl_book[spell].sp_lev);
+        await use_skill(skill, game.spl_book[spell].sp_lev);
     }
-    obfree(pseudo, null);
+    await obfree(pseudo, null);
     return 1;
 }
 /*ARGSUSED*/
@@ -1466,14 +1385,14 @@ export function can_center_spell_location(x, y) {
     }
     return (isok(x, y) && ((game.viz_array[y][x] & 2) != 0) && !(((game.level.locations[x][y].typ) <= DBWALL)));
 }
-export function display_spell_target_positions(on_off) {
+export async function display_spell_target_positions(on_off) {
     let x = 0;
     let y = 0;
     let dx = 0;
     let dy = 0;
     let dist = 10;
     if (on_off) {
-        tmp_at((-1), (((S_goodpos) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((S_goodpos) <= S_trwall) ? ((S_goodpos) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((S_goodpos) < S_altar) ? (((S_goodpos) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((S_goodpos) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((S_goodpos) < S_arrow_trap + (TRAPNUM - 1)) ? (((S_goodpos) - S_grave) + GLYPH_CMAP_B_OFF) : ((S_goodpos) <= S_goodpos) ? (((S_goodpos) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
+        await tmp_at((-1), (((S_goodpos) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((S_goodpos) <= S_trwall) ? ((S_goodpos) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((S_goodpos) < S_altar) ? (((S_goodpos) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((S_goodpos) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((S_goodpos) < S_arrow_trap + (TRAPNUM - 1)) ? (((S_goodpos) - S_grave) + GLYPH_CMAP_B_OFF) : ((S_goodpos) <= S_goodpos) ? (((S_goodpos) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
         for (dx = -dist; dx <= dist; dx++) {
             for (dy = -dist; dy <= dist; dy++) {
                 x = game.u.ux + dx;
@@ -1485,47 +1404,45 @@ export function display_spell_target_positions(on_off) {
                     continue;
                 }
                 if (can_center_spell_location(x, y)) {
-                    tmp_at(x, y);
+                    await tmp_at(x, y);
                 }
             }
         }
     } else {
-        tmp_at((-7), 0);
+        await tmp_at((-7), 0);
     }
 }
 /* Choose location where spell takes effect. */
-export function throwspell() {
+export async function throwspell() {
     let cc = { x: 0, y: 0 };
     let uc = { x: 0, y: 0 };
     let mtmp = null;
     if (game.u.uinwater) {
-        pline("You're joking!  In this weather?");
+        await pline("You're joking!  In this weather?");
         return 0;
     } else if ((((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level))))) {
-        You("had better wait for the sun to come out.");
+        await You("had better wait for the sun to come out.");
         return 0;
     }
-    pline("Where do you want to cast the spell?");
+    await pline("Where do you want to cast the spell?");
     cc.x = game.u.ux;
     cc.y = game.u.uy;
-    getpos_sethilite(display_spell_target_positions, can_center_spell_location);
-    if (getpos(cc, (1), "the desired position") < 0) {
+    await getpos_sethilite(display_spell_target_positions, can_center_spell_location);
+    if (await getpos(cc, (1), "the desired position") < 0) {
         return 0;
     }
     (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
     if (distmin(game.u.ux, game.u.uy, cc.x, cc.y) > 10) {
-        /* discard any autodescribe feedback */
-        /* The number of moves from hero to where the spell drops.*/
-        pline_The("spell dissipates over the distance!");
+        await pline_The("spell dissipates over the distance!");
         return 0;
     } else if (game.u.uswallow) {
-        pline_The("spell is cut short!");
-        exercise(A_WIS, (0));
+        await pline_The("spell is cut short!");
+        await exercise(A_WIS, (0));
         game.u.dx = 0;
         game.u.dy = 0;
         return 1;
     } else if (((cc.x != game.u.ux || cc.y != game.u.uy) && !((game.viz_array[cc.y][cc.x] & 2) != 0) && (!(mtmp = (game.level.monsters[cc.x][cc.y])) || !(canseemon(mtmp) || sensemon(mtmp)))) || ((game.level.locations[cc.x][cc.y].typ) <= DBWALL)) {
-        Your("mind fails to lock onto that location!");
+        await Your("mind fails to lock onto that location!");
         return 0;
     }
     uc.x = game.u.ux;
@@ -1538,7 +1455,8 @@ export function throwspell() {
 /* add/hide/remove/unhide teleport-away on behalf of dotelecmd() to give
    more control to behavior of ^T when used in wizard mode */
 let __tport_spell_save_tport = { savespell: { sp_id: 0, sp_lev: 0, sp_know: 0 }, tport_indx: 0 };
-export function tport_spell(what) {
+__nh_register_static(() => { __tport_spell_save_tport = { savespell: { sp_id: 0, sp_lev: 0, sp_know: 0 }, tport_indx: 0 }; });
+export async function tport_spell(what) {
     let i = 0;
     /* also defined in teleport.c */
     for (i = 0; i < MAXSPELL; i++) {
@@ -1547,8 +1465,7 @@ export function tport_spell(what) {
         }
     }
     if (i == MAXSPELL) {
-        /* wizard mode ^T is not able to honor player's menu choice */
-        impossible("tport_spell: spellbook full");
+        await impossible("tport_spell: spellbook full");
     } else if (game.spl_book[i].sp_id == 0) {
         if (what == 1 || what == 4) {
             /* spellid(i) == SPE_TELEPORT_AWAY */
@@ -1558,7 +1475,7 @@ export function tport_spell(what) {
             Object.assign(game.spl_book[__tport_spell_save_tport.tport_indx], __tport_spell_save_tport.savespell);
             __tport_spell_save_tport.tport_indx = MAXSPELL;
         } else if (what == 2) {
-            __tport_spell_save_tport.savespell = game.spl_book[i];
+            Object.assign(__tport_spell_save_tport.savespell, game.spl_book[i]);
             __tport_spell_save_tport.tport_indx = i;
             game.spl_book[i].sp_id = SPE_TELEPORT_AWAY;
             game.spl_book[i].sp_lev = game.objects[SPE_TELEPORT_AWAY].oc_oc2;
@@ -1574,7 +1491,7 @@ export function tport_spell(what) {
             Object.assign(game.spl_book[i], __tport_spell_save_tport.savespell);
             __tport_spell_save_tport.tport_indx = MAXSPELL;
         } else if (what == 1) {
-            __tport_spell_save_tport.savespell = game.spl_book[i];
+            Object.assign(__tport_spell_save_tport.savespell, game.spl_book[i]);
             __tport_spell_save_tport.tport_indx = i;
             game.spl_book[i].sp_id = 0;
             return 3;
@@ -1585,7 +1502,7 @@ export function tport_spell(what) {
 /* forget a random selection of known spells due to amnesia;
    they used to be lost entirely, as if never learned, but now we
    just set the memory retention to zero so that they can't be cast */
-export function losespells() {
+export async function losespells() {
     let n = 0;
     let nzap = 0;
     let i = 0;
@@ -1635,12 +1552,7 @@ export function losespells() {
      */
         if (rn2(n - i) < nzap) {
             game.spl_book[i].sp_know = 0;
-            /* when nzap is small relative to the number of spells left,
-           the chance to lose spell [i] is small; as the number of
-           remaining candidates shrinks, the chance per candidate
-           gets bigger; overall, exactly nzap entries are affected */
-            /* lose access to spell [i] */
-            exercise(A_WIS, (0));
+            await exercise(A_WIS, (0));
             /* there's now one less spell slated to be forgotten */
             --nzap;
         }
@@ -1734,7 +1646,7 @@ export function spell_cmp(vptr1, vptr2) {
 /* sort the index used for display order of the "view known spells"
    list (sortmode == SORTBY_xxx), or sort the spellbook itself to make
    the current display order stick (sortmode == SORTRETAINORDER) */
-export function sortspells() {
+export async function sortspells() {
     let i = 0;
     let n = 0;
     if (game.spl_sortmode == SORTBY_CURRENT) {
@@ -1772,15 +1684,14 @@ export function sortspells() {
         game.spl_sortmode = SORTBY_LETTER;
         return;
     }
-    /* usual case, sort the index rather than the spells themselves */
-    qsort(game.spl_orderindx, n, 4 /* sizeof(int) */, spell_cmp);
+    await qsort_async(game.spl_orderindx, n, 4 /* sizeof(int) */, spell_cmp);
     return;
 }
 /* called if the [sort spells] entry in the view spells menu gets chosen */
-export function spellsortmenu() {
+export async function spellsortmenu() {
     let tmpwin = 0;
     let selected = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let let_ = 0;
     let i = 0;
     let n = 0;
@@ -1788,21 +1699,20 @@ export function spellsortmenu() {
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; i < (Math.trunc(9 /* sizeof(const char *const [9]) */ / 1 /* sizeof(const char *const) */)); i++) {
         if (i == SORTRETAINORDER) {
             /* assumes fewer than 26 sort choices... */
             let_ = 122;
-            /* separate final choice from others with a blank line */
-            add_menu_str(tmpwin, "");
+            await add_menu_str(tmpwin, "");
         } else {
             let_ = 97 + i;
         }
         any.a_int = i + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, let_, 0, 0, clr, spl_sortchoices[i], (i == game.spl_sortmode) ? 1 : 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, let_, 0, 0, clr, spl_sortchoices[i], (i == game.spl_sortmode) ? 1 : 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "View known spells list sorted");
-    n = select_menu(tmpwin, 1, selected);
+    n = await select_menu(tmpwin, 1, selected);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (n > 0) {
         choice = selected[0].item.a_int - 1;
@@ -1817,22 +1727,22 @@ export function spellsortmenu() {
     return (0);
 }
 /* the #showspells command -- view known spells */
-export function dovspell() {
+export async function dovspell() {
     let qbuf = '';
     let splnum = 0;
     let othnum = 0;
     let spl_tmp = { sp_id: 0, sp_lev: 0, sp_know: 0 };
     if (game.spl_book[0].sp_id == 0) {
-        You("don't know any spells right now.");
+        await You("don't know any spells right now.");
     } else {
-        while (dospellmenu("Currently known spells", (-1), { get value() { return splnum; }, set value(_v) { splnum = _v; } })) {
+        while (await dospellmenu("Currently known spells", (-1), { get value() { return splnum; }, set value(_v) { splnum = _v; } })) {
             if (splnum == (MAXSPELL)) {
-                if (spellsortmenu()) {
-                    sortspells();
+                if (await spellsortmenu()) {
+                    await sortspells();
                 }
             } else {
                 qbuf = sprintf(qbuf, "Reordering spells; swap '%c' with", (((splnum < 26) ? (97 + splnum) : (65 + splnum - 26))));
-                if (!dospellmenu(qbuf, splnum, { get value() { return othnum; }, set value(_v) { othnum = _v; } })) {
+                if (!await dospellmenu(qbuf, splnum, { get value() { return othnum; }, set value(_v) { othnum = _v; } })) {
                     break;
                 }
                 Object.assign(spl_tmp, game.spl_book[splnum]);
@@ -1849,14 +1759,14 @@ export function dovspell() {
     return 0;
 }
 /* lists spells for endgame dumplog purposes */
-export function show_spells() {
+export async function show_spells() {
     let unused = (-3);
     if (game.spl_book[0].sp_id == 0) {
-        pline("You didn't know any spells.");
-        pline("%s", "");
+        await pline("You didn't know any spells.");
+        await pline("%s", "");
     } else {
-        pline("Spells:");
-        ((dospellmenu("", (-3), { get value() { return unused; }, set value(_v) { unused = _v; } })));
+        await pline("Spells:");
+        ((await dospellmenu("", (-3), { get value() { return unused; }, set value(_v) { unused = _v; } })));
     }
 }
 /* shows menu of known spells, with options to sort them.
@@ -1864,7 +1774,7 @@ export function show_spells() {
    spell_no is set to the internal spl_book index, if any selected */
 /* SPELLMENU_CAST, SPELLMENU_VIEW, SPELLMENU_DUMP or
                     * svs.spl_book[] index */
-export function dospellmenu(prompt, splaction, spell_no) {
+export async function dospellmenu(prompt, splaction, spell_no) {
     let tmpwin = 0;
     let i = 0;
     let n = 0;
@@ -1875,11 +1785,11 @@ export function dospellmenu(prompt, splaction, spell_no) {
     let sep = 0;
     let fmt = null;
     let selected = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     /*
      * The correct spacing of the columns when not using
      * tab separation depends on the following:
@@ -1901,15 +1811,15 @@ export function dospellmenu(prompt, splaction, spell_no) {
     if (game.flags.debug) {
         buf = __nh_buf_append(buf, sprintf('', "%c%6s", sep, "turns"));
     }
-    add_menu_heading(tmpwin, buf);
+    await add_menu_heading(tmpwin, buf);
     for (i = 0; i < MAXSPELL && game.spl_book[i].sp_id != 0; i++) {
         splnum = !game.spl_orderindx ? i : game.spl_orderindx[i];
-        buf = sprintf(buf, fmt, (game.obj_descr[(game.objects[game.spl_book[splnum].sp_id]).oc_name_idx].oc_name), game.spl_book[splnum].sp_lev, spelltypemnemonic(spell_skilltype(game.spl_book[splnum].sp_id)), 100 - percent_success(splnum), spellretention(splnum, retentionbuf));
+        buf = sprintf(buf, fmt, (game.obj_descr[(game.objects[game.spl_book[splnum].sp_id]).oc_name_idx].oc_name), game.spl_book[splnum].sp_lev, await spelltypemnemonic(spell_skilltype(game.spl_book[splnum].sp_id)), 100 - await percent_success(splnum), spellretention(splnum, retentionbuf));
         if (game.flags.debug) {
             buf = __nh_buf_append(buf, sprintf('', "%c%6d", sep, game.spl_book[i].sp_know));
         }
         any.a_int = splnum + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, (((splnum < 26) ? (97 + splnum) : (65 + splnum - 26))), 0, 0, clr, buf, (splnum == splaction) ? 1 : 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, (((splnum < 26) ? (97 + splnum) : (65 + splnum - 26))), 0, 0, clr, buf, (splnum == splaction) ? 1 : 0);
     }
     how = 1;
     if (splaction == (-1)) {
@@ -1919,11 +1829,11 @@ export function dospellmenu(prompt, splaction, spell_no) {
         } else {
             /* more than 1 spell, add an extra menu entry */
             any.a_int = (MAXSPELL) + 1;
-            add_menu(tmpwin, nul_glyphinfo, any, 43, 0, 0, clr, "[sort spells]", 0);
+            await add_menu(tmpwin, nul_glyphinfo, any, 43, 0, 0, clr, "[sort spells]", 0);
         }
     }
     (game.windowprocs.win_end_menu)(tmpwin, prompt);
-    n = select_menu(tmpwin, how, selected);
+    n = await select_menu(tmpwin, how, selected);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (n > 0) {
         spell_no.value = selected[0].item.a_int - 1;
@@ -1947,7 +1857,7 @@ export function dospellmenu(prompt, splaction, spell_no) {
     }
     return (0);
 }
-export function percent_success(spell) {
+export async function percent_success(spell) {
     /* Intrinsic and learned ability are combined to calculate
      * the probability of player's success at casting a given spell.
      */
@@ -2032,7 +1942,7 @@ export function percent_success(spell) {
     if (chance > 120) {
         chance = 120;
     }
-    if (game.uarms && weight(game.uarms) > game.objects[SMALL_SHIELD].oc_weight) {
+    if (game.uarms && await weight(game.uarms) > game.objects[SMALL_SHIELD].oc_weight) {
         if (game.spl_book[spell].sp_id == game.urole.spelspec) {
             /* Wearing anything but a light shield makes it very awkward
      * to cast a spell.  The penalty is not quite so bad for the
@@ -2096,7 +2006,7 @@ export function spellretention(idx, outbuf) {
     return outbuf;
 }
 /* Learn a spell during creation of the initial inventory */
-export function initialspell(obj) {
+export async function initialspell(obj) {
     let i = 0;
     let otyp = obj.otyp;
     for (i = 0; i < MAXSPELL; i++) {
@@ -2105,10 +2015,9 @@ export function initialspell(obj) {
         }
     }
     if (i == MAXSPELL) {
-        impossible("Too many spells memorized!");
+        await impossible("Too many spells memorized!");
     } else if (game.spl_book[i].sp_id != 0) {
-        /* initial inventory shouldn't contain duplicate spellbooks */
-        impossible("Spell %s already known.", (game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name));
+        await impossible("Spell %s already known.", (game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name));
     } else {
         /* for a going-stale or forgotten spell the sp_id and sp_lev assignments
        are redundant but harmless; for an unknown spell, they're essential */
@@ -2141,7 +2050,7 @@ export function spell_idx(otyp) {
     return (-1);
 }
 /* learn or refresh spell otyp, if feasible; return casting letter or '\0' */
-export function force_learn_spell(otyp) {
+export async function force_learn_spell(otyp) {
     let i = 0;
     if (otyp == SPE_BLANK_PAPER || otyp == SPE_BOOK_OF_THE_DEAD || known_spell(otyp) == spe_Fresh) {
         return 0;
@@ -2152,7 +2061,7 @@ export function force_learn_spell(otyp) {
         }
     }
     if (i == MAXSPELL) {
-        impossible("Too many spells memorized");
+        await impossible("Too many spells memorized");
         return 0;
     }
     game.spl_book[i].sp_id = otyp;
@@ -2173,11 +2082,104 @@ export function num_spells() {
     return i;
 }
 /*spell.c*/
+/* in case blind now and hasn't been seen yet */
+/* this used to say "your artifacts" but the invocation tools
+               are not artifacts */
+/* at least one relic not prepared properly */
+/* next handle the affect on things you're carrying */
+/* became confused while learning */
+/* normal book can be read and re-read a total of 4 times */
+/* (spellid(i) == NO_SPELL) */
+/* for a normal book, spestudied will be zero, but for
+           a polymorphed one, spestudied will be non-zero and
+           one less reading is available than when re-learning */
+/* pre-used due to being the product of polymorph */
+/* first is always 'a', so no need to mention the letter */
+/* handle the sequence: start reading, get interrupted, have
+           svc.context.spbook.book become erased somehow, resume reading it */
+/* KMH -- Simplified this code */
+/* give bonus of 20 xp and 4*20+0 pts */
+/* hero has just been told what spell this book is for; it may
+               have been undiscovered if spell was learned via divine gift */
+/* rejections which take place before selecting a particular spell */
+/* Note: !freehand() occurs when weapon and shield (or two-handed
+         * weapon) are welded to hands, so "arms" probably doesn't need
+         * to be makeplural(bodypart(ARM)).
+         *
+         * But why isn't lack of free arms (for gesturing) an issue when
+         * poly'd hero has no limbs?
+         */
+/* this assumes that there are at most 52 spells... */
+/* limit is mainly to prevent the fuzzer from getting stuck
+                   since hangup should hit the 'quitchars' case; fuzzer
+                   would too, but after an arbitrary number of attempts */
 /* paupers need more skill than this to ID books, but most wizards
                know the basics */
 /* makeknown(booktype) but don't exercise Wisdom or mark as
                encountered */
+/* chain lightning avoids peaceful and tame monsters */
+/* When hitting a monster that isn't electricity-resistant, a
+       particular chain lightning zap regains all its power, allowing it to
+       chain to other monsters; upon hitting a shock-resistant monster it
+       can't continue any further, but we let it hit the monster to show
+       the shield effect */
+/* set the type of beam we're using; the direction here is arbitrary
+       because we change the beam direction just before drawing the beam
+       anyway */
+/* mon has been damaged, but we haven't yet printed the
+                       messages or given kill credit; assume the hero can
+                       sense their spell hitting monsters, because they can
+                       steer it away from peacefuls */
 /* FIXME: this doesn't work, possibly because
                                cleaning up tmp_at() restores old glyph? */
+/*
+     * Spell casting no longer affects knowledge of the spell. A
+     * decrement of spell knowledge is done every turn.
+     */
+/* if the cast attempt is already going to fail due to insufficient
+       energy (ie, u.uen < energy), the Amulet's drain effect won't kick
+       in and no turn will be consumed; however, when it does kick in,
+       the attempt may fail due to lack of energy after the draining, in
+       which case a turn will be used up in addition to the energy loss */
+/*
+         * Hero has insufficient energy/power to cast the spell.
+         * Augment the message when current energy is at maximum.
+         * "yet": mainly for level 1 characters who already know a spell
+         * but don't start with enough energy to cast it.
+         * "anymore": maximum energy was high enough at some point but
+         * isn't now (lost energy when losing levels or polymorphing into
+         * new person or had some stripped away by traps or monsters).
+         */
+/* pseudo is a temporary "false" object containing the spell stats */
+/* getdir cancelled, re-use previous direction */
+/*
+                 * FIXME:  reusing previous direction only makes sense
+                 * if there is an actual previous direction.  When there
+                 * isn't one, the spell gets cast at self which is rarely
+                 * what the player intended.  Unfortunately, the way
+                 * spelleffects() is organized means that aborting with
+                 * "nevermind" is not an option.
+                 */
+/* cure conditions (which updates status) before feedback */
+/*
+         *  Sick + !Slimed -- You are no longer ill.
+         * !Sick + !Slimed -- You are not ill.
+         * !Sick +  Slimed -- The slime disappears.
+         *  Sick +  Slimed -- You are no longer ill.  The slime disappears.
+         */
+/* detect monsters as well as map */
+/* at present, only one thing blocks clairvoyance */
+/* gain skill for successful cast */
+/* discard any autodescribe feedback */
+/* The number of moves from hero to where the spell drops.*/
+/* wizard mode ^T is not able to honor player's menu choice */
+/* when nzap is small relative to the number of spells left,
+           the chance to lose spell [i] is small; as the number of
+           remaining candidates shrinks, the chance per candidate
+           gets bigger; overall, exactly nzap entries are affected */
+/* lose access to spell [i] */
+/* usual case, sort the index rather than the spells themselves */
+/* separate final choice from others with a blank line */
 /* spell has expired; hero can't successfully cast it anymore */
 /* full retention, first turn or immediately after reading book */
+/* initial inventory shouldn't contain duplicate spellbooks */

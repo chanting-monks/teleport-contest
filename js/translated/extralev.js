@@ -42,7 +42,7 @@ export function roguejoin(x1, y1, x2, y2, horiz) {
         }
     }
 }
-export function roguecorr(x, y, dir) {
+export async function roguecorr(x, y, dir) {
     let fromx = 0;
     let fromy = 0;
     let tox = 0;
@@ -60,14 +60,14 @@ export function roguecorr(x, y, dir) {
             fromx += 1 + 26 * x;
             fromy += 7 * y;
             if (!((game.level.locations[fromx][fromy].typ) && (game.level.locations[fromx][fromy].typ) <= DBWALL)) {
-                impossible("down: no wall at %d,%d?", fromx, fromy);
+                await impossible("down: no wall at %d,%d?", fromx, fromy);
             }
-            dodoor(fromx, fromy, game.rooms[game.r[x][y].nroom]);
+            await dodoor(fromx, fromy, game.rooms[game.r[x][y].nroom]);
             game.level.locations[fromx][fromy].flags = 0;
             fromy++;
         }
         if (y >= 2) {
-            impossible("down door from %d,%d going nowhere?", x, y);
+            await impossible("down door from %d,%d going nowhere?", x, y);
             return;
         }
         y++;
@@ -83,9 +83,9 @@ export function roguecorr(x, y, dir) {
             tox += 1 + 26 * x;
             toy += 7 * y;
             if (!((game.level.locations[tox][toy].typ) && (game.level.locations[tox][toy].typ) <= DBWALL)) {
-                impossible("up: no wall at %d,%d?", tox, toy);
+                await impossible("up: no wall at %d,%d?", tox, toy);
             }
-            dodoor(tox, toy, game.rooms[game.r[x][y].nroom]);
+            await dodoor(tox, toy, game.rooms[game.r[x][y].nroom]);
             game.level.locations[tox][toy].flags = 0;
             toy--;
         }
@@ -104,14 +104,14 @@ export function roguecorr(x, y, dir) {
             fromx += 1 + 26 * x;
             fromy += 7 * y;
             if (!((game.level.locations[fromx][fromy].typ) && (game.level.locations[fromx][fromy].typ) <= DBWALL)) {
-                impossible("down: no wall at %d,%d?", fromx, fromy);
+                await impossible("down: no wall at %d,%d?", fromx, fromy);
             }
-            dodoor(fromx, fromy, game.rooms[game.r[x][y].nroom]);
+            await dodoor(fromx, fromy, game.rooms[game.r[x][y].nroom]);
             game.level.locations[fromx][fromy].flags = 0;
             fromx++;
         }
         if (x >= 2) {
-            impossible("right door from %d,%d going nowhere?", x, y);
+            await impossible("right door from %d,%d going nowhere?", x, y);
             return;
         }
         x++;
@@ -127,16 +127,16 @@ export function roguecorr(x, y, dir) {
             tox += 1 + 26 * x;
             toy += 7 * y;
             if (!((game.level.locations[tox][toy].typ) && (game.level.locations[tox][toy].typ) <= DBWALL)) {
-                impossible("left: no wall at %d,%d?", tox, toy);
+                await impossible("left: no wall at %d,%d?", tox, toy);
             }
-            dodoor(tox, toy, game.rooms[game.r[x][y].nroom]);
+            await dodoor(tox, toy, game.rooms[game.r[x][y].nroom]);
             game.level.locations[tox][toy].flags = 0;
             tox--;
         }
         roguejoin(fromx, fromy, tox, toy, (1));
         return;
     } else {
-        impossible("corridor in direction %d?", dir);
+        await impossible("corridor in direction %d?", dir);
     }
 }
 /* Modified walkfrom() from mkmaze.c */
@@ -190,7 +190,7 @@ export function miniwalk(x, y) {
         miniwalk(x, y);
     }
 }
-export function makeroguerooms() {
+export async function makeroguerooms() {
     let x = 0;
     let y = 0;
     /* Rogue levels are structured 3 by 3, with each section containing
@@ -249,28 +249,23 @@ export function makeroguerooms() {
                 lowy = 7 * y + game.r[x][y].rly;
                 hix = 1 + 26 * x + game.r[x][y].rlx + game.r[x][y].dx - 1;
                 hiy = 7 * y + game.r[x][y].rly + game.r[x][y].dy - 1;
-                /* Strictly speaking, it should be lit only if above
-                 * level 10, but since Rogue rooms are only
-                 * encountered below level 10, use !rn2(7).
-                 */
-                add_room(lowx, lowy, hix, hiy, !rn2(7), OROOM, (0));
+                await add_room(lowx, lowy, hix, hiy, !rn2(7), OROOM, (0));
             }
         }
     }
     for (y = 0; y < 3; y++) {
         for (x = 0; x < 3; x++) {
-            /* Now, add connecting corridors. */
             if (game.r[x][y].doortable & 2) {
-                roguecorr(x, y, 2);
+                await roguecorr(x, y, 2);
             }
             if (game.r[x][y].doortable & 8) {
-                roguecorr(x, y, 8);
+                await roguecorr(x, y, 8);
             }
             if (game.r[x][y].doortable & 4) {
-                impossible("left end of %d, %d never connected?", x, y);
+                await impossible("left end of %d, %d never connected?", x, y);
             }
             if (game.r[x][y].doortable & 1) {
-                impossible("up end of %d, %d never connected?", x, y);
+                await impossible("up end of %d, %d never connected?", x, y);
             }
         }
     }
@@ -282,7 +277,7 @@ export function corr(x, y) {
         game.level.locations[x][y].typ = SCORR;
     }
 }
-export function makerogueghost() {
+export async function makerogueghost() {
     let ghost = null;
     let ghostobj = null;
     let croom = null;
@@ -294,64 +289,69 @@ export function makerogueghost() {
     croom = game.rooms[rn2(game.nroom)];
     x = somex(croom);
     y = somey(croom);
-    if (!(ghost = makemon(game.mons[PM_GHOST], x, y, 0))) {
+    if (!(ghost = await makemon(game.mons[PM_GHOST], x, y, 0))) {
         return;
     }
     ghost.msleeping = 1;
     ghost = christen_monst(ghost, roguename());
     ((ghost));
     if (rn2(4)) {
-        ghostobj = mksobj_at(FOOD_RATION, x, y, (0), (0));
+        ghostobj = await mksobj_at(FOOD_RATION, x, y, (0), (0));
         ghostobj.quan = rnd(7);
-        ghostobj.owt = weight(ghostobj);
+        ghostobj.owt = await weight(ghostobj);
     }
     if (rn2(2)) {
-        ghostobj = mksobj_at(MACE, x, y, (0), (0));
+        ghostobj = await mksobj_at(MACE, x, y, (0), (0));
         ghostobj.spe = rnd(3);
         if (rn2(4)) {
-            curse(ghostobj);
+            await curse(ghostobj);
         }
     } else {
-        ghostobj = mksobj_at(TWO_HANDED_SWORD, x, y, (0), (0));
+        ghostobj = await mksobj_at(TWO_HANDED_SWORD, x, y, (0), (0));
         ghostobj.spe = rnd(5) - 2;
         if (rn2(4)) {
-            curse(ghostobj);
+            await curse(ghostobj);
         }
     }
-    ghostobj = mksobj_at(BOW, x, y, (0), (0));
+    ghostobj = await mksobj_at(BOW, x, y, (0), (0));
     ghostobj.spe = 1;
     if (rn2(4)) {
-        curse(ghostobj);
+        await curse(ghostobj);
     }
-    ghostobj = mksobj_at(ARROW, x, y, (0), (0));
+    ghostobj = await mksobj_at(ARROW, x, y, (0), (0));
     ghostobj.spe = 0;
     ghostobj.quan = (rn2(10) + (25));
-    ghostobj.owt = weight(ghostobj);
+    ghostobj.owt = await weight(ghostobj);
     if (rn2(4)) {
-        curse(ghostobj);
+        await curse(ghostobj);
     }
     if (rn2(2)) {
-        ghostobj = mksobj_at(RING_MAIL, x, y, (0), (0));
+        ghostobj = await mksobj_at(RING_MAIL, x, y, (0), (0));
         ghostobj.spe = rn2(3);
         if (!rn2(3)) {
             ghostobj.oerodeproof = (1);
         }
         if (rn2(4)) {
-            curse(ghostobj);
+            await curse(ghostobj);
         }
     } else {
-        ghostobj = mksobj_at(PLATE_MAIL, x, y, (0), (0));
+        ghostobj = await mksobj_at(PLATE_MAIL, x, y, (0), (0));
         ghostobj.spe = rnd(5) - 2;
         if (!rn2(3)) {
             ghostobj.oerodeproof = (1);
         }
         if (rn2(4)) {
-            curse(ghostobj);
+            await curse(ghostobj);
         }
     }
     if (rn2(2)) {
-        ghostobj = mksobj_at(FAKE_AMULET_OF_YENDOR, x, y, (1), (0));
+        ghostobj = await mksobj_at(FAKE_AMULET_OF_YENDOR, x, y, (1), (0));
         ghostobj.known = (1);
     }
 }
 /*extralev.c*/
+/* Strictly speaking, it should be lit only if above
+                 * level 10, but since Rogue rooms are only
+                 * encountered below level 10, use !rn2(7).
+                 */
+/* Now, add connecting corridors. */

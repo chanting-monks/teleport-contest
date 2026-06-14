@@ -4,6 +4,7 @@
 import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { panic } from '../c2js-runtime/panic.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { fprintf, nh_snprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, strcat, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { rgbstr_to_int32, set_map_customcolor } from './coloratt.js';
@@ -33,7 +34,9 @@ game.to_custom_symbol_find = { findtype: 0, val: 0, loadsyms_offset: 0, loadsyms
 const nonzero_black = 0 | 16777216;
 /* staticfn void purge_custom_entries(enum graphics_sets which_set); */
 let __to_custom_symset_entry_callback_glyphnag = 0;
+__nh_register_static(() => { __to_custom_symset_entry_callback_glyphnag = 0; });
 let __to_custom_symset_entry_callback_colornag = 0;
+__nh_register_static(() => { __to_custom_symset_entry_callback_colornag = 0; });
 export function to_custom_symset_entry_callback(glyph, findwhat) {
     let idx = game.symset_which_set;
     let utf8str = [0, 0, 0, 0, 0, 0];
@@ -78,7 +81,7 @@ export function to_custom_symset_entry_callback(glyph, findwhat) {
  *               1 = success
  *               0 = failure
  */
-export function glyphrep_to_custom_map_entries(op, glyphptr) {
+export async function glyphrep_to_custom_map_entries(op, glyphptr) {
     Object.assign(game.to_custom_symbol_find, zero_find);
     let buf = '';
     let c_glyphid = null;
@@ -146,18 +149,18 @@ export function glyphrep_to_custom_map_entries(op, glyphptr) {
     }
     game.to_custom_symbol_find.extraval = glyphptr;
     game.to_custom_symbol_find.callback = to_custom_symset_entry_callback;
-    reslt = glyph_find_core(c_glyphid, game.to_custom_symbol_find);
+    reslt = await glyph_find_core(c_glyphid, game.to_custom_symbol_find);
     return reslt;
 }
 export function fix_glyphname(str) {
     let __nh_c_idx = 0;
-    for (__nh_c_idx = 0; str[__nh_c_idx]; __nh_c_idx++) {
-        if (str[__nh_c_idx] >= 65 && str[__nh_c_idx] <= 90) {
-            str[__nh_c_idx] += (97 - 65);
-        } else if (str[__nh_c_idx] >= 48 && str[__nh_c_idx] <= 57) {
+    for (__nh_c_idx = 0; __nh_char_at0(__nh_advance_str(str, __nh_c_idx)); __nh_c_idx++) {
+        if (__nh_char_at0(__nh_advance_str(str, __nh_c_idx)) >= 65 && __nh_char_at0(__nh_advance_str(str, __nh_c_idx)) <= 90) {
+            __nh_char_at0(__nh_advance_str(str, __nh_c_idx)) += (97 - 65);
+        } else if (__nh_char_at0(__nh_advance_str(str, __nh_c_idx)) >= 48 && __nh_char_at0(__nh_advance_str(str, __nh_c_idx)) <= 57) {
             ;
-        } else if (str[__nh_c_idx] < 97 || str[__nh_c_idx] > 122) {
-            str[__nh_c_idx] = 95;
+        } else if (__nh_char_at0(__nh_advance_str(str, __nh_c_idx)) < 97 || __nh_char_at0(__nh_advance_str(str, __nh_c_idx)) > 122) {
+            str = str.slice(0, __nh_c_idx) + String.fromCharCode(95);
         }
     }
     return str;
@@ -195,11 +198,11 @@ export function glyph_to_cmap(glyph) {
         return MAXPCHARS;
     }
 }
-export function glyph_find_core(id, findwhat) {
+export async function glyph_find_core(id, findwhat) {
     let glyph = 0;
     let do_callback = 0;
     let end_find = (0);
-    if (parse_id(id, findwhat)) {
+    if (await parse_id(id, findwhat)) {
         if (findwhat.findtype == find_glyph) {
             (findwhat.callback)(findwhat.val, findwhat);
         } else {
@@ -259,7 +262,7 @@ export function glyph_find_core(id, findwhat) {
  all the memory those names consumed once the bulk parsing is
  over with.
 */
-export function fill_glyphid_cache() {
+export async function fill_glyphid_cache() {
     let reslt = 0;
     if (!game.glyphid_cache) {
         init_glyph_cache();
@@ -269,7 +272,7 @@ export function fill_glyphid_cache() {
         game.glyphcache_find.findtype = find_nothing;
         game.glyphcache_find.reserved = game.glyphid_cache;
         game.glyphcache_find.restype = res_fill_cache;
-        reslt = parse_id(null, game.glyphcache_find);
+        reslt = await parse_id(null, game.glyphcache_find);
         if (!reslt) {
             free_glyphid_cache();
             game.glyphid_cache = null;
@@ -314,7 +317,7 @@ export function free_glyphid_cache() {
     free(game.glyphid_cache);
     game.glyphid_cache = null;
 }
-export function add_glyph_to_cache(glyphnum, id) {
+export async function add_glyph_to_cache(glyphnum, id) {
     let hash = glyph_hash(id);
     let hash1 = (hash & (game.glyphid_cache_size - 1));
     let hash2 = (((hash >> game.glyphid_cache_lsize) & (game.glyphid_cache_size - 1)) | 1);
@@ -328,8 +331,7 @@ export function add_glyph_to_cache(glyphnum, id) {
         /* For speed, assume that no ID occurs twice */
         i = (i + hash2) & (game.glyphid_cache_size - 1);
     } while (i != hash1);
-    /* This should never happen */
-    panic("glyphid_cache full");
+    await panic("glyphid_cache full");
 }
 export function find_glyph_in_cache(id) {
     let hash = glyph_hash(id);
@@ -375,22 +377,19 @@ export function glyph_hash(id) {
 export function glyphid_cache_status() {
     return (game.glyphid_cache != null);
 }
-export function match_glyph(buf) {
+export async function match_glyph(buf) {
     let workbuf = '';
     workbuf = nh_snprintf("match_glyph", 465, workbuf, 256 /* sizeof(char [256]) */, "%s", buf);
-    /* buf contains a G_ glyph reference, not an S_ symbol.
-        There could be an R-G-B color attached too.
-        Let's get a copy to work with. */
-    return glyphrep(workbuf);
+    return await glyphrep(workbuf);
 }
-export function glyphrep(op) {
+export async function glyphrep(op) {
     let reslt = 0;
     let glyph = MAX_GLYPH;
     if (!game.glyphid_cache) {
         reslt = 1;
     }
     ((reslt));
-    reslt = glyphrep_to_custom_map_entries(op, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
+    reslt = await glyphrep_to_custom_map_entries(op, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
     if (reslt) {
         return 1;
     }
@@ -583,14 +582,14 @@ export function purge_custom_entries(which_set) {
         gdc.count = 0;
     }
 }
-export function dump_all_glyphids(fp) {
+export async function dump_all_glyphids(fp) {
     let dump_glyphid_find = zero_find;
     dump_glyphid_find.findtype = find_nothing;
     dump_glyphid_find.reserved = fp;
     dump_glyphid_find.restype = res_dump_glyphids;
-    parse_id(null, dump_glyphid_find);
+    await parse_id(null, dump_glyphid_find);
 }
-export function wizcustom_glyphids(win) {
+export async function wizcustom_glyphids(win) {
     let glyphnum = 0;
     let id = null;
     if (!game.glyphid_cache) {
@@ -599,7 +598,7 @@ export function wizcustom_glyphids(win) {
     for (glyphnum = 0; glyphnum < MAX_GLYPH; ++glyphnum) {
         id = find_glyphid_in_cache_by_glyphnum(glyphnum);
         if (id) {
-            wizcustom_callback(win, glyphnum, id);
+            await wizcustom_callback(win, glyphnum, id);
         }
     }
 }
@@ -608,7 +607,7 @@ const __parse_id_zap_texts = ["missile", "fire", "frost", "sleep", "death", "lig
 const __parse_id_swallow_texts = ["top left", "top center", "top right", "middle left", "middle right", "bottom left", "bottom center", "bottom right"];
 const __parse_id_expl_type_texts = ["dark", "noxious", "muddy", "wet", "magical", "fiery", "frosty"];
 const __parse_id_expl_texts = ["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"];
-export function parse_id(id, findwhat) {
+export async function parse_id(id, findwhat) {
     let fp = null;
     let i = 0;
     let j = 0;
@@ -846,14 +845,14 @@ export function parse_id(id, findwhat) {
                     buf[0] = nh_snprintf("parse_id", 1106, buf[0], 128 /* sizeof(char [128]) */, "G_%s%d", "warning", j);
                 }
                 if (memchr(buf[0], 0, 128 /* sizeof(char [128]) */) == (null)) {
-                    panic("parse_id: buf[0] overflowed");
+                    await panic("parse_id: buf[0] overflowed");
                 }
                 if (!skip_this_one) {
                     fix_glyphname(buf[0] + 2);
                     if (dump_ids) {
                         fprintf(fp, "(%04d) %s\n", glyph, buf[0]);
                     } else if (filling_cache) {
-                        add_glyph_to_cache(glyph, buf[0]);
+                        await add_glyph_to_cache(glyph, buf[0]);
                     } else if (id) {
                         if (!strncmpi((id), (buf[0]), -1)) {
                             findwhat.findtype = find_glyph;
@@ -923,3 +922,7 @@ export function reset_customcolors() {
        or appropriately mask colors with 0xFFFFFF. */
 /* SOME TEST STUFF */
 /* glyphs.c */
+/* This should never happen */
+/* buf contains a G_ glyph reference, not an S_ symbol.
+        There could be an R-G-B color attached too.
+        Let's get a copy to work with. */

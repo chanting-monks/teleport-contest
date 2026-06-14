@@ -24,7 +24,7 @@ export function populate_nomakedefs(version) {
     let mth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     let t = { tm_sec: 0, tm_min: 0, tm_hour: 0, tm_mday: 0, tm_mon: 0, tm_year: 0, tm_wday: 0, tm_yday: 0, tm_isdst: 0, tm_gmtoff: 0, tm_zone: null };
     let timeresult = 0;
-    tmpbuf1 = nh_snprintf("populate_nomakedefs", 82, tmpbuf1, 256 /* sizeof(char [256]) */, "%s %s", "Jun  2 2026", "19:59:31");
+    tmpbuf1 = nh_snprintf("populate_nomakedefs", 82, tmpbuf1, 256 /* sizeof(char [256]) */, "%s %s", "Jun 12 2026", "19:59:03");
     if (strlen(tmpbuf1) == 20) {
         do {
             for (i = 0; i < 4; ++i) {

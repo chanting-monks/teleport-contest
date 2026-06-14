@@ -235,8 +235,7 @@ export async function moveloop_core() {
                 /* both hero and monsters are out of steam this round */
                 let mtmp = null;
                 game.were_changes = 0;
-                /* adjust monsters' trap, blind, etc */
-                mcalcdistress();
+                await mcalcdistress();
                 /* reallocate movement rations to monsters; don't need
                    to skip dead monsters here because they will have
                    been purged at end of their previous round of moving */
@@ -248,7 +247,7 @@ export async function moveloop_core() {
                 settrack();
                 game.moves++;
                 if (game.moves >= 1000000000) {
-                    (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+                    await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
                     await urgent_pline("The dungeon capitulates.");
                     await done(ESCAPED);
                 }
@@ -295,7 +294,7 @@ export async function moveloop_core() {
                         let old_uy = game.u.uy;
                         await tele();
                         if (game.u.ux != old_ux || game.u.uy != old_uy) {
-                            if (!next_to_u()) {
+                            if (!await next_to_u()) {
                                 await check_leash(old_ux, old_uy);
                             }
                             /* clear doagain keystrokes */
@@ -417,7 +416,7 @@ export async function moveloop_core() {
         /* when/if hero escapes from lava, he can't just stay there */
         /* the Amulet of Yendor gives a wish when initially picked up */
         game.u.uevent.amulet_wish = 1;
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
         await urgent_pline("The Amulet is bestowing a wish upon you!");
         await makewish();
     }
@@ -447,7 +446,7 @@ export async function moveloop_core() {
     await m_everyturn_effect(game.youmonst);
     game.context.move = 1;
     if (game.multi >= 0 && game.occupation) {
-        if ((game.occupation)() == 0) {
+        if (await (game.occupation)() == 0) {
             game.occupation = null;
         }
         if (monster_nearby()) {
@@ -494,8 +493,7 @@ export async function moveloop_core() {
         if (game.flags.time && game.context.run) {
             game.disp.botl = (1);
         }
-        /* [should this be flush_screen() instead?] */
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MAP, (0));
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MAP, (0));
     }
     if (game.luacore && game.nhcb_counts[NHCB_END_TURN]) {
         lua_getglobal(game.luacore, "nh_callback_run");
@@ -632,7 +630,7 @@ export async function init_sound_disp_gamewindows() {
         adjust_menu_promptstyle(game.WIN_INVEN, game.iflags.menu_headings);
     }
     (game.windowprocs.win_start_menu)(game.WIN_INVEN, menu_behavior) , (game.windowprocs.win_end_menu)(game.WIN_INVEN, null);
-    (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+    await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
     /* in case of early quit where WIN_INVEN could be destroyed before
        ever having been used, use it here to pacify the Qt interface */
     /* This _is_ the right place for this - maybe we will
@@ -644,7 +642,7 @@ export async function init_sound_disp_gamewindows() {
      * displays, but it looks a lot better this way...
      */
     clear_glyph_buffer();
-    (game.windowprocs.win_display_nhwindow)(game.WIN_MAP, (0));
+    await (game.windowprocs.win_display_nhwindow)(game.WIN_MAP, (0));
 }
 export async function newgame() {
     fnEnter("newgame", "allmain.c", 0);
@@ -812,6 +810,7 @@ export function timet_delta(etim, stim) {
 /* autopickup at initial location */
 /* in case they auto-picked up something */
 /* hero can't move this turn loop */
+/* adjust monsters' trap, blind, etc */
 /* occasionally add another monster; since this takes
                    place after movement has been allotted, the new
                    monster effectively loses its first turn */
@@ -838,6 +837,7 @@ export function timet_delta(etim, stim) {
                       due to being next to it while it's in a gas cloud
                       and then you moved away; it should no longer be seen
                       when that happens, even if it hasn't moved */
+/* [should this be flush_screen() instead?] */
 /* ToDo: new splash screen invocation will go here */
 /* must be before init_dungeons(), u_init(),
                           * and init_artifacts() */

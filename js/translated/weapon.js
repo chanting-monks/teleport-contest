@@ -58,14 +58,14 @@ const odd_skill_names = ["no skill", "bare hands", "two weapon combat", "riding"
 const barehands_or_martial = ["bare handed combat", "martial arts"];
 /* targets that provide attacker with small to-hit bonus when using a spear */
 const kebabable = [S_XORN, S_DRAGON, S_JABBERWOCK, S_NAGA, S_GIANT, 0];
-export function give_may_advance_msg(skill) {
-    You_feel("more confident in your %sskills.", (skill == P_NONE) ? "" : (skill <= P_UNICORN_HORN) ? "weapon " : (skill <= P_MATTER_SPELL) ? "spell casting " : "fighting ");
-    handle_tip(TIP_ENHANCE);
+export async function give_may_advance_msg(skill) {
+    await You_feel("more confident in your %sskills.", (skill == P_NONE) ? "" : (skill <= P_UNICORN_HORN) ? "weapon " : (skill <= P_MATTER_SPELL) ? "spell casting " : "fighting ");
+    await handle_tip(TIP_ENHANCE);
 }
 /* weapon's skill category name for use as generalized description of weapon;
    mostly used to shorten "you drop your <weapon>" messages when slippery
    fingers or polymorph causes hero to involuntarily drop wielded weapon(s) */
-export function weapon_descr(obj) {
+export async function weapon_descr(obj) {
     let skill = weapon_type(obj);
     let descr = ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]);
     switch (skill) {
@@ -104,13 +104,13 @@ export function weapon_descr(obj) {
         default:
             break;
     }
-    return makesingular(descr);
+    return await makesingular(descr);
 }
 /*
  *      hitval returns an integer representing the "to hit" bonuses
  *      of "otmp" against the monster.
  */
-export function hitval(otmp, mon) {
+export async function hitval(otmp, mon) {
     let tmp = 0;
     let ptr = mon.data;
     let Is_weapon = (otmp.oclass == WEAPON_CLASS || ((otmp).oclass == TOOL_CLASS && game.objects[(otmp).otyp].oc_subtyp != P_NONE));
@@ -139,9 +139,8 @@ export function hitval(otmp, mon) {
     if (((otmp.oclass == WEAPON_CLASS || otmp.oclass == TOOL_CLASS) && game.objects[otmp.otyp].oc_subtyp == P_PICK_AXE) && ((((ptr).mflags1 & 8) != 0) && (((ptr).mflags1 & 2097152) != 0))) {
         tmp += 2;
     }
-    /* Check specially named weapon "to hit" bonuses */
     if (otmp.oartifact) {
-        tmp += spec_abon(otmp, mon);
+        tmp += await spec_abon(otmp, mon);
     }
     return tmp;
 }
@@ -170,7 +169,7 @@ export function hitval(otmp, mon) {
  *      dmgval returns an integer representing the damage bonuses
  *      of "otmp" against the monster.
  */
-export function dmgval(otmp, mon) {
+export async function dmgval(otmp, mon) {
     let tmp = 0;
     let otyp = otmp.otyp;
     let ptr = mon.data;
@@ -290,9 +289,7 @@ export function dmgval(otmp, mon) {
         if (artifact_light(otmp) && otmp.lamplit && ((ptr) == game.mons[PM_GREMLIN])) {
             bonus += rnd(8);
         }
-        /* if the weapon is going to get a double damage bonus, adjust
-           this bonus so that effectively it's added after the doubling */
-        if (bonus > 1 && otmp.oartifact && spec_dbon(otmp, mon, 25) >= 25) {
+        if (bonus > 1 && otmp.oartifact && await spec_dbon(otmp, mon, 25) >= 25) {
             bonus = Math.trunc((bonus + 1) / 2);
         }
         tmp += bonus;
@@ -318,7 +315,7 @@ export function dmgval(otmp, mon) {
                          * W_ARMC|W_ARM|W_ARMU or
                          * W_ARMG|W_RINGL|W_RINGR only */
 /* output flag mask for silver bonus */
-export function special_dmgval(magr, mdef, armask, silverhit_p) {
+export async function special_dmgval(magr, mdef, armask, silverhit_p) {
     let obj = null;
     let left_ring = (armask & 131072) ? (1) : (0);
     let right_ring = (armask & 262144) ? (1) : (0);
@@ -326,19 +323,19 @@ export function special_dmgval(magr, mdef, armask, silverhit_p) {
     let bonus = 0;
     obj = null;
     if (armask & (2 | 1 | 64)) {
-        if ((armask & 2) != 0 && (obj = which_armor(magr, 2)) != null) {
+        if ((armask & 2) != 0 && (obj = await which_armor(magr, 2)) != null) {
             armask = 2;
-        } else if ((armask & 1) != 0 && (obj = which_armor(magr, 1)) != null) {
+        } else if ((armask & 1) != 0 && (obj = await which_armor(magr, 1)) != null) {
             armask = 1;
-        } else if ((armask & 64) != 0 && (obj = which_armor(magr, 64)) != null) {
+        } else if ((armask & 64) != 0 && (obj = await which_armor(magr, 64)) != null) {
             armask = 64;
         } else {
             armask = 0;
         }
     } else if (armask & (16 | 131072 | 262144)) {
-        armask = ((obj = which_armor(magr, 16)) != null) ? 16 : 0;
+        armask = ((obj = await which_armor(magr, 16)) != null) ? 16 : 0;
     } else {
-        obj = which_armor(magr, armask);
+        obj = await which_armor(magr, armask);
     }
     if (obj) {
         if (obj.blessed && mon_hates_blessings(mdef)) {
@@ -374,7 +371,7 @@ export function special_dmgval(magr, mdef, armask, silverhit_p) {
 }
 /* give a "silver <item> sears <target>" message;
    not used for weapon hit, so we only handle rings */
-export function silver_sears(magr, mdef, silverhit) {
+export async function silver_sears(magr, mdef, silverhit) {
     /* plenty of room for "rings" */
     let rings = '';
     let ltyp = ((game.uleft && (silverhit & 131072) != 0) ? game.uleft.otyp : STRANGE_OBJECT);
@@ -393,10 +390,10 @@ export function silver_sears(magr, mdef, silverhit) {
            silver [see hmonas(uhitm.c) for explanation of 'multi_claw'] */
         both = ((ltyp == rtyp && l_dknown == r_dknown) || (l_ag && r_ag));
         rings = sprintf(rings, "ring%s", both ? "s" : "");
-        Your("%s%s %s %s!", (l_ag || r_ag) ? "silver " : both ? "" : ((silverhit & 131072) != 0) ? "left " : "right ", rings, vtense(rings, "sear"), mon_nam(mdef));
+        await Your("%s%s %s %s!", (l_ag || r_ag) ? "silver " : both ? "" : ((silverhit & 131072) != 0) ? "left " : "right ", rings, await vtense(rings, "sear"), await mon_nam(mdef));
     }
 }
-export function oselect(mtmp, type) {
+export async function oselect(mtmp, type) {
     let otmp = null;
     for (otmp = mtmp.minvent; otmp; otmp = otmp.nobj) {
         if (otmp.otyp != type) {
@@ -406,7 +403,7 @@ export function oselect(mtmp, type) {
         if ((type == CORPSE || type == EGG) && (otmp.corpsenm == NON_PM || !((game.mons[otmp.corpsenm]) == game.mons[PM_COCKATRICE] || (game.mons[otmp.corpsenm]) == game.mons[PM_CHICKATRICE]))) {
             continue;
         }
-        if (!can_touch_safely(mtmp, otmp)) {
+        if (!await can_touch_safely(mtmp, otmp)) {
             continue;
         }
         return otmp;
@@ -429,7 +426,7 @@ export function autoreturn_weapon(otmp) {
     return null;
 }
 /* select a ranged weapon for the monster */
-export function select_rwep(mtmp) {
+export async function select_rwep(mtmp) {
     let otmp = null;
     let mwep = null;
     let mweponly = 0;
@@ -437,21 +434,21 @@ export function select_rwep(mtmp) {
     let mlet = mtmp.data.mlet;
     game.propellor = game.hands_obj;
     do {
-        if ((otmp = oselect(mtmp, EGG)) != null) {
+        if ((otmp = await oselect(mtmp, EGG)) != null) {
             return otmp;
         }
     } while (0);
     /* pies are first choice for Kops */
     if (mlet == S_KOP) {
         do {
-            if ((otmp = oselect(mtmp, CREAM_PIE)) != null) {
+            if ((otmp = await oselect(mtmp, CREAM_PIE)) != null) {
                 return otmp;
             }
         } while (0);
     }
     if ((((mtmp.data).mflags2 & 134217728) != 0)) {
         do {
-            if ((otmp = oselect(mtmp, BOULDER)) != null) {
+            if ((otmp = await oselect(mtmp, BOULDER)) != null) {
                 return otmp;
             }
         } while (0);
@@ -474,7 +471,7 @@ export function select_rwep(mtmp) {
         }
         for (i = 0; i < (Math.trunc(52 /* sizeof(const int [13]) */ / 4 /* sizeof(const int) */)); i++) {
             if ((((((mtmp.data).mflags2 & 67108864) != 0) && (mtmp.misc_worn_check & 8) == 0) || !game.objects[pwep[i]].oc_big) && (game.objects[pwep[i]].oc_material != SILVER || !mon_hates_silver(mtmp))) {
-                if ((otmp = oselect(mtmp, pwep[i])) != null && (otmp == mwep || !mweponly)) {
+                if ((otmp = await oselect(mtmp, pwep[i])) != null && (otmp == mwep || !mweponly)) {
                     /* Only strong monsters can wield big (esp. long) weapons.
              * Big weapon is basically the same as bimanual.
              * All monsters can wield the remaining weapons.
@@ -494,7 +491,7 @@ export function select_rwep(mtmp) {
         let arw = arwep[i];
         if (!(((mtmp.data).mflags1 & 65536) != 0) && !(((mtmp.data).mflags1 & 262144) != 0) && !mweponly && dist2(mtmp.mx, mtmp.my, mtmp.mux, mtmp.muy) <= arw.range && ((game.viz_array[mtmp.my][mtmp.mx] & 1) != 0)) {
             if ((((mtmp.misc_worn_check & 8) == 0) || !game.objects[arw.otyp].oc_big) && (game.objects[arw.otyp].oc_material != SILVER || !mon_hates_silver(mtmp))) {
-                if ((otmp = oselect(mtmp, arw.otyp)) != null && (otmp == mwep || !mweponly)) {
+                if ((otmp = await oselect(mtmp, arw.otyp)) != null && (otmp == mwep || !mweponly)) {
                     game.propellor = otmp;
                     return otmp;
                 }
@@ -523,22 +520,22 @@ export function select_rwep(mtmp) {
         if (prop < 0) {
             switch (-prop) {
                 case P_BOW:
-                    game.propellor = oselect(mtmp, YUMI);
+                    game.propellor = await oselect(mtmp, YUMI);
                     if (!game.propellor) {
-                        game.propellor = oselect(mtmp, ELVEN_BOW);
+                        game.propellor = await oselect(mtmp, ELVEN_BOW);
                     }
                     if (!game.propellor) {
-                        game.propellor = oselect(mtmp, BOW);
+                        game.propellor = await oselect(mtmp, BOW);
                     }
                     if (!game.propellor) {
-                        game.propellor = oselect(mtmp, ORCISH_BOW);
+                        game.propellor = await oselect(mtmp, ORCISH_BOW);
                     }
                     break;
                 case P_SLING:
-                    game.propellor = oselect(mtmp, SLING);
+                    game.propellor = await oselect(mtmp, SLING);
                     break;
                 case P_CROSSBOW:
-                    game.propellor = oselect(mtmp, CROSSBOW);
+                    game.propellor = await oselect(mtmp, CROSSBOW);
             }
             if ((otmp = ((mtmp).mw)) && mwelded(otmp) && otmp != game.propellor && mtmp.weapon_check == NO_WEAPON_WANTED) {
                 game.propellor = null;
@@ -546,16 +543,7 @@ export function select_rwep(mtmp) {
         }
         if (game.propellor != null) {
             if (rwep[i] != LOADSTONE) {
-                /* propellor = obj, propellor to use
-         * propellor = &hands_obj, doesn't need a propellor
-         * propellor = 0, needed one and didn't have one
-         */
-                /* Note: cannot use m_carrying for loadstones, since it will
-             * always select the first object of a type, and maybe the
-             * monster is carrying two but only the first is unthrowable.
-             */
-                /* Don't throw a cursed weapon-in-hand or an artifact */
-                if ((otmp = oselect(mtmp, rwep[i])) && !otmp.oartifact && !(otmp == ((mtmp).mw) && mwelded(otmp))) {
+                if ((otmp = await oselect(mtmp, rwep[i])) && !otmp.oartifact && !(otmp == ((mtmp).mw) && mwelded(otmp))) {
                     return otmp;
                 }
             } else {
@@ -583,41 +571,37 @@ export function monmightthrowwep(obj) {
 const hwep = [CORPSE, TSURUGI, RUNESWORD, DWARVISH_MATTOCK, TWO_HANDED_SWORD, BATTLE_AXE, KATANA, UNICORN_HORN, CRYSKNIFE, TRIDENT, LONG_SWORD, ELVEN_BROADSWORD, BROADSWORD, SCIMITAR, SILVER_SABER, MORNING_STAR, ELVEN_SHORT_SWORD, DWARVISH_SHORT_SWORD, SHORT_SWORD, ORCISH_SHORT_SWORD, SILVER_MACE, MACE, AXE, DWARVISH_SPEAR, SILVER_SPEAR, ELVEN_SPEAR, SPEAR, ORCISH_SPEAR, FLAIL, BULLWHIP, QUARTERSTAFF, JAVELIN, AKLYS, CLUB, PICK_AXE, RUBBER_HOSE, WAR_HAMMER, SILVER_DAGGER, ELVEN_DAGGER, DAGGER, ORCISH_DAGGER, ATHAME, SCALPEL, KNIFE, WORM_TOOTH];
 /* cockatrice corpse */
 /* select a hand to hand weapon for the monster */
-export function select_hwep(mtmp) {
+export async function select_hwep(mtmp) {
     let otmp = null;
     let i = 0;
     let strong = (((mtmp.data).mflags2 & 67108864) != 0);
     let wearing_shield = (mtmp.misc_worn_check & 8) != 0;
     for (otmp = mtmp.minvent; otmp; otmp = otmp.nobj) {
-        /* prefer artifacts to everything else */
-        if (otmp.oclass == WEAPON_CLASS && otmp.oartifact && touch_artifact(otmp, mtmp) && ((strong && !wearing_shield) || !game.objects[otmp.otyp].oc_big)) {
+        if (otmp.oclass == WEAPON_CLASS && otmp.oartifact && await touch_artifact(otmp, mtmp) && ((strong && !wearing_shield) || !game.objects[otmp.otyp].oc_big)) {
             return otmp;
         }
     }
     /* giants just love to use clubs */
     if ((((mtmp.data).mflags2 & 8192) != 0)) {
         do {
-            if ((otmp = oselect(mtmp, CLUB)) != null) {
+            if ((otmp = await oselect(mtmp, CLUB)) != null) {
                 return otmp;
             }
         } while (0);
     } else if (mtmp.data == game.mons[PM_BALROG] && game.uwep) {
         do {
-            if ((otmp = oselect(mtmp, BULLWHIP)) != null) {
+            if ((otmp = await oselect(mtmp, BULLWHIP)) != null) {
                 return otmp;
             }
         } while (0);
     }
     for (i = 0; i < (Math.trunc(90 /* sizeof(const short [45]) */ / 2 /* sizeof(const short) */)); i++) {
-        /* only strong monsters can wield big (esp. long) weapons */
-        /* big weapon is basically the same as bimanual */
-        /* all monsters can wield the remaining weapons */
-        if (hwep[i] == CORPSE && !(mtmp.misc_worn_check & 16) && !Resists_Elem(mtmp, STONE_RES)) {
+        if (hwep[i] == CORPSE && !(mtmp.misc_worn_check & 16) && !await Resists_Elem(mtmp, STONE_RES)) {
             continue;
         }
         if (((strong && !wearing_shield) || !game.objects[hwep[i]].oc_big) && (game.objects[hwep[i]].oc_material != SILVER || !mon_hates_silver(mtmp))) {
             do {
-                if ((otmp = oselect(mtmp, hwep[i])) != null) {
+                if ((otmp = await oselect(mtmp, hwep[i])) != null) {
                     return otmp;
                 }
             } while (0);
@@ -628,7 +612,7 @@ export function select_hwep(mtmp) {
 /* Called after polymorphing a monster, robbing it, etc....  Monsters
  * otherwise never unwield stuff on their own.  Might print message.
  */
-export function possibly_unwield(mon, polyspot) {
+export async function possibly_unwield(mon, polyspot) {
     let obj = null;
     let mw_tmp = null;
     if (!(mw_tmp = ((mon).mw))) {
@@ -646,21 +630,20 @@ export function possibly_unwield(mon, polyspot) {
         return;
     }
     if (!attacktype(mon.data, 254)) {
-        setmnotwielded(mon, mw_tmp);
+        await setmnotwielded(mon, mw_tmp);
         mon.weapon_check = NO_WEAPON_WANTED;
         if (((game.viz_array[mon.my][mon.mx] & 2) != 0)) {
-            /* if we're going to call distant_name(), do so before extract_self */
-            pline_mon(mon, "%s drops %s.", Monnam(mon), distant_name(obj, doname));
-            newsym(mon.mx, mon.my);
+            await pline_mon(mon, "%s drops %s.", await Monnam(mon), await distant_name(obj, doname));
+            await newsym(mon.mx, mon.my);
         }
-        obj_extract_self(obj);
-        if (!flooreffects(obj, mon.mx, mon.my, "drop")) {
+        await obj_extract_self(obj);
+        if (!await flooreffects(obj, mon.mx, mon.my, "drop")) {
             /* might be dropping object into water or lava */
             if (polyspot) {
                 bypass_obj(obj);
             }
-            place_object(obj, mon.mx, mon.my);
-            stackobj(obj);
+            await place_object(obj, mon.mx, mon.my);
+            await stackobj(obj);
         }
         return;
     }
@@ -685,7 +668,7 @@ export function possibly_unwield(mon, polyspot) {
 /* Let a monster try to wield a weapon, based on mon->weapon_check.
  * Returns 1 if the monster took time to do it, 0 if it did not.
  */
-export function mon_wield_item(mon) {
+export async function mon_wield_item(mon) {
     let obj = null;
     /* assume mon is planning to attack */
     let exclaim = (1);
@@ -695,16 +678,15 @@ export function mon_wield_item(mon) {
     }
     switch (mon.weapon_check) {
         case NEED_HTH_WEAPON:
-            obj = select_hwep(mon);
+            obj = await select_hwep(mon);
             break;
         case NEED_RANGED_WEAPON:
-            select_rwep(mon);
+            await select_rwep(mon);
             obj = game.propellor;
             break;
         case NEED_PICK_AXE:
             obj = m_carrying(mon, PICK_AXE);
-            /* KMH -- allow other picks */
-            if (!obj && !which_armor(mon, 8)) {
+            if (!obj && !await which_armor(mon, 8)) {
                 obj = m_carrying(mon, DWARVISH_MATTOCK);
             }
             /* mon is just planning to dig */
@@ -712,7 +694,7 @@ export function mon_wield_item(mon) {
             break;
         case NEED_AXE:
             obj = m_carrying(mon, BATTLE_AXE);
-            if (!obj || which_armor(mon, 8)) {
+            if (!obj || await which_armor(mon, 8)) {
                 obj = m_carrying(mon, AXE);
             }
             exclaim = (0);
@@ -722,7 +704,7 @@ export function mon_wield_item(mon) {
             if (!obj) {
                 obj = m_carrying(mon, BATTLE_AXE);
             }
-            if (!obj || which_armor(mon, 8)) {
+            if (!obj || await which_armor(mon, 8)) {
                 /* currently, only 2 types of axe */
                 /* prefer pick for fewer switches on most levels */
                 obj = m_carrying(mon, PICK_AXE);
@@ -733,7 +715,7 @@ export function mon_wield_item(mon) {
             exclaim = (0);
             break;
         default:
-            impossible("weapon_check %d for %s?", mon.weapon_check, mon_nam(mon));
+            await impossible("weapon_check %d for %s?", mon.weapon_check, await mon_nam(mon));
             return 0;
     }
     if (obj && obj != game.hands_obj) {
@@ -750,17 +732,17 @@ export function mon_wield_item(mon) {
          * Still....
          */
                 let welded_buf = '';
-                let mon_hand = mbodypart(mon, HAND);
+                let mon_hand = await mbodypart(mon, HAND);
                 if (((mw_tmp.oclass == WEAPON_CLASS || mw_tmp.oclass == TOOL_CLASS) && game.objects[mw_tmp.otyp].oc_big)) {
-                    mon_hand = makeplural(mon_hand);
+                    mon_hand = await makeplural(mon_hand);
                 }
-                welded_buf = sprintf(welded_buf, "%s welded to %s %s", otense(mw_tmp, "are"), (genders[pronoun_gender(mon, 2)].his), mon_hand);
+                welded_buf = sprintf(welded_buf, "%s welded to %s %s", await otense(mw_tmp, "are"), (genders[pronoun_gender(mon, 2)].his), mon_hand);
                 if (obj.otyp == PICK_AXE) {
-                    pline("Since %s weapon%s %s,", s_suffix(mon_nam(mon)), (((mw_tmp.quan) == 1) ? "" : "s"), welded_buf);
-                    pline("%s cannot wield that %s.", mon_nam(mon), xname(obj));
+                    await pline("Since %s weapon%s %s,", s_suffix(await mon_nam(mon)), (((mw_tmp.quan) == 1) ? "" : "s"), welded_buf);
+                    await pline("%s cannot wield that %s.", await mon_nam(mon), await xname(obj));
                 } else {
-                    pline_mon(mon, "%s tries to wield %s.", Monnam(mon), doname(obj));
-                    pline("%s %s!", Yname2(mw_tmp), welded_buf);
+                    await pline_mon(mon, "%s tries to wield %s.", await Monnam(mon), await doname(obj));
+                    await pline("%s %s!", await Yname2(mw_tmp), welded_buf);
                 }
                 mw_tmp.bknown = 1;
             }
@@ -768,14 +750,14 @@ export function mon_wield_item(mon) {
             return 1;
         }
         mon.mw = obj;
-        setmnotwielded(mon, mw_tmp);
+        await setmnotwielded(mon, mw_tmp);
         mon.weapon_check = NEED_WEAPON;
         if (canseemon(mon)) {
             let newly_welded = 0;
             let arw = null;
-            pline_mon(mon, "%s wields %s%c", Monnam(mon), doname(obj), exclaim ? 33 : 46);
+            await pline_mon(mon, "%s wields %s%c", await Monnam(mon), await doname(obj), exclaim ? 33 : 46);
             if ((arw = autoreturn_weapon(obj)) != null && arw.tethered != 0) {
-                pline_mon(mon, "%s secures the tether on %s.", Monnam(mon), the(xname(obj)));
+                await pline_mon(mon, "%s secures the tether on %s.", await Monnam(mon), await the(await xname(obj)));
             }
             /* 3.6.3: mwelded() predicate expects the object to have its
                W_WEP bit set in owormmask, but the pline here and for
@@ -786,20 +768,20 @@ export function mon_wield_item(mon) {
             newly_welded = mwelded(obj);
             obj.owornmask &= ~256;
             if (newly_welded) {
-                let mon_hand = mbodypart(mon, HAND);
+                let mon_hand = await mbodypart(mon, HAND);
                 if (((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_big)) {
-                    mon_hand = makeplural(mon_hand);
+                    mon_hand = await makeplural(mon_hand);
                 }
-                pline("%s %s to %s %s!", Tobjnam(obj, "weld"), ((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "themselves" : "itself", s_suffix(mon_nam(mon)), mon_hand);
+                await pline("%s %s to %s %s!", await Tobjnam(obj, "weld"), ((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "themselves" : "itself", s_suffix(await mon_nam(mon)), mon_hand);
                 obj.bknown = 1;
             }
         }
         if (artifact_light(obj) && !obj.lamplit) {
-            begin_burn(obj, (0));
+            await begin_burn(obj, (0));
             if (canseemon(mon)) {
-                pline("%s %s in %s %s!", Tobjnam(obj, "shine"), arti_light_description(obj), s_suffix(mon_nam(mon)), mbodypart(mon, HAND));
+                await pline("%s %s in %s %s!", await Tobjnam(obj, "shine"), arti_light_description(obj), s_suffix(await mon_nam(mon)), await mbodypart(mon, HAND));
             } else if (((game.viz_array[mon.my][mon.mx] & 2) != 0)) {
-                pline("Light begins shining %s.", (dist2(((mon).mx), ((mon).my), game.u.ux, game.u.uy) <= 5 * 5) ? "nearby" : "in the distance");
+                await pline("Light begins shining %s.", (dist2(((mon).mx), ((mon).my), game.u.ux, game.u.uy) <= 5 * 5) ? "nearby" : "in the distance");
             }
         }
         obj.owornmask = 256;
@@ -809,20 +791,20 @@ export function mon_wield_item(mon) {
     return 0;
 }
 /* force monster to stop wielding current weapon, if any */
-export function mwepgone(mon) {
+export async function mwepgone(mon) {
     let mwep = ((mon).mw);
     if (mwep) {
-        setmnotwielded(mon, mwep);
+        await setmnotwielded(mon, mwep);
         mon.weapon_check = NEED_WEAPON;
     }
 }
 /* attack bonus for strength & dexterity */
-export function abon() {
+export async function abon() {
     let sbon = 0;
     let str = (acurr(A_STR));
     let dex = (acurr(A_DEX));
     if ((game.u.umonnum != game.u.umonster)) {
-        return (adj_lev(game.mons[game.u.umonnum]) - 3);
+        return (await adj_lev(game.mons[game.u.umonnum]) - 3);
     }
     if (str < 6) {
         sbon = -2;
@@ -897,16 +879,16 @@ export function finish_towel_change(obj, newspe) {
 }
 /* increase a towel's wetness */
 /* positive: new val; negative: increment by -amt; zero: no-op */
-export function wet_a_towel(obj, amt, verbose) {
+export async function wet_a_towel(obj, amt, verbose) {
     let newspe = (amt <= 0) ? obj.spe - amt : amt;
     if (newspe > obj.spe) {
         if (verbose) {
             /* new state is only reported if it's an increase */
             let wetness = (newspe < 3) ? (!obj.spe ? "damp" : "damper") : (!obj.spe ? "wet" : "wetter");
             if (((obj).where == 3)) {
-                pline("%s gets %s.", Yobjnam2(obj, null), wetness);
+                await pline("%s gets %s.", await Yobjnam2(obj, null), wetness);
             } else if (((obj).where == 4) && canseemon(obj.v.v_ocarry)) {
-                pline("%s %s gets %s.", s_suffix(Monnam(obj.v.v_ocarry)), xname(obj), wetness);
+                await pline("%s %s gets %s.", s_suffix(await Monnam(obj.v.v_ocarry)), await xname(obj), wetness);
             }
         }
     }
@@ -916,15 +898,14 @@ export function wet_a_towel(obj, amt, verbose) {
 }
 /* decrease a towel's wetness; unlike when wetting, 0 is not a no-op */
 /* positive or zero: new value; negative: decrement by abs(amt) */
-export function dry_a_towel(obj, amt, verbose) {
+export async function dry_a_towel(obj, amt, verbose) {
     let newspe = (amt < 0) ? obj.spe + amt : amt;
     if (newspe < obj.spe) {
         if (verbose) {
-            /* new state is only reported if it's a decrease */
             if (((obj).where == 3)) {
-                pline("%s dries%s.", Yobjnam2(obj, null), !newspe ? " out" : "");
+                await pline("%s dries%s.", await Yobjnam2(obj, null), !newspe ? " out" : "");
             } else if (((obj).where == 4) && canseemon(obj.v.v_ocarry)) {
-                pline("%s %s dries%s.", s_suffix(Monnam(obj.v.v_ocarry)), xname(obj), !newspe ? " out" : "");
+                await pline("%s %s dries%s.", s_suffix(await Monnam(obj.v.v_ocarry)), await xname(obj), !newspe ? " out" : "");
             }
         }
     }
@@ -1010,17 +991,16 @@ export function peaked_skill(skill) {
     }
     return ((game.u.weapon_skills[skill].skill) >= (game.u.weapon_skills[skill].max_skill) && ((game.u.weapon_skills[skill].advance) >= (((game.u.weapon_skills[skill].skill)) * ((game.u.weapon_skills[skill].skill)) * 20)));
 }
-export function skill_advance(skill) {
+export async function skill_advance(skill) {
     game.u.weapon_slots -= slots_required(skill);
     (game.u.weapon_skills[skill].skill)++;
     game.u.skill_record[game.u.skills_advanced++] = skill;
-    /* subtly change the advance message to indicate no more advancement */
-    You("are now %s skilled in %s.", (game.u.weapon_skills[skill].skill) >= (game.u.weapon_skills[skill].max_skill) ? "most" : "more", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
+    await You("are now %s skilled in %s.", (game.u.weapon_skills[skill].skill) >= (game.u.weapon_skills[skill].max_skill) ? "most" : "more", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
     /* wizards discover spellbook IDs depending on spell 'school' skill limits;
        this allows them to successfully write books for unknown spells without
        the Luck bias they used to have over other roles */
     if (skill >= P_ATTACK_SPELL && skill <= P_MATTER_SPELL) {
-        skill_based_spellbook_id();
+        await skill_based_spellbook_id();
     }
 }
 // struct skill_range: { first, last, name }
@@ -1029,12 +1009,12 @@ const skill_ranges = [{ first: P_BARE_HANDED_COMBAT, last: P_RIDING, name: "Figh
 
    if selectable is set, give selection letters for skills that can be
    advanced and leave room for them on skills that can't be advanced */
-export function add_skills_to_menu(win, selectable, speedy) {
+export async function add_skills_to_menu(win, selectable, speedy) {
     let pass = 0;
     let i = 0;
     let len = 0;
     let longest = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let buf = '';
     let sklnambuf = '';
     let prefix = null;
@@ -1044,7 +1024,7 @@ export function add_skills_to_menu(win, selectable, speedy) {
         if ((game.u.weapon_skills[i].skill == P_ISRESTRICTED)) {
             continue;
         }
-        if ((len = Strlen_(((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), "add_skills_to_menu", 1241)) > longest) {
+        if ((len = await Strlen_(((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), "add_skills_to_menu", 1241)) > longest) {
             longest = len;
         }
     }
@@ -1055,9 +1035,9 @@ export function add_skills_to_menu(win, selectable, speedy) {
        future enhancement: list spell skills before weapon skills for
        spellcaster roles. */
             /* Print headings for skill types */
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             if (i == skill_ranges[pass].first) {
-                add_menu_heading(win, skill_ranges[pass].name);
+                await add_menu_heading(win, skill_ranges[pass].name);
             }
             if ((game.u.weapon_skills[i].skill == P_ISRESTRICTED)) {
                 continue;
@@ -1096,20 +1076,20 @@ export function add_skills_to_menu(win, selectable, speedy) {
                 }
             }
             any.a_int = selectable && can_advance(i, speedy) ? i + 1 : 0;
-            add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+            await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
     }
 }
 /* Displays a skill list for dumplog purposes. */
-export function show_skills() {
+export async function show_skills() {
     let win = 0;
     let selected = null;
-    pline("Skills:");
+    await pline("Skills:");
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    add_skills_to_menu(win, (0), (0));
+    await add_skills_to_menu(win, (0), (0));
     (game.windowprocs.win_end_menu)(win, "");
-    ((select_menu(win, 0, selected)));
+    ((await select_menu(win, 0, selected)));
     (game.windowprocs.win_destroy_nhwindow)(win);
 }
 /*
@@ -1120,7 +1100,7 @@ export function show_skills() {
  * to be able to update the menu since selecting one item could make
  * others unselectable.
  */
-export function enhance_weapon_skill() {
+export async function enhance_weapon_skill() {
     let i = 0;
     let n = 0;
     let to_advance = 0;
@@ -1132,7 +1112,7 @@ export function enhance_weapon_skill() {
     let speedy = (0);
     /* player knows about #enhance, don't show tip anymore */
     game.context.tips |= (1 << TIP_ENHANCE);
-    if (game.flags.debug && yn_function("Advance skills without practice?", ynchars, 110, (1)) == 121) {
+    if (game.flags.debug && await yn_function("Advance skills without practice?", ynchars, 110, (1)) == 121) {
         speedy = (1);
     }
     do {
@@ -1157,31 +1137,30 @@ export function enhance_weapon_skill() {
            with "*" or "#" below */
             if (eventually_advance > 0) {
                 buf = sprintf(buf, "(Skill%s flagged by \"*\" may be enhanced %s.)", (((eventually_advance) == 1) ? "" : "s"), (game.u.ulevel < 30) ? "when you're more experienced" : "if skill slots become available");
-                add_menu_str(win, buf);
+                await add_menu_str(win, buf);
             }
             if (maxxed_cnt > 0) {
                 buf = sprintf(buf, "(Skill%s flagged by \"#\" cannot be enhanced any further.)", (((maxxed_cnt) == 1) ? "" : "s"));
-                add_menu_str(win, buf);
+                await add_menu_str(win, buf);
             }
-            add_menu_str(win, "");
+            await add_menu_str(win, "");
         }
-        add_skills_to_menu(win, to_advance + eventually_advance + maxxed_cnt > 0, speedy);
+        await add_skills_to_menu(win, to_advance + eventually_advance + maxxed_cnt > 0, speedy);
         buf = strcpy(buf, (to_advance > 0) ? "Pick a skill to advance:" : "Current skills:");
         if (game.flags.debug && !speedy) {
             buf = __nh_buf_append(buf, sprintf('', "  (%d slot%s available)", game.u.weapon_slots, (((game.u.weapon_slots) == 1) ? "" : "s")));
         }
         (game.windowprocs.win_end_menu)(win, buf);
-        n = select_menu(win, to_advance ? 1 : 0, selected);
+        n = await select_menu(win, to_advance ? 1 : 0, selected);
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (n > 0) {
             n = selected[0].item.a_int - 1;
             free(selected);
-            skill_advance(n);
+            await skill_advance(n);
             for (n = i = 0; i < P_NUM_SKILLS; i++) {
                 if (can_advance(i, speedy)) {
-                    /* check for more skills able to advance; if so, then... */
                     if (!speedy) {
-                        You_feel("you could be more dangerous!");
+                        await You_feel("you could be more dangerous!");
                     }
                     n++;
                     break;
@@ -1202,18 +1181,18 @@ export function unrestrict_weapon_skill(skill) {
         (game.u.weapon_skills[skill].advance) = 0;
     }
 }
-export function use_skill(skill, degree) {
+export async function use_skill(skill, degree) {
     let advance_before = 0;
     if (skill != P_NONE && !(game.u.weapon_skills[skill].skill == P_ISRESTRICTED)) {
         advance_before = can_advance(skill, (0));
         (game.u.weapon_skills[skill].advance) += degree;
         if (!advance_before && can_advance(skill, (0))) {
-            give_may_advance_msg(skill);
+            await give_may_advance_msg(skill);
         }
     }
 }
 /* number of slots to gain; normally one */
-export function add_weapon_skill(n) {
+export async function add_weapon_skill(n) {
     let i = 0;
     let before = 0;
     let after = 0;
@@ -1229,11 +1208,11 @@ export function add_weapon_skill(n) {
         }
     }
     if (before < after) {
-        give_may_advance_msg(P_NONE);
+        await give_may_advance_msg(P_NONE);
     }
 }
 /* number of slots to lose; normally one */
-export function lose_weapon_skill(n) {
+export async function lose_weapon_skill(n) {
     let skill = 0;
     while (--n >= 0) {
         if (game.u.weapon_slots) {
@@ -1242,7 +1221,7 @@ export function lose_weapon_skill(n) {
         } else if (game.u.skills_advanced) {
             skill = game.u.skill_record[--game.u.skills_advanced];
             if ((game.u.weapon_skills[skill].skill) <= P_UNSKILLED) {
-                panic("lose_weapon_skill (%d)", skill);
+                await panic("lose_weapon_skill (%d)", skill);
             }
             (game.u.weapon_skills[skill].skill)--;
             /* Lost skill might have taken more than one slot; refund rest. */
@@ -1254,7 +1233,7 @@ export function lose_weapon_skill(n) {
     }
 }
 /* number of skills to drain */
-export function drain_weapon_skill(n) {
+export async function drain_weapon_skill(n) {
     let skill = 0;
     let i = 0;
     let curradv = 0;
@@ -1272,7 +1251,7 @@ export function drain_weapon_skill(n) {
             }
             game.u.skills_advanced--;
             if ((game.u.weapon_skills[skill].skill) <= P_UNSKILLED) {
-                panic("drain_weapon_skill (%d)", skill);
+                await panic("drain_weapon_skill (%d)", skill);
             }
             (game.u.weapon_skills[skill].skill)--;
             /* refund slots used for skill */
@@ -1288,7 +1267,7 @@ export function drain_weapon_skill(n) {
     /* initialize skill array; by default, everything is restricted */
     for (skill = 0; skill < P_NUM_SKILLS; skill++) {
         if (tmpskills[skill]) {
-            You("forget %syour training in %s.", (game.u.weapon_skills[skill].skill) >= P_BASIC ? "some of " : "", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
+            await You("forget %syour training in %s.", (game.u.weapon_skills[skill].skill) >= P_BASIC ? "some of " : "", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
         }
     }
 }
@@ -1317,7 +1296,7 @@ export function uwep_skill_type() {
  * Treat restricted weapons as unskilled.
  */
 const __weapon_hit_bonus_bad_skill = "weapon_hit_bonus: bad skill %d";
-export function weapon_hit_bonus(weapon) {
+export async function weapon_hit_bonus(weapon) {
     let type = 0;
     let wep_type = 0;
     let skill = 0;
@@ -1331,7 +1310,7 @@ export function weapon_hit_bonus(weapon) {
     } else if (type <= P_UNICORN_HORN) {
         switch ((game.u.weapon_skills[type].skill)) {
             default:
-                impossible(__weapon_hit_bonus_bad_skill, (game.u.weapon_skills[type].skill));
+                await impossible(__weapon_hit_bonus_bad_skill, (game.u.weapon_skills[type].skill));
                 ;
             /* KMH -- It's harder to hit while you are riding */
             /* KMH -- Riding gives some thrusting damage */
@@ -1356,7 +1335,7 @@ export function weapon_hit_bonus(weapon) {
         }
         switch (skill) {
             default:
-                impossible(__weapon_hit_bonus_bad_skill, skill);
+                await impossible(__weapon_hit_bonus_bad_skill, skill);
                 ;
             case P_ISRESTRICTED:
             case P_UNSKILLED:
@@ -1420,7 +1399,7 @@ export function weapon_hit_bonus(weapon) {
  * weapon can be null, meaning bare-handed combat.
  * Treat restricted weapons as unskilled.
  */
-export function weapon_dam_bonus(weapon) {
+export async function weapon_dam_bonus(weapon) {
     let type = 0;
     let wep_type = 0;
     let skill = 0;
@@ -1432,7 +1411,7 @@ export function weapon_dam_bonus(weapon) {
     } else if (type <= P_UNICORN_HORN) {
         switch ((game.u.weapon_skills[type].skill)) {
             default:
-                impossible("weapon_dam_bonus: bad skill %d", (game.u.weapon_skills[type].skill));
+                await impossible("weapon_dam_bonus: bad skill %d", (game.u.weapon_skills[type].skill));
                 ;
             case P_ISRESTRICTED:
             case P_UNSKILLED:
@@ -1497,7 +1476,7 @@ export function weapon_dam_bonus(weapon) {
  * hero is holding, finally reading the given array that sets
  * maximums.
  */
-export function skill_init(class_skill) {
+export async function skill_init(class_skill) {
     let obj = null;
     let skmax = 0;
     let skill = 0;
@@ -1544,11 +1523,7 @@ export function skill_init(class_skill) {
     for (skill = 0; skill < P_NUM_SKILLS; skill++) {
         if (!(game.u.weapon_skills[skill].skill == P_ISRESTRICTED)) {
             if ((game.u.weapon_skills[skill].max_skill) < (game.u.weapon_skills[skill].skill)) {
-                /*
-     * Make sure we haven't missed setting the max on a skill
-     * & set advance
-     */
-                impossible("skill_init: curr > max: %s", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
+                await impossible("skill_init: curr > max: %s", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
                 (game.u.weapon_skills[skill].max_skill) = (game.u.weapon_skills[skill].skill);
             }
             (game.u.weapon_skills[skill].advance) = (((game.u.weapon_skills[skill].skill) - 1) * ((game.u.weapon_skills[skill].skill) - 1) * 20);
@@ -1557,19 +1532,18 @@ export function skill_init(class_skill) {
     /* each role has a special spell; allow at least basic for its type
        (despite the function name, this works for spell skills too) */
     unrestrict_weapon_skill(spell_skilltype(game.urole.spelspec));
-    /* paupers lack advanced access to books */
     if (!game.u.uroleplay.pauper) {
-        skill_based_spellbook_id();
+        await skill_based_spellbook_id();
     }
 }
-export function setmnotwielded(mon, obj) {
+export async function setmnotwielded(mon, obj) {
     if (!obj) {
         return;
     }
     if (artifact_light(obj) && obj.lamplit) {
-        end_burn(obj, (0));
+        await end_burn(obj, (0));
         if (canseemon(mon)) {
-            pline("%s in %s %s %s shining.", The(xname(obj)), s_suffix(mon_nam(mon)), mbodypart(mon, HAND), otense(obj, "stop"));
+            await pline("%s in %s %s %s shining.", await The(await xname(obj)), s_suffix(await mon_nam(mon)), await mbodypart(mon, HAND), await otense(obj, "stop"));
         }
     }
     if (((mon).mw) == obj) {
@@ -1587,4 +1561,30 @@ export function setmnotwielded(mon, obj) {
 /* avoid "rock"; what about known glass? */
 /* in case somebody adds odd sling ammo */
 /* even if "dwarvish mattock" hasn't been discovered yet */
+/* Check specially named weapon "to hit" bonuses */
+/* if the weapon is going to get a double damage bonus, adjust
+           this bonus so that effectively it's added after the doubling */
+/* propellor = obj, propellor to use
+         * propellor = &hands_obj, doesn't need a propellor
+         * propellor = 0, needed one and didn't have one
+         */
+/* Note: cannot use m_carrying for loadstones, since it will
+             * always select the first object of a type, and maybe the
+             * monster is carrying two but only the first is unthrowable.
+             */
+/* Don't throw a cursed weapon-in-hand or an artifact */
+/* prefer artifacts to everything else */
+/* only strong monsters can wield big (esp. long) weapons */
+/* big weapon is basically the same as bimanual */
+/* all monsters can wield the remaining weapons */
+/* if we're going to call distant_name(), do so before extract_self */
+/* KMH -- allow other picks */
 /* 3.6.3: artifact might be getting wielded by invisible monst */
+/* new state is only reported if it's a decrease */
+/* subtly change the advance message to indicate no more advancement */
+/* check for more skills able to advance; if so, then... */
+/*
+     * Make sure we haven't missed setting the max on a skill
+     * & set advance
+     */
+/* paupers lack advanced access to books */

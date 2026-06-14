@@ -55,7 +55,7 @@ const nasties = [PM_COCKATRICE, PM_ETTIN, PM_STALKER, PM_MINOTAUR, PM_OWLBEAR, P
 const wizapp = [PM_HUMAN, PM_WATER_DEMON, PM_VAMPIRE, PM_RED_DRAGON, PM_TROLL, PM_UMBER_HULK, PM_XORN, PM_XAN, PM_COCKATRICE, PM_FLOATING_EYE, PM_GUARDIAN_NAGA, PM_TRAPPER];
 /* If you've found the Amulet, make the Wizard appear after some time */
 /* Also, give hints about portal locations, if amulet is worn/wielded -dlc */
-export function amulet() {
+export async function amulet() {
     let mtmp = null;
     let ttmp = null;
     let amu = null;
@@ -65,11 +65,11 @@ export function amulet() {
                 /* caller takes care of this check */
                 let du = dist2((ttmp.tx), (ttmp.ty), game.u.ux, game.u.uy);
                 if (du <= 9) {
-                    pline("%s hot!", Tobjnam(amu, "feel"));
+                    await pline("%s hot!", await Tobjnam(amu, "feel"));
                 } else if (du <= 64) {
-                    pline("%s very warm.", Tobjnam(amu, "feel"));
+                    await pline("%s very warm.", await Tobjnam(amu, "feel"));
                 } else if (du <= 144) {
-                    pline("%s warm.", Tobjnam(amu, "feel"));
+                    await pline("%s warm.", await Tobjnam(amu, "feel"));
                 }
                 /* else, the amulet feels normal */
                 break;
@@ -87,7 +87,7 @@ export function amulet() {
         if (mtmp.iswiz && mtmp.msleeping && !rn2(40)) {
             mtmp.msleeping = 0;
             if (!(dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) <= 2)) {
-                You("get the creepy feeling that somebody noticed your taking the Amulet.");
+                await You("get the creepy feeling that somebody noticed your taking the Amulet.");
             }
             return;
         }
@@ -296,9 +296,9 @@ export function strategy(mtmp) {
    heal or for guardians (Kops) to congregate at to block hero's progress */
 /* output; left as-is if no spot found */
 /* True: forward, False: backtrack (usually up) */
-export function choose_stairs(sx, sy, dir) {
+export async function choose_stairs(sx, sy, dir) {
     let stway = null;
-    let stdir = builds_up(game.u.uz) ? dir : !dir;
+    let stdir = await builds_up(game.u.uz) ? dir : !dir;
     /* look for stairs in direction 'stdir' (True: up, False: down) */
     stway = stairway_find_type_dir((0), stdir);
     if (!stway) {
@@ -328,7 +328,7 @@ export function choose_stairs(sx, sy, dir) {
         sx.value = stway.sx , sy.value = stway.sy;
     }
 }
-export function tactics(mtmp) {
+export async function tactics(mtmp) {
     let strat = strategy(mtmp);
     let sx = 0;
     let sy = 0;
@@ -339,22 +339,18 @@ export function tactics(mtmp) {
         case 134217728:
             mx = mtmp.mx , my = mtmp.my;
             if (game.u.uswallow && game.u.ustuck == mtmp) {
-                expels(mtmp, mtmp.data, (1));
+                await expels(mtmp, mtmp.data, (1));
             }
-            /* if wounded, hole up on or near the stairs (to block them) */
-            choose_stairs({ get value() { return sx; }, set value(_v) { sx = _v; } }, { get value() { return sy; }, set value(_v) { sy = _v; } }, (mtmp.m_id % 2));
+            await choose_stairs({ get value() { return sx; }, set value(_v) { sx = _v; } }, { get value() { return sy; }, set value(_v) { sy = _v; } }, (mtmp.m_id % 2));
             /* covetous monsters attack while fleeing */
             mtmp.mavenge = 1;
-            if (In_W_tower(mx, my, game.u.uz) || (mtmp.iswiz && !sx && !mon_has_amulet(mtmp))) {
-                if (!noteleport_level(mtmp) && !rn2(3 + Math.trunc(mtmp.mhp / 10))) {
-                    rloc(mtmp, 2);
+            if (await In_W_tower(mx, my, game.u.uz) || (mtmp.iswiz && !sx && !mon_has_amulet(mtmp))) {
+                if (!await noteleport_level(mtmp) && !rn2(3 + Math.trunc(mtmp.mhp / 10))) {
+                    await rloc(mtmp, 2);
                 }
             } else if (sx && (mx != sx || my != sy)) {
-                if (!noteleport_level(mtmp) && !mnearto(mtmp, sx, sy, (1), 2)) {
-                    /* couldn't move to the target spot for some reason,
-                   so stay where we are (don't actually need rloc_to()
-                   because mtmp is still on the map at <mx,my>... */
-                    rloc_to(mtmp, mx, my);
+                if (!await noteleport_level(mtmp) && !await mnearto(mtmp, sx, sy, (1), 2)) {
+                    await rloc_to(mtmp, mx, my);
                     /* simply wants you to close */
                     return 0;
                 }
@@ -362,15 +358,14 @@ export function tactics(mtmp) {
             }
             if (dist2((mx), (my), game.u.ux, game.u.uy) > (8 * 8)) {
                 if (mtmp.mhp <= mtmp.mhpmax - 8) {
-                    /* if you're not around, cast healing spells */
-                    healmon(mtmp, rnd(8), 0);
+                    await healmon(mtmp, rnd(8), 0);
                     return 1;
                 }
             }
             ;
         case 0:
-            if (!noteleport_level(mtmp) && !rn2(!mtmp.mflee ? 5 : 33)) {
-                mnexto(mtmp, 2);
+            if (!await noteleport_level(mtmp) && !rn2(!mtmp.mflee ? 5 : 33)) {
+                await mnexto(mtmp, 2);
             }
             return 0;
         default:
@@ -383,43 +378,41 @@ export function tactics(mtmp) {
                 if (!targ || !isok(tx, ty)) {
                     return 0;
                 }
-                if (noteleport_level(mtmp) && !monnear(mtmp, tx, ty)) {
+                if (await noteleport_level(mtmp) && !monnear(mtmp, tx, ty)) {
                     return 0;
                 }
                 if (((tx) == game.u.ux && (ty) == game.u.uy) || where == 16777216) {
                     /* player is standing on it (or has it) */
                     /* a monster has it - 'port beside it. */
                     mx = mtmp.mx , my = mtmp.my;
-                    if (noteleport_level(mtmp) || !mnearto(mtmp, tx, ty, (0), 2)) {
-                        rloc_to(mtmp, mx, my);
+                    if (await noteleport_level(mtmp) || !await mnearto(mtmp, tx, ty, (0), 2)) {
+                        await rloc_to(mtmp, mx, my);
                     }
                     return 0;
                 }
                 if (where == 67108864) {
                     if (!(game.level.monsters[tx][ty] != null) || (mtmp.mx == tx && mtmp.my == ty)) {
-                        /* teleport to it and pick it up */
-                        rloc_to(mtmp, tx, ty);
+                        await rloc_to(mtmp, tx, ty);
                         if ((otmp = on_ground(which_arti(targ))) != null) {
                             if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
-                                pline("%s picks up %s.", Monnam(mtmp), distant_name(otmp, doname));
+                                await pline("%s picks up %s.", await Monnam(mtmp), await distant_name(otmp, doname));
                             }
-                            obj_extract_self(otmp);
-                            mpickobj(mtmp, otmp);
+                            await obj_extract_self(otmp);
+                            await mpickobj(mtmp, otmp);
                             return 1;
                         } else {
                             return 0;
                         }
                     } else {
-                        /* a monster is standing on it - cause some trouble */
-                        if (!rn2(5) && !noteleport_level(mtmp)) {
-                            mnexto(mtmp, 2);
+                        if (!rn2(5) && !await noteleport_level(mtmp)) {
+                            await mnexto(mtmp, 2);
                         }
                         return 0;
                     }
                 } else {
                     mx = mtmp.mx , my = mtmp.my;
-                    if (!noteleport_level(mtmp) && !mnearto(mtmp, tx, ty, (0), 2)) {
-                        rloc_to(mtmp, mx, my);
+                    if (!await noteleport_level(mtmp) && !await mnearto(mtmp, tx, ty, (0), 2)) {
+                        await rloc_to(mtmp, mx, my);
                     }
                     return 0;
                 }
@@ -428,17 +421,17 @@ export function tactics(mtmp) {
     return 0;
 }
 /* are there any monsters mon could aggravate? */
-export function has_aggravatables(mon) {
+export async function has_aggravatables(mon) {
     let mtmp = null;
-    let in_w_tower = In_W_tower(mon.mx, mon.my, game.u.uz);
-    if (in_w_tower != In_W_tower(game.u.ux, game.u.uy, game.u.uz)) {
+    let in_w_tower = await In_W_tower(mon.mx, mon.my, game.u.uz);
+    if (in_w_tower != await In_W_tower(game.u.ux, game.u.uy, game.u.uz)) {
         return (0);
     }
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
         if (((mtmp).mhp < 1)) {
             continue;
         }
-        if (in_w_tower != In_W_tower(mtmp.mx, mtmp.my, game.u.uz)) {
+        if (in_w_tower != await In_W_tower(mtmp.mx, mtmp.my, game.u.uz)) {
             continue;
         }
         if ((mtmp.mstrategy & 536870912) != 0 || ((mtmp).msleeping || !(mtmp).mcanmove)) {
@@ -447,14 +440,14 @@ export function has_aggravatables(mon) {
     }
     return (0);
 }
-export function aggravate() {
+export async function aggravate() {
     let mtmp = null;
-    let in_w_tower = In_W_tower(game.u.ux, game.u.uy, game.u.uz);
+    let in_w_tower = await In_W_tower(game.u.ux, game.u.uy, game.u.uz);
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
         if (((mtmp).mhp < 1)) {
             continue;
         }
-        if (in_w_tower != In_W_tower(mtmp.mx, mtmp.my, game.u.uz)) {
+        if (in_w_tower != await In_W_tower(mtmp.mx, mtmp.my, game.u.uz)) {
             continue;
         }
         mtmp.mstrategy &= ~(536870912 | 2147483648);
@@ -468,18 +461,18 @@ export function aggravate() {
 /* "Double Trouble" spell cast by the Wizard; caller is responsible for
    only casting this when there is currently one wizard in existence;
    the clone can't use it unless/until its creator has been killed off */
-export function clonewiz() {
+export async function clonewiz() {
     let mtmp2 = null;
-    if ((mtmp2 = makemon(game.mons[PM_WIZARD_OF_YENDOR], game.u.ux, game.u.uy, 2)) != null) {
+    if ((mtmp2 = await makemon(game.mons[PM_WIZARD_OF_YENDOR], game.u.ux, game.u.uy, 2)) != null) {
         mtmp2.msleeping = mtmp2.mtame = mtmp2.mpeaceful = 0;
         if (!game.u.uhave.amulet && rn2(2)) {
-            add_to_minv(mtmp2, mksobj(FAKE_AMULET_OF_YENDOR, (1), (0)));
+            await add_to_minv(mtmp2, await mksobj(FAKE_AMULET_OF_YENDOR, (1), (0)));
         }
         if (!(game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic)) {
             mtmp2.m_ap_type = M_AP_MONSTER;
             mtmp2.mappearance = wizapp[rn2((Math.trunc(48 /* sizeof(const unsigned int [12]) */ / 4 /* sizeof(const unsigned int) */)))];
         }
-        newsym(mtmp2.mx, mtmp2.my);
+        await newsym(mtmp2.mx, mtmp2.my);
     }
 }
 /* also used by newcham() */
@@ -526,7 +519,7 @@ export function pick_nasty(difcap) {
    'summoner' as neutral, since that will produce the greatest number of
    creatures on average (in 3.6.0 and earlier, Null was treated as chaotic);
    returns the number of monsters created */
-export function nasty(summoner) {
+export async function nasty(summoner) {
     let mtmp = null;
     let bypos = { x: 0, y: 0 };
     let i = 0;
@@ -548,8 +541,7 @@ export function nasty(summoner) {
        of non-null makemon() return is inadequate */
     census = monster_census((0));
     if (!rn2(10) && In_hell(game.u.uz)) {
-        /* this might summon a demon prince or lord */
-        count = msummon(null);
+        count = await msummon(null);
     } else {
         count = 0;
         s_cls = summoner ? summoner.data.mlet : 0;
@@ -593,23 +585,22 @@ export function nasty(summoner) {
                         makeindex = pick_nasty(difcap);
                         m_cls = game.mons[makeindex].mlet;
                     } while ((difcap > 0 && game.mons[makeindex].difficulty >= difcap && attacktype(game.mons[makeindex], 255)) || (s_cls == S_DEMON && m_cls == S_ANGEL) || (s_cls == S_ANGEL && m_cls == S_DEMON));
-                    /* do this after picking the monster to place */
-                    if (summoner && !enexto(bypos, summoner.mux, summoner.muy, game.mons[makeindex])) {
+                    if (summoner && !await enexto(bypos, summoner.mux, summoner.muy, game.mons[makeindex])) {
                         continue;
                     }
-                    if ((mtmp = makemon(game.mons[makeindex], bypos.x, bypos.y, mmflags)) != null) {
+                    if ((mtmp = await makemon(game.mons[makeindex], bypos.x, bypos.y, mmflags)) != null) {
                         /* this honors genocide but overrides extinction; it ignores
                    inside-hell-only (G_HELL) & outside-hell-only (G_NOHELL) */
                         mtmp.msleeping = mtmp.mpeaceful = mtmp.mtame = 0;
                         set_malign(mtmp);
                     } else {
-                        if ((mtmp = makemon(null, bypos.x, bypos.y, mmflags)) != null) {
+                        if ((mtmp = await makemon(null, bypos.x, bypos.y, mmflags)) != null) {
                             /* random monster to substitute for geno'd selection;
                        unlike direct choice, not forced to be hostile [why?];
                        limit spellcasters to inhibit chain summoning */
                             m_cls = mtmp.data.mlet;
                             if ((difcap > 0 && mtmp.data.difficulty >= difcap && rn2(((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) ? 3 : 7) && attacktype(mtmp.data, 255)) || (s_cls == S_DEMON && m_cls == S_ANGEL) || (s_cls == S_ANGEL && m_cls == S_DEMON)) {
-                                mtmp = unmakemon(mtmp, 0);
+                                mtmp = await unmakemon(mtmp, 0);
                             }
                         }
                     }
@@ -641,7 +632,7 @@ export function nasty(summoner) {
     return count;
 }
 /* Let's resurrect the Wizard, for some unexpected fun. */
-export function resurrect() {
+export async function resurrect() {
     let mtmp = null;
     let mmtmp__parent = null;
     let mmtmp__field = null;
@@ -649,7 +640,7 @@ export function resurrect() {
     let verb = null;
     if (!game.context.no_of_wizards) {
         verb = "kill";
-        mtmp = makemon(game.mons[PM_WIZARD_OF_YENDOR], game.u.ux, game.u.uy, 2);
+        mtmp = await makemon(game.mons[PM_WIZARD_OF_YENDOR], game.u.ux, game.u.uy, 2);
         /* affects experience; he's not coming back from a corpse
            but is subject to repeated killing like a revived corpse */
         if (mtmp) {
@@ -661,8 +652,7 @@ export function resurrect() {
         (mmtmp__parent = game, mmtmp__field = "migrating_mons");
         while ((mtmp = mmtmp__parent[mmtmp__field]) != null) {
             if (mtmp.iswiz && !mon_has_amulet(mtmp) && (elapsed = game.moves - mtmp.mlstmv) > 0) {
-                /* if he has the Amulet, he won't bring it to you */
-                mon_catchup_elapsed_time(mtmp, elapsed);
+                await mon_catchup_elapsed_time(mtmp, elapsed);
                 if (elapsed >= 32767) {
                     elapsed = 32767 - 1;
                 }
@@ -676,7 +666,7 @@ export function resurrect() {
                 }
                 if (!((mtmp).msleeping || !(mtmp).mcanmove)) {
                     mmtmp__parent[mmtmp__field] = mtmp.nmon;
-                    mon_arrive(mtmp, -1);
+                    await mon_arrive(mtmp, -1);
                     /* mx: mon_arrive() might have sent mtmp into limbo */
                     if (!mtmp.mx) {
                         mtmp = null;
@@ -700,35 +690,35 @@ export function resurrect() {
         mtmp.mtame = 0 , mtmp.mpeaceful = 0;
         set_malign(mtmp);
         if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-            pline("A voice booms out...");
+            await pline("A voice booms out...");
             ;
-            verbalize("So thou thought thou couldst %s me, fool.", verb);
+            await verbalize("So thou thought thou couldst %s me, fool.", verb);
         }
     }
 }
 /* Here, we make trouble for the poor shmuck who actually
    managed to do in the Wizard. */
-export function intervene() {
+export async function intervene() {
     let which = (((((game.dungeon_topology.d_astral_level)).dlevel || ((game.dungeon_topology.d_astral_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_astral_level)))) ? rnd(4) : rn2(6);
     switch (which) {
         case 0:
         case 1:
-            You_feel("vaguely nervous.");
+            await You_feel("vaguely nervous.");
             break;
         case 2:
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                You("notice a %s glow surrounding you.", hcolor(c_color_names.c_black));
+                await You("notice a %s glow surrounding you.", hcolor(c_color_names.c_black));
             }
-            rndcurse();
+            await rndcurse();
             break;
         case 3:
-            aggravate();
+            await aggravate();
             break;
         case 4:
-            nasty(null);
+            await nasty(null);
             break;
         case 5:
-            resurrect();
+            await resurrect();
             break;
     }
 }
@@ -745,46 +735,56 @@ const random_insult = ["antic", "blackguard", "caitiff", "chucklehead", "coistre
 /* (sic.) */
 const random_malediction = ["Hell shall soon claim thy remains,", "I chortle at thee, thou pathetic", "Prepare to die, thou", "Resistance is useless,", "Surrender or die, thou", "There shall be no mercy, thou", "Thou shalt repent of thy cunning,", "Thou art as a flea to me,", "Thou art doomed,", "Thy fate is sealed,", "Verily, thou shalt be one dead"];
 /* Insult or intimidate the player */
-export function cuss(mtmp) {
+export async function cuss(mtmp) {
     if ((game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
         return;
     }
     if (mtmp.iswiz) {
         if (!rn2(5)) {
-            pline("%s laughs fiendishly.", Monnam(mtmp));
+            await pline("%s laughs fiendishly.", await Monnam(mtmp));
         } else if (game.u.uhave.amulet && !rn2((Math.trunc(28 /* sizeof(const char *const [28]) */ / 1 /* sizeof(const char *const) */)))) {
             ;
-            verbalize("Relinquish the amulet, %s!", random_insult[rn2((Math.trunc(28 /* sizeof(const char *const [28]) */ / 1 /* sizeof(const char *const) */)))]);
+            await verbalize("Relinquish the amulet, %s!", random_insult[rn2((Math.trunc(28 /* sizeof(const char *const [28]) */ / 1 /* sizeof(const char *const) */)))]);
         } else if (game.u.uhp < 5 && !rn2(2)) {
             ;
-            verbalize(rn2(2) ? "Even now thy life force ebbs, %s!" : "Savor thy breath, %s, it be thy last!", random_insult[rn2((Math.trunc(28 /* sizeof(const char *const [28]) */ / 1 /* sizeof(const char *const) */)))]);
+            await verbalize(rn2(2) ? "Even now thy life force ebbs, %s!" : "Savor thy breath, %s, it be thy last!", random_insult[rn2((Math.trunc(28 /* sizeof(const char *const [28]) */ / 1 /* sizeof(const char *const) */)))]);
         } else if (mtmp.mhp < 5 && !rn2(2)) {
             ;
-            verbalize(rn2(2) ? "I shall return." : "I'll be back.");
+            await verbalize(rn2(2) ? "I shall return." : "I'll be back.");
         } else {
             ;
-            verbalize("%s %s!", random_malediction[rn2((Math.trunc(11 /* sizeof(const char *const [11]) */ / 1 /* sizeof(const char *const) */)))], random_insult[rn2((Math.trunc(28 /* sizeof(const char *const [28]) */ / 1 /* sizeof(const char *const) */)))]);
+            await verbalize("%s %s!", random_malediction[rn2((Math.trunc(11 /* sizeof(const char *const [11]) */ / 1 /* sizeof(const char *const) */)))], random_insult[rn2((Math.trunc(28 /* sizeof(const char *const [28]) */ / 1 /* sizeof(const char *const) */)))]);
         }
     } else if ((((((mtmp).data).mflags2 & 4096) != 0) && mon_aligntyp(mtmp) == 1) && !(mtmp.isminion && ((mtmp).mextra.emin).renegade)) {
-        /* TODO: the Hallucination msg */
-        /*com_pager(rn2(QTN_ANGELIC - 1 + (Hallucination ? 1 : 0))
-          + QT_ANGELIC);*/
-        com_pager("angel_cuss");
+        await com_pager("angel_cuss");
     } else {
         if (!rn2((((mtmp.data).mflags2 & 4096) != 0) ? 100 : 5)) {
-            pline("%s casts aspersions on your ancestry.", Monnam(mtmp));
+            await pline("%s casts aspersions on your ancestry.", await Monnam(mtmp));
         } else {
-            com_pager("demon_cuss");
+            await com_pager("demon_cuss");
         }
     }
-    wake_nearto(mtmp.mx, mtmp.my, 5 * 5);
+    await wake_nearto(mtmp.mx, mtmp.my, 5 * 5);
 }
 /*wizard.c*/
 /* 0 signifies quest artifact */
 /* no need for !DEADMONSTER check here since they have no inventory */
 /* [note: 'stway' could still be Null if the only access to this
            level is via magic portal] */
+/* if wounded, hole up on or near the stairs (to block them) */
+/* couldn't move to the target spot for some reason,
+                   so stay where we are (don't actually need rloc_to()
+                   because mtmp is still on the map at <mx,my>... */
+/* if you're not around, cast healing spells */
+/* teleport to it and pick it up */
+/* a monster is standing on it - cause some trouble */
+/* this might summon a demon prince or lord */
+/* do this after picking the monster to place */
 /* always capping for substitutes made wanton
                                 genocide become too strong in the endgame */
 /* rest must be lower difficulty */
 /* empty; label must be followed by a statement */
+/* if he has the Amulet, he won't bring it to you */
+/* TODO: the Hallucination msg */
+/*com_pager(rn2(QTN_ANGELIC - 1 + (Hallucination ? 1 : 0))
+          + QT_ANGELIC);*/

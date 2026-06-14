@@ -58,25 +58,24 @@ import { get_mon_location, get_obj_location } from './zap.js';
 /* imported from vision.c, for small circles */
 /* Create a new light source.  Caller (and extern.h) doesn't need to know
    anything about type 'light_source'. */
-export function new_light_source(x, y, range, type, id) {
-    new_light_core(x, y, range, type, id);
+export async function new_light_source(x, y, range, type, id) {
+    await new_light_core(x, y, range, type, id);
 }
 /* Create a new light source and return it.  Only used within this file. */
-export function new_light_core(x, y, range, type, id) {
+export async function new_light_core(x, y, range, type, id) {
     let ls = null;
     if (range > 15 || range < 0 || (range == 0 && (type != LS_OBJECT || id.a_obj != null))) {
-        /* camera flash uses radius 0 and passes Null object */
-        impossible("new_light_source:  illegal range %d", range);
+        await impossible("new_light_source:  illegal range %d", range);
         return null;
     }
     ls = alloc(1 /* sizeof(light_source) */);
-    memset(ls, 0, 1 /* sizeof(light_source) */);
+    /* C poison-before-free dropped — JS memset recursion would destroy id.a_obj (the lamp); see timeout.js note */
     ls.next = game.light_base;
     ls.x = x;
     ls.y = y;
     ls.range = range;
     ls.type = type;
-    ls.id = id;
+    Object.assign(ls.id, id);
     ls.flags = 0;
     game.light_base = ls;
     game.vision_full_recalc = 1;
@@ -84,16 +83,16 @@ export function new_light_core(x, y, range, type, id) {
 }
 /* Find and delete a light source.
    Assumes at most one light source is attached to an object at a time. */
-export function del_light_source(type, id) {
+export async function del_light_source(type, id) {
     let curr = null;
-    let tmp_id = 0;
-    tmp_id = cg.zeroany;
+    let tmp_id = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
+    Object.assign(tmp_id, cg.zeroany);
     switch (type) {
         /* need to be prepared for dealing a with light source which
        has only been partially restored during a level change
        (in particular: chameleon vs prot. from shape changers) */
         case LS_NONE:
-            impossible("del_light_source:type=none");
+            await impossible("del_light_source:type=none");
             tmp_id.a_uint = 0;
             break;
         case LS_OBJECT:
@@ -117,13 +116,13 @@ export function del_light_source(type, id) {
         }
     }
     if (curr) {
-        delete_ls(curr);
+        await delete_ls(curr);
     } else {
-        impossible("del_light_source: not found type=%d, id=%s", type, fmt_ptr(id.a_obj));
+        await impossible("del_light_source: not found type=%d, id=%s", type, fmt_ptr(id.a_obj));
     }
 }
 /* remove a light source from the light_base list and free it */
-export function delete_ls(ls) {
+export async function delete_ls(ls) {
     let curr = null;
     let prev = null;
     for (prev = null , curr = game.light_base; curr; prev = curr , curr = curr.next) {
@@ -140,11 +139,11 @@ export function delete_ls(ls) {
         /* pacify static analysis; 'ls' is never Null for
            new_light_core(,,0,LS_OBJECT,&zeroany) */
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-        memset(ls, 0, 1 /* sizeof(light_source) */);
+        /* C poison-before-free dropped — JS memset recursion would destroy id.a_obj (the lamp); see timeout.js note */
         free(ls);
         game.vision_full_recalc = 1;
     } else {
-        impossible("delete_ls not found, ls=%s", fmt_ptr(ls));
+        await impossible("delete_ls not found, ls=%s", fmt_ptr(ls));
     }
     return;
 }
@@ -243,9 +242,9 @@ export function do_light_sources(cs_rows) {
    way to its destination; show its light so that hero has a chance to
    remember terrain, objects, and monsters being revealed;
    if 'obj' is Null, <x,y> is being hit by a camera's light flash */
-export function show_transient_light(obj, x, y) {
+export async function show_transient_light(obj, x, y) {
     let ls = null;
-    let cameraflash = 0;
+    let cameraflash = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let mon = null;
     let radius_squared = 0;
     if (!obj) {
@@ -254,9 +253,8 @@ export function show_transient_light(obj, x, y) {
         if (game.level.locations[x][y].lit) {
             return;
         }
-        cameraflash = cg.zeroany;
-        /* radius 0 will just light <x,y>; cameraflash.a_obj is Null */
-        ls = new_light_core(x, y, 0, LS_OBJECT, cameraflash);
+        Object.assign(cameraflash, cg.zeroany);
+        ls = await new_light_core(x, y, 0, LS_OBJECT, cameraflash);
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
     } else {
         for (ls = game.light_base; ls; ls = ls.next) {
@@ -271,21 +269,19 @@ export function show_transient_light(obj, x, y) {
         }
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
         if (!ls || obj.where != 0) {
-            /* necessary condition to get into this 'else' */
-            impossible("transient light %s %s %s not %s?", obj.lamplit ? "lit" : "unlit", simpleonames(obj), otense(obj, "are"), !ls ? "a light source" : "free");
+            await impossible("transient light %s %s %s not %s?", obj.lamplit ? "lit" : "unlit", await simpleonames(obj), await otense(obj, "are"), !ls ? "a light source" : "free");
             return;
         }
     }
     if (obj) {
-        place_object(obj, game.bhitpos.x, game.bhitpos.y);
+        await place_object(obj, game.bhitpos.x, game.bhitpos.y);
     /* put lit candle or lamp temporarily on the map */
     /* camera flash:  no object; directly set light source's location */
     } else {
         ls.x = x , ls.y = y;
     }
-    /* full recalc; runs do_light_sources() */
-    vision_recalc(0);
-    flush_screen(0);
+    await vision_recalc(0);
+    await flush_screen(0);
     radius_squared = ls.range * ls.range;
     for (mon = game.level.monlist; mon; mon = mon.nmon) {
         if (((mon).mhp < 1) || (mon.isgd && !mon.mx)) {
@@ -305,26 +301,18 @@ export function show_transient_light(obj, x, y) {
     }
     if (obj) {
         (game.windowprocs.win_delay_output)();
-        /* take thrown/kicked candle or lamp off the map */
-        remove_object(obj);
+        await remove_object(obj);
     }
 }
 /* delete any camera flash light sources and draw "remembered, unseen
    monster" glyph at locations where a monster was flagged for being
    visible during transient light movement but can't be seen now */
-export function transient_light_cleanup() {
+export async function transient_light_cleanup() {
     let mon = null;
     let mtempcount = 0;
-    /* in case we're cleaning up a camera flash, remove all object light
-       sources which aren't associated with a specific object */
-    /* camera flash light sources have Null object and would trigger
-       impossible("no id!") below; they can only happen here if we're
-       in the midst of a panic save and they wouldn't be useful after
-       restore so just throw any that are present away */
-    discard_flashes();
-    /* set by del_light_source() */
+    await discard_flashes();
     if (game.vision_full_recalc) {
-        vision_recalc(0);
+        await vision_recalc(0);
     }
     /* for thrown/kicked candle or lamp or for camera flash, some
        monsters may have been mapped in light which has now gone away
@@ -338,22 +326,22 @@ export function transient_light_cleanup() {
             mon.mtemplit = 0;
             ++mtempcount;
             if (!(canseemon(mon) || sensemon(mon))) {
-                map_invisible(mon.mx, mon.my);
+                await map_invisible(mon.mx, mon.my);
             }
         }
     }
     if (mtempcount) {
-        flush_screen(0);
+        await flush_screen(0);
     }
 }
 /* camera flashes have Null object; caller wants to get rid of them now */
-export function discard_flashes() {
+export async function discard_flashes() {
     let ls = null;
     let nxt_ls = null;
     for (ls = game.light_base; ls; ls = nxt_ls) {
         nxt_ls = ls.next;
         if (ls.type == LS_OBJECT && !ls.id.a_obj) {
-            delete_ls(ls);
+            await delete_ls(ls);
         }
     }
 }
@@ -415,45 +403,45 @@ export function whereis_mon(mon, fmflags) {
     return 0;
 }
 /* Save all light sources of the given range. */
-export function save_light_sources(nhfp, range) {
+export async function save_light_sources(nhfp, range) {
     let count = 0;
     let actual = 0;
     let is_global = 0;
     let prev = null;
     let curr = null;
-    discard_flashes();
+    await discard_flashes();
     game.vision_full_recalc = 0;
     if (((nhfp).mode & (1 | 2))) {
-        count = maybe_write_ls(nhfp, range, (0));
+        count = await maybe_write_ls(nhfp, range, (0));
         sfo_int(nhfp, { get value() { return count; }, set value(_v) { count = _v; } }, "lightsource-count");
-        actual = maybe_write_ls(nhfp, range, (1));
+        actual = await maybe_write_ls(nhfp, range, (1));
         if (actual != count) {
-            panic("counted %d light sources, wrote %d! [range=%d]", count, actual, range);
+            await panic("counted %d light sources, wrote %d! [range=%d]", count, actual, range);
         }
     }
     if (((nhfp).mode & 4)) {
         for (prev = game.light_base; (curr = prev) != null; ) {
             if (!curr.id.a_monst) {
-                impossible("save_light_sources: no id! [range=%d]", range);
+                await impossible("save_light_sources: no id! [range=%d]", range);
                 is_global = 0;
             } else {
                 switch (curr.type) {
                     case LS_OBJECT:
-                        is_global = !obj_is_local(curr.id.a_obj);
+                        is_global = !await obj_is_local(curr.id.a_obj);
                         break;
                     case LS_MONSTER:
                         is_global = !((curr.id.a_monst).mx > 0);
                         break;
                     default:
                         is_global = 0;
-                        impossible("save_light_sources: bad type (%d) [range=%d]", curr.type, range);
+                        await impossible("save_light_sources: bad type (%d) [range=%d]", curr.type, range);
                         break;
                 }
             }
             if (is_global ^ (range == 0)) {
                 /* if global and not doing local, or vice versa, remove it */
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = curr.next) */;
-                memset(curr, 0, 1 /* sizeof(light_source) */);
+                /* C poison-before-free dropped (light_source; see above) */
                 free(curr);
             } else {
                 prev = (prev).next;
@@ -489,7 +477,7 @@ export function light_stats(hdrfmt, hdrbuf, count, size) {
     }
 }
 /* Relink all lights that are so marked. */
-export function relink_light_sources(ghostly) {
+export async function relink_light_sources(ghostly) {
     let which = 0;
     let nid = 0;
     let ls = null;
@@ -513,7 +501,7 @@ export function relink_light_sources(ghostly) {
      */
                 nid = ls.id.a_uint;
                 if (ghostly && !lookup_id_mapping(nid, { get value() { return nid; }, set value(_v) { nid = _v; } })) {
-                    panic("relink_light_sources: no id mapping");
+                    await panic("relink_light_sources: no id mapping");
                 }
                 which = 0;
                 if (ls.type == LS_OBJECT) {
@@ -526,10 +514,10 @@ export function relink_light_sources(ghostly) {
                     }
                 }
                 if (which != 0) {
-                    panic("relink_light_sources: can't find %c_id %u", which, nid);
+                    await panic("relink_light_sources: can't find %c_id %u", which, nid);
                 }
             } else {
-                panic("relink_light_sources: bad type (%d)", ls.type);
+                await panic("relink_light_sources: bad type (%d)", ls.type);
             }
             ls.flags &= ~2;
         }
@@ -540,66 +528,66 @@ export function relink_light_sources(ghostly) {
  * sources that would be written.  If write_it is true, actually write
  * the light source out.
  */
-export function maybe_write_ls(nhfp, range, write_it) {
+export async function maybe_write_ls(nhfp, range, write_it) {
     let count = 0;
     let is_global = 0;
     let ls = null;
     for (ls = game.light_base; ls; ls = ls.next) {
         if (!ls.id.a_monst) {
-            impossible("maybe_write_ls: no id! [range=%d]", range);
+            await impossible("maybe_write_ls: no id! [range=%d]", range);
             continue;
         }
         switch (ls.type) {
             case LS_OBJECT:
-                is_global = !obj_is_local(ls.id.a_obj);
+                is_global = !await obj_is_local(ls.id.a_obj);
                 break;
             case LS_MONSTER:
                 is_global = !((ls.id.a_monst).mx > 0);
                 break;
             default:
                 is_global = 0;
-                impossible("maybe_write_ls: bad type (%d) [range=%d]", ls.type, range);
+                await impossible("maybe_write_ls: bad type (%d) [range=%d]", ls.type, range);
                 break;
         }
         if (is_global ^ (range == 0)) {
             /* if global and not doing local, or vice versa, count it */
             count++;
             if (write_it) {
-                write_ls(nhfp, ls);
+                await write_ls(nhfp, ls);
             }
         }
     }
     return count;
 }
-export function light_sources_sanity_check() {
+export async function light_sources_sanity_check() {
     let ls = null;
     let mtmp = null;
     let otmp = null;
     let auint = 0;
     for (ls = game.light_base; ls; ls = ls.next) {
         if (!ls.id.a_monst) {
-            panic("insane light source: no id!");
+            await panic("insane light source: no id!");
         }
         if (ls.type == LS_OBJECT) {
             otmp = ls.id.a_obj;
             auint = otmp.o_id;
             if (find_oid(auint) != otmp) {
-                panic("insane light source: can't find obj #%u!", auint);
+                await panic("insane light source: can't find obj #%u!", auint);
             }
         } else if (ls.type == LS_MONSTER) {
             mtmp = ls.id.a_monst;
             auint = mtmp.m_id;
             if (find_mid(auint, (8 | 1 | 2 | 4)) != mtmp) {
-                panic("insane light source: can't find mon #%u!", auint);
+                await panic("insane light source: can't find mon #%u!", auint);
             }
         } else {
-            panic("insane light source: bad ls type %d", ls.type);
+            await panic("insane light source: bad ls type %d", ls.type);
         }
     }
 }
 /* Write a light source structure to disk. */
-export function write_ls(nhfp, ls) {
-    let arg_save = 0;
+export async function write_ls(nhfp, ls) {
+    let arg_save = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let otmp = null;
     let mtmp = null;
     if (ls.type == LS_OBJECT || ls.type == LS_MONSTER) {
@@ -607,13 +595,13 @@ export function write_ls(nhfp, ls) {
             sfo_ls_t(nhfp, ls, "lightsource");
         } else {
             /* replace object pointer with id for write, then put back */
-            arg_save = ls.id;
+            Object.assign(arg_save, ls.id);
             if (ls.type == LS_OBJECT) {
                 otmp = ls.id.a_obj;
-                ls.id = cg.zeroany;
+                Object.assign(ls.id, cg.zeroany);
                 ls.id.a_uint = otmp.o_id;
                 if (find_oid(ls.id.a_uint) != otmp) {
-                    impossible("write_ls: can't find obj #%u!", ls.id.a_uint);
+                    await impossible("write_ls: can't find obj #%u!", ls.id.a_uint);
                     ls.flags |= 4;
                 }
             } else {
@@ -633,26 +621,26 @@ export function write_ls(nhfp, ls) {
                  *
                  * find_mid() disregards a DEADMONSTER, but whereis_mon()
                  * does not. */
-                    ls.id = cg.zeroany;
+                    Object.assign(ls.id, cg.zeroany);
                     ls.id.a_uint = mtmp.m_id;
                     if (find_mid(ls.id.a_uint, monloc) != mtmp) {
-                        impossible("write_ls: can't find mon%s #%u!", ((mtmp).mhp < 1) ? " because it's dead" : "", ls.id.a_uint);
+                        await impossible("write_ls: can't find mon%s #%u!", ((mtmp).mhp < 1) ? " because it's dead" : "", ls.id.a_uint);
                         ls.flags |= 4;
                     }
                 } else {
-                    impossible("write_ls: stashed monst ptr not in any chain");
+                    await impossible("write_ls: stashed monst ptr not in any chain");
                     ls.flags |= 4;
                 }
             }
             if (ls.flags & 4) {}
             ls.flags |= 2;
             sfo_ls_t(nhfp, ls, "lightsource");
-            ls.id = arg_save;
+            Object.assign(ls.id, arg_save);
             ls.flags &= ~2;
             ls.flags &= ~4;
         }
     } else {
-        impossible("write_ls: bad type (%d)", ls.type);
+        await impossible("write_ls: bad type (%d)", ls.type);
     }
 }
 /* Change light source's ID from src to dest. */
@@ -674,7 +662,7 @@ export function any_light_source() {
  * Snuff an object light source if at (x,y).  This currently works
  * only for burning light sources.
  */
-export function snuff_light_source(x, y) {
+export async function snuff_light_source(x, y) {
     let ls = null;
     let obj = null;
     for (ls = game.light_base; ls; ls = ls.next) {
@@ -694,7 +682,7 @@ export function snuff_light_source(x, y) {
                 if (artifact_light(obj)) {
                     continue;
                 }
-                end_burn(obj, obj.otyp != MAGIC_LAMP);
+                await end_burn(obj, obj.otyp != MAGIC_LAMP);
                 /*
                  * The current ls element has just been removed (and
                  * ls->next is now invalid).  Return assuming that there
@@ -748,11 +736,10 @@ export function obj_split_light_source(src, dest) {
 }
 /* light source `src' has been folded into light source `dest';
    used for merging lit candles and adding candle(s) to lit candelabrum */
-export function obj_merge_light_sources(src, dest) {
+export async function obj_merge_light_sources(src, dest) {
     let ls = null;
-    /* src == dest implies adding to candelabrum */
     if (src != dest) {
-        end_burn(src, (1));
+        await end_burn(src, (1));
     }
     for (ls = game.light_base; ls; ls = ls.next) {
         if (ls.type == LS_OBJECT && ls.id.a_obj == dest) {
@@ -763,7 +750,7 @@ export function obj_merge_light_sources(src, dest) {
     }
 }
 /* light source `obj' is being made brighter or dimmer */
-export function obj_adjust_light_radius(obj, new_radius) {
+export async function obj_adjust_light_radius(obj, new_radius) {
     let ls = null;
     for (ls = game.light_base; ls; ls = ls.next) {
         if (ls.type == LS_OBJECT && ls.id.a_obj == obj) {
@@ -774,7 +761,7 @@ export function obj_adjust_light_radius(obj, new_radius) {
             return;
         }
     }
-    impossible("obj_adjust_light_radius: can't find %s", xname(obj));
+    await impossible("obj_adjust_light_radius: can't find %s", await xname(obj));
 }
 /* Candlelight is proportional to the number of candles;
    minimum range is 2 rather than 1 for playability. */
@@ -860,7 +847,7 @@ export function arti_light_description(obj) {
     return "strangely";
 }
 /* the #lightsources command */
-export function wiz_light_sources() {
+export async function wiz_light_sources() {
     let win = 0;
     let buf = '';
     let ls = null;
@@ -881,7 +868,7 @@ export function wiz_light_sources() {
     } else {
         (game.windowprocs.win_putstr)(win, 0, "<none>");
     }
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
@@ -889,4 +876,17 @@ export function wiz_light_sources() {
 /* for 'onefile' processing where end of this file isn't necessarily the
    end of the source code seen by the compiler */
 /*light.c*/
+/* camera flash uses radius 0 and passes Null object */
+/* radius 0 will just light <x,y>; cameraflash.a_obj is Null */
+/* necessary condition to get into this 'else' */
+/* full recalc; runs do_light_sources() */
+/* take thrown/kicked candle or lamp off the map */
+/* in case we're cleaning up a camera flash, remove all object light
+       sources which aren't associated with a specific object */
+/* set by del_light_source() */
+/* camera flash light sources have Null object and would trigger
+       impossible("no id!") below; they can only happen here if we're
+       in the midst of a panic save and they wouldn't be useful after
+       restore so just throw any that are present away */
 /* TODO: cleanup this ls, or skip writing it */
+/* src == dest implies adding to candelabrum */

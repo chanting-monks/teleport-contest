@@ -19,6 +19,7 @@ import { abs } from '../c2js-runtime/math.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { raw_printf } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, fprintf, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp } from '../c2js-runtime/string.js';
 import { timet_to_seconds } from './allmain.js';
@@ -49,23 +50,23 @@ game.zerott = { tt_next: null, points: 0, deathdnum: 0, deathlev: 0, maxlvl: 0, 
 /* STONING, TURNED_SLIME, GENOCIDED, */
 /* PANICKED, TRICKED, QUIT, ESCAPED, ASCENDED */
 const __formatkiller_killed_by_prefix = ["killed by ", "choked on ", "poisoned by ", "died of ", "drowned in ", "burned by ", "dissolved in ", "crushed to death by ", "petrified by ", "turned to slime by ", "killed by ", "", "", "", "", ""];
-export function formatkiller(buf, siz, how, incl_helpless) {
+export async function formatkiller(buf, siz, how, incl_helpless) {
     let l = 0;
     let c = 0;
     let kname = game.killer.name;
     buf = __nh_char_write(buf, 0, 0);
     switch (game.killer.format) {
         default:
-            impossible("bad killer format? (%d)", game.killer.format);
+            await impossible("bad killer format? (%d)", game.killer.format);
             ;
         case 2:
             break;
         case 0:
-            kname = an(kname);
+            kname = await an(kname);
             ;
         case 1:
             buf = strncat(buf, __formatkiller_killed_by_prefix[how], siz - 1);
-            l = Strlen_(buf, "formatkiller", 123);
+            l = await Strlen_(buf, "formatkiller", 123);
             buf = __nh_advance_str(buf, l) , siz -= l;
             break;
     }
@@ -133,7 +134,7 @@ export function discardexcess(rfile) {
 const __readentry_fmt = "%d.%d.%d %ld %d %d %d %d %d %d %ld %ld %d ";
 const __readentry_fmt32 = "%c%c %[^,],%[^\n]%*c";
 const __readentry_fmt33 = "%s %s %s %s %[^,],%[^\n]%*c";
-export function readentry(rfile, tt) {
+export async function readentry(rfile, tt) {
     let inbuf = '';
     let s1 = '';
     let s2 = '';
@@ -168,7 +169,7 @@ export function readentry(rfile, tt) {
                 tt.points = 0;
             }
             tt.plrole[1] = 0;
-            if ((i = str2role(tt.plrole)) >= 0) {
+            if ((i = await str2role(tt.plrole)) >= 0) {
                 tt.plrole = strcpy(tt.plrole, roles[i].filecode);
             }
             tt.plrace = strcpy(tt.plrace, "?");
@@ -209,7 +210,7 @@ export function writeentry(rfile, tt) {
     fprintf(rfile, __writeentry_fmtX, onlyspace(tt.name) ? "_" : tt.name, tt.death);
 }
 /* as tab is never used in eg. svp.plname or death, no need to mangle those. */
-export function writexlentry(rfile, tt, how) {
+export async function writexlentry(rfile, tt, how) {
     /* xlogfile field separator. */
     let buf = '';
     let tmpbuf = '';
@@ -220,15 +221,14 @@ export function writexlentry(rfile, tt, how) {
     buf = __nh_buf_append(buf, sprintf('', "%cdeaths=%d%cdeathdate=%ld%cbirthdate=%ld%cuid=%d", 9, tt.deaths, 9, tt.deathdate, 9, tt.birthdate, 9, tt.uid));
     fprintf(rfile, "%s", buf);
     buf = sprintf(buf, "%crole=%s%crace=%s%cgender=%s%calign=%s", 9, tt.plrole, 9, tt.plrace, 9, tt.plgend, 9, tt.plalign);
-    /* make a copy of death reason that doesn't include ", while helpless" */
-    formatkiller(tmpbuf, 101 /* sizeof(char [101]) */, how, (0));
+    await formatkiller(tmpbuf, 101 /* sizeof(char [101]) */, how, (0));
     fprintf(rfile, "%s%cname=%s%cdeath=%s", buf, 9, game.plname, 9, tmpbuf);
     if (game.multi < 0) {
         fprintf(rfile, "%cwhile=%s", 9, game.multi_reason ? game.multi_reason : "helpless");
     }
-    fprintf(rfile, "%cconduct=0x%lx%cturns=%ld%cachieve=0x%lx", 9, encodeconduct(), 9, game.moves, 9, encodeachieve((0)));
+    fprintf(rfile, "%cconduct=0x%lx%cturns=%ld%cachieve=0x%lx", 9, await encodeconduct(), 9, game.moves, 9, encodeachieve((0)));
     fprintf(rfile, "%cachieveX=%s", 9, encode_extended_achievements(achbuf));
-    fprintf(rfile, "%cconductX=%s", 9, encode_extended_conducts(buf));
+    fprintf(rfile, "%cconductX=%s", 9, await encode_extended_conducts(buf));
     fprintf(rfile, "%crealtime=%ld%cstarttime=%ld%cendtime=%ld", 9, game.urealtime.realtime, 9, timet_to_seconds(game.ubirthday), 9, timet_to_seconds(game.urealtime.finish_time));
     fprintf(rfile, "%cgender0=%s%calign0=%s", 9, genders[game.flags.initgend].filecode, 9, aligns[1 - game.u.ualignbase[1]].filecode);
     fprintf(rfile, "%cflags=0x%lx", 9, encodexlogflags());
@@ -255,7 +255,7 @@ export function encodexlogflags() {
     }
     return e;
 }
-export function encodeconduct() {
+export async function encodeconduct() {
     let e = 0;
     if (!game.u.uconduct.food) {
         e |= 1 << 0;
@@ -290,7 +290,7 @@ export function encodeconduct() {
     if (!game.u.uconduct.wisharti) {
         e |= 1 << 10;
     }
-    if (!num_genocides()) {
+    if (!await num_genocides()) {
         e |= 1 << 11;
     }
     /* one bit isn't really adequate for sokoban conduct:
@@ -436,7 +436,7 @@ export function encode_extended_achievements(buf) {
     }
     return buf;
 }
-export function encode_extended_conducts(buf) {
+export async function encode_extended_conducts(buf) {
     buf = __nh_char_write(buf, 0, 0);
     add_achieveX(buf, "foodless", !game.u.uconduct.food);
     add_achieveX(buf, "vegan", !game.u.uconduct.unvegan);
@@ -449,7 +449,7 @@ export function encode_extended_conducts(buf) {
     add_achieveX(buf, "polyselfless", !game.u.uconduct.polyselfs);
     add_achieveX(buf, "wishless", !game.u.uconduct.wishes);
     add_achieveX(buf, "artiwishless", !game.u.uconduct.wisharti);
-    add_achieveX(buf, "genocideless", !num_genocides());
+    add_achieveX(buf, "genocideless", !await num_genocides());
     if (sokoban_in_play()) {
         add_achieveX(buf, "sokoban", !game.u.uconduct.sokocheat);
     }
@@ -472,7 +472,7 @@ export function free_ttlist(tt) {
     }
     free((tt));
 }
-export function topten(how, when) {
+export async function topten(how, when) {
     let t0 = null;
     let tprev = null;
     let t1 = null;
@@ -530,7 +530,7 @@ export function topten(how, when) {
         t0.plgend = copynchars(t0.plgend, genders[game.flags.female].filecode, 3);
         t0.plalign = copynchars(t0.plalign, aligns[1 - game.u.ualign.type].filecode, 3);
         t0.name = copynchars(t0.name, game.plname, 10);
-        formatkiller(t0.death, 101 /* sizeof(char [101]) */, how, (1));
+        await formatkiller(t0.death, 101 /* sizeof(char [101]) */, how, (1));
         t0.birthdate = yyyymmdd(game.ubirthday);
         t0.deathdate = yyyymmdd(when);
         t0.tt_next = null;
@@ -552,7 +552,7 @@ export function topten(how, when) {
                     (game.windowprocs.win_raw_print)("Cannot open extended log file!");
                 }
             } else {
-                writexlentry(xlfile, t0, how);
+                await writexlentry(xlfile, t0, how);
                 fclose(xlfile);
             }
             unlock_file("xlogfile");
@@ -599,8 +599,7 @@ export function topten(how, when) {
         t1 = game.tt_head = alloc(1 /* sizeof(struct toptenentry) */);
         tprev = null;
         for (rank = 1; ; ) {
-            /* rank0: -1 undefined, 0 not_on_list, n n_th on list */
-            readentry(rfile, t1);
+            await readentry(rfile, t1);
             if (t1.points < game.sysopt.pointsmin) {
                 t1.points = 0;
             }
@@ -703,18 +702,18 @@ export function topten(how, when) {
                     topten_print("");
                 }
                 if (rank != rank0) {
-                    outentry(rank, t1, (0));
+                    await outentry(rank, t1, (0));
                 } else if (!rank1) {
-                    outentry(rank, t1, (1));
+                    await outentry(rank, t1, (1));
                 } else {
-                    outentry(rank, t1, (1));
-                    outentry(0, t0, (1));
+                    await outentry(rank, t1, (1));
+                    await outentry(0, t0, (1));
                 }
             }
         }
         if (rank0 >= rank) {
             if (!skip_scores && !game.program_state.stopprint) {
-                outentry(0, t0, (1));
+                await outentry(0, t0, (1));
             }
         }
         fclose(rfile);
@@ -723,7 +722,7 @@ export function topten(how, when) {
     }
     if (!game.program_state.stopprint) {
         if (game.iflags.toptenwin) {
-            (game.windowprocs.win_display_nhwindow)(game.toptenwin, (1));
+            await (game.windowprocs.win_display_nhwindow)(game.toptenwin, (1));
         } else {
             ;
         }
@@ -743,7 +742,7 @@ export function outheader() {
     topten_print(header);
 }
 /* so>0: standout line; so=0: ordinary line */
-export function outentry(rank, t1, so) {
+export async function outentry(rank, t1, so) {
     let second_line = (1);
     let linebuf = '';
     let bp = null;
@@ -886,7 +885,7 @@ export function outentry(rank, t1, so) {
             topten_print(linebuf);
         }
         linebuf = nh_snprintf("outentry", 1082, linebuf, 256 /* sizeof(char [256]) */, "%15s %s", "", linebuf3);
-        lngr = Strlen_(linebuf, "outentry", 1083);
+        lngr = await Strlen_(linebuf, "outentry", 1083);
     }
     /* beginning of hp column not including padding */
     hppos = 80 - 7 - strlen(hpbuf);
@@ -910,7 +909,7 @@ export function outentry(rank, t1, so) {
         topten_print(linebuf);
     }
 }
-export function score_wanted(current_ver, rank, t1, playerct, players, uid) {
+export async function score_wanted(current_ver, rank, t1, playerct, players, uid) {
     let arg = null;
     let nxt = null;
     let i = 0;
@@ -958,7 +957,7 @@ export function score_wanted(current_ver, rank, t1, playerct, players, uid) {
         }
         if (__nh_char_at0(arg) == 45 && strchr("pru", __nh_char_at0(__nh_advance_str(arg, 1))) && !__nh_char_at0(__nh_advance_str(arg, 2)) && i + 1 < playerct) {
             nxt = players[i + 1];
-            if ((__nh_char_at0(__nh_advance_str(arg, 1)) == 112 && str2role(nxt) == str2role(t1.plrole)) || (__nh_char_at0(__nh_advance_str(arg, 1)) == 114 && str2race(nxt) == str2race(t1.plrace)) || (__nh_char_at0(__nh_advance_str(arg, 1)) == 117 && (!strcmp(nxt, "all") || !strncmp(t1.name, nxt, 10)))) {
+            if ((__nh_char_at0(__nh_advance_str(arg, 1)) == 112 && await str2role(nxt) == await str2role(t1.plrole)) || (__nh_char_at0(__nh_advance_str(arg, 1)) == 114 && await str2race(nxt) == await str2race(t1.plrace)) || (__nh_char_at0(__nh_advance_str(arg, 1)) == 117 && (!strcmp(nxt, "all") || !strncmp(t1.name, nxt, 10)))) {
                 return 1;
             }
             i++;
@@ -974,7 +973,7 @@ export function score_wanted(current_ver, rank, t1, playerct, players, uid) {
  * and argv[1] starting with "-s".
  * caveat: some shells might allow argv elements to be arbitrarily long.
  */
-export function prscore(argc, argv) {
+export async function prscore(argc, argv) {
     let players = null;
     let player0 = null;
     let i = 0;
@@ -989,10 +988,9 @@ export function prscore(argc, argv) {
     let current_ver = (1);
     let init_done = (0);
     let match_found = (0);
-    /* expect "-s" or "--scores"; "-s<anything> is accepted */
-    ln = (argc < 2) ? 0 : ((p = strchr(argv[1], 32)) != null) ? (p - argv[1]) : Strlen_(argv[1], "prscore", 1208);
+    ln = (argc < 2) ? 0 : ((p = strchr(argv[1], 32)) != null) ? (p - argv[1]) : await Strlen_(argv[1], "prscore", 1208);
     if (ln < 2 || (strncmp(argv[1], "-s", 2) && strcmp(argv[1], "--scores"))) {
-        raw_printf("prscore: bad arguments (%d)", argc);
+        await raw_printf("prscore: bad arguments (%d)", argc);
         return;
     }
     rfile = fopen_datafile("record", "r", 5);
@@ -1002,9 +1000,7 @@ export function prscore(argc, argv) {
     }
     if ((game.dungeon_topology.d_wiz1_level).dlevel == 0) {
         ;
-        /* If the score list isn't after a game, we never went through
-     * initialization. */
-        init_dungeons();
+        await init_dungeons();
         init_done = (1);
     }
     if (argv[1][1] == 45 || !argv[1][2]) {
@@ -1046,11 +1042,11 @@ export function prscore(argc, argv) {
     (game.windowprocs.win_raw_print)("");
     t1 = game.tt_head = alloc(1 /* sizeof(struct toptenentry) */);
     for (rank = 1; ; rank++) {
-        readentry(rfile, t1);
+        await readentry(rfile, t1);
         if (t1.points == 0) {
             break;
         }
-        if (!match_found && score_wanted(current_ver, rank, t1, playerct, players, uid)) {
+        if (!match_found && await score_wanted(current_ver, rank, t1, playerct, players, uid)) {
             match_found = (1);
         }
         t1.tt_next = alloc(1 /* sizeof(struct toptenentry) */);
@@ -1065,8 +1061,8 @@ export function prscore(argc, argv) {
         outheader();
         t1 = game.tt_head;
         for (rank = 1; t1.points != 0; rank++ , t1 = t1.tt_next) {
-            if (score_wanted(current_ver, rank, t1, playerct, players, uid)) {
-                outentry(rank, t1, (0));
+            if (await score_wanted(current_ver, rank, t1, playerct, players, uid)) {
+                await outentry(rank, t1, (0));
             }
         }
     } else {
@@ -1112,12 +1108,12 @@ export function prscore(argc, argv) {
             pbuf = strcat(pbuf, ".");
         }
         (game.windowprocs.win_raw_print)(pbuf);
-        raw_printf("Usage: %s -s [-v] <playertypes> [maxrank] [playernames]", game.hname);
-        raw_printf("Player types are: [-p role] [-r race]");
+        await raw_printf("Usage: %s -s [-v] <playertypes> [maxrank] [playernames]", game.hname);
+        await raw_printf("Player types are: [-p role] [-r race]");
     }
     free_ttlist(game.tt_head);
 }
-export function classmon(plch) {
+export async function classmon(plch) {
     let i = 0;
     for (i = 0; roles[i].name.m; i++) {
         if (!strncmp(plch, roles[i].filecode, 3)) {
@@ -1133,28 +1129,29 @@ export function classmon(plch) {
     if (!strcmp(plch, "E")) {
         return PM_RANGER;
     }
-    impossible("What weird role is this? (%s)", plch);
+    await impossible("What weird role is this? (%s)", plch);
     return PM_HUMAN_MUMMY;
 }
 /*
  * Get a random player name and class from the high score list,
  */
 let __get_rnd_toptenentry_tt_buf = { tt_next: null, points: 0, deathdnum: 0, deathlev: 0, maxlvl: 0, hp: 0, maxhp: 0, deaths: 0, ver_major: 0, ver_minor: 0, patchlevel: 0, deathdate: 0, birthdate: 0, uid: 0, plrole: [0, 0, 0, 0], plrace: [0, 0, 0, 0], plgend: [0, 0, 0, 0], plalign: [0, 0, 0, 0], name: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], death: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-export function get_rnd_toptenentry() {
+__nh_register_static(() => { __get_rnd_toptenentry_tt_buf = { tt_next: null, points: 0, deathdnum: 0, deathlev: 0, maxlvl: 0, hp: 0, maxhp: 0, deaths: 0, ver_major: 0, ver_minor: 0, patchlevel: 0, deathdate: 0, birthdate: 0, uid: 0, plrole: [0, 0, 0, 0], plrace: [0, 0, 0, 0], plgend: [0, 0, 0, 0], plalign: [0, 0, 0, 0], name: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], death: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }; });
+export async function get_rnd_toptenentry() {
     let rank = 0;
     let i = 0;
     let rfile = null;
     let tt = null;
     rfile = fopen_datafile("record", "r", 5);
     if (!rfile) {
-        impossible("Cannot open record file!");
+        await impossible("Cannot open record file!");
         return null;
     }
     tt = __get_rnd_toptenentry_tt_buf;
     rank = rnd(game.sysopt.tt_oname_maxrank);
     pickentry: while (true) {
         for (i = rank; i; i--) {
-            readentry(rfile, tt);
+            await readentry(rfile, tt);
             if (tt.points == 0) {
                 break;
             }
@@ -1176,27 +1173,27 @@ export function get_rnd_toptenentry() {
  * Attach random player name and class from high score list
  * to an object (for statues or morgue corpses).
  */
-export function tt_oname(otmp) {
+export async function tt_oname(otmp) {
     let tt = null;
     if (!otmp) {
         return null;
     }
-    tt = get_rnd_toptenentry();
+    tt = await get_rnd_toptenentry();
     if (!tt) {
         return null;
     }
-    set_corpsenm(otmp, classmon(tt.plrole));
+    await set_corpsenm(otmp, await classmon(tt.plrole));
     if (tt.plgend[0] == 70) {
         otmp.spe = 1;
     } else if (tt.plgend[0] == 77) {
         otmp.spe = 2;
     }
-    otmp = oname(otmp, tt.name, 0);
+    otmp = await oname(otmp, tt.name, 0);
     return otmp;
 }
 /* Randomly select a topten entry to mimic */
-export function tt_doppel(mon) {
-    let tt = rn2(13) ? get_rnd_toptenentry() : null;
+export async function tt_doppel(mon) {
+    let tt = rn2(13) ? await get_rnd_toptenentry() : null;
     let ret = 0;
     if (!tt) {
         ret = (rn2(PM_WIZARD - PM_ARCHEOLOGIST + 1) + (PM_ARCHEOLOGIST));
@@ -1206,7 +1203,7 @@ export function tt_doppel(mon) {
         } else if (tt.plgend[0] == 77) {
             mon.female = 0;
         }
-        ret = classmon(tt.plrole);
+        ret = await classmon(tt.plrole);
         /* Only take on a name if the player can see
            the doppelganger, otherwise we end up with
            named monsters spoiling the fun - Kes */
@@ -1222,7 +1219,12 @@ export function tt_doppel(mon) {
 /* NO_SCAN_BRACK */
 /*topten.c*/
 /* either gm.multi_reason wasn't specified or wouldn't fit */
+/* make a copy of death reason that doesn't include ", while helpless" */
 /* (already includes separator) */
+/* rank0: -1 undefined, 0 not_on_list, n n_th on list */
 /* when not a window, we need something comparable to more()
                but can't use it directly because we aren't dealing with
                the message window */
+/* expect "-s" or "--scores"; "-s<anything> is accepted */
+/* If the score list isn't after a game, we never went through
+     * initialization. */

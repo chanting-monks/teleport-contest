@@ -169,7 +169,7 @@ export function experience(mtmp, nk) {
     }
     return (tmp);
 }
-export function more_experienced(exper, rexp) {
+export async function more_experienced(exper, rexp) {
     let oldexp = game.u.uexp;
     let oldrexp = game.u.urexp;
     let newexp = oldexp + exper;
@@ -187,10 +187,7 @@ export function more_experienced(exper, rexp) {
         if (game.flags.showexp) {
             game.disp.botl = (1);
         }
-        /* even when experience points aren't being shown, experience level
-           might be highlighted with a percentage highlight rule and that
-           percentage depends upon experience points */
-        if (!game.disp.botl && exp_percent_changing()) {
+        if (!game.disp.botl && await exp_percent_changing()) {
             game.disp.botl = (1);
         }
     }
@@ -204,7 +201,7 @@ export function more_experienced(exper, rexp) {
 }
 /* e.g., hit by drain life attack */
 /* cause of death, if drain should be fatal */
-export function losexp(drainer) {
+export async function losexp(drainer) {
     let num = 0;
     let uhpmin = 0;
     let olduhpmax = 0;
@@ -212,20 +209,15 @@ export function losexp(drainer) {
        wizard mode request to reduce level; never fatal though */
     if (drainer && !strcmp(drainer, "#levelchange")) {
         drainer = null;
-    } else if (resists_drli(game.youmonst)) {
+    } else if (await resists_drli(game.youmonst)) {
         return;
     }
-    /* level-loss message; "Goodbye level 1." is fatal; divine anger
-       (drainer==NULL) resets a level 1 character to 0 experience points
-       without reducing level and that isn't fatal so suppress the message
-       in that situation */
     if (game.u.ulevel > 1 || drainer) {
-        pline("%s level %d.", Goodbye(), game.u.ulevel);
+        await pline("%s level %d.", Goodbye(), game.u.ulevel);
     }
     if (game.u.ulevel > 1) {
         game.u.ulevel -= 1;
-        /* remove intrinsic abilities */
-        adjabil(game.u.ulevel + 1, game.u.ulevel);
+        await adjabil(game.u.ulevel + 1, game.u.ulevel);
         livelog_printf(4096, "lost experience level %d", game.u.ulevel + 1);
         ;
     } else {
@@ -234,7 +226,7 @@ export function losexp(drainer) {
             if (game.killer.name != drainer) {
                 game.killer.name = strcpy(game.killer.name, drainer);
             }
-            done(DIED);
+            await done(DIED);
         }
         if (game.u.ulevel > 1) {
             return;
@@ -284,7 +276,7 @@ export function losexp(drainer) {
         game.u.mhmax -= num;
         game.u.mh -= num;
         if (game.u.mh <= 0) {
-            rehumanize();
+            await rehumanize();
         }
     }
     game.disp.botl = (1);
@@ -295,19 +287,19 @@ export function losexp(drainer) {
  * After all, how much real experience does one get shooting a wand of death
  * at a dragon created with a wand of polymorph??
  */
-export function newexplevel() {
+export async function newexplevel() {
     if (game.u.ulevel < 30 && game.u.uexp >= newuexp(game.u.ulevel)) {
-        pluslvl((1));
+        await pluslvl((1));
     }
 }
 /* True: incremental experience growth;
                    * False: potion of gain level or wraith corpse
                    *        or wizard mode #levelchange */
-export function pluslvl(incr) {
+export async function pluslvl(incr) {
     let hpinc = 0;
     let eninc = 0;
     if (!incr) {
-        You_feel("more experienced.");
+        await You_feel("more experienced.");
     }
     if ((game.u.umonnum != game.u.umonster)) {
         /* increase hit points (when polymorphed, do monster form first
@@ -344,16 +336,16 @@ export function pluslvl(incr) {
             game.u.uexp = newuexp(game.u.ulevel);
         }
         ++game.u.ulevel;
-        pline("Welcome %sto experience level %d.", (game.u.ulevelmax < game.u.ulevel) ? "" : "back ", game.u.ulevel);
+        await pline("Welcome %sto experience level %d.", (game.u.ulevelmax < game.u.ulevel) ? "" : "back ", game.u.ulevel);
         if (game.u.ulevelmax < game.u.ulevel) {
             game.u.ulevelmax = game.u.ulevel;
         }
-        adjabil(game.u.ulevel - 1, game.u.ulevel);
+        await adjabil(game.u.ulevel - 1, game.u.ulevel);
         ;
         old_ach_cnt = count_achievements();
         newrank = xlev_to_rank(game.u.ulevel);
         if (newrank > oldrank) {
-            record_achievement(achieve_rank(newrank));
+            await record_achievement(achieve_rank(newrank));
         }
         /* a new rank achievement will log its own message; log a simpler
            message here if we didn't just get an achievement (so when rank
@@ -400,5 +392,13 @@ export function rndexp(gaining) {
     return result;
 }
 /*exper.c*/
+/* even when experience points aren't being shown, experience level
+           might be highlighted with a percentage highlight rule and that
+           percentage depends upon experience points */
+/* level-loss message; "Goodbye level 1." is fatal; divine anger
+       (drainer==NULL) resets a level 1 character to 0 experience points
+       without reducing level and that isn't fatal so suppress the message
+       in that situation */
+/* remove intrinsic abilities */
 /* can happen during debug fuzzing if fuzzer_savelife() uses
                a blessed potion of restore ability to restore lost levels */

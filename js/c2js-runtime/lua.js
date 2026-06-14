@@ -208,6 +208,13 @@ export function luaValueToJs(L, idx, visited = null) {
     if (t === lua.LUA_TBOOLEAN) return !!lua.lua_toboolean(L, idx);
     if (t === lua.LUA_TNUMBER) return lua.lua_tonumber(L, idx);
     if (t === lua.LUA_TSTRING) return from_lstr(lua.lua_tostring(L, idx));
+    if (t === lua.LUA_TLIGHTUSERDATA || lua.lua_islightuserdata?.(L, idx)) {
+        const ud = lua.lua_touserdata(L, idx);
+        if (ud && typeof ud === 'object' && 'obj' in ud && 'state' in ud) {
+            return wrapLuaObj(ud);
+        }
+        return ud ?? null;
+    }
     if (t !== lua.LUA_TTABLE) return null;
     // Cycle guard.
     if (!visited) visited = new Set();
@@ -445,6 +452,54 @@ function install_no_op_stub(L) {
 
 // ── Public C-API surface ───────────────────────────────────────────
 
+// C ref src/nhlua.c init_u_data / nhl_meta_u_index — the lua `u`
+// global is a read-only metatable view of the hero.  Transpiled dat
+// modules (hellfill, nhcore, nhlib, tut-*) reference it as
+// `globalThis.u.<field>`; without it hellfill's invocation_level
+// check threw and the level load aborted ("making a maze"), killing
+// seed4500 at rng 63594 (its scorer row read P=0/0).  Implemented as
+// a Proxy so every read sees CURRENT game state, like C's __index.
+function installLuaUGlobal() {
+    const SCALARS = {
+        ux: (u) => u.ux, uy: (u) => u.uy,
+        dx: (u) => u.dx, dy: (u) => u.dy, dz: (u) => u.dz,
+        tx: (u) => u.tx, ty: (u) => u.ty,
+        ulevel: (u) => u.ulevel, ulevelmax: (u) => u.ulevelmax,
+        uhunger: (u) => u.uhunger,
+        nv_range: (u) => u.nv_range, xray_range: (u) => u.xray_range,
+        umonster: (u) => u.umonster, umonnum: (u) => u.umonnum,
+        mh: (u) => u.mh, mhmax: (u) => u.mhmax,
+        mtimedone: (u) => u.mtimedone,
+        dlevel: (u) => u.uz?.dlevel, dnum: (u) => u.uz?.dnum,
+        uluck: (u) => u.uluck,
+        uhp: (u) => u.uhp, uhpmax: (u) => u.uhpmax,
+        uen: (u) => u.uen, uenmax: (u) => u.uenmax,
+    };
+    globalThis.u = new Proxy({}, {
+        get(_t, key) {
+            const game = globalThis.__nh_gameRef || globalThis.game;
+            const u = game?.u || {};
+            if (key in SCALARS) return SCALARS[key](u) | 0;
+            if (key === 'role') return game?.urole?.name?.m;
+            if (key === 'moves') return game?.moves | 0;
+            if (key === 'uhave_amulet') return game?.u?.uhave?.amulet | 0;
+            if (key === 'depth' || key === 'invocation_level') {
+                // lazy import (dungeon.js circular at module load)
+                const d = globalThis.__nh_dungeon_mod;
+                if (key === 'depth') return d ? d.depth(u.uz) : 0;
+                return d ? !!d.Invocation_lev(u.uz) : false;
+            }
+            return undefined;
+        },
+        set() {
+            // C nhl_meta_u_newindex: "Cannot set u table values"
+            throw new Error('Cannot set u table values');
+        },
+    });
+}
+installLuaUGlobal();
+import('../translated/dungeon.js').then((d) => { globalThis.__nh_dungeon_mod = d; }, () => {});
+
 export async function nhl_init(_sbi) {
     const L = lauxlib.luaL_newstate();
     lualib.luaL_openlibs(L);
@@ -583,6 +638,40 @@ function push_js_value(L, v) {
             push_js_value(L, v[i]);
             lua.lua_rawseti(L, -2, i + 1); // 1-indexed
         }
+    } else if (typeof v === 'object' && typeof v.__call === 'string'
+               && v.__call.startsWith('selection.') && Array.isArray(v.args)) {
+        // Templatic deferred-call marker ({__call:"selection.area",
+        // args:[...]}) — the bundle encoder can't store a live
+        // Selection, so it records the constructor call.  Resolve it
+        // at replay time and push the resulting selectionvar as
+        // lightuserdata.  Without this the marker fell through to the
+        // plain-table branch and l_selection_check threw "not a
+        // selection" (Arc-goal's lit/unlit regions, absorbed).
+        const __selmod = globalThis.__nh_selection_ns;
+        const fn = __selmod?.[v.__call.slice('selection.'.length)];
+        if (typeof fn === 'function') {
+            const res = fn(...v.args);
+            const sv = (res && res.sv) || res;
+            if (sv && typeof sv.wid === 'number') {
+                lua.lua_pushlightuserdata(L, sv);
+                return;
+            }
+        }
+        lua.lua_pushnil(L);
+    } else if (typeof v === 'object' && v.sv && typeof v.sv === 'object'
+               && typeof v.sv.wid === 'number') {
+        // Selection wrapper (selection-js.mjs) — push the underlying
+        // selectionvar as lightuserdata, mirroring des-bridge's
+        // pushSelection.  The plain-table fallback below used to
+        // flatten Selections into tables, so l_selection_check threw
+        // "not a selection" and lspo_region aborted (absorbed) on
+        // every templatic/lua-cb path that carried one (seed4500's
+        // hellfill lit regions).
+        lua.lua_pushlightuserdata(L, v.sv);
+    } else if (typeof v === 'object' && typeof v.wid === 'number'
+               && v.map !== undefined) {
+        // Raw selectionvar.
+        lua.lua_pushlightuserdata(L, v);
     } else if (typeof v === 'object') {
         lua.lua_newtable(L);
         for (const [k, val] of Object.entries(v)) {
@@ -1014,6 +1103,96 @@ export function nhl_add_table_entry_int(L, name, value) {
 // bookkeeping; JS GC makes that moot.
 export function nhl_push_obj(L, otmp) {
     lua.lua_pushlightuserdata(L, { state: 0, obj: otmp || null });
+}
+// Shared JS wrapper for the lightuserdata pushed by nhl_push_obj —
+// the Lua obj API the transpiled dat modules call on des.object()
+// results and contents-callback args.  C refs: src/nhlobj.c
+// l_obj_timer_stop / l_obj_timer_start / l_obj_to_table.
+const __TIMER_NAMES = ['rot-organic', 'rot-corpse', 'revive-mon',
+    'zombify-mon', 'burn-obj', 'hatch-egg', 'fig-transform',
+    'shrink-glob', 'melt-ice'];
+let __timeout_mod = null;
+import('../translated/timeout.js').then((m) => { __timeout_mod = m; }, () => {});
+let __mkobj_mod = null;
+import('../translated/mkobj.js').then((m) => { __mkobj_mod = m; }, () => {});
+let __decl_mod = null;
+import('../translated/decl.js').then((m) => { __decl_mod = m; }, () => {});
+import('./selection-js.mjs').then((m) => { globalThis.__nh_selection_ns = m.selection; }, () => {});
+function __obj_to_any(obj) {
+    return { a_obj: obj, a_void: obj, a_monst: null, a_long: 0,
+             a_int: 0, a_uint: 0, a_ulong: 0, a_iflags: 0 };
+}
+export function wrapLuaObj(box) {
+    const obj = box && box.obj;
+    return {
+        __nh_obj: obj || null,
+        stop_timer(name) {
+            const m = __timeout_mod;
+            if (!m || !obj) return 0;
+            if (name === undefined) { m.obj_stop_timers?.(obj); return 0; }
+            const t = __TIMER_NAMES.indexOf(name);
+            if (t < 0 || !m.obj_has_timer(obj, t)) return 0;
+            return m.stop_timer(t, __obj_to_any(obj));
+        },
+        async start_timer(name, when) {
+            const m = __timeout_mod;
+            const t = __TIMER_NAMES.indexOf(name);
+            if (!m || !obj || t < 0 || !(when > 0)) return;
+            if (m.obj_has_timer(obj, t)) m.stop_timer(t, __obj_to_any(obj));
+            await m.start_timer(when, 3 /* TIMER_OBJECT */, t, __obj_to_any(obj));
+        },
+        async addcontent(item) {
+            // C ref nhlobj.c l_obj_add_to_container: extract, add,
+            // refresh container weight.
+            const m = __mkobj_mod;
+            const itmObj = item && (item.__nh_obj || item);
+            if (!m || !obj || !itmObj || !itmObj.otyp) return;
+            await m.obj_extract_self(itmObj);
+            await m.add_to_container(obj, itmObj);
+            obj.owt = await m.weight(obj);
+        },
+        class() {
+            // C ref nhlobj.c l_obj_objects_to_table (subset incl.
+            // the material name themerms' Buried Treasure checks).
+            const game = globalThis.__nh_gameRef || globalThis.game;
+            const oc = game?.objects?.[obj?.otyp];
+            if (!oc) return {};
+            const matnm = __decl_mod?.materialnm || [];
+            return {
+                name: game.obj_descr?.[oc.oc_name_idx]?.oc_name,
+                descr: game.obj_descr?.[oc.oc_descr_idx]?.oc_descr,
+                magic: oc.oc_magic | 0,
+                charged: oc.oc_charged | 0,
+                unique: oc.oc_unique | 0,
+                material: matnm[oc.oc_material | 0],
+                delay: oc.oc_delay | 0,
+                prob: oc.oc_prob | 0,
+                weight: oc.oc_weight | 0,
+                cost: oc.oc_cost | 0,
+                nutrition: oc.oc_nutrition | 0,
+            };
+        },
+        totable() {
+            // C ref nhlobj.c l_obj_to_table (common-field subset).
+            if (!obj || obj.where === 6 /* OBJ_LUAFREE? see obj.h */) {
+                return { NO_OBJ: 1 };
+            }
+            return {
+                has_contents: obj.cobj ? 1 : 0,
+                o_id: obj.o_id | 0,
+                ox: obj.ox | 0, oy: obj.oy | 0,
+                otyp: obj.otyp | 0,
+                owt: obj.owt | 0,
+                quan: obj.quan | 0,
+                spe: obj.spe | 0,
+                invlet: obj.invlet | 0,
+                where: obj.where | 0,
+                cursed: obj.cursed | 0,
+                blessed: obj.blessed | 0,
+                buried: (obj.where === 6) ? 1 : 0,
+            };
+        },
+    };
 }
 export function nhl_add_table_entry_bool(L, name, value) {
     lua.lua_pushstring(L, name);

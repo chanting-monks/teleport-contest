@@ -164,3 +164,86 @@ export function pline(fmt, ...args) {
     const msg = fmt.replace(/%s/g, () => String(args[i++] ?? ''));
     if (typeof globalThis.pline === 'function') globalThis.pline(msg);
 }
+
+// hell_tweaks — C ref nhlib.lua:57-119; body mirrors the transpiled
+// dat/nhlib.js jsmodule output verbatim (that module is replaced by
+// this hand port, so its globalThis.hell_tweaks definition never
+// runs; hellfill.lua's maze branches call it for lava pools, lava
+// rivers, boulder fields and iron-bar fences).  Factory form: the
+// caller (lua-bootstrap nhlib loader) supplies the same per-load env
+// the transpiled dat modules receive, so des/selection/percent/
+// math.random and the __lua_bor/__lua_band metamethod helpers bind
+// identically.
+export function makeHellTweaks(env) {
+    const { des, selection, math, percent, __lua_bor, __lua_band } = env;
+    return async (protected_area) => {
+        const liquid = "L";
+        const ground = ".";
+        const n_prot = protected_area.numpoints();
+        const prot = protected_area.negate();
+        const depth = (globalThis.u && globalThis.u.depth) | 0;
+        if (percent(20 + depth)) {
+            let pools = selection.new();
+            const maxpools = 5 + math.random(depth);
+            for (let i = 1; i <= maxpools; i++) {
+                pools.set();
+            }
+            pools = __lua_bor(pools, selection.grow(selection.set(selection.new()), "west"));
+            pools = __lua_bor(pools, selection.grow(selection.set(selection.new()), "north"));
+            pools = __lua_bor(pools, selection.grow(selection.set(selection.new()), "random"));
+            pools = __lua_band(pools, prot);
+            if (percent(80)) {
+                const poolground = __lua_band(pools.clone().grow("all"), prot);
+                const pval = math.random(1, 8) * 10;
+                await des.terrain(poolground.percentage(pval), ground);
+            }
+            await des.terrain(pools, liquid);
+        }
+        if (percent(50)) {
+            let allrivers = selection.new();
+            const COLNO = (globalThis.nhc && globalThis.nhc.COLNO) || 80;
+            const ROWNO = (globalThis.nhc && globalThis.nhc.ROWNO) || 21;
+            const reqpts = ((COLNO * ROWNO) - n_prot) / 12;
+            let rpts = 0;
+            let rivertries = 0;
+            do {
+                const floor = selection.match(ground);
+                const a = selection.rndcoord(floor);
+                const b = selection.rndcoord(floor);
+                let lavariver = selection.randline(selection.new(), a.x, a.y, b.x, b.y, 10);
+                if (percent(50)) {
+                    lavariver = selection.grow(lavariver, "north");
+                }
+                if (percent(50)) {
+                    lavariver = selection.grow(lavariver, "west");
+                }
+                allrivers = __lua_bor(allrivers, lavariver);
+                allrivers = __lua_band(allrivers, prot);
+                rpts = allrivers.numpoints();
+                rivertries = rivertries + 1;
+            } while (!((rpts > reqpts) || (rivertries > 7)));
+            if (percent(60)) {
+                const prc = 10 * math.random(1, 6);
+                let riverbanks = selection.grow(allrivers);
+                riverbanks = __lua_band(riverbanks, prot);
+                await des.terrain(selection.percentage(riverbanks, prc), ground);
+            }
+            await des.terrain(allrivers, liquid);
+        }
+        if (percent(20)) {
+            const amount = 3 * math.random(1, 8);
+            let bwalls = __lua_bor(selection.match(".w.").percentage(amount), selection.match(".\nw\n.").percentage(amount));
+            bwalls = __lua_band(bwalls, prot);
+            await bwalls.iterate(async (x, y) => {
+                await des.terrain(x, y, ".");
+                await des.object("boulder", x, y);
+            });
+        }
+        if (percent(20)) {
+            const amount = 3 * math.random(1, 8);
+            let fwalls = __lua_bor(selection.match(".w.").percentage(amount), selection.match(".\nw\n.").percentage(amount));
+            fwalls = __lua_band(__lua_band(fwalls.grow(), selection.match("w")), prot);
+            await des.terrain(fwalls, "F");
+        }
+    };
+}

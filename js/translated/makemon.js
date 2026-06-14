@@ -11,7 +11,8 @@ import { abs, sgn } from '../c2js-runtime/math.js';
 import { alloc, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { pline, raw_printf } from '../c2js-runtime/pline.js';
-import { qsort } from '../c2js-runtime/qsort.js';
+import { qsort , qsort_async } from '../c2js-runtime/qsort.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { is_art } from './artifact.js';
 import { isok } from './cmd.js';
@@ -95,7 +96,7 @@ export function wrong_elem_type(ptr) {
     return (0);
 }
 /* make a group just like mtmp */
-export function m_initgrp(mtmp, x, y, n, mmflags) {
+export async function m_initgrp(mtmp, x, y, n, mmflags) {
     fnEnter("m_initgrp", "makemon.c", 0);
     let mm = { x: 0, y: 0 };
     let cnt = rnd(n);
@@ -122,13 +123,8 @@ export function m_initgrp(mtmp, x, y, n, mmflags) {
         if (peace_minded(mtmp.data)) {
             continue;
         }
-        if (enexto_gpflags(mm, mm.x, mm.y, mtmp.data, mmflags)) {
-            /* Don't create groups of peaceful monsters since they'll get
-         * in our way.  If the monster has a percentage chance so some
-         * are peaceful and some are not, the result will just be a
-         * smaller group.
-         */
-            mon = makemon(mtmp.data, mm.x, mm.y, (mmflags | 8192));
+        if (await enexto_gpflags(mm, mm.x, mm.y, mtmp.data, mmflags)) {
+            mon = await makemon(mtmp.data, mm.x, mm.y, (mmflags | 8192));
             if (mon) {
                 mon.mpeaceful = (0);
                 mon.mavenge = 0;
@@ -141,18 +137,18 @@ export function m_initgrp(mtmp, x, y, n, mmflags) {
         }
     }
 }
-export function m_initthrow(mtmp, otyp, oquan) {
+export async function m_initthrow(mtmp, otyp, oquan) {
     fnEnter("m_initthrow", "makemon.c", 0);
     let otmp = null;
-    otmp = mksobj(otyp, (1), (0));
+    otmp = await mksobj(otyp, (1), (0));
     otmp.quan = (rn2(oquan) + (3));
-    otmp.owt = weight(otmp);
+    otmp.owt = await weight(otmp);
     if (otyp == ORCISH_ARROW) {
         otmp.otrapped = (1);
     }
-    mpickobj(mtmp, otmp);
+    await mpickobj(mtmp, otmp);
 }
-export function m_initweap(mtmp) {
+export async function m_initweap(mtmp) {
     fnEnter("m_initweap", "makemon.c", 0);
     let ptr = mtmp.data;
     let mm = ((ptr).pmidx);
@@ -175,10 +171,10 @@ export function m_initweap(mtmp) {
      */
         case S_GIANT:
             if (rn2(2)) {
-                mongets(mtmp, (mm != PM_ETTIN) ? BOULDER : CLUB);
+                await mongets(mtmp, (mm != PM_ETTIN) ? BOULDER : CLUB);
             }
             if ((mm != PM_ETTIN) && !rn2(5)) {
-                mongets(mtmp, rn2(2) ? TWO_HANDED_SWORD : BATTLE_AXE);
+                await mongets(mtmp, rn2(2) ? TWO_HANDED_SWORD : BATTLE_AXE);
             }
             break;
         case S_HUMAN:
@@ -219,68 +215,68 @@ export function m_initweap(mtmp) {
                         break;
                 }
                 if (w1) {
-                    mongets(mtmp, w1);
+                    await mongets(mtmp, w1);
                 }
                 if (!w2 && w1 != DAGGER && !rn2(4)) {
                     w2 = KNIFE;
                 }
                 if (w2) {
-                    mongets(mtmp, w2);
+                    await mongets(mtmp, w2);
                 }
             } else if ((((ptr).mflags2 & 16) != 0)) {
                 if (rn2(2)) {
-                    mongets(mtmp, rn2(2) ? ELVEN_MITHRIL_COAT : ELVEN_CLOAK);
+                    await mongets(mtmp, rn2(2) ? ELVEN_MITHRIL_COAT : ELVEN_CLOAK);
                 }
                 if (rn2(2)) {
-                    mongets(mtmp, ELVEN_LEATHER_HELM);
+                    await mongets(mtmp, ELVEN_LEATHER_HELM);
                 } else if (!rn2(4)) {
-                    mongets(mtmp, ELVEN_BOOTS);
+                    await mongets(mtmp, ELVEN_BOOTS);
                 }
                 if (rn2(2)) {
-                    mongets(mtmp, ELVEN_DAGGER);
+                    await mongets(mtmp, ELVEN_DAGGER);
                 }
                 switch (rn2(3)) {
                     case 0:
                         if (!rn2(4)) {
-                            mongets(mtmp, ELVEN_SHIELD);
+                            await mongets(mtmp, ELVEN_SHIELD);
                         }
                         if (rn2(3)) {
-                            mongets(mtmp, ELVEN_SHORT_SWORD);
+                            await mongets(mtmp, ELVEN_SHORT_SWORD);
                         }
-                        mongets(mtmp, ELVEN_BOW);
-                        m_initthrow(mtmp, ELVEN_ARROW, 12);
+                        await mongets(mtmp, ELVEN_BOW);
+                        await m_initthrow(mtmp, ELVEN_ARROW, 12);
                         break;
                     case 1:
-                        mongets(mtmp, ELVEN_BROADSWORD);
+                        await mongets(mtmp, ELVEN_BROADSWORD);
                         if (rn2(2)) {
-                            mongets(mtmp, ELVEN_SHIELD);
+                            await mongets(mtmp, ELVEN_SHIELD);
                         }
                         break;
                     case 2:
                         if (rn2(2)) {
-                            mongets(mtmp, ELVEN_SPEAR);
-                            mongets(mtmp, ELVEN_SHIELD);
+                            await mongets(mtmp, ELVEN_SPEAR);
+                            await mongets(mtmp, ELVEN_SHIELD);
                         }
                         break;
                 }
                 if (mm == PM_ELVEN_MONARCH) {
                     if (rn2(3) || (game.in_mklev && (((((game.dungeon_topology.d_earth_level)).dlevel || ((game.dungeon_topology.d_earth_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_earth_level)))))) {
-                        mongets(mtmp, PICK_AXE);
+                        await mongets(mtmp, PICK_AXE);
                     }
                     if (!rn2(50)) {
-                        mongets(mtmp, CRYSTAL_BALL);
+                        await mongets(mtmp, CRYSTAL_BALL);
                     }
                 }
             } else if (ptr.msound == MS_PRIEST || (ptr.mlet == S_HUMAN && (game.urole.mnum == (PM_CLERIC)) && (ptr.msound == MS_LEADER || ptr.msound == MS_NEMESIS))) {
-                otmp = mksobj(MACE, (0), (0));
+                otmp = await mksobj(MACE, (0), (0));
                 otmp.spe = rnd(3);
                 if (!rn2(2)) {
-                    curse(otmp);
+                    await curse(otmp);
                 }
-                mpickobj(mtmp, otmp);
+                await mpickobj(mtmp, otmp);
             } else if (mm == PM_NINJA) {
-                mongets(mtmp, rn2(4) ? SHURIKEN : DART);
-                mongets(mtmp, rn2(4) ? SHORT_SWORD : AXE);
+                await mongets(mtmp, rn2(4) ? SHURIKEN : DART);
+                await mongets(mtmp, rn2(4) ? SHORT_SWORD : AXE);
             } else if (ptr.msound == MS_GUARDIAN) {
                 switch (mm) {
                     case PM_STUDENT:
@@ -290,54 +286,54 @@ export function m_initweap(mtmp) {
                     case PM_GUIDE:
                     case PM_APPRENTICE:
                         if (rn2(2)) {
-                            mongets(mtmp, rn2(3) ? DAGGER : KNIFE);
+                            await mongets(mtmp, rn2(3) ? DAGGER : KNIFE);
                         }
                         if (rn2(5)) {
-                            mongets(mtmp, rn2(3) ? LEATHER_JACKET : LEATHER_CLOAK);
+                            await mongets(mtmp, rn2(3) ? LEATHER_JACKET : LEATHER_CLOAK);
                         }
                         if (rn2(3)) {
-                            mongets(mtmp, rn2(3) ? LOW_BOOTS : HIGH_BOOTS);
+                            await mongets(mtmp, rn2(3) ? LOW_BOOTS : HIGH_BOOTS);
                         }
                         if (rn2(3)) {
-                            mongets(mtmp, POT_HEALING);
+                            await mongets(mtmp, POT_HEALING);
                         }
                         break;
                     case PM_CHIEFTAIN:
                     case PM_PAGE:
                     case PM_ROSHI:
                     case PM_WARRIOR:
-                        mongets(mtmp, rn2(3) ? LONG_SWORD : SHORT_SWORD);
-                        mongets(mtmp, rn2(3) ? CHAIN_MAIL : LEATHER_ARMOR);
+                        await mongets(mtmp, rn2(3) ? LONG_SWORD : SHORT_SWORD);
+                        await mongets(mtmp, rn2(3) ? CHAIN_MAIL : LEATHER_ARMOR);
                         if (rn2(2)) {
-                            mongets(mtmp, rn2(2) ? LOW_BOOTS : HIGH_BOOTS);
+                            await mongets(mtmp, rn2(2) ? LOW_BOOTS : HIGH_BOOTS);
                         }
                         if (!rn2(3)) {
-                            mongets(mtmp, LEATHER_CLOAK);
+                            await mongets(mtmp, LEATHER_CLOAK);
                         }
                         if (!rn2(3)) {
-                            mongets(mtmp, BOW);
-                            m_initthrow(mtmp, ARROW, 12);
+                            await mongets(mtmp, BOW);
+                            await m_initthrow(mtmp, ARROW, 12);
                         }
                         break;
                     case PM_HUNTER:
-                        mongets(mtmp, rn2(3) ? SHORT_SWORD : DAGGER);
+                        await mongets(mtmp, rn2(3) ? SHORT_SWORD : DAGGER);
                         if (rn2(2)) {
-                            mongets(mtmp, rn2(2) ? LEATHER_JACKET : LEATHER_ARMOR);
+                            await mongets(mtmp, rn2(2) ? LEATHER_JACKET : LEATHER_ARMOR);
                         }
-                        mongets(mtmp, BOW);
-                        m_initthrow(mtmp, ARROW, 12);
+                        await mongets(mtmp, BOW);
+                        await m_initthrow(mtmp, ARROW, 12);
                         break;
                     case PM_THUG:
-                        mongets(mtmp, CLUB);
-                        mongets(mtmp, rn2(3) ? DAGGER : KNIFE);
+                        await mongets(mtmp, CLUB);
+                        await mongets(mtmp, rn2(3) ? DAGGER : KNIFE);
                         if (rn2(2)) {
-                            mongets(mtmp, LEATHER_GLOVES);
+                            await mongets(mtmp, LEATHER_GLOVES);
                         }
-                        mongets(mtmp, rn2(2) ? LEATHER_JACKET : LEATHER_ARMOR);
+                        await mongets(mtmp, rn2(2) ? LEATHER_JACKET : LEATHER_ARMOR);
                         break;
                     case PM_NEANDERTHAL:
-                        mongets(mtmp, CLUB);
-                        mongets(mtmp, LEATHER_ARMOR);
+                        await mongets(mtmp, CLUB);
+                        await mongets(mtmp, LEATHER_ARMOR);
                         break;
                 }
             }
@@ -347,12 +343,12 @@ export function m_initweap(mtmp) {
                 /* create minion stuff; bypass mongets */
                 let typ = rn2(3) ? LONG_SWORD : SILVER_MACE;
                 let nam = (typ == LONG_SWORD) ? "Sunsword" : "Demonbane";
-                otmp = mksobj(typ, (0), (0));
+                otmp = await mksobj(typ, (0), (0));
                 /* maybe promote weapon to an artifact */
                 if ((!rn2(20) || (((ptr).mflags2 & 1024) != 0)) && sgn(mtmp.isminion ? ((mtmp).mextra.emin).min_align : ptr.maligntyp) == 1) {
-                    otmp = oname(otmp, nam, 128);
+                    otmp = await oname(otmp, nam, 128);
                 }
-                bless(otmp);
+                await bless(otmp);
                 /* uncurse(otmp); -- mksobj(,FALSE,) item is always uncursed */
                 otmp.oerodeproof = (1);
                 /* make long sword be +0 to +3, mace be +3 to +6 to compensate
@@ -361,186 +357,185 @@ export function m_initweap(mtmp) {
                 if (typ == SILVER_MACE) {
                     otmp.spe += 3;
                 }
-                mpickobj(mtmp, otmp);
-                otmp = mksobj(!rn2(4) || (((ptr).mflags2 & 1024) != 0) ? SHIELD_OF_REFLECTION : LARGE_SHIELD, (0), (0));
+                await mpickobj(mtmp, otmp);
+                otmp = await mksobj(!rn2(4) || (((ptr).mflags2 & 1024) != 0) ? SHIELD_OF_REFLECTION : LARGE_SHIELD, (0), (0));
                 otmp.oerodeproof = (1);
                 otmp.spe = 0;
-                mpickobj(mtmp, otmp);
+                await mpickobj(mtmp, otmp);
             }
             break;
         case S_HUMANOID:
             if (mm == PM_HOBBIT) {
                 switch (rn2(3)) {
                     case 0:
-                        mongets(mtmp, DAGGER);
+                        await mongets(mtmp, DAGGER);
                         break;
                     case 1:
-                        mongets(mtmp, ELVEN_DAGGER);
+                        await mongets(mtmp, ELVEN_DAGGER);
                         break;
                     case 2:
-                        mongets(mtmp, SLING);
-                        m_initthrow(mtmp, !rn2(4) ? FLINT : ROCK, 6);
+                        await mongets(mtmp, SLING);
+                        await m_initthrow(mtmp, !rn2(4) ? FLINT : ROCK, 6);
                         break;
                 }
                 if (!rn2(10)) {
-                    mongets(mtmp, ELVEN_MITHRIL_COAT);
+                    await mongets(mtmp, ELVEN_MITHRIL_COAT);
                 }
                 if (!rn2(10)) {
-                    mongets(mtmp, DWARVISH_CLOAK);
+                    await mongets(mtmp, DWARVISH_CLOAK);
                 }
             } else if ((((ptr).mflags2 & 32) != 0)) {
                 if (rn2(7)) {
-                    mongets(mtmp, DWARVISH_CLOAK);
+                    await mongets(mtmp, DWARVISH_CLOAK);
                 }
                 if (rn2(7)) {
-                    mongets(mtmp, IRON_SHOES);
+                    await mongets(mtmp, IRON_SHOES);
                 }
                 if (!rn2(4)) {
-                    mongets(mtmp, DWARVISH_SHORT_SWORD);
+                    await mongets(mtmp, DWARVISH_SHORT_SWORD);
                     if (rn2(2)) {
-                        mongets(mtmp, DWARVISH_MATTOCK);
-                    /* note: you can't use a mattock with a shield */
+                        await mongets(mtmp, DWARVISH_MATTOCK);
                     } else {
-                        mongets(mtmp, rn2(2) ? AXE : DWARVISH_SPEAR);
-                        mongets(mtmp, DWARVISH_ROUNDSHIELD);
+                        await mongets(mtmp, rn2(2) ? AXE : DWARVISH_SPEAR);
+                        await mongets(mtmp, DWARVISH_ROUNDSHIELD);
                     }
-                    mongets(mtmp, DWARVISH_IRON_HELM);
+                    await mongets(mtmp, DWARVISH_IRON_HELM);
                     if (!rn2(3)) {
-                        mongets(mtmp, DWARVISH_MITHRIL_COAT);
+                        await mongets(mtmp, DWARVISH_MITHRIL_COAT);
                     }
                 } else {
-                    mongets(mtmp, !rn2(3) ? PICK_AXE : DAGGER);
+                    await mongets(mtmp, !rn2(3) ? PICK_AXE : DAGGER);
                 }
             }
             break;
         case S_KOP:
             if (!rn2(4)) {
-                m_initthrow(mtmp, CREAM_PIE, 2);
+                await m_initthrow(mtmp, CREAM_PIE, 2);
             }
             if (!rn2(3)) {
-                mongets(mtmp, (rn2(2)) ? CLUB : RUBBER_HOSE);
+                await mongets(mtmp, (rn2(2)) ? CLUB : RUBBER_HOSE);
             }
             break;
         case S_ORC:
             if (rn2(2)) {
-                mongets(mtmp, ORCISH_HELM);
+                await mongets(mtmp, ORCISH_HELM);
             }
             switch ((mm != PM_ORC_CAPTAIN) ? mm : rn2(2) ? PM_MORDOR_ORC : PM_URUK_HAI) {
                 /* create Keystone Kops with cream pies to
            throw. As suggested by KAA.     [MRS] */
                 case PM_MORDOR_ORC:
                     if (!rn2(3)) {
-                        mongets(mtmp, SCIMITAR);
+                        await mongets(mtmp, SCIMITAR);
                     }
                     if (!rn2(3)) {
-                        mongets(mtmp, ORCISH_SHIELD);
+                        await mongets(mtmp, ORCISH_SHIELD);
                     }
                     if (!rn2(3)) {
-                        mongets(mtmp, KNIFE);
+                        await mongets(mtmp, KNIFE);
                     }
                     if (!rn2(3)) {
-                        mongets(mtmp, ORCISH_CHAIN_MAIL);
+                        await mongets(mtmp, ORCISH_CHAIN_MAIL);
                     }
                     break;
                 case PM_URUK_HAI:
                     if (!rn2(3)) {
-                        mongets(mtmp, ORCISH_CLOAK);
+                        await mongets(mtmp, ORCISH_CLOAK);
                     }
                     if (!rn2(3)) {
-                        mongets(mtmp, ORCISH_SHORT_SWORD);
+                        await mongets(mtmp, ORCISH_SHORT_SWORD);
                     }
                     if (!rn2(3)) {
-                        mongets(mtmp, IRON_SHOES);
+                        await mongets(mtmp, IRON_SHOES);
                     }
                     if (!rn2(3)) {
-                        mongets(mtmp, ORCISH_BOW);
-                        m_initthrow(mtmp, ORCISH_ARROW, 12);
+                        await mongets(mtmp, ORCISH_BOW);
+                        await m_initthrow(mtmp, ORCISH_ARROW, 12);
                     }
                     if (!rn2(3)) {
-                        mongets(mtmp, URUK_HAI_SHIELD);
+                        await mongets(mtmp, URUK_HAI_SHIELD);
                     }
                     break;
                 default:
                     if (mm != PM_ORC_SHAMAN && rn2(2)) {
-                        mongets(mtmp, (mm == PM_GOBLIN || rn2(2) == 0) ? ORCISH_DAGGER : SCIMITAR);
+                        await mongets(mtmp, (mm == PM_GOBLIN || rn2(2) == 0) ? ORCISH_DAGGER : SCIMITAR);
                     }
             }
             break;
         case S_OGRE:
             if (!rn2(mm == PM_OGRE_TYRANT ? 3 : mm == PM_OGRE_LEADER ? 6 : 12)) {
-                mongets(mtmp, BATTLE_AXE);
+                await mongets(mtmp, BATTLE_AXE);
             } else {
-                mongets(mtmp, CLUB);
+                await mongets(mtmp, CLUB);
             }
             break;
         case S_TROLL:
             if (!rn2(2)) {
                 switch (rn2(4)) {
                     case 0:
-                        mongets(mtmp, RANSEUR);
+                        await mongets(mtmp, RANSEUR);
                         break;
                     case 1:
-                        mongets(mtmp, PARTISAN);
+                        await mongets(mtmp, PARTISAN);
                         break;
                     case 2:
-                        mongets(mtmp, GLAIVE);
+                        await mongets(mtmp, GLAIVE);
                         break;
                     case 3:
-                        mongets(mtmp, SPETUM);
+                        await mongets(mtmp, SPETUM);
                         break;
                 }
             }
             break;
         case S_KOBOLD:
             if (!rn2(4)) {
-                m_initthrow(mtmp, DART, 12);
+                await m_initthrow(mtmp, DART, 12);
             }
             break;
         case S_CENTAUR:
             if (rn2(2)) {
                 if (ptr == game.mons[PM_FOREST_CENTAUR]) {
-                    mongets(mtmp, BOW);
-                    m_initthrow(mtmp, ARROW, 12);
+                    await mongets(mtmp, BOW);
+                    await m_initthrow(mtmp, ARROW, 12);
                 } else {
-                    mongets(mtmp, CROSSBOW);
-                    m_initthrow(mtmp, CROSSBOW_BOLT, 12);
+                    await mongets(mtmp, CROSSBOW);
+                    await m_initthrow(mtmp, CROSSBOW_BOLT, 12);
                 }
             }
             break;
         case S_WRAITH:
-            mongets(mtmp, KNIFE);
-            mongets(mtmp, LONG_SWORD);
+            await mongets(mtmp, KNIFE);
+            await mongets(mtmp, LONG_SWORD);
             break;
         case S_ZOMBIE:
             if (!rn2(4)) {
-                mongets(mtmp, LEATHER_ARMOR);
+                await mongets(mtmp, LEATHER_ARMOR);
             }
             if (!rn2(4)) {
-                mongets(mtmp, (rn2(3) ? KNIFE : SHORT_SWORD));
+                await mongets(mtmp, (rn2(3) ? KNIFE : SHORT_SWORD));
             }
             break;
         case S_LIZARD:
             if (mm == PM_SALAMANDER) {
-                mongets(mtmp, (rn2(7) ? SPEAR : rn2(3) ? TRIDENT : STILETTO));
+                await mongets(mtmp, (rn2(7) ? SPEAR : rn2(3) ? TRIDENT : STILETTO));
             }
             break;
         case S_DEMON:
             switch (mm) {
                 case PM_BALROG:
-                    mongets(mtmp, BULLWHIP);
-                    mongets(mtmp, BROADSWORD);
+                    await mongets(mtmp, BULLWHIP);
+                    await mongets(mtmp, BROADSWORD);
                     break;
                 case PM_ORCUS:
-                    mongets(mtmp, WAN_DEATH);
+                    await mongets(mtmp, WAN_DEATH);
                     break;
                 case PM_HORNED_DEVIL:
-                    mongets(mtmp, rn2(4) ? TRIDENT : BULLWHIP);
+                    await mongets(mtmp, rn2(4) ? TRIDENT : BULLWHIP);
                     break;
                 case PM_DISPATER:
-                    mongets(mtmp, WAN_STRIKING);
+                    await mongets(mtmp, WAN_STRIKING);
                     break;
                 case PM_YEENOGHU:
-                    mongets(mtmp, FLAIL);
+                    await mongets(mtmp, FLAIL);
                     break;
             }
             /* prevent djinn and mail daemons from leaving objects when
@@ -555,40 +550,35 @@ export function m_initweap(mtmp) {
             switch (rnd(14 - (2 * bias))) {
                 case 1:
                     if ((((ptr).mflags2 & 67108864) != 0)) {
-                        mongets(mtmp, BATTLE_AXE);
-                    /*
-         * Now the general case, some chance of getting some type
-         * of weapon for "normal" monsters.  Certain special types
-         * of monsters will get a bonus chance or different selections.
-         */
+                        await mongets(mtmp, BATTLE_AXE);
                     } else {
-                        m_initthrow(mtmp, DART, 12);
+                        await m_initthrow(mtmp, DART, 12);
                     }
                     break;
                 case 2:
                     if ((((ptr).mflags2 & 67108864) != 0)) {
-                        mongets(mtmp, TWO_HANDED_SWORD);
+                        await mongets(mtmp, TWO_HANDED_SWORD);
                     } else {
-                        mongets(mtmp, CROSSBOW);
-                        m_initthrow(mtmp, CROSSBOW_BOLT, 12);
+                        await mongets(mtmp, CROSSBOW);
+                        await m_initthrow(mtmp, CROSSBOW_BOLT, 12);
                     }
                     break;
                 case 3:
-                    mongets(mtmp, BOW);
-                    m_initthrow(mtmp, ARROW, 12);
+                    await mongets(mtmp, BOW);
+                    await m_initthrow(mtmp, ARROW, 12);
                     break;
                 case 4:
                     if ((((ptr).mflags2 & 67108864) != 0)) {
-                        mongets(mtmp, LONG_SWORD);
+                        await mongets(mtmp, LONG_SWORD);
                     } else {
-                        m_initthrow(mtmp, DAGGER, 3);
+                        await m_initthrow(mtmp, DAGGER, 3);
                     }
                     break;
                 case 5:
                     if ((((ptr).mflags2 & 67108864) != 0)) {
-                        mongets(mtmp, LUCERN_HAMMER);
+                        await mongets(mtmp, LUCERN_HAMMER);
                     } else {
-                        mongets(mtmp, AKLYS);
+                        await mongets(mtmp, AKLYS);
                     }
                     break;
                 default:
@@ -597,20 +587,19 @@ export function m_initweap(mtmp) {
             break;
     }
     if (mtmp.m_lev > rn2(75)) {
-        mongets(mtmp, rnd_offensive_item(mtmp));
+        await mongets(mtmp, await rnd_offensive_item(mtmp));
     }
 }
 /* create a new stack of gold in monster's inventory */
-export function mkmonmoney(mtmp, amount) {
+export async function mkmonmoney(mtmp, amount) {
     if (amount > 0) {
-        /* mk_mplayer() passes rn2(1000) so the amount might be 0 */
-        let gold = mksobj(GOLD_PIECE, (0), (0));
+        let gold = await mksobj(GOLD_PIECE, (0), (0));
         gold.quan = amount;
-        gold.owt = weight(gold);
-        add_to_minv(mtmp, gold);
+        gold.owt = await weight(gold);
+        await add_to_minv(mtmp, gold);
     }
 }
-export function m_initinv(mtmp) {
+export async function m_initinv(mtmp) {
     let cnt = 0;
     let otmp = null;
     let ptr = mtmp.data;
@@ -648,19 +637,18 @@ export function m_initinv(mtmp) {
                         mac = -2;
                         break;
                     default:
-                        impossible("odd mercenary %d?", ((ptr).pmidx));
+                        await impossible("odd mercenary %d?", ((ptr).pmidx));
                         mac = 0;
                         break;
                 }
-                /* round 1: give them body armor */
                 if (mac < -1 && rn2(5)) {
-                    otmp = mongets(mtmp, (rn2(5)) ? PLATE_MAIL : CRYSTAL_PLATE_MAIL);
+                    otmp = await mongets(mtmp, (rn2(5)) ? PLATE_MAIL : CRYSTAL_PLATE_MAIL);
                 } else if (mac < 3 && rn2(5)) {
-                    otmp = mongets(mtmp, (rn2(3)) ? SPLINT_MAIL : BANDED_MAIL);
+                    otmp = await mongets(mtmp, (rn2(3)) ? SPLINT_MAIL : BANDED_MAIL);
                 } else if (rn2(5)) {
-                    otmp = mongets(mtmp, (rn2(3)) ? RING_MAIL : STUDDED_LEATHER_ARMOR);
+                    otmp = await mongets(mtmp, (rn2(3)) ? RING_MAIL : STUDDED_LEATHER_ARMOR);
                 } else {
-                    otmp = mongets(mtmp, LEATHER_ARMOR);
+                    otmp = await mongets(mtmp, LEATHER_ARMOR);
                 }
                 if (otmp) {
                     mac += (game.objects[(otmp).otyp].oc_oc1 + (otmp).spe - ((((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) < (game.objects[(otmp).otyp].oc_oc1) ? (((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) : (game.objects[(otmp).otyp].oc_oc1)));
@@ -669,9 +657,9 @@ export function m_initinv(mtmp) {
                 otmp = null;
                 ;
                 if (mac < 10 && rn2(3)) {
-                    otmp = mongets(mtmp, HELMET);
+                    otmp = await mongets(mtmp, HELMET);
                 } else if (mac < 10 && rn2(2)) {
-                    otmp = mongets(mtmp, DENTED_POT);
+                    otmp = await mongets(mtmp, DENTED_POT);
                 }
                 if (otmp) {
                     mac += (game.objects[(otmp).otyp].oc_oc1 + (otmp).spe - ((((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) < (game.objects[(otmp).otyp].oc_oc1) ? (((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) : (game.objects[(otmp).otyp].oc_oc1)));
@@ -679,9 +667,9 @@ export function m_initinv(mtmp) {
                 otmp = null;
                 ;
                 if (mac < 10 && rn2(3)) {
-                    otmp = mongets(mtmp, SMALL_SHIELD);
+                    otmp = await mongets(mtmp, SMALL_SHIELD);
                 } else if (mac < 10 && rn2(2)) {
-                    otmp = mongets(mtmp, LARGE_SHIELD);
+                    otmp = await mongets(mtmp, LARGE_SHIELD);
                 }
                 if (otmp) {
                     mac += (game.objects[(otmp).otyp].oc_oc1 + (otmp).spe - ((((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) < (game.objects[(otmp).otyp].oc_oc1) ? (((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) : (game.objects[(otmp).otyp].oc_oc1)));
@@ -689,9 +677,9 @@ export function m_initinv(mtmp) {
                 otmp = null;
                 ;
                 if (mac < 10 && rn2(3)) {
-                    otmp = mongets(mtmp, LOW_BOOTS);
+                    otmp = await mongets(mtmp, LOW_BOOTS);
                 } else if (mac < 10 && rn2(2)) {
-                    otmp = mongets(mtmp, HIGH_BOOTS);
+                    otmp = await mongets(mtmp, HIGH_BOOTS);
                 }
                 if (otmp) {
                     mac += (game.objects[(otmp).otyp].oc_oc1 + (otmp).spe - ((((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) < (game.objects[(otmp).otyp].oc_oc1) ? (((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) : (game.objects[(otmp).otyp].oc_oc1)));
@@ -699,9 +687,9 @@ export function m_initinv(mtmp) {
                 otmp = null;
                 ;
                 if (mac < 10 && rn2(3)) {
-                    otmp = mongets(mtmp, LEATHER_GLOVES);
+                    otmp = await mongets(mtmp, LEATHER_GLOVES);
                 } else if (mac < 10 && rn2(2)) {
-                    otmp = mongets(mtmp, LEATHER_CLOAK);
+                    otmp = await mongets(mtmp, LEATHER_CLOAK);
                 }
                 if (otmp) {
                     mac += (game.objects[(otmp).otyp].oc_oc1 + (otmp).spe - ((((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) < (game.objects[(otmp).otyp].oc_oc1) ? (((otmp).oeroded > (otmp).oeroded2 ? (otmp).oeroded : (otmp).oeroded2)) : (game.objects[(otmp).otyp].oc_oc1)));
@@ -712,107 +700,100 @@ export function m_initinv(mtmp) {
                 if (ptr == game.mons[PM_WATCH_CAPTAIN]) {
                     ;
                 } else if (ptr == game.mons[PM_WATCHMAN]) {
-                    /* suppress 'dead increment' from static analyzer */
-                    /* better weapon rather than extra gear here */
-                    /* most watchmen carry a whistle */
                     if (rn2(3)) {
-                        mongets(mtmp, TIN_WHISTLE);
+                        await mongets(mtmp, TIN_WHISTLE);
                     }
                 } else if (ptr == game.mons[PM_GUARD]) {
-                    /* if hero teleports out of a vault while being confronted
-                   by the vault's guard, there is a shrill whistling sound,
-                   so guard evidently carries a cursed whistle */
-                    otmp = mksobj(TIN_WHISTLE, (1), (0));
-                    curse(otmp);
-                    mpickobj(mtmp, otmp);
+                    otmp = await mksobj(TIN_WHISTLE, (1), (0));
+                    await curse(otmp);
+                    await mpickobj(mtmp, otmp);
                 } else {
-                    /* soldiers and their officers */
                     if (!rn2(3)) {
-                        mongets(mtmp, K_RATION);
+                        await mongets(mtmp, K_RATION);
                     }
                     if (!rn2(2)) {
-                        mongets(mtmp, C_RATION);
+                        await mongets(mtmp, C_RATION);
                     }
                     if (ptr != game.mons[PM_SOLDIER] && !rn2(3)) {
-                        mongets(mtmp, BUGLE);
+                        await mongets(mtmp, BUGLE);
                     }
                 }
             } else if (ptr == game.mons[PM_SHOPKEEPER]) {
-                mongets(mtmp, SKELETON_KEY);
+                await mongets(mtmp, SKELETON_KEY);
                 switch (rn2(4)) {
                     case 0:
-                        mongets(mtmp, WAN_MAGIC_MISSILE);
+                        await mongets(mtmp, WAN_MAGIC_MISSILE);
                         ;
                     case 1:
-                        mongets(mtmp, POT_EXTRA_HEALING);
+                        await mongets(mtmp, POT_EXTRA_HEALING);
                         ;
                     case 2:
-                        mongets(mtmp, POT_HEALING);
+                        await mongets(mtmp, POT_HEALING);
                         ;
                     case 3:
-                        mongets(mtmp, WAN_STRIKING);
+                        await mongets(mtmp, WAN_STRIKING);
                 }
             } else if (ptr.msound == MS_PRIEST || (ptr.mlet == S_HUMAN && (game.urole.mnum == (PM_CLERIC)) && (ptr.msound == MS_LEADER || ptr.msound == MS_NEMESIS))) {
-                mongets(mtmp, rn2(7) ? ROBE : rn2(3) ? CLOAK_OF_PROTECTION : CLOAK_OF_MAGIC_RESISTANCE);
-                mongets(mtmp, SMALL_SHIELD);
-                mkmonmoney(mtmp, (rn2(10) + (20)));
+                await mongets(mtmp, rn2(7) ? ROBE : rn2(3) ? CLOAK_OF_PROTECTION : CLOAK_OF_MAGIC_RESISTANCE);
+                await mongets(mtmp, SMALL_SHIELD);
+                await mkmonmoney(mtmp, (rn2(10) + (20)));
             } else if ((ptr.mlet == S_HUMAN && (game.urole.mnum == (PM_MONK)) && (ptr.msound == MS_LEADER || ptr.msound == MS_NEMESIS))) {
-                mongets(mtmp, rn2(11) ? ROBE : CLOAK_OF_MAGIC_RESISTANCE);
+                await mongets(mtmp, rn2(11) ? ROBE : CLOAK_OF_MAGIC_RESISTANCE);
             }
             break;
         case S_NYMPH:
             if (!rn2(2)) {
-                mongets(mtmp, MIRROR);
+                await mongets(mtmp, MIRROR);
             }
             if (!rn2(2)) {
-                mongets(mtmp, POT_OBJECT_DETECTION);
+                await mongets(mtmp, POT_OBJECT_DETECTION);
             }
             break;
         case S_GIANT:
             if (ptr == game.mons[PM_MINOTAUR]) {
                 if (!rn2(8) || (game.in_mklev && (((((game.dungeon_topology.d_earth_level)).dlevel || ((game.dungeon_topology.d_earth_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_earth_level)))))) {
-                    mongets(mtmp, WAN_DIGGING);
+                    await mongets(mtmp, WAN_DIGGING);
                 }
             } else if ((((ptr).mflags2 & 8192) != 0)) {
                 for (cnt = rn2((Math.trunc(mtmp.m_lev / 2))); cnt; cnt--) {
-                    otmp = mksobj(rnd_class(DILITHIUM_CRYSTAL, LUCKSTONE - 1), (0), (0));
+                    otmp = await mksobj(rnd_class(DILITHIUM_CRYSTAL, LUCKSTONE - 1), (0), (0));
                     otmp.quan = (rn2(2) + (3));
-                    otmp.owt = weight(otmp);
-                    mpickobj(mtmp, otmp);
+                    otmp.owt = await weight(otmp);
+                    await mpickobj(mtmp, otmp);
                 }
             }
             break;
         case S_WRAITH:
             if (ptr == game.mons[PM_NAZGUL]) {
-                otmp = mksobj(RIN_INVISIBILITY, (0), (0));
-                curse(otmp);
-                mpickobj(mtmp, otmp);
+                otmp = await mksobj(RIN_INVISIBILITY, (0), (0));
+                await curse(otmp);
+                await mpickobj(mtmp, otmp);
             }
             break;
         case S_LICH:
             if (ptr == game.mons[PM_MASTER_LICH] && !rn2(13)) {
-                mongets(mtmp, (rn2(7) ? ATHAME : WAN_NOTHING));
+                await mongets(mtmp, (rn2(7) ? ATHAME : WAN_NOTHING));
             } else if (ptr == game.mons[PM_ARCH_LICH] && !rn2(3)) {
-                otmp = mksobj(rn2(3) ? ATHAME : QUARTERSTAFF, (1), rn2(13) ? (0) : (1));
+                otmp = await mksobj(rn2(3) ? ATHAME : QUARTERSTAFF, (1), rn2(13) ? (0) : (1));
                 if (otmp.spe < 2) {
                     otmp.spe = rnd(3);
                 }
                 if (!rn2(4)) {
                     otmp.oerodeproof = 1;
                 }
-                mpickobj(mtmp, otmp);
+                await mpickobj(mtmp, otmp);
             }
             break;
         case S_MUMMY:
             if (rn2(7)) {
-                mongets(mtmp, MUMMY_WRAPPING);
+                await mongets(mtmp, MUMMY_WRAPPING);
             }
             break;
         case S_QUANTMECH:
             if (!rn2(20) && ptr == game.mons[PM_QUANTUM_MECHANIC]) {
                 let catcorpse = null;
-                otmp = mksobj(LARGE_BOX, (0), (0));
-                if ((catcorpse = mksobj(CORPSE, (1), (0))) != null) {
+                otmp = await mksobj(LARGE_BOX, (0), (0));
+                if ((catcorpse = await mksobj(CORPSE, (1), (0))) != null) {
                     /* we used to just set the flag, which resulted in weight()
                treating the box as being heavier by the weight of a cat;
                now we include a cat corpse that won't rot; when opening or
@@ -820,34 +801,32 @@ export function m_initinv(mtmp) {
                otherwise it's given a rot timer; weight is now ordinary */
                     /* flag for special SchroedingersBox */
                     otmp.spe = 1;
-                    set_corpsenm(catcorpse, PM_HOUSECAT);
+                    await set_corpsenm(catcorpse, PM_HOUSECAT);
                     stop_timer(ROT_CORPSE, obj_to_any(catcorpse));
-                    add_to_container(otmp, catcorpse);
-                    otmp.owt = weight(otmp);
+                    await add_to_container(otmp, catcorpse);
+                    otmp.owt = await weight(otmp);
                 }
-                mpickobj(mtmp, otmp);
+                await mpickobj(mtmp, otmp);
             }
             break;
         case S_LEPRECHAUN:
-            mkmonmoney(mtmp, d(level_difficulty(), 30));
+            await mkmonmoney(mtmp, d(await level_difficulty(), 30));
             break;
         case S_DEMON:
             if (ptr == game.mons[PM_ICE_DEVIL] && !rn2(4)) {
-                /* moved here from m_initweap() because these don't
-           have AT_WEAP so m_initweap() is not called for them */
-                mongets(mtmp, SPEAR);
+                await mongets(mtmp, SPEAR);
             } else if (ptr == game.mons[PM_ASMODEUS]) {
-                mongets(mtmp, WAN_COLD);
-                mongets(mtmp, WAN_FIRE);
+                await mongets(mtmp, WAN_COLD);
+                await mongets(mtmp, WAN_FIRE);
             }
             break;
         case S_GNOME:
             if (!rn2((In_mines(game.u.uz) && game.in_mklev) ? 20 : 60)) {
-                otmp = mksobj(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, (1), (0));
+                otmp = await mksobj(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, (1), (0));
                 otmp.quan = 1;
-                otmp.owt = weight(otmp);
-                if (!mpickobj(mtmp, otmp) && !game.level.locations[mtmp.mx][mtmp.my].lit) {
-                    begin_burn(otmp, (0));
+                otmp.owt = await weight(otmp);
+                if (!await mpickobj(mtmp, otmp) && !game.level.locations[mtmp.mx][mtmp.my].lit) {
+                    await begin_burn(otmp, (0));
                 }
             }
             break;
@@ -859,18 +838,18 @@ export function m_initinv(mtmp) {
         return;
     }
     if (mtmp.m_lev > rn2(50)) {
-        mongets(mtmp, rnd_defensive_item(mtmp));
+        await mongets(mtmp, await rnd_defensive_item(mtmp));
     }
     if (mtmp.m_lev > rn2(100)) {
-        mongets(mtmp, rnd_misc_item(mtmp));
+        await mongets(mtmp, rnd_misc_item(mtmp));
     }
     if ((((ptr).mflags2 & 268435456) != 0) && !findgold(mtmp.minvent) && !rn2(5)) {
-        mkmonmoney(mtmp, d(level_difficulty(), mtmp.minvent ? 5 : 10));
+        await mkmonmoney(mtmp, d(await level_difficulty(), mtmp.minvent ? 5 : 10));
     }
 }
 /* Note: for long worms, always call cutworm (cutworm calls clone_mon) */
 /* clone's preferred location or 0 (near mon) */
-export function clone_mon(mon, x, y) {
+export async function clone_mon(mon, x, y) {
     fnEnter("clone_mon", "makemon.c", 0);
     let mm = { x: 0, y: 0 };
     let m2 = null;
@@ -886,12 +865,11 @@ export function clone_mon(mon, x, y) {
         mm.y = y;
     }
     if (!isok(mm.x, mm.y)) {
-        impossible("clone_mon trying to create a monster at <%d,%d>?", mm.x, mm.y);
+        await impossible("clone_mon trying to create a monster at <%d,%d>?", mm.x, mm.y);
         return null;
     }
     if ((game.level.monsters[mm.x][mm.y] != null)) {
-        /* (always True for the x==0 case) */
-        if (!enexto(mm, mm.x, mm.y, mon.data) || (game.level.monsters[mm.x][mm.y] != null)) {
+        if (!await enexto(mm, mm.x, mm.y, mon.data) || (game.level.monsters[mm.x][mm.y] != null)) {
             return null;
         }
     }
@@ -924,15 +902,15 @@ export function clone_mon(mon, x, y) {
     /* ms->isminion handled below */
     /* clone shouldn't be reluctant to move on spots 'parent' just moved on */
     mon_track_clear(m2);
-    place_monster(m2, m2.mx, m2.my);
+    await place_monster(m2, m2.mx, m2.my);
     if ((((m2.data).mlet == S_LIGHT || (m2.data) == game.mons[PM_FLAMING_SPHERE] || (m2.data) == game.mons[PM_SHOCKING_SPHERE] || (m2.data) == game.mons[PM_BABY_GOLD_DRAGON] || (m2.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((m2.data) == game.mons[PM_FIRE_ELEMENTAL] || (m2.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) {
-        new_light_source(m2.mx, m2.my, (((m2.data).mlet == S_LIGHT || (m2.data) == game.mons[PM_FLAMING_SPHERE] || (m2.data) == game.mons[PM_SHOCKING_SPHERE] || (m2.data) == game.mons[PM_BABY_GOLD_DRAGON] || (m2.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((m2.data) == game.mons[PM_FIRE_ELEMENTAL] || (m2.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0), LS_MONSTER, monst_to_any(m2));
+        await new_light_source(m2.mx, m2.my, (((m2.data).mlet == S_LIGHT || (m2.data) == game.mons[PM_FLAMING_SPHERE] || (m2.data) == game.mons[PM_SHOCKING_SPHERE] || (m2.data) == game.mons[PM_BABY_GOLD_DRAGON] || (m2.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((m2.data) == game.mons[PM_FIRE_ELEMENTAL] || (m2.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0), LS_MONSTER, monst_to_any(m2));
     }
     if (((mon).mextra && ((mon).mextra.mgivenname))) {
         /* if 'parent' is named, give the clone the same name */
         m2 = christen_monst(m2, ((mon).mextra.mgivenname));
     } else if (mon.isshk) {
-        m2 = christen_monst(m2, shkname(mon));
+        m2 = christen_monst(m2, await shkname(mon));
     }
     if (!game.context.mon_moving && mon.mpeaceful) {
         /* not all clones caused by player are tame or peaceful */
@@ -957,12 +935,12 @@ export function clone_mon(mon, x, y) {
            However, tamedog() will not re-tame a tame dog, so m2
            must be made non-tame to get initialized properly. */
         m2.mtame = 0;
-        if (tamedog(m2, null, (0))) {
+        if (await tamedog(m2, null, (0))) {
             Object.assign(m2.mextra.edog, mon.mextra.edog);
         }
     }
     set_malign(m2);
-    newsym(m2.mx, m2.my);
+    await newsym(m2.mx, m2.my);
     return m2;
 }
 /*
@@ -976,7 +954,7 @@ export function clone_mon(mon, x, y) {
  * Returns FALSE propagation unsuccessful
  *         TRUE  propagation successful
  */
-export function propagate(mndx, tally, ghostly) {
+export async function propagate(mndx, tally, ghostly) {
     let gone = 0;
     let result = 0;
     let lim = mbirth_limit(mndx);
@@ -994,7 +972,7 @@ export function propagate(mndx, tally, ghostly) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/makemon.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("Automatically extinguished %s.", makeplural(game.mons[mndx].pmnames[NEUTRAL]));
+                    await pline("Automatically extinguished %s.", await makeplural(game.mons[mndx].pmnames[NEUTRAL]));
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -1026,10 +1004,10 @@ export function monhp_per_lvl(mon) {
 }
 /* set up a new monster's initial level and hit points;
    used by newcham() as well as by makemon() */
-export function newmonhp(mon, mndx) {
+export async function newmonhp(mon, mndx) {
     let ptr = game.mons[mndx];
     let basehp = 0;
-    mon.m_lev = adj_lev(ptr);
+    mon.m_lev = await adj_lev(ptr);
     if (((ptr).mlet == S_GOLEM)) {
         /* golems have a fixed amount of HP, varying by golem type */
         mon.mhpmax = mon.mhp = golemhp(mndx);
@@ -1157,7 +1135,7 @@ export function makemon_rnd_goodpos(mon, gpflags, cc) {
  *
  *      In case we make a monster group, only return the one at [x,y].
  */
-export function makemon(ptr, x, y, mmflags) {
+export async function makemon(ptr, x, y, mmflags) {
     fnEnter("makemon", "makemon.c", 0);
     traceCheckpoint('makemon.call', { x, y, mmflags, pmidx: ptr ? (ptr.pmidx | 0) : -1 });
     let mtmp = null;
@@ -1189,19 +1167,18 @@ export function makemon(ptr, x, y, mmflags) {
         x = cc.x;
         y = cc.y;
     } else if (byyou && !game.in_mklev) {
-        if (!enexto_core(cc, game.u.ux, game.u.uy, ptr, gpflags) && !enexto_core(cc, game.u.ux, game.u.uy, ptr, gpflags & ~8388608)) {
+        if (!await enexto_core(cc, game.u.ux, game.u.uy, ptr, gpflags) && !await enexto_core(cc, game.u.ux, game.u.uy, ptr, gpflags & ~8388608)) {
             return null;
         }
         x = cc.x;
         y = cc.y;
     }
     if (!isok(x, y)) {
-        impossible("makemon trying to create a monster at <%d,%d>?", x, y);
+        await impossible("makemon trying to create a monster at <%d,%d>?", x, y);
         return null;
     }
     if ((game.level.monsters[x][y] != null)) {
-        /* Does monster already exist at the position? */
-        if (!(mmflags & 16) || !enexto_core(cc, x, y, ptr, gpflags)) {
+        if (!(mmflags & 16) || !await enexto_core(cc, x, y, ptr, gpflags)) {
             return null;
         }
         x = cc.x;
@@ -1218,7 +1195,7 @@ export function makemon(ptr, x, y, mmflags) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/makemon.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("Explicitly creating extinct monster %s.", game.mons[mndx].pmnames[NEUTRAL]);
+                    await pline("Explicitly creating extinct monster %s.", game.mons[mndx].pmnames[NEUTRAL]);
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -1232,11 +1209,11 @@ export function makemon(ptr, x, y, mmflags) {
         /* maybe there are no good choices */
         let tryct = 0;
         do {
-            if (!(ptr = rndmonst())) {
+            if (!(ptr = await rndmonst())) {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/makemon.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("Warning: no monster.");
+                        await pline("Warning: no monster.");
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
@@ -1246,7 +1223,7 @@ export function makemon(ptr, x, y, mmflags) {
         } while (++tryct <= 50 && ((tryct == 1 && (((ptr).mflags2 & 134217728) != 0) && ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum))) || !goodpos(x, y, fakemon, gpflags)));
         mndx = ((ptr).pmidx);
     }
-    propagate(mndx, countbirth, (0));
+    await propagate(mndx, countbirth, (0));
     mtmp = alloc(1 /* sizeof(struct monst) */);
     /* clear all entries in structure */
     Object.assign(mtmp, cg.zeromonst);
@@ -1274,21 +1251,20 @@ export function makemon(ptr, x, y, mmflags) {
     game.level.monlist = mtmp;
     mtmp.m_id = next_ident();
     set_mon_data(mtmp, ptr);
-    if (ptr.msound == MS_LEADER && quest_info(MS_LEADER) == mndx) {
+    if (ptr.msound == MS_LEADER && await quest_info(MS_LEADER) == mndx) {
         game.quest_status.leader_m_id = mtmp.m_id;
     }
     mtmp.mnum = mndx;
-    /* set up level and hit points */
-    newmonhp(mtmp, mndx);
+    await newmonhp(mtmp, mndx);
     femaleok = (!(((ptr).mflags2 & 65536) != 0) && !(((ptr).mflags2 & 262144) != 0));
     maleok = (!(((ptr).mflags2 & 131072) != 0) && !(((ptr).mflags2 & 262144) != 0));
     if ((((ptr).mflags2 & 131072) != 0) || ((mmflags & 65536) != 0 && femaleok)) {
         mtmp.female = 1;
     } else if ((((ptr).mflags2 & 65536) != 0) || ((mmflags & 32768) != 0 && maleok)) {
         mtmp.female = 0;
-    } else if (ptr.msound == MS_LEADER && quest_info(MS_LEADER) == mndx) {
+    } else if (ptr.msound == MS_LEADER && await quest_info(MS_LEADER) == mndx) {
         mtmp.female = game.quest_status.ldrgend;
-    } else if (ptr.msound == MS_NEMESIS && quest_info(MS_NEMESIS) == mndx) {
+    } else if (ptr.msound == MS_NEMESIS && await quest_info(MS_NEMESIS) == mndx) {
         mtmp.female = game.quest_status.nemgend;
     /* leader and nemesis gender is usually hardcoded in mons[],
        but for ones which can be random, it has already been chosen
@@ -1314,26 +1290,26 @@ export function makemon(ptr, x, y, mmflags) {
     if ((((((game.dungeon_topology.d_stronghold_level)).dlevel || ((game.dungeon_topology.d_stronghold_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_stronghold_level)))) || (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) || In_hell(game.u.uz) || In_V_tower(game.u.uz) || In_quest(game.u.uz)) {
         mtmp.mwandexp = (1);
     }
-    place_monster(mtmp, x, y);
+    await place_monster(mtmp, x, y);
     mtmp.mcansee = mtmp.mcanmove = (1);
     mtmp.mgenmklev = game.in_mklev;
     mtmp.seen_resistance = M_SEEN_NOTHING;
     mtmp.mpeaceful = (mmflags & 32) ? (0) : peace_minded(ptr);
     if ((mmflags & 1048576) != 0) {
-        mon_set_minvis(mtmp, (0));
+        await mon_set_minvis(mtmp, (0));
     }
     switch (ptr.mlet) {
         /* call after place_monster() */
         case S_MIMIC:
-            set_mimic_sym(mtmp);
+            await set_mimic_sym(mtmp);
             break;
         case S_SPIDER:
         case S_SNAKE:
             if (game.in_mklev) {
                 if (x && y) {
-                    mkobj_at(RANDOM_CLASS, x, y, (1));
+                    await mkobj_at(RANDOM_CLASS, x, y, (1));
                 }
-                hideunder(mtmp);
+                await hideunder(mtmp);
             }
             break;
         case S_LIGHT:
@@ -1345,7 +1321,7 @@ export function makemon(ptr, x, y, mmflags) {
             break;
         case S_EEL:
             if (game.in_mklev) {
-                hideunder(mtmp);
+                await hideunder(mtmp);
             }
             break;
         case S_LEPRECHAUN:
@@ -1369,12 +1345,12 @@ export function makemon(ptr, x, y, mmflags) {
             break;
         case S_BAT:
             if (In_hell(game.u.uz) && ((ptr) == game.mons[PM_BAT] || (ptr) == game.mons[PM_GIANT_BAT] || (ptr) == game.mons[PM_VAMPIRE_BAT])) {
-                mon_adjust_speed(mtmp, 2, null);
+                await mon_adjust_speed(mtmp, 2, null);
             }
             break;
     }
     if ((ct = (((mtmp.data).mlet == S_LIGHT || (mtmp.data) == game.mons[PM_FLAMING_SPHERE] || (mtmp.data) == game.mons[PM_SHOCKING_SPHERE] || (mtmp.data) == game.mons[PM_BABY_GOLD_DRAGON] || (mtmp.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((mtmp.data) == game.mons[PM_FIRE_ELEMENTAL] || (mtmp.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) > 0) {
-        new_light_source(mtmp.mx, mtmp.my, ct, LS_MONSTER, monst_to_any(mtmp));
+        await new_light_source(mtmp.mx, mtmp.my, ct, LS_MONSTER, monst_to_any(mtmp));
     }
     /* extra inventory item for this monster */
     mitem = STRANGE_OBJECT;
@@ -1386,13 +1362,7 @@ export function makemon(ptr, x, y, mmflags) {
     if (!(game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic) && (mcham = pm_to_cham(mndx)) != NON_PM) {
         /* this is a shapechanger after all */
         mtmp.cham = mcham;
-        /* Vlad stays in his normal shape so he can carry the Candelabrum */
-        /* Note:  shapechanger's initial form used to be chosen here
-               with rndmonst(), yielding a monster which was appropriate
-               to the level's difficulty but ignoring the changer's usual
-               type selection, so was inappropriate for vampshifters.
-               Let newcham() pick the shape. */
-        if (mndx != PM_VLAD_THE_IMPALER && newcham(mtmp, null, 0)) {
+        if (mndx != PM_VLAD_THE_IMPALER && await newcham(mtmp, null, 0)) {
             allow_minvent = (0);
         }
     } else if (mndx == PM_WIZARD_OF_YENDOR) {
@@ -1411,7 +1381,7 @@ export function makemon(ptr, x, y, mmflags) {
         mitem = POT_SICKNESS;
     }
     if (mitem != STRANGE_OBJECT && allow_minvent) {
-        mongets(mtmp, mitem);
+        await mongets(mtmp, mitem);
     }
     if (game.in_mklev) {
         if ((((((ptr).mflags2 & 256) != 0) && (((ptr).mflags2 & (1024 | 2048)) == 0)) || mndx == PM_WUMPUS || mndx == PM_LONG_WORM || mndx == PM_GIANT_EEL) && !game.u.uhave.amulet && rn2(5)) {
@@ -1419,10 +1389,7 @@ export function makemon(ptr, x, y, mmflags) {
         }
     } else {
         if (byyou) {
-            /* in case of waiting items */
-            /* make sure the mon shows up */
-            /* vampire growing into vampire lord */
-            newsym(mtmp.mx, mtmp.my);
+            await newsym(mtmp.mx, mtmp.my);
             set_apparxy(mtmp);
         }
     }
@@ -1439,7 +1406,7 @@ export function makemon(ptr, x, y, mmflags) {
     if (mndx == PM_LONG_WORM && (mtmp.wormno = get_wormno()) != 0) {
         initworm(mtmp, allowtail ? rn2(5) : 0);
         if (count_wsegs(mtmp)) {
-            place_worm_tail_randomly(mtmp, x, y);
+            await place_worm_tail_randomly(mtmp, x, y);
         }
     }
     if ((mndx == PM_ALIGNED_CLERIC || mndx == PM_HIGH_CLERIC) ? !(mmflags & (256 | 1024)) : (mndx == PM_ANGEL && !(mmflags & 1024) && !rn2(3))) {
@@ -1459,32 +1426,27 @@ export function makemon(ptr, x, y, mmflags) {
     set_malign(mtmp);
     if (anymon && !(mmflags & 8192)) {
         if ((ptr.geno & 128) && rn2(2)) {
-            m_initgrp(mtmp, mtmp.mx, mtmp.my, 3, mmflags);
+            await m_initgrp(mtmp, mtmp.mx, mtmp.my, 3, mmflags);
         } else if (ptr.geno & 64) {
             if (rn2(3)) {
-                m_initgrp(mtmp, mtmp.mx, mtmp.my, 10, mmflags);
+                await m_initgrp(mtmp, mtmp.mx, mtmp.my, 10, mmflags);
             } else {
-                m_initgrp(mtmp, mtmp.mx, mtmp.my, 3, mmflags);
+                await m_initgrp(mtmp, mtmp.mx, mtmp.my, 3, mmflags);
             }
         }
     }
     if (allow_minvent) {
         if (attacktype(ptr, 254)) {
-            m_initweap(mtmp);
+            await m_initweap(mtmp);
         }
-        /* equip with weapons / armor */
-        /* add on a few special items incl. more armor */
-        m_initinv(mtmp);
-        m_dowear(mtmp, (1));
-        if (!rn2(100) && (((ptr).mflags2 & 4194304) != 0) && can_saddle(mtmp) && !which_armor(mtmp, 1048576)) {
-            /* NULL obj arg means put_saddle_on_mon()
-             * will create the saddle itself */
-            put_saddle_on_mon(null, mtmp);
+        await m_initinv(mtmp);
+        await m_dowear(mtmp, (1));
+        if (!rn2(100) && (((ptr).mflags2 & 4194304) != 0) && can_saddle(mtmp) && !await which_armor(mtmp, 1048576)) {
+            await put_saddle_on_mon(null, mtmp);
         }
     } else {
-        /* no initial inventory is allowed */
         if (mtmp.minvent) {
-            discard_minvent(mtmp, (1));
+            await discard_minvent(mtmp, (1));
         }
         mtmp.minvent = null;
     }
@@ -1500,41 +1462,38 @@ export function makemon(ptr, x, y, mmflags) {
         }
     }
     if (allow_minvent && game.migrating_objs) {
-        deliver_obj_to_mon(mtmp, 1, 0);
+        await deliver_obj_to_mon(mtmp, 1, 0);
     }
     if (!game.in_mklev) {
-        newsym(mtmp.mx, mtmp.my);
+        await newsym(mtmp.mx, mtmp.my);
         if (!(mmflags & 131072)) {
             let mbuf = '';
             let what = null;
             /* MM_NOEXCLAM is used for #wizgenesis (^G) */
             let exclaim = !(mmflags & 262144);
             if ((canseemon(mtmp) && (((mtmp).m_ap_type & 7) == M_AP_NOTHING || ((mtmp).m_ap_type & 7) == M_AP_MONSTER)) || sensemon(mtmp)) {
-                what = Amonnam(mtmp);
+                what = await Amonnam(mtmp);
                 if (((mtmp).m_ap_type & 7) == M_AP_MONSTER) {
                     exclaim = (1);
                 }
             } else if (canseemon(mtmp)) {
-                /* mimic masquerading as furniture or object and not sensed */
-                mhidden_description(mtmp, 2 | 4, mbuf);
+                await mhidden_description(mtmp, 2 | 4, mbuf);
                 what = upstart(mbuf);
             }
             if (what) {
                 set_msg_xy(mtmp.mx, mtmp.my);
-                Norep("%s%s %s%s%c", what, exclaim ? " suddenly" : "", vtense(what, "appear"), (dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2) ? " next to you" : (dist2((x), (y), game.u.ux, game.u.uy) <= (8 * 8)) ? " close by" : "", exclaim ? 33 : 46);
+                await Norep("%s%s %s%s%c", what, exclaim ? " suddenly" : "", await vtense(what, "appear"), (dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2) ? " next to you" : (dist2((x), (y), game.u.ux, game.u.uy) <= (8 * 8)) ? " close by" : "", exclaim ? 33 : 46);
             }
         }
-        /* if discernable and a threat, stop fiddling while Rome burns */
-        /* TODO: unify with teleport appears msg */
         if (game.occupation) {
-            dochugw(mtmp, (0));
+            await dochugw(mtmp, (0));
         }
     }
     if (mtmp) traceCheckpoint('makemon.return', { mx: mtmp.mx, my: mtmp.my, pmidx: mtmp.data ? mtmp.data.pmidx : -1 });
     return mtmp;
 }
 /* caller rejects makemon()'s result; always returns Null */
-export function unmakemon(mon, mmflags) {
+export async function unmakemon(mon, mmflags) {
     let countbirth = ((mmflags & 4) == 0);
     let mndx = ((mon.data).pmidx);
     /* if count has reached the limit of 255, we don't know whether
@@ -1549,11 +1508,8 @@ export function unmakemon(mon, mmflags) {
     }
     /* let discard_minvent() know that mon isn't being kept */
     mon.mhp = 0;
-    /* uncreate any artifact that the monster was provided with; unlike
-       mongone(), this doesn't protect special items like the Amulet
-       by dropping them so caller should handle them when applicable */
-    discard_minvent(mon, (1));
-    mongone(mon);
+    await discard_minvent(mon, (1));
+    await mongone(mon);
     return null;
 }
 export function mbirth_limit(mndx) {
@@ -1566,7 +1522,7 @@ export function mbirth_limit(mndx) {
 /* used for wand/scroll/spell of create monster */
 /* returns TRUE iff you know monsters have been created */
 /* usually null; used for confused reading */
-export function create_critters(cnt, mptr, neverask) {
+export async function create_critters(cnt, mptr, neverask) {
     let c = { x: 0, y: 0 };
     let x = 0;
     let y = 0;
@@ -1575,7 +1531,7 @@ export function create_critters(cnt, mptr, neverask) {
     let ask = (game.flags.debug && !neverask);
     while (cnt--) {
         if (ask) {
-            if (create_particular()) {
+            if (await create_particular()) {
                 known = (1);
                 continue;
             /* ESC will shut off prompting */
@@ -1584,12 +1540,10 @@ export function create_critters(cnt, mptr, neverask) {
             }
         }
         x = game.u.ux , y = game.u.uy;
-        /* if in water, try to encourage an aquatic monster
-           by finding and then specifying another wet location */
-        if (!mptr && game.u.uinwater && enexto(c, x, y, game.mons[PM_GIANT_EEL])) {
+        if (!mptr && game.u.uinwater && await enexto(c, x, y, game.mons[PM_GIANT_EEL])) {
             x = c.x , y = c.y;
         }
-        if ((mon = makemon(mptr, x, y, 0)) == null) {
+        if ((mon = await makemon(mptr, x, y, 0)) == null) {
             continue;
         }
         /* try again [should probably stop instead] */
@@ -1618,7 +1572,9 @@ export function uncommon(mndx) {
  *      return an integer in the range of 0-5.
  */
 let __align_shift_oldmoves = 0;
+__nh_register_static(() => { __align_shift_oldmoves = 0; });
 let __align_shift_lev = null;
+__nh_register_static(() => { __align_shift_lev = null; });
 export function align_shift(ptr) {
     /* != 1, starting value of moves */
     let alshift = 0;
@@ -1651,11 +1607,11 @@ export function temperature_shift(ptr) {
     return 0;
 }
 /* select a random monster type */
-export function rndmonst() {
-    return rndmonst_adj(0, 0);
+export async function rndmonst() {
+    return await rndmonst_adj(0, 0);
 }
 /* select a random monster type, with adjusted difficulty */
-export function rndmonst_adj(minadj, maxadj) {
+export async function rndmonst_adj(minadj, maxadj) {
     let ptr = null;
     let mndx = 0;
     let weight = 0;
@@ -1666,10 +1622,10 @@ export function rndmonst_adj(minadj, maxadj) {
     let maxmlev = 0;
     let elemlevel = 0;
     let upper = 0;
-    if (game.u.uz.dnum == (game.dungeon_topology.d_quest_dnum) && rn2(7) && (ptr = qt_montype()) != null) {
+    if (game.u.uz.dnum == (game.dungeon_topology.d_quest_dnum) && rn2(7) && (ptr = await qt_montype()) != null) {
         return ptr;
     }
-    zlevel = level_difficulty();
+    zlevel = await level_difficulty();
     minmlev = (Math.trunc((zlevel) / 6)) + minadj;
     maxmlev = (Math.trunc(((zlevel) + game.u.ulevel) / 2)) + maxadj;
     /* prefer uppercase only on rogue level */
@@ -1710,7 +1666,7 @@ export function rndmonst_adj(minadj, maxadj) {
         weight = (ptr.geno & 7) + align_shift(ptr);
         weight += temperature_shift(ptr);
         if (weight < 0 || weight > 127) {
-            impossible("bad weight in rndmonst for mndx %d", mndx);
+            await impossible("bad weight in rndmonst for mndx %d", mndx);
             weight = 0;
         }
         if (weight > 0) {
@@ -1733,7 +1689,7 @@ export function rndmonst_adj(minadj, maxadj) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/makemon.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("rndmonst returning Null [uncommon 'mndx'=#%d]", selected_mndx);
+                    await pline("rndmonst returning Null [uncommon 'mndx'=#%d]", selected_mndx);
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -1777,7 +1733,7 @@ export function cmp_init_mongen_order(p1, p2) {
 }
 /* check that monsters are in correct difficulty order for mkclass() */
 /* initialize monster order for mkclass */
-export function init_mongen_order() {
+export async function init_mongen_order() {
     let i = 0;
     let mlet = 0;
     if (game.mongen_order_init) {
@@ -1791,10 +1747,10 @@ export function init_mongen_order() {
             game.mclass_maxf[mlet] = (game.mons[i].geno & 7);
         }
     }
-    qsort(game.mongen_order, SPECIAL_PM, 4 /* sizeof(int) */, cmp_init_mongen_order);
+    await qsort_async(game.mongen_order, SPECIAL_PM, 4 /* sizeof(int) */, cmp_init_mongen_order);
 }
 /* allmain.c */
-export function dump_mongen() {
+export async function dump_mongen() {
     let mlet = 0;
     let prev_mlet = 0;
     let i = 0;
@@ -1802,8 +1758,8 @@ export function dump_mongen() {
     let special = 0;
     let nmbuf = '';
     monst_globals_init();
-    init_mongen_order();
-    raw_printf("int mongen_order[] = {");
+    await init_mongen_order();
+    await raw_printf("int mongen_order[] = {");
     for (i = LOW_PM; i < SPECIAL_PM; ++i) {
         special = (game.mons[(game.mongen_order[i])].geno & (512 | 4096));
         mlet = def_monsyms[game.mons[(game.mongen_order[i])].mlet].sym;
@@ -1811,7 +1767,7 @@ export function dump_mongen() {
             (game.windowprocs.win_raw_print)("");
         }
         nmbuf = nh_snprintf("dump_mongen", 1851, nmbuf, 80 /* sizeof(char [80]) */, "PM_%s%s", monsdump[(game.mongen_order[i])].nm, (i == SPECIAL_PM - 1) ? "" : ",");
-        raw_printf("    %*s /* %c seq=%3d, idx=%3d, sym='%c', diff=%2d, freq=%2d[%d] %s */", -nmwidth, nmbuf, (i == (game.mongen_order[i])) ? 32 : 46, i, (game.mongen_order[i]), mlet, game.mons[(game.mongen_order[i])].difficulty, (game.mons[(game.mongen_order[i])].geno & 7), game.mclass_maxf[game.mons[(game.mongen_order[i])].mlet], (special == (512 | 4096)) ? "(G_NOGEN | G_UNIQ)" : (special == 512) ? "(G_NOGEN)" : (special == 4096) ? "(G_UNIQ)" : "");
+        await raw_printf("    %*s /* %c seq=%3d, idx=%3d, sym='%c', diff=%2d, freq=%2d[%d] %s */", -nmwidth, nmbuf, (i == (game.mongen_order[i])) ? 32 : 46, i, (game.mongen_order[i]), mlet, game.mons[(game.mongen_order[i])].difficulty, (game.mons[(game.mongen_order[i])].geno & 7), game.mclass_maxf[game.mons[(game.mongen_order[i])].mlet], (special == (512 | 4096)) ? "(G_NOGEN | G_UNIQ)" : (special == 512) ? "(G_NOGEN)" : (special == 4096) ? "(G_UNIQ)" : "");
         prev_mlet = mlet;
     }
     (game.windowprocs.win_raw_print)("};");
@@ -1822,12 +1778,12 @@ export function dump_mongen() {
    The second parameter specifies a special casing bit mask
    to allow the normal genesis masks to be deactivated.
    Returns Null if no monsters in that class can be made. */
-export function mkclass(class_, spc) {
-    return mkclass_aligned(class_, spc, (-128));
+export async function mkclass(class_, spc) {
+    return await mkclass_aligned(class_, spc, (-128));
 }
 /* mkclass() with alignment restrictions; used by ndemon() */
 /* special mons[].geno handling */
-export function mkclass_aligned(class_, spc, atyp) {
+export async function mkclass_aligned(class_, spc, atyp) {
     let first = 0;
     let last = 0;
     let num = 0;
@@ -1840,12 +1796,12 @@ export function mkclass_aligned(class_, spc, atyp) {
     let gn_mask = 0;
     let zero_freq_for_entire_class = 0;
     memset(nums, 0, 1324 /* sizeof(int [331]) */);
-    maxmlev = level_difficulty() >> 1;
+    maxmlev = await level_difficulty() >> 1;
     if (class_ < 1 || class_ >= MAXMCLASSES) {
-        impossible("mkclass called with bad class!");
+        await impossible("mkclass called with bad class!");
         return null;
     }
-    init_mongen_order();
+    await init_mongen_order();
     /* the following must come after init_mongen_order() */
     zero_freq_for_entire_class = (game.mclass_maxf[class_] == 0);
     /*  Assumption #1:  monsters of a given class are contiguous in the
@@ -1860,7 +1816,7 @@ export function mkclass_aligned(class_, spc, atyp) {
         }
     }
     if (first == SPECIAL_PM) {
-        impossible("mkclass found no class %d monsters", class_);
+        await impossible("mkclass found no class %d monsters", class_);
         return null;
     }
     mv_mask = (2 | 1);
@@ -1896,16 +1852,7 @@ export function mkclass_aligned(class_, spc, atyp) {
                 break;
             }
             if ((k = (game.mons[(game.mongen_order[last])].geno & 7)) > 0 || (k = (zero_freq_for_entire_class ? 1 : 0)) > 0) {
-                /* skew towards lower value monsters at lower exp. levels
-                   (this used to be done in the next loop, but that didn't
-                   work well when multiple species had the same level and
-                   were followed by one that was past the bias threshold;
-                   cited example was succubus and incubus, where the bias
-                   against picking the next demon resulted in incubus
-                   being picked nearly twice as often as succubus);
-                   we need the '+1' in case the entire set is too high
-                   level (really low svl.level hero) */
-                nums[(game.mongen_order[last])] = k + 1 - (adj_lev(game.mons[(game.mongen_order[last])]) > (game.u.ulevel * 2));
+                nums[(game.mongen_order[last])] = k + 1 - (await adj_lev(game.mons[(game.mongen_order[last])]) > (game.u.ulevel * 2));
                 num += nums[(game.mongen_order[last])];
             }
         }
@@ -1963,7 +1910,7 @@ export function mkclass_poly(class_) {
     return first;
 }
 /* adjust strength of monsters based on u.uz and u.ulevel */
-export function adj_lev(ptr) {
+export async function adj_lev(ptr) {
     let tmp = 0;
     let tmp2 = 0;
     if (ptr == game.mons[PM_WIZARD_OF_YENDOR]) {
@@ -1979,7 +1926,7 @@ export function adj_lev(ptr) {
     if ((tmp = ptr.mlevel) > 49) {
         return 50;
     }
-    tmp2 = (level_difficulty() - tmp);
+    tmp2 = (await level_difficulty() - tmp);
     if (tmp2 < 0) {
         tmp--;
     /* if mlevel > u.uz decrement tmp */
@@ -1999,7 +1946,7 @@ export function adj_lev(ptr) {
 }
 /* monster earned experience and will gain some hit points; it might also
    grow into a bigger monster (baby to adult, soldier to officer, etc) */
-export function grow_up(mtmp, victim) {
+export async function grow_up(mtmp, victim) {
     let oldtype = 0;
     let newtype = 0;
     let max_increase = 0;
@@ -2074,22 +2021,22 @@ export function grow_up(mtmp, victim) {
         fem = (((ptr).mflags2 & 65536) != 0) ? 0 : (((ptr).mflags2 & 131072) != 0) ? 1 : mtmp.female;
         if (game.mvitals[newtype].mvflags & 2) {
             if ((canseemon(mtmp) || sensemon(mtmp))) {
-                pline("As %s grows up into %s, %s %s!", mon_nam(mtmp), an(pmname(ptr, Mgender(mtmp))), (genders[pronoun_gender(mtmp, 2)].he), ((((ptr).mflags2 & 2) != 0) || (ptr) == game.mons[PM_MANES] || (((ptr).mlet == S_GOLEM) || (ptr).mlet == S_VORTEX)) ? "expires" : "dies");
+                await pline("As %s grows up into %s, %s %s!", await mon_nam(mtmp), await an(pmname(ptr, Mgender(mtmp))), (genders[pronoun_gender(mtmp, 2)].he), ((((ptr).mflags2 & 2) != 0) || (ptr) == game.mons[PM_MANES] || (((ptr).mlet == S_GOLEM) || (ptr).mlet == S_VORTEX)) ? "expires" : "dies");
             }
             /* keep svm.mvitals[] accurate */
             set_mon_data(mtmp, ptr);
-            mondied(mtmp);
+            await mondied(mtmp);
             return null;
         } else if ((canseemon(mtmp) || sensemon(mtmp))) {
             let buf = '';
             buf = sprintf(buf, "%s%s", (mtmp.female && !fem) ? "male " : (fem && !mtmp.female) ? "female " : "", pmname(ptr, fem));
-            pline_mon(mtmp, "%s %s %s.", YMonnam(mtmp), (fem != mtmp.female) ? "changes into" : (((ptr).mflags1 & 131072) != 0) ? "becomes" : "grows up into", an(buf));
+            await pline_mon(mtmp, "%s %s %s.", await YMonnam(mtmp), (fem != mtmp.female) ? "changes into" : (((ptr).mflags1 & 131072) != 0) ? "becomes" : "grows up into", await an(buf));
         }
         set_mon_data(mtmp, ptr);
         if (mtmp.cham == oldtype && (((ptr).mflags2 & 16384) != 0)) {
             mtmp.cham = newtype;
         }
-        newsym(mtmp.mx, mtmp.my);
+        await newsym(mtmp.mx, mtmp.my);
         lev_limit = mtmp.m_lev;
         /* gender might be changing */
         mtmp.female = fem;
@@ -2121,17 +2068,16 @@ export function grow_up(mtmp, victim) {
     }
     return ptr;
 }
-export function mongets(mtmp, otyp) {
+export async function mongets(mtmp, otyp) {
     let otmp = null;
     if (!otyp) {
         return null;
     }
-    otmp = mksobj(otyp, (1), (0));
+    otmp = await mksobj(otyp, (1), (0));
     if (otmp) {
         if (mtmp.data.mlet == S_DEMON) {
-            /* demons never get blessed objects */
             if (otmp.blessed) {
-                curse(otmp);
+                await curse(otmp);
             }
         } else if ((((((mtmp).data).mflags2 & 4096) != 0) && mon_aligntyp(mtmp) == 1)) {
             /* lawful minions don't get cursed, bad, or rusting objects */
@@ -2163,7 +2109,7 @@ export function mongets(mtmp, otyp) {
                 otmp.spe = 0;
             }
         }
-        if (mpickobj(mtmp, otmp)) {
+        if (await mpickobj(mtmp, otmp)) {
             otmp = null;
         }
     }
@@ -2320,7 +2266,7 @@ export function freemcorpsenm(mtmp) {
 }
 const syms = [MAXOCLASSES, MAXOCLASSES, RING_CLASS, WAND_CLASS, WEAPON_CLASS, FOOD_CLASS, COIN_CLASS, SCROLL_CLASS, POTION_CLASS, ARMOR_CLASS, AMULET_CLASS, TOOL_CLASS, ROCK_CLASS, GEM_CLASS, SPBOOK_CLASS, S_MIMIC_DEF, S_MIMIC_DEF];
 const __set_mimic_sym_furnsyms = [S_upstair, S_upstair, S_dnstair, S_dnstair, S_altar, S_grave, S_throne, S_sink];
-export function set_mimic_sym(mtmp) {
+export async function set_mimic_sym(mtmp) {
     let typ = 0;
     let roomno = 0;
     let rt = 0;
@@ -2424,10 +2370,9 @@ export function set_mimic_sym(mtmp) {
                 } else if (s_sym == COIN_CLASS) {
                     appear = GOLD_PIECE;
                 } else {
-                    otmp = mkobj(s_sym, (0));
+                    otmp = await mkobj(s_sym, (0));
                     appear = otmp.otyp;
-                    /* make sure container contents are free'ed */
-                    obfree(otmp, null);
+                    await obfree(otmp, null);
                 }
             }
         }
@@ -2435,8 +2380,7 @@ export function set_mimic_sym(mtmp) {
     mtmp.m_ap_type = ap_type;
     mtmp.mappearance = appear;
     if (ap_type == M_AP_OBJECT && (appear == STATUE || appear == FIGURINE || appear == CORPSE || appear == EGG || appear == TIN)) {
-        /* when appearing as an object based on a monster type, pick a shape */
-        let mndx = rndmonnum();
+        let mndx = await rndmonnum();
         let nocorpse_ndx = (game.mvitals[mndx].mvflags & 16) != 0;
         if (appear == CORPSE && nocorpse_ndx) {
             mndx = (rn2(PM_WIZARD - PM_ARCHEOLOGIST + 1) + (PM_ARCHEOLOGIST));
@@ -2470,12 +2414,12 @@ export function set_mimic_sym(mtmp) {
 /* release monster from bag of tricks; return number of monsters created */
 /* caller emptying entirely; affects shop handling */
 /* secondary output */
-export function bagotricks(bag, tipping, seencount) {
+export async function bagotricks(bag, tipping, seencount) {
     let moncount = 0;
     if (!bag || bag.otyp != BAG_OF_TRICKS) {
-        impossible("bad bag o' tricks");
+        await impossible("bad bag o' tricks");
     } else if (bag.spe < 1) {
-        pline("%s", (tipping && bag.cknown) ? "It's empty." : c_common_strings.c_nothing_happens);
+        await pline("%s", (tipping && bag.cknown) ? "It's empty." : c_common_strings.c_nothing_happens);
         if (bag.dknown && game.objects[bag.otyp].oc_name_known) {
             /* if tipping known empty bag, give normal empty container message */
             /* now known to be empty if sufficiently discovered */
@@ -2486,12 +2430,12 @@ export function bagotricks(bag, tipping, seencount) {
         let mtmp = null;
         let creatcnt = 1;
         let seecount = 0;
-        consume_obj_charge(bag, !tipping);
+        await consume_obj_charge(bag, !tipping);
         if (!rn2(23)) {
             creatcnt += rnd(7);
         }
         do {
-            mtmp = makemon(null, game.u.ux, game.u.uy, 0);
+            mtmp = await makemon(null, game.u.ux, game.u.uy, 0);
             if (mtmp) {
                 ++moncount;
                 if ((canseemon(mtmp) && (((mtmp).m_ap_type & 7) == M_AP_NOTHING || ((mtmp).m_ap_type & 7) == M_AP_MONSTER)) || sensemon(mtmp)) {
@@ -2504,28 +2448,87 @@ export function bagotricks(bag, tipping, seencount) {
                 seencount.value += seecount;
             }
             if (bag.dknown) {
-                discover_object((BAG_OF_TRICKS), (1), (1), (1));
+                await discover_object((BAG_OF_TRICKS), (1), (1), (1));
                 update_inventory();
             }
         } else if (!tipping) {
-            pline("%s", !moncount ? c_common_strings.c_nothing_happens : c_common_strings.c_nothing_seems_to_happen);
+            await pline("%s", !moncount ? c_common_strings.c_nothing_happens : c_common_strings.c_nothing_seems_to_happen);
         }
     }
     return moncount;
 }
 /* create some or all remaining erinyes around the player */
 /* number to create, or 0 to create until extinct */
-export function summon_furies(limit) {
+export async function summon_furies(limit) {
     let i = 0;
     while (mk_gen_ok(PM_ERINYS, (2 | 1), 0) && (i < limit || !limit)) {
-        makemon(game.mons[PM_ERINYS], game.u.ux, game.u.uy, 16 | 2);
+        await makemon(game.mons[PM_ERINYS], game.u.ux, game.u.uy, 16 | 2);
         i++;
     }
 }
 /*makemon.c*/
+/* Don't create groups of peaceful monsters since they'll get
+         * in our way.  If the monster has a percentage chance so some
+         * are peaceful and some are not, the result will just be a
+         * smaller group.
+         */
+/* note: you can't use a mattock with a shield */
+/*
+         * Now the general case, some chance of getting some type
+         * of weapon for "normal" monsters.  Certain special types
+         * of monsters will get a bonus chance or different selections.
+         */
+/* mk_mplayer() passes rn2(1000) so the amount might be 0 */
+/* round 1: give them body armor */
+/* suppress 'dead increment' from static analyzer */
+/* better weapon rather than extra gear here */
+/* most watchmen carry a whistle */
+/* if hero teleports out of a vault while being confronted
+                   by the vault's guard, there is a shrill whistling sound,
+                   so guard evidently carries a cursed whistle */
+/* soldiers and their officers */
+/* moved here from m_initweap() because these don't
+           have AT_WEAP so m_initweap() is not called for them */
+/* (always True for the x==0 case) */
 /* [TODO? some (most? all?) edog fields probably should be
            reinitialized rather that retain the 'parent's values] */
+/* Does monster already exist at the position? */
 /* in Sokoban, don't accept a giant on first try;
                     after that, boulder carriers are fair game */
+/* set up level and hit points */
+/* Vlad stays in his normal shape so he can carry the Candelabrum */
+/* Note:  shapechanger's initial form used to be chosen here
+               with rndmonst(), yielding a monster which was appropriate
+               to the level's difficulty but ignoring the changer's usual
+               type selection, so was inappropriate for vampshifters.
+               Let newcham() pick the shape. */
+/* equip with weapons / armor */
+/* add on a few special items incl. more armor */
+/* NULL obj arg means put_saddle_on_mon()
+             * will create the saddle itself */
+/* no initial inventory is allowed */
+/* in case of waiting items */
+/* make sure the mon shows up */
+/* mimic masquerading as furniture or object and not sensed */
+/* if discernable and a threat, stop fiddling while Rome burns */
+/* TODO: unify with teleport appears msg */
 /* 'what' might be "gold pieces" so need plural verb */
+/* uncreate any artifact that the monster was provided with; unlike
+       mongone(), this doesn't protect special items like the Amulet
+       by dropping them so caller should handle them when applicable */
+/* if in water, try to encourage an aquatic monster
+           by finding and then specifying another wet location */
+/* skew towards lower value monsters at lower exp. levels
+                   (this used to be done in the next loop, but that didn't
+                   work well when multiple species had the same level and
+                   were followed by one that was past the bias threshold;
+                   cited example was succubus and incubus, where the bias
+                   against picking the next demon resulted in incubus
+                   being picked nearly twice as often as succubus);
+                   we need the '+1' in case the entire set is too high
+                   level (really low svl.level hero) */
+/* vampire growing into vampire lord */
+/* demons never get blessed objects */
+/* make sure container contents are free'ed */
+/* when appearing as an object based on a monster type, pick a shape */
 /* don't retain stale value from a previously mimicked shape */

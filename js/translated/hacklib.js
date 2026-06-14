@@ -69,6 +69,7 @@ function __nh_toJsStr(x) {
 import { game } from '../gstate.js';
 import { __builtin_va_end, __builtin_va_start } from '../c2js-runtime/builtins.js';
 import { __nh_hp_case_insensitive_comp, __nh_hp_strNsubst, __nh_hp_upwords, __nh_hp_xcrypt } from '../c2js-runtime/hacklib-handports.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { sprintf, vsnprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, strchr, strlen, strncmp } from '../c2js-runtime/string.js';
 
@@ -359,6 +360,7 @@ export function ordin(n) {
                                       result of ?: for format string */
 /* make a signed digit string from a number */
 let __sitoa_buf = '';
+__nh_register_static(() => { __sitoa_buf = ''; });
 export function sitoa(n) {
     __sitoa_buf = sprintf(__sitoa_buf, (n < 0) ? "%d" : "+%d", n);
     return __sitoa_buf;
@@ -458,8 +460,8 @@ export function strstri(str, sub) {
     for (k = 0 , s1 = str; __nh_char_at0(s1); k++) {
         __nh_char_at0(__nh_advance_str(tstr, (s1 = __nh_advance_str(s1, 1)) & (32 - 1)))++;
     }
-    for (__nh_s2_idx = 0; sub[__nh_s2_idx]; --k) {
-        __nh_char_at0(__nh_advance_str(tsub, sub[__nh_s2_idx++] & (32 - 1)))++;
+    for (__nh_s2_idx = 0; __nh_char_at0(__nh_advance_str(sub, __nh_s2_idx)); --k) {
+        __nh_char_at0(__nh_advance_str(tsub, __nh_char_at0(__nh_advance_str(sub, __nh_s2_idx++)) & (32 - 1)))++;
     }
     /* evaluate the info we've collected */
     if (k < 0) {
@@ -476,8 +478,8 @@ export function strstri(str, sub) {
         /* now actually compare the substring repeatedly to parts of the string */
         s1 = __nh_advance_str(str, i);
         __nh_s2_idx = 0;
-        while (lowc((s1 = __nh_advance_str(s1, 1))) == lowc(sub[__nh_s2_idx++])) {
-            if (!sub[__nh_s2_idx]) {
+        while (lowc((s1 = __nh_advance_str(s1, 1))) == lowc(__nh_char_at0(__nh_advance_str(sub, __nh_s2_idx++)))) {
+            if (!__nh_char_at0(__nh_advance_str(sub, __nh_s2_idx))) {
                 return __nh_advance_str(str, i);
             }
         }
@@ -540,10 +542,10 @@ export function swapbits(val, bita, bitb) {
  *      Annoyingly, explicitly casting to void does not remove the error.
  *      So, use the result - see reason #2.
  */
-export function nh_snprintf(func, line, str, size, fmt) {
+export function nh_snprintf(func, line, str, size, fmt, ...__nh_va_rest) {
     let ap = 0;
     let n = 0;
-    __builtin_va_start(ap, fmt);
+    ap = __nh_va_rest;
     n = vsnprintf(str, size, fmt, ap);
     __builtin_va_end(ap);
     if (n < 0 || n >= size) {
@@ -565,27 +567,27 @@ export function unicodeval_to_utf8str(uval, buffer, bufsz) {
      *   1110xxxx 0xE0..0xEF First byte of a 3-byte character encoding
      *   11110xxx 0xF0..0xF7 First byte of a 4-byte character encoding
      */
-    buffer[__nh_b_idx] = 0;
+    buffer = buffer.slice(0, __nh_b_idx);
     if (uval < 128) {
-        buffer[__nh_b_idx++] = uval;
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(uval);
     } else if (uval < 2048) {
-        buffer[__nh_b_idx++] = 192 + Math.trunc(uval / 64);
-        buffer[__nh_b_idx++] = 128 + uval % 64;
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(192 + Math.trunc(uval / 64));
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(128 + uval % 64);
     } else if (uval - 55296 < 2048) {
         return 0;
     } else if (uval < 65536) {
-        buffer[__nh_b_idx++] = 224 + Math.trunc(uval / 4096);
-        buffer[__nh_b_idx++] = 128 + Math.trunc(uval / 64) % 64;
-        buffer[__nh_b_idx++] = 128 + uval % 64;
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(224 + Math.trunc(uval / 4096));
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(128 + Math.trunc(uval / 64) % 64);
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(128 + uval % 64);
     } else if (uval < 1114112) {
-        buffer[__nh_b_idx++] = 240 + Math.trunc(uval / 262144);
-        buffer[__nh_b_idx++] = 128 + Math.trunc(uval / 4096) % 64;
-        buffer[__nh_b_idx++] = 128 + Math.trunc(uval / 64) % 64;
-        buffer[__nh_b_idx++] = 128 + uval % 64;
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(240 + Math.trunc(uval / 262144));
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(128 + Math.trunc(uval / 4096) % 64);
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(128 + Math.trunc(uval / 64) % 64);
+        buffer = buffer.slice(0, __nh_b_idx++) + String.fromCharCode(128 + uval % 64);
     } else {
         return 0;
     }
-    buffer[__nh_b_idx] = 0;
+    buffer = buffer.slice(0, __nh_b_idx);
     return 1;
 }
 export function case_insensitive_comp(s1, s2) {

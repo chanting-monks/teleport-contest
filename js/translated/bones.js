@@ -7,7 +7,7 @@ import { close_nhfile } from '../c2js-runtime/levelfile.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { You, pline } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_char_at0, strcat, strcmp, strcpy, strlen, strncmp } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcat, strcmp, strcpy, strlen, strncmp } from '../c2js-runtime/string.js';
 import { unleash_all } from './apply.js';
 import { artifact_exists, artifact_light, exist_artifact } from './artifact.js';
 import { yyyymmddhhmmss } from './calendar.js';
@@ -60,20 +60,17 @@ export function goodfruit(id) {
         f.fid = id;
     }
 }
-export function resetobjs(ochain, restore) {
+export async function resetobjs(ochain, restore) {
     let otmp = null;
     let nobj = null;
     for (otmp = ochain; otmp; otmp = nobj) {
         nobj = otmp.nobj;
         if (otmp.cobj) {
-            resetobjs(otmp.cobj, restore);
+            await resetobjs(otmp.cobj, restore);
         }
         if (otmp.in_use) {
-            /* all inventory is dropped (for the normal case), even non-droppable
-       things like worn armor and accessories, welded weapon, or cursed
-       loadstones */
-            obj_extract_self(otmp);
-            dealloc_obj(otmp);
+            await obj_extract_self(otmp);
+            await dealloc_obj(otmp);
             continue;
         }
         if (restore) {
@@ -96,7 +93,7 @@ export function resetobjs(ochain, restore) {
                         free_oname(otmp);
                     }
                 } else {
-                    artifact_exists(otmp, safe_oname(otmp), (1), 64);
+                    await artifact_exists(otmp, safe_oname(otmp), (1), 64);
                 }
             } else if (((otmp).oextra && ((otmp).oextra.oname))) {
                 sanitize_name(((otmp).oextra.oname));
@@ -160,7 +157,7 @@ export function resetobjs(ochain, restore) {
                        revival attempt, otherwise eating this corpse
                        would behave as if it remains unique */
                     if (mnum == PM_DOPPELGANGER && otmp.otyp == CORPSE) {
-                        set_corpsenm(otmp, mnum);
+                        await set_corpsenm(otmp, mnum);
                     }
                 }
             } else if (((otmp).o_id == game.context.achieveo.mines_prize_oid) || ((otmp).o_id == game.context.achieveo.soko_prize_oid)) {
@@ -170,10 +167,10 @@ export function resetobjs(ochain, restore) {
             } else if (otmp.otyp == AMULET_OF_YENDOR) {
                 /* no longer the real Amulet */
                 otmp.otyp = FAKE_AMULET_OF_YENDOR;
-                curse(otmp);
+                await curse(otmp);
             } else if (otmp.otyp == CANDELABRUM_OF_INVOCATION) {
                 if (otmp.lamplit) {
-                    end_burn(otmp, (1));
+                    await end_burn(otmp, (1));
                 }
                 otmp.otyp = WAX_CANDLE;
                 otmp.age = 50;
@@ -181,14 +178,14 @@ export function resetobjs(ochain, restore) {
                     otmp.quan = otmp.spe;
                 }
                 otmp.spe = 0;
-                otmp.owt = weight(otmp);
-                curse(otmp);
+                otmp.owt = await weight(otmp);
+                await curse(otmp);
             } else if (otmp.otyp == BELL_OF_OPENING) {
                 otmp.otyp = BELL;
-                curse(otmp);
+                await curse(otmp);
             } else if (otmp.otyp == SPE_BOOK_OF_THE_DEAD) {
                 otmp.otyp = SPE_BLANK_PAPER;
-                curse(otmp);
+                await curse(otmp);
             }
         }
     }
@@ -199,16 +196,16 @@ export function sanitize_name(namebuf) {
     let __nh_namebuf_idx = 0;
     let c = 0;
     let strip_8th_bit = ((game.windowprocs.wp_id == wp_tty) && !game.iflags.wc_eight_bit_input);
-    while (namebuf[__nh_namebuf_idx]) {
+    while (__nh_char_at0(__nh_advance_str(namebuf, __nh_namebuf_idx))) {
         /* it's tempting to skip this for single-user platforms, since
        only the current player could have left these bones--except
        things like "hearse" and other bones exchange schemes make
        that assumption false */
-        c = namebuf[__nh_namebuf_idx] & 127;
+        c = __nh_char_at0(__nh_advance_str(namebuf, __nh_namebuf_idx)) & 127;
         if (c < 32 || c == 127) {
             /* non-printable or undesirable */
             namebuf.value = 46;
-        } else if (c != namebuf[__nh_namebuf_idx]) {
+        } else if (c != __nh_char_at0(__nh_advance_str(namebuf, __nh_namebuf_idx))) {
             /* expected to be printable if user wants such things */
             if (strip_8th_bit) {
                 namebuf.value = 95;
@@ -220,7 +217,7 @@ export function sanitize_name(namebuf) {
 /* Give object to a random object-liking monster on or adjacent to x,y
    but skipping hero's location.
    If no such monster, place object on floor at x,y. */
-export function give_to_nearby_mon(otmp, x, y) {
+export async function give_to_nearby_mon(otmp, x, y) {
     let mtmp = null;
     let selected = null;
     let nmon = 0;
@@ -249,57 +246,57 @@ export function give_to_nearby_mon(otmp, x, y) {
             }
         }
     }
-    if (selected && can_carry(selected, otmp)) {
-        add_to_minv(selected, otmp);
+    if (selected && await can_carry(selected, otmp)) {
+        await add_to_minv(selected, otmp);
     } else {
-        place_object(otmp, x, y);
+        await place_object(otmp, x, y);
     }
 }
 /* called by savebones(); also by finish_paybill(shk.c) */
 /* monster if hero rises as one (non ghost) */
 /* container if hero is turned into a statue */
-export function drop_upon_death(mtmp, cont, x, y) {
+export async function drop_upon_death(mtmp, cont, x, y) {
     let otmp = null;
     /* when dual-wielding, the second weapon gets dropped rather than
        welded if it becomes cursed; ensure that that won't happen here
        by ending dual-wield */
     game.u.twoweap = (0);
     while ((otmp = game.invent) != null) {
-        obj_extract_self(otmp);
+        await obj_extract_self(otmp);
         /* when turning into green slime, all gear remains held;
            other types "arise from the dead" do aren't holding
            equipment during their brief interval as a corpse */
         if (!mtmp || (((mtmp.data).mflags2 & 2) != 0)) {
-            obj_no_longer_held(otmp);
+            await obj_no_longer_held(otmp);
         }
         /* lamps don't go out when dropped */
         if ((cont || artifact_light(otmp)) && obj_is_burning(otmp)) {
-            end_burn(otmp, (1));
+            await end_burn(otmp, (1));
         }
         otmp.owornmask = 0;
         if (otmp.otyp == SLIME_MOLD) {
             goodfruit(otmp.spe);
         }
         if (rn2(5)) {
-            curse(otmp);
+            await curse(otmp);
         }
         if (mtmp) {
-            add_to_minv(mtmp, otmp);
+            await add_to_minv(mtmp, otmp);
         } else if (cont) {
-            add_to_container(cont, otmp);
+            await add_to_container(cont, otmp);
         } else if (!rn2(8)) {
-            give_to_nearby_mon(otmp, x, y);
+            await give_to_nearby_mon(otmp, x, y);
         } else {
-            place_object(otmp, x, y);
+            await place_object(otmp, x, y);
         }
     }
     if (cont) {
-        cont.owt = weight(cont);
+        cont.owt = await weight(cont);
     }
 }
 /* possibly restore oracle's room and/or put her back inside it; returns
    False if she's on the wrong level and should be removed, True otherwise */
-export function fixuporacle(oracle) {
+export async function fixuporacle(oracle) {
     let cc = { x: 0, y: 0 };
     let ridx = 0;
     let o_ridx = 0;
@@ -334,11 +331,8 @@ export function fixuporacle(oracle) {
         /* room found and she's not in it, so try to move her there */
         cc.x = Math.trunc((game.rooms[ridx].lx + game.rooms[ridx].hx) / 2);
         cc.y = Math.trunc((game.rooms[ridx].ly + game.rooms[ridx].hy) / 2);
-        /* [if her room is already full, she might end up outside;
-           that's ok, next hero just won't get any welcome message,
-           same as used to happen before this fixup was introduced] */
-        if (enexto(cc, cc.x, cc.y, oracle.data)) {
-            rloc_to(oracle, cc.x, cc.y);
+        if (await enexto(cc, cc.x, cc.y, oracle.data)) {
+            await rloc_to(oracle, cc.x, cc.y);
             o_ridx = game.level.locations[oracle.mx][oracle.my].roomno - 3;
         }
     }
@@ -385,14 +379,14 @@ export function can_make_bones() {
 }
 /* monster might need to be removed before saving a bones file,
    in case these characters are not in their home bases */
-export function remove_mon_from_bones(mtmp) {
+export async function remove_mon_from_bones(mtmp) {
     let mptr = mtmp.data;
-    if (mtmp.iswiz || mptr == game.mons[PM_MEDUSA] || mptr.msound == MS_NEMESIS || mptr.msound == MS_LEADER || ((mtmp).data == game.mons[PM_VLAD_THE_IMPALER] || (mtmp).cham == PM_VLAD_THE_IMPALER) || (mptr == game.mons[PM_ORACLE] && !fixuporacle(mtmp))) {
-        mongone(mtmp);
+    if (mtmp.iswiz || mptr == game.mons[PM_MEDUSA] || mptr.msound == MS_NEMESIS || mptr.msound == MS_LEADER || ((mtmp).data == game.mons[PM_VLAD_THE_IMPALER] || (mtmp).cham == PM_VLAD_THE_IMPALER) || (mptr == game.mons[PM_ORACLE] && !await fixuporacle(mtmp))) {
+        await mongone(mtmp);
     }
 }
 /* save bones and possessions of a deceased adventurer */
-export function savebones(how, when, corpse) {
+export async function savebones(how, when, corpse) {
     let x = 0;
     let y = 0;
     let ttmp = null;
@@ -410,11 +404,11 @@ export function savebones(how, when, corpse) {
         if (nhfp) {
             close_nhfile(nhfp);
             if (game.flags.debug) {
-                if (yn_function("Bones file already exists.  Replace it?", ynchars, 110, (1)) == 121) {
+                if (await yn_function("Bones file already exists.  Replace it?", ynchars, 110, (1)) == 121) {
                     if (delete_bonesfile(game.u.uz)) {
                         break make_bones;
                     } else {
-                        pline("Cannot unlink old bones.");
+                        await pline("Cannot unlink old bones.");
                     }
                 }
             }
@@ -425,22 +419,14 @@ export function savebones(how, when, corpse) {
         }
     }
     unleash_all();
-    /* new ghost or other undead isn't punished even if hero was;
-       end-of-game disclosure has already had a chance to report the
-       Punished status so we don't need to preserve it any further */
     if ((game.uball != null)) {
-        unpunish();
+        await unpunish();
     }
-    /* unwear uball, destroy uchain */
-    /* in case dismounting kills steed [is that even possible?], do so
-       before cleaning up dead monsters */
     if (game.u.usteed) {
-        dismount_steed(DISMOUNT_BONES);
+        await dismount_steed(DISMOUNT_BONES);
     }
-    /* send various unique monsters away, */
-    iter_mons(remove_mon_from_bones);
-    /* then discard dead or gone monsters */
-    dmonsfree();
+    await iter_mons(remove_mon_from_bones);
+    await dmonsfree();
     /* next hero won't have read any engravings yet */
     forget_engravings();
     /* mark all named fruits as nonexistent; if/when we come to instances
@@ -456,41 +442,35 @@ export function savebones(how, when, corpse) {
          * on your location
          */
         game.in_mklev = (1);
-        mtmp = makemon(game.mons[game.u.ugrave_arise], game.u.ux, game.u.uy, 1);
+        mtmp = await makemon(game.mons[game.u.ugrave_arise], game.u.ux, game.u.uy, 1);
         game.in_mklev = (0);
         if (!mtmp) {
-            /* arise-type might have been genocided */
-            /* u.ugrave_arise < LEAVESTATUE */
-            drop_upon_death(null, null, game.u.ux, game.u.uy);
+            await drop_upon_death(null, null, game.u.ux, game.u.uy);
             game.u.ugrave_arise = NON_PM;
             return;
         }
         give_u_to_m_resistances(mtmp);
         mtmp = christen_monst(mtmp, game.plname);
-        newsym(game.u.ux, game.u.uy);
-        /* ["Your body rises from the dead as an <mname>..." used
-           to be given here, but it has been moved to done() so that
-           it gets delivered even when savebones() isn't called] */
-        drop_upon_death(mtmp, null, game.u.ux, game.u.uy);
+        await newsym(game.u.ux, game.u.uy);
+        await drop_upon_death(mtmp, null, game.u.ux, game.u.uy);
         /* 'mtmp' now has hero's inventory; if 'mtmp' is a mummy, give it
            a wrapping unless already carrying one */
         if (mtmp.data.mlet == S_MUMMY && !m_carrying(mtmp, MUMMY_WRAPPING)) {
-            mongets(mtmp, MUMMY_WRAPPING);
+            await mongets(mtmp, MUMMY_WRAPPING);
         }
-        m_dowear(mtmp, (1));
+        await m_dowear(mtmp, (1));
     } else if (game.u.ugrave_arise == LEAVESTATUE) {
         let otmp = null;
-        /* embed your possessions in your statue */
-        otmp = mk_named_object(STATUE, game.mons[game.u.umonnum], game.u.ux, game.u.uy, game.plname);
-        drop_upon_death(null, otmp, game.u.ux, game.u.uy);
+        otmp = await mk_named_object(STATUE, game.mons[game.u.umonnum], game.u.ux, game.u.uy, game.plname);
+        await drop_upon_death(null, otmp, game.u.ux, game.u.uy);
         if (!otmp) {
             return;
         }
         mtmp = null;
     } else {
-        drop_upon_death(null, null, game.u.ux, game.u.uy);
+        await drop_upon_death(null, null, game.u.ux, game.u.uy);
         game.in_mklev = (1);
-        mtmp = makemon(game.mons[PM_GHOST], game.u.ux, game.u.uy, 64);
+        mtmp = await makemon(game.mons[PM_GHOST], game.u.ux, game.u.uy, 64);
         game.in_mklev = (0);
         if (!mtmp) {
             return;
@@ -526,7 +506,7 @@ export function savebones(how, when, corpse) {
                     break;
                 }
             }
-            ((mtmp).mextra.ebones).oldalign = game.u.ualign;
+            Object.assign(((mtmp).mextra.ebones).oldalign, game.u.ualign);
             ((mtmp).mextra.ebones).deathlevel = game.u.ulevel;
             ((mtmp).mextra.ebones).luck = game.u.uluck;
             ((mtmp).mextra.ebones).mnum = (game.urole.mnum);
@@ -537,7 +517,7 @@ export function savebones(how, when, corpse) {
     }
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
         set_ghostly_objlist(mtmp.minvent);
-        resetobjs(mtmp.minvent, (0));
+        await resetobjs(mtmp.minvent, (0));
         /* do not zero out m_ids for bones levels any more */
         mtmp.mlstmv = 0;
         if (mtmp.mtame) {
@@ -551,9 +531,9 @@ export function savebones(how, when, corpse) {
         ttmp.tseen = ((ttmp.ttyp) == HOLE);
     }
     set_ghostly_objlist(game.level.objlist);
-    resetobjs(game.level.objlist, (0));
+    await resetobjs(game.level.objlist, (0));
     set_ghostly_objlist(game.level.buriedobjlist);
-    resetobjs(game.level.buriedobjlist, (0));
+    await resetobjs(game.level.buriedobjlist, (0));
     /* Hero is no longer on the map. */
     game.u.ux0 = game.u.ux , game.u.uy0 = game.u.uy;
     game.u.ux = game.u.uy = 0;
@@ -572,7 +552,7 @@ export function savebones(how, when, corpse) {
        so pre-fill with spaces to initialize any excess room */
     memset(newbones, 32, 1 /* sizeof(struct cemetery) */);
     newbones.who = sprintf(newbones.who, "%s-%.3s-%.3s-%.3s-%.3s", game.plname, game.urole.filecode, game.urace.filecode, genders[game.flags.female].filecode, aligns[1 - game.u.ualign.type].filecode);
-    formatkiller(newbones.how, 101 /* sizeof(char [101]) */, how, (1));
+    await formatkiller(newbones.how, 101 /* sizeof(char [101]) */, how, (1));
     newbones.when = strcpy(newbones.when, yyyymmddhhmmss(when));
     /* final resting place, used to decide when bones are discovered */
     newbones.frpx = game.u.ux0 , newbones.frpy = game.u.uy0;
@@ -589,11 +569,8 @@ export function savebones(how, when, corpse) {
     }
     nhfp = create_bonesfile(game.u.uz, bonesid, whynot);
     if (!nhfp) {
-        /* format name+role,&c, death reason, and date+time;
-       gender and alignment reflect final values rather than what the
-       character started out as, same as topten and logfile entries */
         if (game.flags.debug) {
-            pline("%s", whynot);
+            await pline("%s", whynot);
         }
         /* bones file creation problems are silent to the player.
          * Keep it that way, but place a clue into the paniclog.
@@ -610,15 +587,14 @@ export function savebones(how, when, corpse) {
     /* if a bones pool digit is in use, it precedes the bonesid
        string and isn't recorded in the file */
     savefruitchn(nhfp);
-    /* update monsters for eventual restoration */
-    update_mlstmv();
+    await update_mlstmv();
     savelev(nhfp, ledger_no(game.u.uz));
     close_nhfile(nhfp);
     commit_bonesfile(game.u.uz);
     compress_bonesfile();
 }
 /* !SFCTOOL */
-export function getbones() {
+export async function getbones() {
     let ok = 0;
     let nhfp = null;
     let c = 0;
@@ -661,16 +637,16 @@ export function getbones() {
         }
     }
     game.program_state.reading_bonesfile = 1;
-    if (validate(nhfp, game.bones, (0)) != 0) {
+    if (await validate(nhfp, game.bones, (0)) != 0) {
         if (!game.flags.debug) {
-            pline("Discarding unusable bones; no need to panic...");
+            await pline("Discarding unusable bones; no need to panic...");
         }
         ok = (0);
         game.program_state.reading_bonesfile = 0;
     } else {
         ok = (1);
         if (game.flags.debug) {
-            if (yn_function("Get bones?", ynchars, 110, (1)) == 110) {
+            if (await yn_function("Get bones?", ynchars, 110, (1)) == 110) {
                 close_nhfile(nhfp);
                 compress_bonesfile();
                 /* ToDo: maybe unlink these problematic bones? */
@@ -678,7 +654,7 @@ export function getbones() {
                 return 0;
             }
         }
-        sfi_char(nhfp, { get value() { return ancestor_nhuuid[0]; }, set value(_v) { ancestor_nhuuid[0] = _v; } }, "ancestor-nhuuid", 37 /* sizeof(char [37]) */);
+        sfi_char(nhfp, { get value() { return __nh_char_at0(ancestor_nhuuid); }, set value(_v) { __nh_char_at0(ancestor_nhuuid) = _v; } }, "ancestor-nhuuid", 37 /* sizeof(char [37]) */);
         sfi_char(nhfp, { get value() { return c; }, set value(_v) { c = _v; } }, "bones_count", 1);
         if (c <= 40 /* sizeof(char [40]) */) {
             sfi_char(nhfp, oldbonesid, "bonesid", c);
@@ -687,7 +663,7 @@ export function getbones() {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/bones.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("Abandoning bones , %u > %u.", c, 40 /* sizeof(char [40]) */);
+                        await pline("Abandoning bones , %u > %u.", c, 40 /* sizeof(char [40]) */);
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
@@ -701,7 +677,7 @@ export function getbones() {
             let errbuf = '';
             errbuf = sprintf(errbuf, "This is bones level '%s', not '%s'!", oldbonesid, bonesid);
             if (game.flags.debug) {
-                pline("%s", errbuf);
+                await pline("%s", errbuf);
                 ok = (0);
             }
             game.program_state.reading_bonesfile = 0;
@@ -725,20 +701,19 @@ export function getbones() {
                         do {
                             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/bones.c", (1))) {
                                 let save_plnmsg = game.iflags.last_msg;
-                                pline("Removing defunct monster %s from bones.", mtmp.data.pmnames[NEUTRAL]);
+                                await pline("Removing defunct monster %s from bones.", mtmp.data.pmnames[NEUTRAL]);
                                 game.iflags.last_msg = save_plnmsg;
                             }
                         } while (0);
                     }
-                    mongone(mtmp);
-                /* to correctly reset named artifacts on the level */
+                    await mongone(mtmp);
                 } else {
-                    resetobjs(mtmp.minvent, (1));
+                    await resetobjs(mtmp.minvent, (1));
                 }
             }
-            resetobjs(game.level.objlist, (1));
-            resetobjs(game.level.buriedobjlist, (1));
-            fix_shop_damage();
+            await resetobjs(game.level.objlist, (1));
+            await resetobjs(game.level.buriedobjlist, (1));
+            await fix_shop_damage();
         }
     }
     close_nhfile(nhfp);
@@ -746,7 +721,7 @@ export function getbones() {
     sanitize_engravings();
     game.u.uroleplay.numbones++;
     if (game.flags.debug) {
-        if (yn_function("Unlink bones?", ynchars, 110, (1)) == 110) {
+        if (await yn_function("Unlink bones?", ynchars, 110, (1)) == 110) {
             compress_bonesfile();
             return ok;
         }
@@ -783,7 +758,7 @@ export function set_ghostly_objlist(objchain) {
 /* This is called when a marked object from a bones file is picked-up.
    Some could result in a message, and the obj->ghostly flag is always
    cleared. obj->ghostly has no other usage at this time. */
-export function fix_ghostly_obj(obj) {
+export async function fix_ghostly_obj(obj) {
     if (!obj.ghostly) {
         return;
     }
@@ -793,7 +768,7 @@ export function fix_ghostly_obj(obj) {
         case ORCISH_BOW:
         case YUMI:
         case BOOMERANG:
-            You("make adjustments to %s to suit your %s hand.", the(xname(obj)), (game.u.uhandedness == 0) ? "right" : "left");
+            await You("make adjustments to %s to suit your %s hand.", await the(await xname(obj)), (game.u.uhandedness == 0) ? "right" : "left");
             break;
         default:
             break;
@@ -824,4 +799,29 @@ export function free_ebones(mtmp) {
 /* no bones in the invocation level */
 /* can't use costly_spot() since its
                                       result depends upon hero's location */
+/* all inventory is dropped (for the normal case), even non-droppable
+       things like worn armor and accessories, welded weapon, or cursed
+       loadstones */
+/* [if her room is already full, she might end up outside;
+           that's ok, next hero just won't get any welcome message,
+           same as used to happen before this fixup was introduced] */
 /* mptr == &mons[VLAD_THE_IMPALER] || cham == VLAD */
+/* new ghost or other undead isn't punished even if hero was;
+       end-of-game disclosure has already had a chance to report the
+       Punished status so we don't need to preserve it any further */
+/* unwear uball, destroy uchain */
+/* in case dismounting kills steed [is that even possible?], do so
+       before cleaning up dead monsters */
+/* send various unique monsters away, */
+/* then discard dead or gone monsters */
+/* arise-type might have been genocided */
+/* ["Your body rises from the dead as an <mname>..." used
+           to be given here, but it has been moved to done() so that
+           it gets delivered even when savebones() isn't called] */
+/* embed your possessions in your statue */
+/* u.ugrave_arise < LEAVESTATUE */
+/* format name+role,&c, death reason, and date+time;
+       gender and alignment reflect final values rather than what the
+       character started out as, same as topten and logfile entries */
+/* update monsters for eventual restoration */
+/* to correctly reset named artifacts on the level */

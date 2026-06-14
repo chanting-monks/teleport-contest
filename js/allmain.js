@@ -14,7 +14,7 @@ import { nhl_init, nhl_loadlua } from './c2js-runtime/lua.js';
 import { level_difficulty as t_level_difficulty } from './translated/dungeon.js';
 import { rhack } from './cmd.js';
 import { deferred_goto as t_deferred_goto } from './translated/do.js';
-import { nhgetch, readKeySync } from './input.js';
+import { nhgetch } from './input.js';
 import { docrt, cls, bot, flush_screen, pline, rebuild_status_rows, newsym } from './display.js';
 import { vision_recalc, vision_reset, init_vision_globals } from './vision.js';
 import { init_objects, observe_object } from './translated/o_init.js';
@@ -29,7 +29,7 @@ import { nh_timeout, do_storms } from './translated/timeout.js';
 import { regen_hp, regen_pw, maybe_generate_rnd_mon, u_calc_moveamt } from './translated/allmain.js';
 import { age_spells } from './translated/spell.js';
 import { glibr } from './translated/do_wear.js';
-import { overexert_hp, near_capacity, unmul, runmode_delay_output } from './translated/hack.js';
+import { overexert_hp, near_capacity, unmul, runmode_delay_output, monster_nearby } from './translated/hack.js';
 import { prayer_done } from './translated/pray.js';
 import {
     Armor_off, Shield_off, Helmet_off, Gloves_off, Boots_off,
@@ -524,16 +524,94 @@ export async function newgame() {
                     }
                 }
                 if (formatted) {
-                    g._pending_message = formatted;
-                    g._cursor_override = { x: formatted.length + 1, y: 0 };
-                    g._cursor_override_oneshot = true;
+                    // C ref win/tty/wintty.c tty_yn_function: an
+                    // UNSEEN topl message gets '--More--' and must be
+                    // dismissed (space/\n/ESC — xwaitforspace; other
+                    // keys are consumed and rejected) BEFORE the yn
+                    // prompt appears.  Route through the dmore queue:
+                    // nhgetch's drain consumes the dismissal key(s),
+                    // reveals the prompt, and the NEXT key read below
+                    // answers it — exactly C's key consumption.
+                    if (g._pending_message && !g._topl_seen
+                        && g._pending_message !== formatted) {
+                        // If the topl is already --More--'d (an active
+                        // dmore chain), do NOT overwrite it — that
+                        // destroyed the prompt when a multi-message
+                        // chain (e.g. seed1150's swap + dog-drop) was
+                        // still draining; queue the prompt behind the
+                        // chain instead, like C dismissing every
+                        // pending More before tty_yn_function prompts.
+                        if (!String(g._pending_message).endsWith('--More--')) {
+                            g._pending_message += '--More--';
+                        }
+                        const q0 = g._dmore_queue;
+                        if (q0 && q0.length > 0) q0.push(formatted);
+                        else g._dmore_queue = [formatted];
+                        // The cursor override set below is consumed
+                        // by our own flush while the --More-- chain
+                        // is still showing; remember the prompt text
+                        // so nhgetch's drain re-arms the end-of-
+                        // prompt cursor when it REVEALS the prompt
+                        // (C tty: cursor sits after the query while
+                        // awaiting the response — seed0105's eat
+                        // prompts matched cells but parked the
+                        // cursor on the hero, 5 frames from PASS).
+                        g._yn_prompt_text = formatted;
+                    } else {
+                        g._pending_message = formatted;
+                    }
+                    // End-of-prompt cursor: ONLY when the prompt is
+                    // actually visible now.  When it's queued behind
+                    // a --More-- chain the override out-ranked the
+                    // More cursor on our flush (seed0102's fire-swap
+                    // More frames parked the cursor at the unrevealed
+                    // direction prompt's length); the drain re-arm in
+                    // input.js places it at reveal time instead.
+                    // gstate Proxy ghost: an unset _yn_prompt_text
+                    // reads as truthy {} — require a real string
+                    // (feedback_proxy_ghost_truthy; the bare-truthy
+                    // guard suppressed the override for EVERY direct
+                    // prompt until the first queued one ran).
+                    if (typeof g._yn_prompt_text !== 'string') {
+                        g._cursor_override = { x: formatted.length + 1, y: 0 };
+                        g._cursor_override_oneshot = true;
+                    }
                     await flush_screen(1);
                 }
-                const __ynKey = await nhgetch();
+                // C ref win/tty/topl.c tty_yn_function response
+                // loop: when 'resp' is given, ONLY its characters are
+                // accepted; quitchars (space/CR/LF) return the
+                // default; ESC maps to 'q' if present, else 'n' if
+                // present, else the default; anything else is
+                // consumed and REJECTED (tty beeps, prompt stays).
+                // Returning the raw key let an invalid 'i' answer a
+                // [yn] prompt as if it were 'n' (seed0501 step 16) —
+                // the whole session tail shifted one key early.
+                // resp==null accepts any key (getdir's contract).
+                let __ynKey;
+                for (;;) {
+                    __ynKey = await nhgetch();
+                    if (!rs) break;
+                    const defKey = (typeof def === 'number' && def > 0) ? def
+                        : (typeof def === 'string' && def.length) ? def.charCodeAt(0) : 0;
+                    if (__ynKey === 0x20 || __ynKey === 0x0a || __ynKey === 0x0d) {
+                        if (defKey) __ynKey = defKey;
+                        break;
+                    }
+                    if (__ynKey === 0x1b) {
+                        if (rs.includes('q')) __ynKey = 113;
+                        else if (rs.includes('n')) __ynKey = 110;
+                        else if (defKey) __ynKey = defKey;
+                        break;
+                    }
+                    if (rs.includes(String.fromCharCode(__ynKey))) break;
+                    // invalid key: consumed, prompt stays (tty beeps)
+                }
                 if (g._cursor_override_oneshot) {
                     g._cursor_override = null;
                     g._cursor_override_oneshot = false;
                 }
+                g._yn_prompt_text = null;
                 return __ynKey;
             };
         }
@@ -543,7 +621,7 @@ export async function newgame() {
             // emitting the query, prompts like "Talk to whom? (in what
             // direction)" never reach row 0, leaving the screen blank
             // where C shows the prompt.
-            g.windowprocs.win_yn_function = (q, resp, def) => {
+            g.windowprocs.win_yn_function = async (q, resp, def) => {
                 const __coerceStr = (v) => (typeof v === 'string') ? v
                     : (v && typeof v.value === 'string') ? v.value
                     : (Array.isArray(v) ? (() => {
@@ -553,53 +631,74 @@ export async function newgame() {
                     })() : '');
                 const qs = __coerceStr(q);
                 const rs = __coerceStr(resp);
-                // C ref win/tty/wintty.c tty_yn_function — the prompt
+                // C ref win/tty/topl.c tty_yn_function — the prompt
                 // is formatted as `"%s [%s] "` (with the responses in
                 // brackets) and, if `def` is in the responses, with
                 // `(c) ` where c is the printable default character.
                 // ESC isn't shown in [..] (it's a flag for unshown
-                // candidates).  Without this, "Are you sure you want
-                // to pray?" renders as the bare query string instead
-                // of "Are you sure you want to pray? [yn] (n)".
+                // candidates).
+                const respDisp = rs.replace(/\x1b/g, '');
+                const defChar = (typeof def === 'number')
+                    ? (def > 0 && def < 0x7f ? String.fromCharCode(def) : '')
+                    : (typeof def === 'string' ? def : '');
                 let formatted = qs;
                 if (rs) {
-                    // Strip ESC (0x1b) from the displayed response set —
-                    // it's a "unshown candidates" flag in C, not part of
-                    // the visible bracketed list.
-                    const respDisp = rs.replace(/\x1b/g, '');
                     if (respDisp) formatted += ` [${respDisp}]`;
-                    const defChar = (typeof def === 'number')
-                        ? (def > 0 && def < 0x7f ? String.fromCharCode(def) : '')
-                        : (typeof def === 'string' ? def : '');
                     if (defChar && respDisp.includes(defChar)) {
                         formatted += ` (${defChar})`;
                     }
                 }
-                if (formatted) {
-                    g._pending_message = formatted;
-                    g._cursor_override = { x: formatted.length + 1, y: 0 };
-                    g._cursor_override_oneshot = true;
+                // C ref tty_yn_function (topl.c:430-531): read a key and
+                // validate against `resp`, looping on invalid input.  This
+                // mirrors win_getlin's ASYNC nhgetch path (the recorded
+                // session has a key for every yn prompt, exactly as C reads
+                // one via readchar()).  Replaces the former sync readKeySync
+                // (which always returned ESC because its queue was empty) —
+                // the last sync key-read in the async-flip migration.
+                //   preserve_case: C lowercases the response unless any
+                // uppercase appears in the allowed set.  quitchars (space,
+                // CR, LF) and ESC map to the default / 'q' / 'n' per C.
+                const defCode = (typeof def === 'number') ? def
+                    : (defChar ? defChar.charCodeAt(0) : 0);
+                const preserveCase = /[A-Z]/.test(rs);
+                let key = defCode;
+                let guard = 0;
+                for (;;) {
+                    if (++guard > 200) { key = 27; break; } // safety: never spin
+                    if (formatted) {
+                        g._pending_message = formatted;
+                        g._cursor_override = { x: formatted.length + 1, y: 0 };
+                        g._cursor_override_oneshot = true;
+                    }
+                    await flush_screen(1);
+                    let c = await nhgetch();
+                    if (!rs) { key = c; break; } // no restriction: accept any
+                    let qc = c;
+                    if (!preserveCase && qc >= 65 && qc <= 90) qc += 32; // lowc
+                    if (qc === 0x1b) { // ESC → 'q', else 'n', else def
+                        key = rs.includes('q') ? 0x71
+                            : rs.includes('n') ? 0x6e : defCode;
+                        break;
+                    }
+                    if (qc === 0x20 || qc === 0x0a || qc === 0x0d) { // quitchars → def
+                        key = defCode;
+                        break;
+                    }
+                    if (rs.indexOf(String.fromCharCode(qc)) !== -1) { key = qc; break; }
+                    // invalid response: C beeps and re-reads (q='\0' loops).
+                    // (Digit/# number entry is not yet ported; a '#'-resp
+                    // count prompt would loop here until the guard trips —
+                    // no current session exercises it; revisit if one does.)
                 }
-                const __ynKey = readKeySync();
-                // readKeySync is synchronous and does NOT fire the
-                // preNhgetchHook, so the oneshot clearance for
-                // _cursor_override (which happens inside that hook)
-                // never runs.  If a downstream pline-driven sequence
-                // (e.g. prayer firing its begin / finish / displeased
-                // messages) accumulates before the next async nhgetch,
-                // the stale yn cursor stays in force when that nhgetch
-                // captures, mismatching C (which positions cursor at
-                // the end of the current --More-- topl line, not the
-                // prior yn prompt's tail).  Clear here once we have
-                // the key so the next flush_screen falls through to
-                // the standard --More-- / hero-position cursor logic.
-                // Added 2026-05-31 for seed0017 prayer cursor at step
-                // 47 (was JS [40,0] vs C [72,0]).
+                // Clear the oneshot cursor override now that we have the key
+                // (the next flush_screen falls through to the standard
+                // --More-- / hero-position cursor logic).  seed0017 prayer
+                // cursor at step 47 (JS [40,0] vs C [72,0]).
                 if (g._cursor_override_oneshot) {
                     g._cursor_override = null;
                     g._cursor_override_oneshot = false;
                 }
-                return __ynKey;
+                return key;
             };
         }
         if (!g.windowprocs.win_getlin && g.__getlin_returns_buffer === 1) {
@@ -631,7 +730,7 @@ export async function newgame() {
                         await flush_screen(1);
                     }
                     const c = await nhgetch();
-                    if (c === 0x1b) return '\x1b';
+                    if (c === 0x1b) { g._topl_seen = true; return '\x1b'; }
                     if (c === 10 || c === 13 || c === 0) break;
                     if (c === 8 || c === 127) {
                         line = line.slice(0, -1);
@@ -639,6 +738,13 @@ export async function newgame() {
                     }
                     line += String.fromCharCode(c);
                 }
+                // C ref tty getline.c: getlin marks the topline seen on
+                // exit, so the NEXT pline REPLACES the prompt instead of
+                // concat'ing onto it.  Without this the wish-result
+                // pline overflowed the 72-col topl fit and queued a
+                // --More-- that swallowed the next command key
+                // (seed0360: wish #2's ^W ran its text as moves).
+                g._topl_seen = true;
                 return line;
             };
         }
@@ -662,6 +768,14 @@ export async function newgame() {
                 // the capture at the next nhgetch boundary.
                 if (winid === g.WIN_MESSAGE) {
                     g._topl_seen = true;
+                    // C tty_clear_nhwindow VISUALLY blanks row 0 —
+                    // getdir clears after reading the direction
+                    // ("remove the prompt string so caller won't
+                    // have to", cmd.c).  Leaving _pending_message
+                    // intact kept "In what direction?" on the next
+                    // boundary capture (seed1800 step 11, the last
+                    // frame before its PASS).
+                    g._pending_message = '';
                 }
             };
         }
@@ -714,7 +828,34 @@ export async function newgame() {
         // for the translated code paths that fire it as a side-effect
         // (move-update, command echo, status refresh).
         if (!g.windowprocs.win_display_nhwindow) {
-            g.windowprocs.win_display_nhwindow = (_win, _block) => {};
+            g.windowprocs.win_display_nhwindow = async (win, blocking) => {
+                // NHW_TEXT render (C ref win/tty/wintty.c
+                // process_text_window): full-screen page from row 0,
+                // '--More--' alone on the BOTTOM row (recorded
+                // cmdassist frame: content rows 0-13, More at row 23,
+                // cursor parked right after it at col 8).
+                const lines = g._wp_textwins && g._wp_textwins[win];
+                if (!lines || !lines.length) return;
+                const page = lines.slice(0, 23);
+                while (page.length < 23) page.push('');
+                page.push('--More--');
+                g._menu_overlay = {
+                    pages: [page], page: 0,
+                    kind: 'text', cType: 'NHW_TEXT', offx: 0,
+                };
+                g._pending_message = '';
+                await flush_screen(1);
+                // C ref wintty.c tty_display_nhwindow: "with ttys,
+                // all windows are blocking" — NHW_TEXT waits for the
+                // --More-- dismissal regardless of the blocking arg
+                // (help_dir passes FALSE; honoring it tore the
+                // overlay down before the boundary capture).
+                void blocking;
+                await nhgetch();
+                g._menu_overlay = null;
+                lines.length = 0;
+                await flush_screen(1);
+            };
         }
         // C ref: tty_curs — position the cursor in a window.  In
         // headless we have no cursor control; no-op.
@@ -762,9 +903,31 @@ export async function newgame() {
         // bot() (botl.js:271-273) calls these to paint the status
         // bar.  In headless we build the status line via display.js's
         // _statusLine1/2 from game state, so the translated bot()'s
-        // win_putstr+win_putmixed calls can no-op.
+        // WIN_STATUS calls can no-op.  WIN_MESSAGE, however, is the
+        // terminal delivery for the translated pline.js TU family
+        // (pline_mon / pline_xy / Norep / custompline → vpline →
+        // putmesg → win_putstr); a blanket no-op silently swallowed
+        // every such message (e.g. seed1150's "Slasher drops a food
+        // ration." — C shows a --More-- the JS replay never had,
+        // misrouting the dismissal keys that follow).  Route message
+        // lines into display.js's queue-aware pline so they join the
+        // shared topl/--More-- machinery like every other pline.
         if (!g.windowprocs.win_putstr) {
-            g.windowprocs.win_putstr = (_win, _attr, _str) => {};
+            const __cstr = (s) => {
+                if (typeof s === 'string') return s;
+                if (Array.isArray(s)) {
+                    let out = '';
+                    for (let i = 0; i < s.length && s[i]; i++) out += String.fromCharCode(s[i]);
+                    return out;
+                }
+                return s == null ? '' : String(s);
+            };
+            g.windowprocs.win_putstr = (win, _attr, str) => {
+                if (win === g.WIN_MESSAGE && typeof str === 'string') pline(str);
+                else if (g._wp_textwins && g._wp_textwins[win]) {
+                    g._wp_textwins[win].push(__cstr(str));
+                }
+            };
         }
         if (!g.windowprocs.win_putmixed) {
             g.windowprocs.win_putmixed = (_win, _attr, _str) => {};
@@ -782,10 +945,22 @@ export async function newgame() {
         // stay unstubbed so menu paths still throw and fall back.
         if (!g.windowprocs.win_create_nhwindow) {
             let __winid = 10;
-            g.windowprocs.win_create_nhwindow = (_type) => ++__winid;
+            g.windowprocs.win_create_nhwindow = (type) => {
+                const id = ++__winid;
+                // NHW_TEXT(5): full-screen text windows (cmdassist's
+                // "Valid direction keys are:" diagram, help files).
+                // Track them so win_putstr accumulates lines and
+                // win_display_nhwindow renders the overlay (§23.254).
+                if (type === 5 /* NHW_TEXT */) {
+                    (g._wp_textwins = g._wp_textwins || {})[id] = [];
+                }
+                return id;
+            };
         }
         if (!g.windowprocs.win_destroy_nhwindow) {
-            g.windowprocs.win_destroy_nhwindow = (_win) => {};
+            g.windowprocs.win_destroy_nhwindow = (win) => {
+                if (g._wp_textwins) delete g._wp_textwins[win];
+            };
         }
         // C ref: tty_putmsghistory — message-history scroll.  Called
         // by translated questpgr.com_pager_core (line 500) and by
@@ -2019,7 +2194,7 @@ export async function newgame() {
     // every session that hits it.
     if (g.flags?.tutorial) {
         const disp = g?.nhDisplay;
-        const renderTutorial = () => {
+        const renderTutorial = (retry) => {
             if (!disp?.setCell) return;
             const PAD = 21;
             const lines = [
@@ -2031,6 +2206,13 @@ export async function newgame() {
                 'Put "OPTIONS=!tutorial" in .nethackrc to skip this query.',
                 '(end)',
             ];
+            // C tty re-prompts with an invalid-choice line before the
+            // (end) sentinel (recorded seed1150 step 4: row 6 becomes
+            // "(Please choose 'y' or 'n'.)", (end) moves to row 7,
+            // cursor [27,7]).
+            if (retry) {
+                lines.splice(6, 0, "(Please choose 'y' or 'n'.)");
+            }
             // C tty's NHW_MENU writes from col PAD onwards.  Cols
             // 0..PAD-1 are the message-line / map-overlap area:
             //   - row 0 had the welcome (which dmore cleared)
@@ -2056,7 +2238,7 @@ export async function newgame() {
                     disp.setCell(PAD + c, r, text[c], 8, attr);
                 }
             }
-            if (disp.setCursor) disp.setCursor(PAD + 6 /* '(end)'.length + 1 */, 6);
+            if (disp.setCursor) disp.setCursor(PAD + 6 /* '(end)'.length + 1 */, retry ? 7 : 6);
         };
         // C's ask_do_tutorial calls yn_function which loops until a
         // valid yn answer arrives.  Invalid keys (anything not y/n/Y/N)
@@ -2065,8 +2247,27 @@ export async function newgame() {
         // before the answer (seed0103 'sns#ride' starts with 's' aimed
         // at the tutorial) skip a capture and shift every subsequent
         // step by one.  C tty also accepts ESC as the default 'no'.
+        // C ref wintty.c:1949 — displaying a menu first flushes the
+        // unseen topl with a --More--.  The explore-mode notice owns
+        // one captured frame (with its More) BEFORE the tutorial
+        // menu appears; the dismissal key is consumed here exactly
+        // like C's xwaitforspace (space/CR/ESC only).
+        if (typeof g._pending_message === 'string' && g._pending_message
+            && !g._topl_seen) {
+            if (!g._pending_message.endsWith('--More--')) {
+                g._pending_message += '--More--';
+            }
+            await flush_screen(1);
+            for (;;) {
+                let k2;
+                try { k2 = await nhgetch(); } catch (_e) { break; }
+                if (k2 === 0x20 || k2 === 0x0d || k2 === 0x0a || k2 === 0x1b) break;
+            }
+            g._pending_message = '';
+            await flush_screen(1);
+        }
         for (let __tries = 0; __tries < 20; __tries++) {
-            renderTutorial();
+            renderTutorial(__tries > 0);
             let k;
             try { k = await nhgetch(); } catch (_e) { break; }
             if (k === 121 /*y*/ || k === 89 /*Y*/
@@ -2317,7 +2518,7 @@ async function post_turn_block(wtcap, did_per_iter_setup) {
             const old_ux = game.u.ux, old_uy = game.u.uy;
             try { await tele(); } catch (_e) {}
             if (game.u.ux !== old_ux || game.u.uy !== old_uy) {
-                if (!next_to_u()) {
+                if (!(await next_to_u())) {  /* async since the flip */
                     try { await check_leash(old_ux, old_uy); } catch (_e) {}
                 }
                 try { cmdq_clear(/* CQ_CANNED */ 1); } catch (_e) {}
@@ -2449,6 +2650,7 @@ async function runPerTurnIteration() {
             try {
                 monscanmove = await movemon();
             } catch (_e) {
+                if (process.env.NH_WDPROBE) console.warn('[wd] movemon aborted @rng', logLen, ':', _e?.message?.slice(0, 60));
                 restore_rng_state(rngSnap);
                 if (Array.isArray(g._rngLog) && g._rngLog.length > logLen) {
                     g._rngLog.length = logLen;
@@ -2521,6 +2723,18 @@ export async function moveloop_core() {
         await runPerTurnIteration();
     }
 
+    // C ref allmain.c:513 — `u.umoved = FALSE;` runs after the per-turn
+    // block (which includes u_calc_moveamt reading the PREVIOUS turn's
+    // u.umoved) and BEFORE the command dispatch.  The hand moveloop was
+    // missing this reset, so once the hero moved (hack.js sets u.umoved=1)
+    // it stayed stale-TRUE forever — and u_calc_moveamt's `if (u.usteed
+    // && u.umoved)` branch then fired an extra mcalcmove(u.usteed) every
+    // turn on RIDING sessions where C's per-turn u.umoved was FALSE
+    // (seed0103/0104 knight-ride: div at the per-turn mcalcmove loop,
+    // C does regen_hp where JS did the extra mcalcmove(steed)).  Reset
+    // matches C's position: after u_calc_moveamt, before rhack.
+    g.u.umoved = 0;
+
     // Vision + display
     if (g.vision_full_recalc) {
         vision_recalc(0);
@@ -2534,7 +2748,42 @@ export async function moveloop_core() {
     // BEFORE the dispatch may pline a new message — so the
     // captured screen on the NEXT iter shows THIS iter's pline
     // output, mirroring NetHack's topl-message lifecycle.
-    await rhack(0);
+    // C ref allmain.c:510-522 — when an occupation is active
+    // (game.occupation set, multi >= 0), the moveloop runs the
+    // occupation IN PLACE OF reading a command (rhack), then checks
+    // monster_nearby() to interrupt.  Implements the POSITIVE-multi
+    // / occupation side of the loop (the negative-multi freeze tail
+    // below is the other half).  Used by counted repeat commands
+    // ("20s" → searching occupation) and multi-turn eating/tin-
+    // opening.  Verified safe: no current PASS session has an active
+    // occupation (fortune cookies eat in 1 turn; seed0105 doesn't
+    // eat).  game.occupation is a real null-initialized field (the
+    // translated moveloop_core checks it the same way), so the
+    // truthiness test is ghost-safe.
+    if ((g.multi || 0) >= 0 && g.occupation) {
+        let __occRes = 0;
+        try { __occRes = await g.occupation(); } catch (_e) { __occRes = 0; }
+        if (__occRes === 0) g.occupation = null;
+        let __mn = false;
+        try { __mn = !!monster_nearby(); } catch (_e) { __mn = false; }
+        if (__mn) { try { await stop_occupation(); } catch (_e) {} }
+        g.context.move = 1; // the occupation took a turn
+    } else if ((g.multi || 0) > 0 && g._multiSearch === 1) {
+        // C ref allmain.c:515-531 — counted non-movement command repeat.
+        // For search (svc.context.mv FALSE) C does `--gm.multi;
+        // rhack(gc.cmd_key)`.  This runs in the SAME control-flow slot as
+        // a normal command (after the monster-movement turn at the top),
+        // and when multi reaches 0 the NEXT iteration falls through to
+        // rhack(0) below — its monster-movement turn (hero stationary) is
+        // the settling turn C runs before reading the next command.
+        // Replaces the search occupation, which completed one monster-turn
+        // early and forked the monster-movement cluster (UNWEDGE 113-115).
+        g.multi--;
+        if ((g.multi || 0) <= 0) g._multiSearch = 0; // last repeat
+        await rhack(g._cmd_key || 115);
+    } else {
+        await rhack(0);
+    }
 
     // Multi-turn freeze atomic completion — §23.222f.  In C, when
     // rhack's dispatch leaves `gm.multi < 0` (e.g. dopray's

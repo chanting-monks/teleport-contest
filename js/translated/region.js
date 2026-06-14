@@ -64,7 +64,7 @@ export function create_region(rects, nrect) {
     reg = alloc(1 /* sizeof(NhRegion) */);
     memset(reg, 0, 1 /* sizeof(NhRegion) */);
     if (nrect > 0) {
-        reg.bounding_box = rects[0];
+        Object.assign(reg.bounding_box, rects[0]);
     } else {
         reg.bounding_box.lx = 80;
         reg.bounding_box.ly = 21;
@@ -104,7 +104,7 @@ export function create_region(rects, nrect) {
     reg.n_monst = 0;
     reg.max_monst = 0;
     reg.monsters = null;
-    reg.arg = cg.zeroany;
+    Object.assign(reg.arg, cg.zeroany);
     return reg;
 }
 /*
@@ -137,14 +137,14 @@ export function add_rect_to_reg(reg, rect) {
 /*
  * Add a monster to the region
  */
-export function add_mon_to_reg(reg, mon) {
+export async function add_mon_to_reg(reg, mon) {
     let i = 0;
     let tmp_m = null;
     if (mon_in_region(reg, mon)) {
         /* if this is a long worm, it might already be present in the region;
        only include it once no matter how segments the region contains */
         if (mon.data != game.mons[PM_LONG_WORM]) {
-            impossible("add_mon_to_reg: %s [#%u] already in region.", m_monnam(mon), mon.m_id);
+            await impossible("add_mon_to_reg: %s [#%u] already in region.", await m_monnam(mon), mon.m_id);
         }
         return;
     }
@@ -220,7 +220,7 @@ export function free_region(reg) {
  * Add a region to the list.
  * This actually activates the region.
  */
-export function add_region(reg) {
+export async function add_region(reg) {
     let tmp_reg = null;
     let i = 0;
     let j = 0;
@@ -248,7 +248,7 @@ export function add_region(reg) {
                 is_inside = (1);
                 /* if there's a monster here, add it to the region */
                 if ((mtmp = (game.level.monsters[i][j])) != null) {
-                    add_mon_to_reg(reg, mtmp);
+                    await add_mon_to_reg(reg, mtmp);
                 }
             }
             if (reg.visible) {
@@ -260,7 +260,7 @@ export function add_region(reg) {
                     block_point(i, j);
                 }
                 if (((game.viz_array[j][i] & 2) != 0)) {
-                    newsym(i, j);
+                    await newsym(i, j);
                 }
             }
         }
@@ -274,7 +274,7 @@ export function add_region(reg) {
 /*
  * Remove a region from the list & free it.
  */
-export function remove_region(reg) {
+export async function remove_region(reg) {
     let i = 0;
     let x = 0;
     let y = 0;
@@ -312,7 +312,7 @@ export function remove_region(reg) {
                             }
                         } else {
                             if (((game.viz_array[y][x] & 2) != 0)) {
-                                newsym(x, y);
+                                await newsym(x, y);
                             }
                         }
                     }
@@ -345,7 +345,7 @@ export function clear_regions() {
  * It makes the regions age, if necessary and calls the appropriate
  * callbacks when needed.
  */
-export function run_regions() {
+export async function run_regions() {
     let i = 0;
     let j = 0;
     let k = 0;
@@ -357,7 +357,7 @@ export function run_regions() {
         if (game.regions[i].ttl == 0) {
             /* Do it backward because the array will be modified */
             if ((f_indx = game.regions[i].expire_f) == (-1) || (callbacks[f_indx])(game.regions[i], null)) {
-                remove_region(game.regions[i]);
+                await remove_region(game.regions[i]);
             }
         }
     }
@@ -386,8 +386,7 @@ export function run_regions() {
         }
     }
     if (game.gas_cloud_diss_within) {
-        /* current slot has been reused; recheck it next */
-        pline_The("gas cloud around you dissipates.");
+        await pline_The("gas cloud around you dissipates.");
         /* normally won't see additional dissipation when within */
         /* FIXME? this assumes that additional dissipation is close by */
         if (game.u.xray_range <= 1) {
@@ -396,14 +395,14 @@ export function run_regions() {
         game.gas_cloud_diss_within = (0);
     }
     if (game.gas_cloud_diss_seen) {
-        You_see("%s gas cloud%s dissipate.", (game.gas_cloud_diss_seen == 1) ? "a" : "some", (((game.gas_cloud_diss_seen) == 1) ? "" : "s"));
+        await You_see("%s gas cloud%s dissipate.", (game.gas_cloud_diss_seen == 1) ? "a" : "some", (((game.gas_cloud_diss_seen) == 1) ? "" : "s"));
         game.gas_cloud_diss_seen = 0;
     }
 }
 /*
  * check whether player enters/leaves one or more regions.
  */
-export function in_out_region(x, y) {
+export async function in_out_region(x, y) {
     let i = 0;
     let f_indx = 0;
     for (i = 0; i < game.n_regions; i++) {
@@ -426,7 +425,7 @@ export function in_out_region(x, y) {
         if (((game.regions[i]).player_flags & 1) && !inside_region(game.regions[i], x, y)) {
             ((game.regions[i]).player_flags &= ~1);
             if (game.regions[i].leave_msg != null) {
-                pline("%s", game.regions[i].leave_msg);
+                await pline("%s", game.regions[i].leave_msg);
             }
             if ((f_indx = game.regions[i].leave_f) != (-1)) {
                 (callbacks[f_indx])(game.regions[i], null);
@@ -440,7 +439,7 @@ export function in_out_region(x, y) {
         if (!((game.regions[i]).player_flags & 1) && inside_region(game.regions[i], x, y)) {
             ((game.regions[i]).player_flags |= 1);
             if (game.regions[i].enter_msg != null) {
-                pline("%s", game.regions[i].enter_msg);
+                await pline("%s", game.regions[i].enter_msg);
             }
             if ((f_indx = game.regions[i].enter_f) != (-1)) {
                 (callbacks[f_indx])(game.regions[i], null);
@@ -452,7 +451,7 @@ export function in_out_region(x, y) {
 /*
  * check whether a monster enters/leaves one or more regions.
  */
-export function m_in_out_region(mon, x, y) {
+export async function m_in_out_region(mon, x, y) {
     let i = 0;
     let f_indx = 0;
     for (i = 0; i < game.n_regions; i++) {
@@ -484,7 +483,7 @@ export function m_in_out_region(mon, x, y) {
             continue;
         }
         if (!mon_in_region(game.regions[i], mon) && inside_region(game.regions[i], x, y)) {
-            add_mon_to_reg(game.regions[i], mon);
+            await add_mon_to_reg(game.regions[i], mon);
             if ((f_indx = game.regions[i].enter_f) != (-1)) {
                 (callbacks[f_indx])(game.regions[i], mon);
             }
@@ -508,12 +507,12 @@ export function update_player_regions() {
 /*
  * Ditto for a specified monster.
  */
-export function update_monster_region(mon) {
+export async function update_monster_region(mon) {
     let i = 0;
     for (i = 0; i < game.n_regions; i++) {
         if (inside_region(game.regions[i], mon.mx, mon.my)) {
             if (!mon_in_region(game.regions[i], mon)) {
-                add_mon_to_reg(game.regions[i], mon);
+                await add_mon_to_reg(game.regions[i], mon);
             }
         } else {
             if (mon_in_region(game.regions[i], mon)) {
@@ -602,8 +601,8 @@ export function visible_region_at(x, y) {
     }
     return null;
 }
-export function show_region(reg, x, y) {
-    show_glyph(x, y, reg.glyph);
+export async function show_region(reg, x, y) {
+    await show_glyph(x, y, reg.glyph);
 }
 /**
  * save_regions :
@@ -665,7 +664,7 @@ export function save_regions(nhfp) {
     }
 }
 /* !SFCTOOL */
-export function rest_regions(nhfp) {
+export async function rest_regions(nhfp) {
     let r = null;
     let i = 0;
     let j = 0;
@@ -761,7 +760,7 @@ export function rest_regions(nhfp) {
     for (i = game.n_regions - 1; i >= 0; i--) {
         r = game.regions[i];
         if (r.ttl == 0) {
-            remove_region(r);
+            await remove_region(r);
         } else if (ghostly && r.n_monst > 0) {
             reset_region_mids(r);
         }
@@ -842,7 +841,7 @@ export function expire_gas_cloud(p1, p2) {
         /* If it was a thick cloud, it dissipates a little first */
         /* It dissipates, let's do less damage */
         damage = Math.trunc(damage / 2);
-        reg.arg = cg.zeroany;
+        Object.assign(reg.arg, cg.zeroany);
         reg.arg.a_int = damage;
         /* Here's the trick : reset ttl */
         reg.ttl = 2;
@@ -872,7 +871,7 @@ export function expire_gas_cloud(p1, p2) {
     return (1);
 }
 /* returns True if p2 is killed by region p1, False otherwise */
-export function inside_gas_cloud(p1, p2) {
+export async function inside_gas_cloud(p1, p2) {
     let reg = p1;
     let mtmp = p2;
     let umon = mtmp ? mtmp : game.youmonst;
@@ -889,58 +888,56 @@ export function inside_gas_cloud(p1, p2) {
         return (0);
     }
     if (!mtmp) {
-        /* if no damage then there's nothing to do here... */
-        /* hero is indicated by Null rather than by &youmonst */
-        if (m_poisongas_ok(game.youmonst) == 2) {
+        if (await m_poisongas_ok(game.youmonst) == 2) {
             return (0);
         }
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            Your("%s sting.", makeplural(body_part(EYE)));
-            make_blinded(1, (0));
+            await Your("%s sting.", await makeplural(await body_part(EYE)));
+            await make_blinded(1, (0));
         }
         if (!(game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic)) {
-            pline("%s is burning your %s!", c_common_strings.c_Something, makeplural(body_part(LUNG)));
-            You("cough and spit blood!");
-            wake_nearto(game.u.ux, game.u.uy, 2);
+            await pline("%s is burning your %s!", c_common_strings.c_Something, await makeplural(await body_part(LUNG)));
+            await You("cough and spit blood!");
+            await wake_nearto(game.u.ux, game.u.uy, 2);
             dam = (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((rnd(dam) + 5) + 1) / 2)) : (rnd(dam) + 5));
             if ((game.ublindf && game.ublindf.otyp == TOWEL && game.ublindf.spe > 0)) {
                 dam = Math.trunc((dam + 1) / 2);
             }
-            losehp(dam, "gas cloud", 0);
+            await losehp(dam, "gas cloud", 0);
             monstunseesu(M_SEEN_POISON);
             return (0);
         } else {
-            You("cough!");
-            wake_nearto(game.u.ux, game.u.uy, 2);
+            await You("cough!");
+            await wake_nearto(game.u.ux, game.u.uy, 2);
             monstseesu(M_SEEN_POISON);
             return (0);
         }
     } else {
         /* A monster is inside the cloud */
         mtmp = p2;
-        if (m_poisongas_ok(mtmp) != 2) {
+        if (await m_poisongas_ok(mtmp) != 2) {
             if (!((mtmp.data).msound == MS_SILENT)) {
                 if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0) || (dist2((mtmp.mx), (mtmp.my), game.u.ux, game.u.uy) < 8)) {
-                    pline("%s coughs!", Monnam(mtmp));
+                    await pline("%s coughs!", await Monnam(mtmp));
                 }
-                wake_nearto(mtmp.mx, mtmp.my, 2);
+                await wake_nearto(mtmp.mx, mtmp.my, 2);
             }
             if ((!((reg).player_flags & 2))) {
-                setmangry(mtmp, (1));
+                await setmangry(mtmp, (1));
             }
             if ((((mtmp.data).mflags1 & 4096) == 0) && mtmp.mcansee) {
                 mtmp.mblinded = 1;
                 mtmp.mcansee = 0;
             }
-            if (Resists_Elem(mtmp, POISON_RES)) {
+            if (await Resists_Elem(mtmp, POISON_RES)) {
                 return (0);
             }
             mtmp.mhp -= rnd(dam) + 5;
             if (((mtmp).mhp < 1)) {
                 if ((!((reg).player_flags & 2))) {
-                    killed(mtmp);
+                    await killed(mtmp);
                 } else {
-                    monkilled(mtmp, "gas cloud", 7);
+                    await monkilled(mtmp, "gas cloud", 7);
                 }
                 if (((mtmp).mhp < 1)) {
                     return (1);
@@ -961,19 +958,19 @@ export function is_hero_inside_gas_cloud() {
 }
 /* details of gas cloud creation which are common to create_gas_cloud()
    and create_gas_cloud_selection() */
-export function make_gas_cloud(cloud, damage, inside_cloud) {
+export async function make_gas_cloud(cloud, damage, inside_cloud) {
     if (!game.in_mklev && !game.context.mon_moving) {
         ((cloud).player_flags &= ~2);
     }
     cloud.inside_f = 0;
     cloud.expire_f = 1;
-    cloud.arg = cg.zeroany;
+    Object.assign(cloud.arg, cg.zeroany);
     cloud.arg.a_int = damage;
     cloud.visible = (1);
     cloud.glyph = (((damage ? S_poisoncloud : S_cloud) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((damage ? S_poisoncloud : S_cloud) <= S_trwall) ? ((damage ? S_poisoncloud : S_cloud) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((damage ? S_poisoncloud : S_cloud) < S_altar) ? (((damage ? S_poisoncloud : S_cloud) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((damage ? S_poisoncloud : S_cloud) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((damage ? S_poisoncloud : S_cloud) < S_arrow_trap + (TRAPNUM - 1)) ? (((damage ? S_poisoncloud : S_cloud) - S_grave) + GLYPH_CMAP_B_OFF) : ((damage ? S_poisoncloud : S_cloud) <= S_goodpos) ? (((damage ? S_poisoncloud : S_cloud) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH);
-    add_region(cloud);
+    await add_region(cloud);
     if (!game.in_mklev && !inside_cloud && is_hero_inside_gas_cloud()) {
-        You("are enveloped in a cloud of %s!", damage ? "noxious gas" : "steam");
+        await You("are enveloped in a cloud of %s!", damage ? "noxious gas" : "steam");
         game.iflags.last_msg = PLNMSG_ENVELOPED_IN_GAS;
     }
 }
@@ -981,7 +978,7 @@ export function make_gas_cloud(cloud, damage, inside_cloud) {
  * breadth-first search.
  * cloudsize is the number of squares the cloud will attempt to fill.
  * damage is how much it deals to afflicted creatures. */
-export function create_gas_cloud(x, y, cloudsize, damage) {
+export async function create_gas_cloud(x, y, cloudsize, damage) {
     let cloud = null;
     let i = 0;
     let j = 0;
@@ -994,13 +991,11 @@ export function create_gas_cloud(x, y, cloudsize, damage) {
     /* initial spot is already taken */
     let newidx = 1;
     let inside_cloud = is_hero_inside_gas_cloud();
-    /* a single-point cloud on hero and it deals no damage.
-       probably a natural cause of being polyed. don't message about it */
-    if (!game.context.mon_moving && ((x) == game.u.ux && (y) == game.u.uy) && cloudsize == 1 && (!damage || (damage && m_poisongas_ok(game.youmonst) == 2))) {
+    if (!game.context.mon_moving && ((x) == game.u.ux && (y) == game.u.uy) && cloudsize == 1 && (!damage || (damage && await m_poisongas_ok(game.youmonst) == 2))) {
         inside_cloud = (1);
     }
     if (cloudsize > 150) {
-        impossible("create_gas_cloud: cloud too large (%d)!", cloudsize);
+        await impossible("create_gas_cloud: cloud too large (%d)!", cloudsize);
         cloudsize = 150;
     }
     for (curridx = 0; curridx < newidx; curridx++) {
@@ -1066,11 +1061,11 @@ export function create_gas_cloud(x, y, cloudsize, damage) {
     cloud.ttl = (rn2(3) + (4));
     /* If cloud was constrained in small space, give it more time to live. */
     cloud.ttl = Math.trunc((cloud.ttl * cloudsize) / newidx);
-    make_gas_cloud(cloud, damage, inside_cloud);
+    await make_gas_cloud(cloud, damage, inside_cloud);
     return cloud;
 }
 /* create a single gas cloud from selection */
-export function create_gas_cloud_selection(sel, damage) {
+export async function create_gas_cloud_selection(sel, damage) {
     let cloud = null;
     let tmprect = { lx: 0, ly: 0, hx: 0, hy: 0 };
     let x = 0;
@@ -1088,7 +1083,7 @@ export function create_gas_cloud_selection(sel, damage) {
             }
         }
     }
-    make_gas_cloud(cloud, damage, inside_cloud);
+    await make_gas_cloud(cloud, damage, inside_cloud);
     return cloud;
 }
 /* for checking troubles during prayer; is hero at risk? */
@@ -1120,7 +1115,7 @@ export function region_danger() {
 }
 /* for fixing trouble at end of prayer;
    danger detected at start of prayer might have expired by now */
-export function region_safety() {
+export async function region_safety() {
     let r = null;
     let i = 0;
     let f_indx = 0;
@@ -1137,29 +1132,34 @@ export function region_safety() {
         }
     }
     if (n > 1 || (n == 1 && !r)) {
-        /* multiple overlapping cloud regions or non-expiring one */
-        safe_teleds(0);
+        await safe_teleds(0);
         if (region_danger()) {
             /* maybe there's no safe place available; must get hero out of danger
            or prayer's "fix all troubles" result will get stuck in a loop */
             set_itimeout({ get value() { return game.u.uprops[MAGICAL_BREATHING].intrinsic; }, set value(_v) { game.u.uprops[MAGICAL_BREATHING].intrinsic = _v; } }, (d(4, 4) + 4));
-            /* not already Breathless or wouldn't be in region danger */
-            You_feel("able to breathe.");
+            await You_feel("able to breathe.");
         }
     } else if (r) {
-        remove_region(r);
-        pline_The("gas cloud enveloping you dissipates.");
+        await remove_region(r);
+        await pline_The("gas cloud enveloping you dissipates.");
     } else {
-        /* cloud dissipated on its own, so nothing needs to be done */
-        pline_The("gas cloud has dissipated.");
+        await pline_The("gas cloud has dissipated.");
     }
     /* maybe cure blindness too */
     if ((game.u.uprops[BLINDED].intrinsic & 16777215) == 1) {
-        make_blinded(0, (1));
+        await make_blinded(0, (1));
     }
 }
 /* !SFCTOOL */
 /*region.c*/
+/* current slot has been reused; recheck it next */
+/* if no damage then there's nothing to do here... */
+/* hero is indicated by Null rather than by &youmonst */
 /* FIXME: "steam" is wrong if this cloud is just the trail of
                a fog cloud's movement; changing to "vapor" would handle
                that but seems a step backward when it really is steam */
+/* a single-point cloud on hero and it deals no damage.
+       probably a natural cause of being polyed. don't message about it */
+/* multiple overlapping cloud regions or non-expiring one */
+/* not already Breathless or wouldn't be in region danger */
+/* cloud dissipated on its own, so nothing needs to be done */

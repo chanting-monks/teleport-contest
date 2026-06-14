@@ -73,6 +73,14 @@ JS_MODULE_REPLACEMENTS.set('nhlib.lua', {
             const r = mod.bootstrapNhlib();
             if (r && Array.isArray(r.align)) globalThis.align = r.align;
         } catch (_e) {}
+        // nhlib.lua also defines the global function hell_tweaks
+        // (hellfill.lua's maze branches await it).  Build the same
+        // per-load env the transpiled dat modules receive and bind
+        // the hand-ported factory (§23.243; previously undefined —
+        // "globalThis.hell_tweaks is not a function" killed every
+        // deep-Gehennom replay that rolled a maze variant).
+        const lspoTable = LSPO_FUNCTION_REGISTRY.get('des') || [];
+        globalThis.hell_tweaks = mod.makeHellTweaks(buildLuaModuleEnv(L, lspoTable));
         return 1;
     },
 });

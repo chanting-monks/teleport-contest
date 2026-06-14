@@ -65,12 +65,12 @@ export function strbuf_nl_to_crlf(strbuf) {
 }
 /* strlen() but returns unsigned and panics if string is unreasonably long;
    used by dlb as well as by nethack */
-export function Strlen_(str, file, line) {
-    if (str == null) panic("Strlen_:%s null str at %d", file, line);
+export async function Strlen_(str, file, line) {
+    if (str == null) await panic("Strlen_:%s null str at %d", file, line);
     const _s = (typeof str === "string") ? str
             : (Array.isArray(str) ? str.findIndex(b => b === 0) : String(str));
     const len = (typeof _s === "string") ? _s.length : (_s < 0 ? str.length : _s);
-    if (len >= 32767) panic("%s:%d string too long", file, line);
+    if (len >= 32767) await panic("%s:%d string too long", file, line);
     return len;
 }
 /* guts of pmatch(), pmatchi(), and pmatchz();

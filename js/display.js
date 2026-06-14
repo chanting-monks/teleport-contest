@@ -14,7 +14,8 @@ import {
 import { NO_COLOR, CLR_GRAY, CLR_BROWN, CLR_WHITE, CLR_YELLOW,
     CLR_GREEN, CLR_BLUE, CLR_CYAN, CLR_BRIGHT_BLUE,
     CLR_RED, CLR_ORANGE, DEC_TO_UNICODE } from './terminal.js';
-import { def_monsyms, def_oc_syms } from './translated/drawing.js';
+import { def_monsyms, def_oc_syms, defsyms } from './translated/drawing.js';
+import { S_arrow_trap, GLYPH_UNEXPLORED_OFF, GLYPH_OBJ_OFF, GLYPH_BODY_OFF } from './translated/nh-constants.js';
 import { stairway_at, known_branch_stairs } from './translated/stairs.js';
 import { In_mines, In_hell } from './translated/dungeon.js';
 import { engr_at } from './translated/engrave.js';
@@ -62,7 +63,20 @@ function terrain_glyph(loc, x, y) {
         return (game.symset?.[0]?.handling === 2)
             ? { ch: '~', color: NO_COLOR, dec: true }
             : { ch: '.', color: NO_COLOR, dec: false };
-    case CORR:      return { ch: '#', color: NO_COLOR, dec: false };
+    case CORR:
+        // C display.c map_background: CORR → (waslit ||
+        // flags.lit_corridor) ? S_litcorr : S_corr; the recorded tty
+        // stream paints litcorr bright white ([97m → color 15) and
+        // plain corr as default.  C REVERTS litcorr→corr when an
+        // unlit corridor leaves sight (display.c:852/898), so the
+        // white form only shows for currently-seen (or permanently
+        // lit, waslit) cells.  seed1150 runs with lit_corridor set:
+        // the cell beside the hero was '#'(15) in C, '#'(default) in
+        // JS — a one-cell attr diff trailing the hero down every
+        // corridor.
+        return ((game.flags?.lit_corridor && cansee(x, y)) || loc.waslit)
+            ? { ch: '#', color: CLR_WHITE, dec: false }
+            : { ch: '#', color: NO_COLOR, dec: false };
     case DOOR:
         // C ref dat/symbols S_vodoor / S_hodoor — under DECgraphics
         // both vertical and horizontal open doors render as
@@ -126,7 +140,14 @@ function terrain_glyph(loc, x, y) {
     case BLCORNER: case BRCORNER: case CROSSWALL: case TUWALL:
     case TDWALL: case TLWALL: case TRWALL:
         {
-            const wallColor = (typeof In_mines === 'function' && In_mines(game.u?.uz)) ? CLR_BROWN
+            // Sokoban walls: the recorder emits \x1b[34m (CLR_BLUE)
+            // for every soko wall cell (C display.c wallcolors[
+            // sokoban_walls] via the GLYPH_CMAP_SOKO branch; verified
+            // against seed2600 step-25's raw bytes).
+            const __inSoko = game.u?.uz?.dnum != null
+                && game.u.uz.dnum === (game.dungeon_topology?.d_sokoban_dnum ?? -2);
+            const wallColor = __inSoko ? CLR_BLUE
+                            : (typeof In_mines === 'function' && In_mines(game.u?.uz)) ? CLR_BROWN
                             : (typeof In_hell === 'function' && In_hell(game.u?.uz)) ? CLR_RED
                             : NO_COLOR;
             // C ref drawing.c default_showsyms vs DECgraphics_init.  When
@@ -171,10 +192,24 @@ function terrain_glyph(loc, x, y) {
     // Furniture / liquid / special terrain — C ref defsym.h
     case TREE:      return { ch: '#', color: CLR_GREEN, dec: false };
     case IRONBARS:  return { ch: '#', color: CLR_CYAN, dec: false };
-    case POOL:      return { ch: '}', color: CLR_BLUE, dec: false };
-    case MOAT:      return { ch: '}', color: CLR_BLUE, dec: false };
-    case LAVAPOOL:  return { ch: '}', color: CLR_RED, dec: false };
-    case LAVAWALL:  return { ch: '}', color: CLR_ORANGE, dec: false };
+    // C ref dat/symbols DECgraphics block: S_pool / S_lava /
+    // S_lavawall / S_water all map to \xe0 = DEC '`' (diamond ◆)
+    // when the DECgraphics symset is active (seed2600's lava lake
+    // recorded as '`' decgfx=1 color=red; JS's ASCII '}' was a
+    // ~190-cell diff on every lava-level frame).  ASCII symset keeps
+    // the 3.7 default '}'.
+    case POOL:      return (game.symset?.[0]?.handling === 2)
+        ? { ch: '`', color: CLR_BLUE, dec: true }
+        : { ch: '}', color: CLR_BLUE, dec: false };
+    case MOAT:      return (game.symset?.[0]?.handling === 2)
+        ? { ch: '`', color: CLR_BLUE, dec: true }
+        : { ch: '}', color: CLR_BLUE, dec: false };
+    case LAVAPOOL:  return (game.symset?.[0]?.handling === 2)
+        ? { ch: '`', color: CLR_RED, dec: true }
+        : { ch: '}', color: CLR_RED, dec: false };
+    case LAVAWALL:  return (game.symset?.[0]?.handling === 2)
+        ? { ch: '`', color: CLR_ORANGE, dec: true }
+        : { ch: '}', color: CLR_ORANGE, dec: false };
     case FOUNTAIN:  return { ch: '{', color: CLR_BRIGHT_BLUE, dec: false };
     case SINK:      return { ch: '{', color: CLR_WHITE, dec: false };
     case THRONE:    return { ch: '\\', color: CLR_YELLOW, dec: false };
@@ -203,6 +238,36 @@ export function show_glyph_cell(x, y, ch, color = NO_COLOR, decgfx = false, attr
 }
 
 // ── newsym ──
+// C-side remembered scene for cells the HAND display never painted
+// (§23.248): premapped special levels (sokoban's "premapped" level
+// flag → premap_detect) and magic mapping write the C memory fields
+// (seenv/waslit + lev->glyph via translated map_background) DURING
+// mklev, when show_glyph no-ops — so the hand remembered_glyph never
+// hears about them.  When a never-hand-painted cell has C-side seenv,
+// derive what C's docrt would draw from premap content: boulder >
+// seen trap > terrain.
+function cside_remembered_glyph(loc, x, y) {
+    const obj = game.level?.objects?.[x]?.[y];
+    if (obj && obj.otyp === 475 /* BOULDER */) {
+        const sym = def_oc_syms?.[obj.oclass ?? 0]?.sym ?? 96;
+        const raw = game.objects?.[obj.otyp]?.oc_color;
+        return { ch: String.fromCharCode(sym),
+                 color: (raw == null || raw === 7) ? NO_COLOR : raw,
+                 dec: false };
+    }
+    for (let t = game.ftrap; t; t = t.ntrap) {
+        if (t.tx === x && t.ty === y && t.tseen) {
+            const e = defsyms?.[S_arrow_trap + (t.ttyp | 0) - 1];
+            if (e) {
+                return { ch: String.fromCharCode(e.sym),
+                         color: (e.color === 7) ? NO_COLOR : e.color,
+                         dec: false };
+            }
+        }
+    }
+    return terrain_glyph(loc, x, y);
+}
+
 export function newsym(x, y) {
     const loc = game.level?.at(x, y);
     if (!loc) return;
@@ -232,7 +297,23 @@ export function newsym(x, y) {
     // from objects/mon → def_monsyms[mlet].sym; we use mlevel.mlet
     // (the monster permonst data's mlet field) for the same lookup.
     const mon = game.level?.monsters?.[x]?.[y];
-    if (mon && cansee(x, y)) {
+    if (mon && cansee(x, y) && (mon.m_ap_type & 7) === 2 /* M_AP_OBJECT */) {
+        // Mimic disguised as an object (C display.c map_monster →
+        // sensed/undetected mimics show their mappearance).  soko1's
+        // boulder-mimic rendered 'm' magenta where C shows '`'.
+        const otyp = mon.mappearance | 0;
+        const oclass = game.objects?.[otyp]?.oc_class ?? 0;
+        const sym = def_oc_syms?.[oclass]?.sym ?? 96;
+        const raw = game.objects?.[otyp]?.oc_color;
+        show_glyph_cell(x, y, String.fromCharCode(sym),
+            (raw == null || raw === 7) ? NO_COLOR : raw, false);
+        if (game.level?.flags?.hero_memory) {
+            const tg2 = terrain_glyph(loc, x, y);
+            loc.remembered_glyph = { ch: tg2.ch, color: tg2.color, decgfx: tg2.dec };
+        }
+        return;
+    }
+    if (mon && cansee(x, y) && !mon.mundetected) {
         const mlet = mon.data?.mlet ?? 0;
         const sym = def_monsyms?.[mlet]?.sym ?? 63 /* '?' */;
         const ch = String.fromCharCode(sym);
@@ -288,7 +369,54 @@ export function newsym(x, y) {
         // collapse was wrong: it forced cyan/blue/etc. potions back to
         // gray and broke seed0108's first-room potion render.
         let color;
-        if (obj.otyp === 265 /* CORPSE */ || obj.otyp === 476 /* STATUE */) {
+        // C ref display.h obj_is_generic (line 806): an object whose
+        // dknown isn't set yet — seen only from a distance — renders
+        // as the GENERIC class glyph for potions, real/glass gems and
+        // spellbooks, "to prevent color ... from being revealed".
+        // The generic glyphs draw in the class default (gray →
+        // wintty's dropped-[37m → terminal default).  seed2600's
+        // bigroom potion showed orange in JS vs default in C.
+        let isGeneric = !obj.dknown
+            && (oclass === 8 /* POTION_CLASS */
+                || (obj.otyp >= 439 /* FIRST_REAL_GEM */
+                    && obj.otyp <= 469 /* LAST_GLASS_GEM */)
+                || (obj.otyp >= 366 /* FIRST_SPELL */
+                    && obj.otyp <= 407 /* LAST_SPELL */));
+        // C ref display.c:340-352 map_object — a generic-displayed
+        // object within neardist of the hero (same radius as
+        // distant_name) gets observe_object()d at DISPLAY time:
+        // dknown=1, disco[] slot, oc_encountered — and then renders
+        // with its real color.  Without this, seed0108's starting-
+        // room potion (distu<=6 from the hero) went colorless on
+        // every frame (C shows cyan from step 0).
+        if (isGeneric) {
+            const halluc = !!(game.u?.uprops?.[HALLUC]?.intrinsic
+                && !(game.u?.uprops?.[HALLUC_RES]?.intrinsic
+                    || game.u?.uprops?.[HALLUC_RES]?.extrinsic));
+            const r = (game.u?.xray_range > 2) ? game.u.xray_range : 2;
+            const neardist = (r * r) * 2 - r;
+            const dx2 = (x - (game.u?.ux | 0)), dy2 = (y - (game.u?.uy | 0));
+            if (!halluc && (dx2 * dx2 + dy2 * dy2) <= neardist
+                && obj.otyp >= 18 /* FIRST_OBJECT */) {
+                // observe_object + discover_object(,FALSE,TRUE,FALSE)
+                // sync mirror (translated twins are async-colored
+                // only; this path's branches are pure state writes).
+                obj.dknown = 1;
+                const od = game.objects?.[obj.otyp];
+                if (od && !od.oc_encountered && Array.isArray(game.disco)
+                    && Array.isArray(game.bases)) {
+                    let dindx = game.bases[od.oc_class | 0] | 0;
+                    while (game.disco[dindx] !== 0
+                        && game.disco[dindx] !== obj.otyp) dindx++;
+                    game.disco[dindx] = obj.otyp;
+                    od.oc_encountered = 1;
+                }
+                isGeneric = false;
+            }
+        }
+        if (isGeneric) {
+            color = NO_COLOR;
+        } else if (obj.otyp === 265 /* CORPSE */ || obj.otyp === 476 /* STATUE */) {
             const mc = game.mons?.[obj.corpsenm]?.mcolor;
             color = (mc == null || mc === 7) ? NO_COLOR : mc;
         } else {
@@ -301,6 +429,19 @@ export function newsym(x, y) {
             // off their cell unattended; treat as part of the
             // remembered scene per C semantics).
             loc.remembered_glyph = { ch, color, decgfx: false };
+            // Mirror-image of the §23.245 newsym bridge: TRANSLATED
+            // readers consult the C-side remembered glyph
+            // (dogmove.c:1302 glyph_is_object for "steps reluctantly
+            // onto <obj>"; premap consumers) — but only translated
+            // newsym maintained lev.glyph, so cells painted by the
+            // HAND path stayed GLYPH_UNEXPLORED and the pet's
+            // step-target read as "something".  Corpses use BODY
+            // glyphs (GLYPH_BODY_OFF + corpsenm) like C obj_to_glyph;
+            // piletop variants are omitted (every translated range
+            // check accepts the plain offsets).
+            loc.glyph = (obj.otyp === 265 /* CORPSE */)
+                ? GLYPH_BODY_OFF + (obj.corpsenm | 0)
+                : GLYPH_OBJ_OFF + (obj.otyp | 0);
         }
         return;
     }
@@ -330,12 +471,57 @@ export function newsym(x, y) {
         if (game.level?.flags?.hero_memory) {
             loc.remembered_glyph = { ch: tg.ch, color: tg.color, decgfx: tg.dec };
         }
+    } else if (!loc.remembered_glyph
+        && typeof loc.glyph === 'number' && loc.glyph !== GLYPH_UNEXPLORED_OFF) {
+        // Gate on the C-side remembered glyph being set, NOT seenv:
+        // vision marks seenv on could-see cells C still draws as
+        // unexplored (gating on seenv repainted 190 phantom cells on
+        // the lava level).
+        const cg2 = cside_remembered_glyph(loc, x, y);
+        show_glyph_cell(x, y, cg2.ch, cg2.color, cg2.dec);
+        if (game.level?.flags?.hero_memory) {
+            loc.remembered_glyph = { ch: cg2.ch, color: cg2.color, decgfx: cg2.dec };
+        }
     } else if (loc.remembered_glyph) {
+        // C display.c:852/898 — an unlit corridor remembered as
+        // S_litcorr (bright white via lit_corridor) reverts to plain
+        // S_corr once it can no longer be seen.
+        if (loc.typ === CORR && !loc.lit && !loc.waslit
+            && loc.remembered_glyph.color === CLR_WHITE) {
+            loc.remembered_glyph = { ch: '#', color: NO_COLOR, decgfx: false };
+        }
         // Out of sight but remembered — show remembered glyph
         show_glyph_cell(x, y, loc.remembered_glyph.ch,
             loc.remembered_glyph.color, loc.remembered_glyph.decgfx);
     }
 }
+
+// Publish hand newsym for the translated display.js bridge (§23.245):
+// translated TUs (dogmove, mon, do, ...) import the TRANSLATED newsym,
+// whose show_glyph writes go to game.gbuf — a buffer the hand renderer
+// never reads.  Event-driven cell changes (dog picks up an item, then
+// the cell falls out of sight) therefore never reached remembered_glyph
+// and the stale object glyph persisted (seed1150's '%' at (51,18), the
+// single most repeated S diff).  The translated newsym head tail-calls
+// this hook so both display states stay coherent.
+globalThis.__nh_hand_newsym = newsym;
+
+// DEC chars renderable through the FROZEN comparator (§23.249).
+// frozen/score.sh copies frozen/terminal.js over js/terminal.js on
+// every scoring run, so the serializer is a fixture: it emits cell
+// chars RAW (no \x0e/\x0f shift runs).  The frozen screen-decode
+// DEC_MAP translates exactly these 13 DEC codes to Unicode on the C
+// side; for those, writing the Unicode form compares equal.  Any
+// OTHER DEC code ('`' diamond — lava/pool/boulder under DECgraphics)
+// renders RAW on the C side, so JS must store the raw DEC char too —
+// converting it to Unicode ('◆') can never match through the frozen
+// pipeline.
+const FROZEN_DEC = {
+    'l': true, 'q': true, 'k': true, 'x': true, 'm': true, 'j': true,
+    't': true, 'u': true, 'w': true, 'v': true, 'n': true, 'a': true,
+    '~': true,
+};
+const renderDecCh = (ch) => (FROZEN_DEC[ch] ? (DEC_TO_UNICODE[ch] || ch) : ch);
 
 // ── docrt ──
 export async function docrt() {
@@ -349,7 +535,19 @@ export async function docrt() {
             // newsym leaves untouched (out-of-sight, no memory).
             if (game.level.monsters?.[x]?.[y] || game.level.objects?.[x]?.[y] || (game.u?.ux === x && game.u?.uy === y) || cansee(x, y)) {
                 newsym(x, y);
+            } else if (!loc?.remembered_glyph
+                && typeof loc?.glyph === 'number' && loc.glyph !== GLYPH_UNEXPLORED_OFF) {
+                const cg2 = cside_remembered_glyph(loc, x, y);
+                show_glyph_cell(x, y, cg2.ch, cg2.color, cg2.dec);
+                if (game.level?.flags?.hero_memory) {
+                    loc.remembered_glyph = { ch: cg2.ch, color: cg2.color, decgfx: cg2.dec };
+                }
             } else if (loc?.remembered_glyph) {
+                if (loc.typ === CORR && !loc.lit && !loc.waslit
+                    && loc.remembered_glyph.color === CLR_WHITE) {
+                    // litcorr→corr revert (see newsym) on full repaints too.
+                    loc.remembered_glyph = { ch: '#', color: NO_COLOR, decgfx: false };
+                }
                 show_glyph_cell(x, y, loc.remembered_glyph.ch,
                     loc.remembered_glyph.color, loc.remembered_glyph.decgfx);
             }
@@ -552,7 +750,19 @@ function _statusLine2() {
     // dismount_steed write a real monster ref / null on success — so
     // the null check is safe (not a Proxy-ghost truthy {}).
     if (u.usteed) conds.push(' Ride');
-    return `Dlvl:${u.uz?.dlevel || 1} $:${game._goldCount || 0} HP:${u.uhp || 0}(${u.uhpmax || 0}) Pw:${u.uen || 0}(${u.uenmax || 0}) AC:${acDisplay} ${xp}${t}${conds.join('')}`;
+    // C ref botl.c describe_level → depth(): the displayed Dlvl is
+    // the DEPTH (dungeons[dnum].depth_start + dlevel - 1), not the
+    // in-branch level number.  Identical in the main dungeon
+    // (depth_start=1) — diverges in branches (soko1 = "Dlvl:5"
+    // while uz.dlevel is 1; kept every premapped-soko frame failing
+    // on one status digit).
+    const __dl = (() => {
+        const uzz = u.uz || {};
+        const ds = game.dungeons?.[uzz.dnum]?.depth_start;
+        return (typeof ds === 'number' && typeof uzz.dlevel === 'number')
+            ? (ds + uzz.dlevel - 1) : (uzz.dlevel || 1);
+    })();
+    return `Dlvl:${__dl} $:${game._goldCount || 0} HP:${u.uhp || 0}(${u.uhpmax || 0}) Pw:${u.uen || 0}(${u.uenmax || 0}) AC:${acDisplay} ${xp}${t}${conds.join('')}`;
 }
 
 // ── Serialize terminal grid for screen comparison ──
@@ -686,7 +896,7 @@ function _buildScreenOutput() {
                     for (let x = 1; x < COLNO; x++) {
                         const loc = game.level?.at(x, y);
                         if (!loc?.disp_ch || loc.disp_ch === ' ') continue;
-                        const ch = loc.disp_decgfx ? (DEC_TO_UNICODE[loc.disp_ch] || loc.disp_ch) : loc.disp_ch;
+                        const ch = loc.disp_decgfx ? renderDecCh(loc.disp_ch) : loc.disp_ch;
                         display.setCell(x - 1, y + 1, ch, loc.disp_color ?? NO_COLOR, loc.disp_attr ?? 0);
                     }
                 }
@@ -802,7 +1012,7 @@ function _buildScreenOutput() {
                     color = tg.color;
                     decgfx = tg.dec;
                 }
-                const renderCh = decgfx ? (DEC_TO_UNICODE[ch] || ch) : ch;
+                const renderCh = decgfx ? renderDecCh(ch) : ch;
                 display.setCell(x - 1, y + 1, renderCh, color, loc.disp_attr ?? 0);
             }
         }
@@ -890,9 +1100,25 @@ export function rebuild_status_rows() {
 // The dmore queue is drained by input.js nhgetch — see that file for
 // the dismiss loop.
 const _TOPL_FIT = 72;  // CO (80) minus reserve for "--More--"
-export async function pline(msg) {
+export function pline(msg) {
+    // NOT async: this JS pline never blocks.  C's pline can fire more()
+    // (which readchar-blocks on a --More--), but the JS port DEFERS that
+    // blocking — pline only mutates _pending_message / _dmore_queue
+    // synchronously, and the shared More machinery in nhgetch drains the
+    // queue at the next input boundary.  Declaring it async was vestigial:
+    // the body has no await, no caller depends on the returned Promise, and
+    // `await pline(...)` in translated code awaits undefined (timing-neutral
+    // — await yields one microtask tick either way, and PRNG/screen capture
+    // are deterministic on the single chain).  Making it sync clears the
+    // lone conformance §7 error (win_putstr -> pline without await,
+    // allmain.js:905) the correct way rather than propagating async.
     if (msg == null || msg === '') {
-        game._pending_message = msg || '';
+        // C ref pline.c vpline: `if (!line || !*line) return;` — an
+        // empty pline is a NO-OP.  This branch used to CLEAR the
+        // pending topl, so a translated caller whose formatted text
+        // came out empty erased the previous message before its
+        // boundary capture (seed0101's "you throw your arrow by
+        // hand" vanished one pline later).
         return;
     }
     // If a dmore dismiss is already pending, append into the queue

@@ -4,6 +4,7 @@
 import { game } from '../gstate.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { pline } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, strchr, strcmp, strlen, strncmpi, strrchr } from '../c2js-runtime/string.js';
 import { cg } from './decl.js';
@@ -307,11 +308,11 @@ export const known_handling = ["UNKNOWN", "IBM", "DEC", "CURS", "MAC", "UTF8", n
 export const known_restrictions = ["primary", "rogue", null];
 export const loadsyms = [{ range: SYM_CONTROL, idx: 0, name: "start" }, { range: SYM_CONTROL, idx: 0, name: "begin" }, { range: SYM_CONTROL, idx: 1, name: "finish" }, { range: SYM_CONTROL, idx: 2, name: "handling" }, { range: SYM_CONTROL, idx: 3, name: "description" }, { range: SYM_CONTROL, idx: 4, name: "color" }, { range: SYM_CONTROL, idx: 4, name: "colour" }, { range: SYM_CONTROL, idx: 5, name: "restrictions" }, { range: SYM_PCHAR, idx: S_stone, name: "S_stone" }, { range: SYM_PCHAR, idx: S_vwall, name: "S_vwall" }, { range: SYM_PCHAR, idx: S_hwall, name: "S_hwall" }, { range: SYM_PCHAR, idx: S_tlcorn, name: "S_tlcorn" }, { range: SYM_PCHAR, idx: S_trcorn, name: "S_trcorn" }, { range: SYM_PCHAR, idx: S_blcorn, name: "S_blcorn" }, { range: SYM_PCHAR, idx: S_brcorn, name: "S_brcorn" }, { range: SYM_PCHAR, idx: S_crwall, name: "S_crwall" }, { range: SYM_PCHAR, idx: S_tuwall, name: "S_tuwall" }, { range: SYM_PCHAR, idx: S_tdwall, name: "S_tdwall" }, { range: SYM_PCHAR, idx: S_tlwall, name: "S_tlwall" }, { range: SYM_PCHAR, idx: S_trwall, name: "S_trwall" }, { range: SYM_PCHAR, idx: S_ndoor, name: "S_ndoor" }, { range: SYM_PCHAR, idx: S_vodoor, name: "S_vodoor" }, { range: SYM_PCHAR, idx: S_hodoor, name: "S_hodoor" }, { range: SYM_PCHAR, idx: S_vcdoor, name: "S_vcdoor" }, { range: SYM_PCHAR, idx: S_hcdoor, name: "S_hcdoor" }, { range: SYM_PCHAR, idx: S_bars, name: "S_bars" }, { range: SYM_PCHAR, idx: S_tree, name: "S_tree" }, { range: SYM_PCHAR, idx: S_room, name: "S_room" }, { range: SYM_PCHAR, idx: S_darkroom, name: "S_darkroom" }, { range: SYM_PCHAR, idx: S_engroom, name: "S_engroom" }, { range: SYM_PCHAR, idx: S_corr, name: "S_corr" }, { range: SYM_PCHAR, idx: S_litcorr, name: "S_litcorr" }, { range: SYM_PCHAR, idx: S_engrcorr, name: "S_engrcorr" }, { range: SYM_PCHAR, idx: S_upstair, name: "S_upstair" }, { range: SYM_PCHAR, idx: S_dnstair, name: "S_dnstair" }, { range: SYM_PCHAR, idx: S_upladder, name: "S_upladder" }, { range: SYM_PCHAR, idx: S_dnladder, name: "S_dnladder" }, { range: SYM_PCHAR, idx: S_brupstair, name: "S_brupstair" }, { range: SYM_PCHAR, idx: S_brdnstair, name: "S_brdnstair" }, { range: SYM_PCHAR, idx: S_brupladder, name: "S_brupladder" }, { range: SYM_PCHAR, idx: S_brdnladder, name: "S_brdnladder" }, { range: SYM_PCHAR, idx: S_altar, name: "S_altar" }, { range: SYM_PCHAR, idx: S_grave, name: "S_grave" }, { range: SYM_PCHAR, idx: S_throne, name: "S_throne" }, { range: SYM_PCHAR, idx: S_sink, name: "S_sink" }, { range: SYM_PCHAR, idx: S_fountain, name: "S_fountain" }, { range: SYM_PCHAR, idx: S_pool, name: "S_pool" }, { range: SYM_PCHAR, idx: S_ice, name: "S_ice" }, { range: SYM_PCHAR, idx: S_lava, name: "S_lava" }, { range: SYM_PCHAR, idx: S_lavawall, name: "S_lavawall" }, { range: SYM_PCHAR, idx: S_vodbridge, name: "S_vodbridge" }, { range: SYM_PCHAR, idx: S_hodbridge, name: "S_hodbridge" }, { range: SYM_PCHAR, idx: S_vcdbridge, name: "S_vcdbridge" }, { range: SYM_PCHAR, idx: S_hcdbridge, name: "S_hcdbridge" }, { range: SYM_PCHAR, idx: S_air, name: "S_air" }, { range: SYM_PCHAR, idx: S_cloud, name: "S_cloud" }, { range: SYM_PCHAR, idx: S_water, name: "S_water" }, { range: SYM_PCHAR, idx: S_arrow_trap, name: "S_arrow_trap" }, { range: SYM_PCHAR, idx: S_dart_trap, name: "S_dart_trap" }, { range: SYM_PCHAR, idx: S_falling_rock_trap, name: "S_falling_rock_trap" }, { range: SYM_PCHAR, idx: S_squeaky_board, name: "S_squeaky_board" }, { range: SYM_PCHAR, idx: S_bear_trap, name: "S_bear_trap" }, { range: SYM_PCHAR, idx: S_land_mine, name: "S_land_mine" }, { range: SYM_PCHAR, idx: S_rolling_boulder_trap, name: "S_rolling_boulder_trap" }, { range: SYM_PCHAR, idx: S_sleeping_gas_trap, name: "S_sleeping_gas_trap" }, { range: SYM_PCHAR, idx: S_rust_trap, name: "S_rust_trap" }, { range: SYM_PCHAR, idx: S_fire_trap, name: "S_fire_trap" }, { range: SYM_PCHAR, idx: S_pit, name: "S_pit" }, { range: SYM_PCHAR, idx: S_spiked_pit, name: "S_spiked_pit" }, { range: SYM_PCHAR, idx: S_hole, name: "S_hole" }, { range: SYM_PCHAR, idx: S_trap_door, name: "S_trap_door" }, { range: SYM_PCHAR, idx: S_teleportation_trap, name: "S_teleportation_trap" }, { range: SYM_PCHAR, idx: S_level_teleporter, name: "S_level_teleporter" }, { range: SYM_PCHAR, idx: S_magic_portal, name: "S_magic_portal" }, { range: SYM_PCHAR, idx: S_web, name: "S_web" }, { range: SYM_PCHAR, idx: S_statue_trap, name: "S_statue_trap" }, { range: SYM_PCHAR, idx: S_magic_trap, name: "S_magic_trap" }, { range: SYM_PCHAR, idx: S_anti_magic_trap, name: "S_anti_magic_trap" }, { range: SYM_PCHAR, idx: S_polymorph_trap, name: "S_polymorph_trap" }, { range: SYM_PCHAR, idx: S_vibrating_square, name: "S_vibrating_square" }, { range: SYM_PCHAR, idx: S_trapped_door, name: "S_trapped_door" }, { range: SYM_PCHAR, idx: S_trapped_chest, name: "S_trapped_chest" }, { range: SYM_PCHAR, idx: S_vbeam, name: "S_vbeam" }, { range: SYM_PCHAR, idx: S_hbeam, name: "S_hbeam" }, { range: SYM_PCHAR, idx: S_lslant, name: "S_lslant" }, { range: SYM_PCHAR, idx: S_rslant, name: "S_rslant" }, { range: SYM_PCHAR, idx: S_digbeam, name: "S_digbeam" }, { range: SYM_PCHAR, idx: S_flashbeam, name: "S_flashbeam" }, { range: SYM_PCHAR, idx: S_boomleft, name: "S_boomleft" }, { range: SYM_PCHAR, idx: S_boomright, name: "S_boomright" }, { range: SYM_PCHAR, idx: S_ss1, name: "S_ss1" }, { range: SYM_PCHAR, idx: S_ss2, name: "S_ss2" }, { range: SYM_PCHAR, idx: S_ss3, name: "S_ss3" }, { range: SYM_PCHAR, idx: S_ss4, name: "S_ss4" }, { range: SYM_PCHAR, idx: S_poisoncloud, name: "S_poisoncloud" }, { range: SYM_PCHAR, idx: S_goodpos, name: "S_goodpos" }, { range: SYM_PCHAR, idx: S_sw_tl, name: "S_sw_tl" }, { range: SYM_PCHAR, idx: S_sw_tc, name: "S_sw_tc" }, { range: SYM_PCHAR, idx: S_sw_tr, name: "S_sw_tr" }, { range: SYM_PCHAR, idx: S_sw_ml, name: "S_sw_ml" }, { range: SYM_PCHAR, idx: S_sw_mr, name: "S_sw_mr" }, { range: SYM_PCHAR, idx: S_sw_bl, name: "S_sw_bl" }, { range: SYM_PCHAR, idx: S_sw_bc, name: "S_sw_bc" }, { range: SYM_PCHAR, idx: S_sw_br, name: "S_sw_br" }, { range: SYM_PCHAR, idx: S_expl_tl, name: "S_expl_tl" }, { range: SYM_PCHAR, idx: S_expl_tc, name: "S_expl_tc" }, { range: SYM_PCHAR, idx: S_expl_tr, name: "S_expl_tr" }, { range: SYM_PCHAR, idx: S_expl_ml, name: "S_expl_ml" }, { range: SYM_PCHAR, idx: S_expl_mc, name: "S_expl_mc" }, { range: SYM_PCHAR, idx: S_expl_mr, name: "S_expl_mr" }, { range: SYM_PCHAR, idx: S_expl_bl, name: "S_expl_bl" }, { range: SYM_PCHAR, idx: S_expl_bc, name: "S_expl_bc" }, { range: SYM_PCHAR, idx: S_expl_br, name: "S_expl_br" }, { range: SYM_OC, idx: S_strange_obj + ((0) + MAXPCHARS), name: "S_strange_obj" }, { range: SYM_OC, idx: S_weapon + ((0) + MAXPCHARS), name: "S_weapon" }, { range: SYM_OC, idx: S_armor + ((0) + MAXPCHARS), name: "S_armor" }, { range: SYM_OC, idx: S_ring + ((0) + MAXPCHARS), name: "S_ring" }, { range: SYM_OC, idx: S_amulet + ((0) + MAXPCHARS), name: "S_amulet" }, { range: SYM_OC, idx: S_tool + ((0) + MAXPCHARS), name: "S_tool" }, { range: SYM_OC, idx: S_food + ((0) + MAXPCHARS), name: "S_food" }, { range: SYM_OC, idx: S_potion + ((0) + MAXPCHARS), name: "S_potion" }, { range: SYM_OC, idx: S_scroll + ((0) + MAXPCHARS), name: "S_scroll" }, { range: SYM_OC, idx: S_book + ((0) + MAXPCHARS), name: "S_book" }, { range: SYM_OC, idx: S_wand + ((0) + MAXPCHARS), name: "S_wand" }, { range: SYM_OC, idx: S_coin + ((0) + MAXPCHARS), name: "S_coin" }, { range: SYM_OC, idx: S_gem + ((0) + MAXPCHARS), name: "S_gem" }, { range: SYM_OC, idx: S_rock + ((0) + MAXPCHARS), name: "S_rock" }, { range: SYM_OC, idx: S_ball + ((0) + MAXPCHARS), name: "S_ball" }, { range: SYM_OC, idx: S_chain + ((0) + MAXPCHARS), name: "S_chain" }, { range: SYM_OC, idx: S_venom + ((0) + MAXPCHARS), name: "S_venom" }, { range: SYM_MON, idx: S_ANT + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_ANT" }, { range: SYM_MON, idx: S_BLOB + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_BLOB" }, { range: SYM_MON, idx: S_COCKATRICE + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_COCKATRICE" }, { range: SYM_MON, idx: S_DOG + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_DOG" }, { range: SYM_MON, idx: S_EYE + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_EYE" }, { range: SYM_MON, idx: S_FELINE + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_FELINE" }, { range: SYM_MON, idx: S_GREMLIN + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_GREMLIN" }, { range: SYM_MON, idx: S_HUMANOID + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_HUMANOID" }, { range: SYM_MON, idx: S_IMP + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_IMP" }, { range: SYM_MON, idx: S_JELLY + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_JELLY" }, { range: SYM_MON, idx: S_KOBOLD + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_KOBOLD" }, { range: SYM_MON, idx: S_LEPRECHAUN + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_LEPRECHAUN" }, { range: SYM_MON, idx: S_MIMIC + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_MIMIC" }, { range: SYM_MON, idx: S_NYMPH + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_NYMPH" }, { range: SYM_MON, idx: S_ORC + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_ORC" }, { range: SYM_MON, idx: S_PIERCER + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_PIERCER" }, { range: SYM_MON, idx: S_QUADRUPED + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_QUADRUPED" }, { range: SYM_MON, idx: S_RODENT + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_RODENT" }, { range: SYM_MON, idx: S_SPIDER + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_SPIDER" }, { range: SYM_MON, idx: S_TRAPPER + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_TRAPPER" }, { range: SYM_MON, idx: S_UNICORN + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_UNICORN" }, { range: SYM_MON, idx: S_VORTEX + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_VORTEX" }, { range: SYM_MON, idx: S_WORM + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_WORM" }, { range: SYM_MON, idx: S_XAN + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_XAN" }, { range: SYM_MON, idx: S_LIGHT + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_LIGHT" }, { range: SYM_MON, idx: S_ZRUTY + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_ZRUTY" }, { range: SYM_MON, idx: S_ANGEL + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_ANGEL" }, { range: SYM_MON, idx: S_BAT + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_BAT" }, { range: SYM_MON, idx: S_CENTAUR + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_CENTAUR" }, { range: SYM_MON, idx: S_DRAGON + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_DRAGON" }, { range: SYM_MON, idx: S_ELEMENTAL + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_ELEMENTAL" }, { range: SYM_MON, idx: S_FUNGUS + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_FUNGUS" }, { range: SYM_MON, idx: S_GNOME + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_GNOME" }, { range: SYM_MON, idx: S_GIANT + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_GIANT" }, { range: SYM_MON, idx: S_invisible + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_invisible" }, { range: SYM_MON, idx: S_JABBERWOCK + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_JABBERWOCK" }, { range: SYM_MON, idx: S_KOP + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_KOP" }, { range: SYM_MON, idx: S_LICH + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_LICH" }, { range: SYM_MON, idx: S_MUMMY + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_MUMMY" }, { range: SYM_MON, idx: S_NAGA + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_NAGA" }, { range: SYM_MON, idx: S_OGRE + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_OGRE" }, { range: SYM_MON, idx: S_PUDDING + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_PUDDING" }, { range: SYM_MON, idx: S_QUANTMECH + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_QUANTMECH" }, { range: SYM_MON, idx: S_RUSTMONST + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_RUSTMONST" }, { range: SYM_MON, idx: S_SNAKE + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_SNAKE" }, { range: SYM_MON, idx: S_TROLL + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_TROLL" }, { range: SYM_MON, idx: S_UMBER + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_UMBER" }, { range: SYM_MON, idx: S_VAMPIRE + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_VAMPIRE" }, { range: SYM_MON, idx: S_WRAITH + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_WRAITH" }, { range: SYM_MON, idx: S_XORN + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_XORN" }, { range: SYM_MON, idx: S_YETI + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_YETI" }, { range: SYM_MON, idx: S_ZOMBIE + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_ZOMBIE" }, { range: SYM_MON, idx: S_HUMAN + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_HUMAN" }, { range: SYM_MON, idx: S_GHOST + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_GHOST" }, { range: SYM_MON, idx: S_GOLEM + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_GOLEM" }, { range: SYM_MON, idx: S_DEMON + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_DEMON" }, { range: SYM_MON, idx: S_EEL + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_EEL" }, { range: SYM_MON, idx: S_LIZARD + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_LIZARD" }, { range: SYM_MON, idx: S_WORM_TAIL + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_WORM_TAIL" }, { range: SYM_MON, idx: S_MIMIC_DEF + (((0) + MAXPCHARS) + MAXOCLASSES), name: "S_MIMIC_DEF" }, { range: SYM_OTH, idx: SYM_NOTHING + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6), name: "S_nothing" }, { range: SYM_OTH, idx: SYM_UNEXPLORED + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6), name: "S_unexplored" }, { range: SYM_OTH, idx: SYM_BOULDER + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6), name: "S_boulder" }, { range: SYM_OTH, idx: SYM_INVISIBLE + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6), name: "S_invisible" }, { range: SYM_OTH, idx: SYM_PET_OVERRIDE + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6), name: "S_pet_override" }, { range: SYM_OTH, idx: SYM_HERO_OVERRIDE + (((((0) + MAXPCHARS) + MAXOCLASSES) + MAXMCLASSES) + 6), name: "S_hero_override" }, { range: SYM_INVALID, idx: 0, name: null }];
 /* fence post */
-export function proc_symset_line(buf) {
-    return !(parse_sym_line(buf, game.symset_which_set));
+export async function proc_symset_line(buf) {
+    return !(await parse_sym_line(buf, game.symset_which_set));
 }
 /* returns 0 on error */
-export function parse_sym_line(buf, which_set) {
+export async function parse_sym_line(buf, which_set) {
     let val = 0;
     let i = 0;
     let symp = null;
@@ -360,7 +361,7 @@ export function parse_sym_line(buf, which_set) {
     symp = match_sym(buf);
     if (!symp && __nh_char_at0(buf) == 71 && __nh_char_at0(__nh_advance_str(buf, 1)) == 95) {
         if (game.chosen_symset_start) {
-            is_glyph = match_glyph(buf);
+            is_glyph = await match_glyph(buf);
         } else {
             is_glyph = (1);
         }
@@ -507,12 +508,12 @@ export function parse_sym_line(buf, which_set) {
                 }
             } else {
                 if (game.chosen_symset_start) {
-                    glyphrep_to_custom_map_entries(buf, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
+                    await glyphrep_to_custom_map_entries(buf, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
                 }
             }
         }
     } else if (game.chosen_symset_start) {
-        glyphrep_to_custom_map_entries(buf, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
+        await glyphrep_to_custom_map_entries(buf, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
     }
     return 1;
 }
@@ -597,7 +598,7 @@ export function savedsym_strbuf(sbuf) {
     }
 }
 /* Parse the value of a SYMBOLS line from a config file */
-export function parsesymbols(opts, which_set) {
+export async function parsesymbols(opts, which_set) {
     let val = 0;
     let symname = null;
     let strval = null;
@@ -637,7 +638,7 @@ export function parsesymbols(opts, which_set) {
     }
     if (first_unquoted_comma != null) {
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        if (!parsesymbols(first_unquoted_comma, which_set)) {
+        if (!await parsesymbols(first_unquoted_comma, which_set)) {
             return (0);
         }
     }
@@ -655,7 +656,7 @@ export function parsesymbols(opts, which_set) {
     strval = mungspaces(strval);
     symp = match_sym(symname);
     if (!symp && __nh_char_at0(symname) == 71 && __nh_char_at0(__nh_advance_str(symname, 1)) == 95) {
-        is_glyph = match_glyph(symname);
+        is_glyph = await match_glyph(symname);
     }
     if (!symp && !is_glyph) {
         return (0);
@@ -666,7 +667,7 @@ export function parsesymbols(opts, which_set) {
                 let buf = '';
                 let glyph = 0;
                 buf = nh_snprintf("parsesymbols", 836, buf, 256 /* sizeof(char [256]) */, "%s:%s", opts, strval);
-                glyphrep_to_custom_map_entries(buf, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
+                await glyphrep_to_custom_map_entries(buf, { get value() { return glyph; }, set value(_v) { glyph = _v; } });
             } else {
                 val = sym_val(strval);
                 if (which_set == ROGUESET) {
@@ -682,6 +683,7 @@ export function parsesymbols(opts, which_set) {
 }
 /* alt explosion names are numbered in phone key/button layout */
 let __match_sym_alternates = [{ altnm: "S_armour", nm: "S_armor" }, { altnm: "S_explode1", nm: "S_expl_tl" }, { altnm: "S_explode2", nm: "S_expl_tc" }, { altnm: "S_explode3", nm: "S_expl_tr" }, { altnm: "S_explode4", nm: "S_expl_ml" }, { altnm: "S_explode5", nm: "S_expl_mc" }, { altnm: "S_explode6", nm: "S_expl_mr" }, { altnm: "S_explode7", nm: "S_expl_bl" }, { altnm: "S_explode8", nm: "S_expl_bc" }, { altnm: "S_explode9", nm: "S_expl_br" }];
+__nh_register_static(() => { __match_sym_alternates = [{ altnm: "S_armour", nm: "S_armor" }, { altnm: "S_explode1", nm: "S_expl_tl" }, { altnm: "S_explode2", nm: "S_expl_tc" }, { altnm: "S_explode3", nm: "S_expl_tr" }, { altnm: "S_explode4", nm: "S_expl_ml" }, { altnm: "S_explode5", nm: "S_expl_mc" }, { altnm: "S_explode6", nm: "S_expl_mr" }, { altnm: "S_explode7", nm: "S_expl_bl" }, { altnm: "S_explode8", nm: "S_expl_bc" }, { altnm: "S_explode9", nm: "S_expl_br" }]; });
 export function match_sym(buf) {
     let i = 0;
     let len = strlen(buf);
@@ -725,9 +727,9 @@ export function match_sym(buf) {
 /*
  * this is called from options.c to do the symset work.
  */
-export function do_symset(rogueflag) {
+export async function do_symset(rogueflag) {
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let n = 0;
     let buf = '';
     let symset_pick = null;
@@ -771,19 +773,19 @@ export function do_symset(rogueflag) {
             }
         }
         if (!setcount) {
-            There("are no appropriate %s symbol sets available.", rogueflag ? "rogue level" : "primary");
+            await There("are no appropriate %s symbol sets available.", rogueflag ? "rogue level" : "primary");
             return (1);
         }
         fmtstr = sprintf(fmtstr, "%%-%ds %%s", biggest + 2);
         tmpwin = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(tmpwin, 0);
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         /* -1 + 2 [see 'if (sl->name) {' below]*/
         any.a_int = 1;
         if (!symset_name) {
             defindx = any.a_int;
         }
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, "Default Symbols", (any.a_int == defindx) ? 1 : 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, "Default Symbols", (any.a_int == defindx) ? 1 : 0);
         for (sl = game.symset_list; sl; sl = sl.next) {
             if (rogueflag ? sl.primary : sl.rogue) {
                 continue;
@@ -800,12 +802,12 @@ export function do_symset(rogueflag) {
                     defindx = any.a_int;
                 }
                 buf = sprintf(buf, fmtstr, sl.name, sl.desc ? sl.desc : "");
-                add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, (any.a_int == defindx) ? 1 : 0);
+                await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, (any.a_int == defindx) ? 1 : 0);
             }
         }
         buf = sprintf(buf, "Select %ssymbol set:", rogueflag ? "rogue level " : "");
         (game.windowprocs.win_end_menu)(tmpwin, buf);
-        n = select_menu(tmpwin, 1, symset_pick);
+        n = await select_menu(tmpwin, 1, symset_pick);
         if (n > 0) {
             chosen = symset_pick[0].item.a_int;
             /* if picking non-preselected entry yields 2, make sure
@@ -843,12 +845,10 @@ export function do_symset(rogueflag) {
             nothing_to_do = (1);
         }
     } else if (!res) {
-        /* The symbols file could not be accessed */
-        pline("Unable to access \"%s\" file.", "symbols");
+        await pline("Unable to access \"%s\" file.", "symbols");
         return (1);
     } else if (!game.symset_list) {
-        /* The symbols file was empty */
-        There("were no symbol sets found in \"%s\".", "symbols");
+        await There("were no symbol sets found in \"%s\".", "symbols");
         return (1);
     }
     while ((sl = game.symset_list) != null) {
@@ -872,7 +872,7 @@ export function do_symset(rogueflag) {
     if (game.symset[which_set].name) {
         let ok = 0;
         if (!glyphid_cache_status()) {
-            fill_glyphid_cache();
+            await fill_glyphid_cache();
         }
         ok = read_sym_file(which_set);
         if (glyphid_cache_status()) {
@@ -902,3 +902,5 @@ export function do_symset(rogueflag) {
 /*symbols.c*/
 /* these intentionally have no defaults */
 /* Adjust graphics display characters on Rogue levels */
+/* The symbols file could not be accessed */
+/* The symbols file was empty */

@@ -36,11 +36,11 @@ export function center(line, text) {
     let op = null;
     __nh_ip_idx = 0;
     op = game.rip[line][28 - ((strlen(text) + 1) >> 1)];
-    while (text[__nh_ip_idx]) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = text[__nh_ip_idx++]) */;
+    while (__nh_char_at0(__nh_advance_str(text, __nh_ip_idx))) {
+        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0(__nh_advance_str(text, __n) */;
     }
 }
-export function genl_outrip(tmpwin, how, when) {
+export async function genl_outrip(tmpwin, how, when) {
     let dp = null;
     let dpx = null;
     let buf = '';
@@ -62,8 +62,7 @@ export function genl_outrip(tmpwin, how, when) {
     }
     buf = sprintf(buf, "%ld Au", cash);
     center(7, buf);
-    /* Put together death description */
-    formatkiller(buf, 256 /* sizeof(char [256]) */, how, (0));
+    await formatkiller(buf, 256 /* sizeof(char [256]) */, how, (0));
     for (line = 8 , dpx = buf; line < 12; line++) {
         let tmpchar = 0;
         let i = 0;
@@ -105,3 +104,4 @@ export function genl_outrip(tmpwin, how, when) {
 }
 /* TEXT_TOMBSTONE */
 /*rip.c*/
+/* Put together death description */

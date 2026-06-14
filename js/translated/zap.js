@@ -12,6 +12,7 @@ import { abs, sgn } from '../c2js-runtime/math.js';
 import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, You_feel, You_hear, Your, pline, pline_The, pline_dir } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { strcat, strchr, strcpy, strlen, strncmpi } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
@@ -133,33 +134,19 @@ export function zaptype(type) {
  * and other items of the same type would become known as such.
  */
 /* wand discovery gets special handling when hero is blinded */
-export function learnwand(obj) {
+export async function learnwand(obj) {
     if (obj.oclass != SPBOOK_CLASS) {
         if (game.objects[obj.otyp].oc_name_known) {
-            /* For a wand (or wand-like tool) zapped by the player, if the
-       effect was observable (determined by caller; usually seen, but
-       possibly heard or felt if the hero is blinded) then discover the
-       object type provided that the object itself is known (as more
-       than just "a wand").  If object type is already discovered and
-       we observed the effect, mark the individual wand as having been
-       seen.  Suppress spells (which use fake spellbook object for `obj')
-       so that casting a spell won't re-discover its forgotten book. */
-            /* if type already discovered, treat this item has having been seen
-           even if hero is currently blinded (skips redundant makeknown) */
-            /* will usually be dknown already */
-            /* otherwise discover it if item itself has been or can be seen */
-            observe_object(obj);
+            await observe_object(obj);
         } else {
             /* in case it was picked up while blind and then zapped without
                examining inventory after regaining sight (bypassing xname) */
             /* make him pay for knowing !NODIR */
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                /* target object has now been "seen (up close)" */
-                observe_object(obj);
+                await observe_object(obj);
             }
-            /* make the discovery iff we know what we're manipulating */
             if (obj.dknown) {
-                discover_object((obj.otyp), (1), (1), (1));
+                await discover_object((obj.otyp), (1), (1), (1));
             }
         }
         update_inventory();
@@ -170,7 +157,7 @@ export function learnwand(obj) {
  * Also RAY or NODIR for wands that are being broken rather than zapped.
  */
 /* bhitm: monster mtmp was hit by the effect of wand or spell otmp */
-export function bhitm(mtmp, otmp) {
+export async function bhitm(mtmp, otmp) {
     let ret = 0;
     /* Most 'zaps' should wake monster */
     let wake = (1);
@@ -201,14 +188,13 @@ export function bhitm(mtmp, otmp) {
             learn_it = ((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0);
             if (resists_magm(mtmp)) {
                 if (disguised_mimic && !disguised_as_mon(mtmp)) {
-                    seemimic(mtmp);
+                    await seemimic(mtmp);
                 }
-                shieldeff(mtmp.mx, mtmp.my);
-                /* 5.0: used to 'break' to avoid setting learn_it here */
-                pline("Boing!");
+                await shieldeff(mtmp.mx, mtmp.my);
+                await pline("Boing!");
             } else if (game.u.uswallow || rnd(20) < 10 + find_mac(mtmp)) {
                 if (disguised_mimic) {
-                    seemimic(mtmp);
+                    await seemimic(mtmp);
                 }
                 dmg = d(2, 12);
                 if (dbldam) {
@@ -217,11 +203,11 @@ export function bhitm(mtmp, otmp) {
                 if (otyp == SPE_FORCE_BOLT) {
                     dmg = spell_damage_bonus(dmg);
                 }
-                hit(zap_type_text, mtmp, exclam(dmg));
-                resist(mtmp, otmp.oclass, dmg, 1);
+                await hit(zap_type_text, mtmp, exclam(dmg));
+                await resist(mtmp, otmp.oclass, dmg, 1);
             } else {
                 if (!disguised_mimic) {
-                    miss(zap_type_text, mtmp);
+                    await miss(zap_type_text, mtmp);
                 }
                 learn_it = (0);
             }
@@ -231,26 +217,25 @@ export function bhitm(mtmp, otmp) {
             break;
         case WAN_SLOW_MONSTER:
         case SPE_SLOW_MONSTER:
-            if (!resist(mtmp, otmp.oclass, 0, 0)) {
+            if (!await resist(mtmp, otmp.oclass, 0, 0)) {
                 if (disguised_mimic) {
-                    seemimic(mtmp);
+                    await seemimic(mtmp);
                 }
-                mon_adjust_speed(mtmp, -1, otmp);
+                await mon_adjust_speed(mtmp, -1, otmp);
                 check_gear_next_turn(mtmp);
                 if ((game.u.uswallow && (game.u.ustuck == (mtmp))) && ((mtmp.data).mlet == S_VORTEX || (mtmp.data) == game.mons[PM_AIR_ELEMENTAL])) {
-                    You("disrupt %s!", mon_nam(mtmp));
-                    pline("A huge hole opens up...");
-                    /* gives "you get regurgitated" or "you get expelled from <mon>" */
-                    expels(mtmp, mtmp.data, (1));
+                    await You("disrupt %s!", await mon_nam(mtmp));
+                    await pline("A huge hole opens up...");
+                    await expels(mtmp, mtmp.data, (1));
                 }
             }
             break;
         case WAN_SPEED_MONSTER:
-            if (!resist(mtmp, otmp.oclass, 0, 0)) {
+            if (!await resist(mtmp, otmp.oclass, 0, 0)) {
                 if (disguised_mimic) {
-                    seemimic(mtmp);
+                    await seemimic(mtmp);
                 }
-                mon_adjust_speed(mtmp, 1, otmp);
+                await mon_adjust_speed(mtmp, 1, otmp);
                 check_gear_next_turn(mtmp);
             }
             /* wake but don't anger a peaceful target */
@@ -260,7 +245,7 @@ export function bhitm(mtmp, otmp) {
         case SPE_TURN_UNDEAD:
             /* don't want immediate counterattack */
             wake = (0);
-            if (unturn_dead(mtmp)) {
+            if (await unturn_dead(mtmp)) {
                 wake = (1);
             }
             if ((((mtmp.data).mflags2 & 2) != 0) || ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER)) {
@@ -274,9 +259,9 @@ export function bhitm(mtmp, otmp) {
                     dmg = spell_damage_bonus(dmg);
                 }
                 game.context.bypasses = (1);
-                if (!resist(mtmp, otmp.oclass, dmg, 0)) {
+                if (!await resist(mtmp, otmp.oclass, dmg, 0)) {
                     if (!((mtmp).mhp < 1)) {
-                        monflee(mtmp, 0, (0), (1));
+                        await monflee(mtmp, 0, (0), (1));
                     }
                 }
             }
@@ -287,12 +272,8 @@ export function bhitm(mtmp, otmp) {
             if (mtmp.data == game.mons[PM_LONG_WORM] && ((mtmp).mextra && ((mtmp).mextra.mcorpsenm) != NON_PM)) {
                 ;
             } else if (resists_magm(mtmp)) {
-                /* if a long worm has mcorpsenm set, it was polymorphed by
-               the current zap and shouldn't be affected if hit again */
-                /* magic resistance protects from polymorph traps, so make
-               it guard against involuntary polymorph attacks too... */
-                shieldeff_mon(mtmp);
-            } else if (!resist(mtmp, otmp.oclass, 0, 0)) {
+                await shieldeff_mon(mtmp);
+            } else if (!await resist(mtmp, otmp.oclass, 0, 0)) {
                 let polyspot = (otyp != POT_POLYMORPH);
                 let give_msg = (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && (canseemon(mtmp) || (game.u.uswallow && (game.u.ustuck == (mtmp)))));
                 /* dropped inventory (due to death by system shock,
@@ -305,10 +286,7 @@ export function bhitm(mtmp, otmp) {
                 }
                 if (mtmp.cham == NON_PM && !rn2(25)) {
                     if (canseemon(mtmp)) {
-                        /* natural shapechangers aren't affected by system shock
-               (unless protection from shapechangers is interfering
-               with their metabolism...) */
-                        pline("%s shudders!", Monnam(mtmp));
+                        await pline("%s shudders!", await Monnam(mtmp));
                         /* zap which hits steed will only release saddle if it
            doesn't hit a holding or falling trap; playability
            here overrides the more logical target ordering */
@@ -320,9 +298,7 @@ export function bhitm(mtmp, otmp) {
            likewise for furniture in case hero is levitating while blind */
                         learn_it = (1);
                     }
-                    /* svc.context.bypasses = TRUE; ## for make_corpse() */
-                    /* no corpse after system shock */
-                    xkilled(mtmp, 0 | 2);
+                    await xkilled(mtmp, 0 | 2);
                 } else {
                     let ncflags = 0;
                     if (polyspot) {
@@ -331,7 +307,7 @@ export function bhitm(mtmp, otmp) {
                     if (give_msg) {
                         ncflags |= 1;
                     }
-                    if (newcham(mtmp, null, ncflags) != 0 || (((mtmp.cham) >= LOW_PM && (mtmp.cham) < NUMMONS) && newcham(mtmp, game.mons[mtmp.cham], ncflags) != 0)) {
+                    if (await newcham(mtmp, null, ncflags) != 0 || (((mtmp.cham) >= LOW_PM && (mtmp.cham) < NUMMONS) && await newcham(mtmp, game.mons[mtmp.cham], ncflags) != 0)) {
                         /* if shapechange failed because there aren't
                               enough eligible candidates (most likely for
                               vampshifter), try reverting to original form */
@@ -361,16 +337,16 @@ export function bhitm(mtmp, otmp) {
         case WAN_CANCELLATION:
         case SPE_CANCELLATION:
             if (disguised_mimic) {
-                seemimic(mtmp);
+                await seemimic(mtmp);
             }
-            cancel_monst(mtmp, otmp, (1), (1), (0));
+            await cancel_monst(mtmp, otmp, (1), (1), (0));
             break;
         case WAN_TELEPORTATION:
         case SPE_TELEPORT_AWAY:
             if (disguised_mimic) {
-                seemimic(mtmp);
+                await seemimic(mtmp);
             }
-            reveal_invis = !u_teleport_mon(mtmp, (1));
+            reveal_invis = !await u_teleport_mon(mtmp, (1));
             learn_it = (canseemon(mtmp) || sensemon(mtmp));
             break;
         case WAN_MAKE_INVISIBLE:
@@ -379,20 +355,16 @@ export function bhitm(mtmp, otmp) {
                 let couldsee = canseemon(mtmp);
                 let nambuf = '';
                 if (disguised_mimic) {
-                    seemimic(mtmp);
+                    await seemimic(mtmp);
                 }
-                nambuf = strcpy(nambuf, Monnam(mtmp));
-                /* format monster's name before altering its visibility */
-                mon_set_minvis(mtmp, (0));
+                nambuf = strcpy(nambuf, await Monnam(mtmp));
+                await mon_set_minvis(mtmp, (0));
                 if (!oldinvis && knowninvisible(mtmp)) {
-                    pline("%s turns transparent!", nambuf);
+                    await pline("%s turns transparent!", nambuf);
                     reveal_invis = (1);
                     learn_it = (1);
                 } else if (couldsee && !canseemon(mtmp)) {
-                    /* keep the immediate effects of make invisible and teleportation
-               ambiguous by using the same message that's used if we
-               teleported mtmp (and it ended up somewhere you can't see) */
-                    pline("%s vanishes!", nambuf);
+                    await pline("%s vanishes!", nambuf);
                 }
                 /* mtmp might now be on the migrating monsters list */
                 break;
@@ -400,9 +372,9 @@ export function bhitm(mtmp, otmp) {
         case WAN_LOCKING:
         case SPE_WIZARD_LOCK:
             if (disguised_mimic && ((((mtmp).m_ap_type & 7) == M_AP_OBJECT && ((mtmp).mappearance == CHEST || (mtmp).mappearance == LARGE_BOX)) || (((mtmp).m_ap_type & 7) == M_AP_FURNITURE && (((mtmp).mappearance) >= S_vodoor && ((mtmp).mappearance) <= S_hcdoor)))) {
-                that_is_a_mimic(mtmp, 1);
+                await that_is_a_mimic(mtmp, 1);
             }
-            wake = closeholdingtrap(mtmp, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } });
+            wake = await closeholdingtrap(mtmp, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } });
             break;
         /*
      * Wands that are allowed to hit the steed
@@ -412,55 +384,51 @@ export function bhitm(mtmp, otmp) {
         case WAN_PROBING:
             wake = (0);
             reveal_invis = (1);
-            probe_monster(mtmp);
+            await probe_monster(mtmp);
             learn_it = (1);
             break;
         case WAN_OPENING:
         case SPE_KNOCK:
             if (disguised_mimic && ((((mtmp).m_ap_type & 7) == M_AP_OBJECT && ((mtmp).mappearance == CHEST || (mtmp).mappearance == LARGE_BOX)) || (((mtmp).m_ap_type & 7) == M_AP_FURNITURE && (((mtmp).mappearance) >= S_vodoor && ((mtmp).mappearance) <= S_hcdoor)))) {
-                that_is_a_mimic(mtmp, 1);
+                await that_is_a_mimic(mtmp, 1);
             }
             wake = (0);
             if (mtmp == game.u.ustuck) {
-                /* zapping either holder/holdee or self [zapyourself()] will
-               release hero from holder's grasp or holdee from hero's grasp */
-                /* zapping either self or holder/holdee [bhitm()] will release
-               holder's grasp from the hero or hero's grasp from holdee */
-                release_hold();
+                await release_hold();
                 learn_it = (1);
-            } else if (openholdingtrap(mtmp, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
+            } else if (await openholdingtrap(mtmp, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
                 break;
-            } else if (openfallingtrap(mtmp, (1), { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
+            } else if (await openfallingtrap(mtmp, (1), { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
                 break;
             } else if (otyp == SPE_KNOCK) {
                 wake = (1);
                 ret = 1;
                 if (mtmp.data.msize < 2 && !m_is_steadfast(mtmp)) {
                     if (canseemon(mtmp)) {
-                        pline("%s is knocked back!", Monnam(mtmp));
+                        await pline("%s is knocked back!", await Monnam(mtmp));
                     }
-                    mhurtle(mtmp, mtmp.mx - game.u.ux, mtmp.my - game.u.uy, rnd(2));
+                    await mhurtle(mtmp, mtmp.mx - game.u.ux, mtmp.my - game.u.uy, rnd(2));
                 } else {
                     if (canseemon(mtmp)) {
-                        pline("%s doesn't budge.", Monnam(mtmp));
+                        await pline("%s doesn't budge.", await Monnam(mtmp));
                     }
                 }
                 if (!((mtmp).mhp < 1)) {
-                    wakeup(mtmp, !(((mtmp.data).mflags1 & 65536) != 0));
-                    abuse_dog(mtmp);
+                    await wakeup(mtmp, !(((mtmp.data).mflags1 & 65536) != 0));
+                    await abuse_dog(mtmp);
                 }
-            } else if ((obj = which_armor(mtmp, 1048576)) != null) {
+            } else if ((obj = await which_armor(mtmp, 1048576)) != null) {
                 let buf = '';
-                buf = sprintf(buf, "%s %s", s_suffix(Monnam(mtmp)), distant_name(obj, xname));
+                buf = sprintf(buf, "%s %s", s_suffix(await Monnam(mtmp)), await distant_name(obj, xname));
                 if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
                     if (!(canseemon(mtmp) || sensemon(mtmp))) {
-                        buf = strcpy(buf, An(distant_name(obj, xname)));
+                        buf = strcpy(buf, await An(await distant_name(obj, xname)));
                     }
-                    pline("%s falls to the %s.", buf, surface(mtmp.mx, mtmp.my));
+                    await pline("%s falls to the %s.", buf, surface(mtmp.mx, mtmp.my));
                 } else if ((canseemon(mtmp) || sensemon(mtmp))) {
-                    pline("%s falls off.", buf);
+                    await pline("%s falls off.", buf);
                 }
-                mdrop_obj(mtmp, obj, (0));
+                await mdrop_obj(mtmp, obj, (0));
             }
             break;
         case SPE_HEALING:
@@ -472,52 +440,48 @@ export function bhitm(mtmp, otmp) {
                     let delta = mtmp.mhpmax - mtmp.mhp;
                     /* wakeup() makes the target angry */
                     wake = (0);
-                    healmon(mtmp, healamt, 0);
+                    await healmon(mtmp, healamt, 0);
                     /* plain healing must be blessed to cure blindness; extra
                healing only needs to not be cursed, so spell always cures
                [potions quaffed by monsters behave slightly differently;
                we use the rules for the hero here...] */
                     if (skilled_spell || otyp == SPE_EXTRA_HEALING) {
-                        mcureblindness(mtmp, canseemon(mtmp));
+                        await mcureblindness(mtmp, canseemon(mtmp));
                     }
                     if (canseemon(mtmp)) {
                         if (disguised_mimic) {
                             if ((((mtmp).m_ap_type & 7) == M_AP_OBJECT && (mtmp).mappearance == (STRANGE_OBJECT))) {
-                                set_mimic_sym(mtmp);
-                                newsym(mtmp.mx, mtmp.my);
+                                await set_mimic_sym(mtmp);
+                                await newsym(mtmp.mx, mtmp.my);
                             } else {
-                                mimic_hit_msg(mtmp, otyp);
+                                await mimic_hit_msg(mtmp, otyp);
                             }
                         } else {
-                            pline("%s looks%s better.", Monnam(mtmp), otyp == SPE_EXTRA_HEALING ? " much" : "");
+                            await pline("%s looks%s better.", await Monnam(mtmp), otyp == SPE_EXTRA_HEALING ? " much" : "");
                         }
                     }
                     if (mtmp.mtame && (game.urole.mnum == (PM_HEALER)) && (delta > 0)) {
-                        more_experienced(((delta) < (healamt) ? (delta) : (healamt)), 0);
-                        newexplevel();
+                        await more_experienced(((delta) < (healamt) ? (delta) : (healamt)), 0);
+                        await newexplevel();
                     }
                     if (mtmp.mtame || mtmp.mpeaceful) {
                         adjalign((game.urole.mnum == (PM_HEALER)) ? 1 : sgn(game.u.ualign.type));
                     }
                 } else {
-                    /* Pestilence will always resist; damage is half of (healamt/2) */
-                    resist(mtmp, otmp.oclass, Math.trunc(healamt / 2), 1);
+                    await resist(mtmp, otmp.oclass, Math.trunc(healamt / 2), 1);
                 }
                 break;
             }
         case WAN_LIGHT:
-            if (flash_hits_mon(mtmp, otmp)) {
+            if (await flash_hits_mon(mtmp, otmp)) {
                 learn_it = (1);
                 reveal_invis = (1);
             }
             break;
         case WAN_SLEEP:
             reveal_invis = (1);
-            /* [wakeup() doesn't rouse victims of temporary sleep,
-           so it's okay to leave `wake' set to TRUE here;
-           revealing concealed mimic is handled by sleep_monst()] */
-            if (sleep_monst(mtmp, d(1 + otmp.spe, 12), WAND_CLASS)) {
-                slept_monst(mtmp);
+            if (await sleep_monst(mtmp, d(1 + otmp.spe, 12), WAND_CLASS)) {
+                await slept_monst(mtmp);
             }
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                 learn_it = (1);
@@ -526,9 +490,8 @@ export function bhitm(mtmp, otmp) {
         case SPE_STONE_TO_FLESH:
             if (mtmp.data.mlet == S_GOLEM) {
                 let mesg = null;
-                /* before possible polymorph */
-                let name = Monnam(mtmp);
-                if (((mtmp.data).pmidx) == PM_STONE_GOLEM && newcham(mtmp, game.mons[PM_FLESH_GOLEM], 0)) {
+                let name = await Monnam(mtmp);
+                if (((mtmp.data).pmidx) == PM_STONE_GOLEM && await newcham(mtmp, game.mons[PM_FLESH_GOLEM], 0)) {
                     mesg = "turns to flesh!";
                 } else if (((mtmp.data).pmidx) == PM_FLESH_GOLEM) {
                     mesg = "seems fleshier...";
@@ -537,14 +500,14 @@ export function bhitm(mtmp, otmp) {
                     mesg = "looks rather fleshy for a moment.";
                 }
                 if (canseemon(mtmp)) {
-                    pline("%s %s", name, mesg);
+                    await pline("%s %s", name, mesg);
                 }
             } else if (mtmp.data.mlet == S_MIMIC && ((((mtmp).m_ap_type & 7) == M_AP_FURNITURE && stone_furniture_type(mtmp.mappearance)) || (((mtmp).m_ap_type & 7) == M_AP_OBJECT && stone_object_type(mtmp.mappearance)))) {
                 if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
                     /* note: if that_is_a_mimic() doesn't get called to reveal the
                mimic, wakeup() below will call seemimic() */
                     set_msg_xy(mtmp.mx, mtmp.my);
-                    that_is_a_mimic(mtmp, 1 | 2);
+                    await that_is_a_mimic(mtmp, 1 | 2);
                 }
             } else {
                 wake = (0);
@@ -552,7 +515,7 @@ export function bhitm(mtmp, otmp) {
             break;
         case SPE_DRAIN_LIFE:
             if (disguised_mimic) {
-                seemimic(mtmp);
+                await seemimic(mtmp);
             }
             dmg = monhp_per_lvl(mtmp);
             if (dbldam) {
@@ -561,18 +524,17 @@ export function bhitm(mtmp, otmp) {
             if (otyp == SPE_DRAIN_LIFE) {
                 dmg = spell_damage_bonus(dmg);
             }
-            if (resists_drli(mtmp)) {
-                shieldeff_mon(mtmp);
-            } else if (!resist(mtmp, otmp.oclass, dmg, 0) && !((mtmp).mhp < 1)) {
+            if (await resists_drli(mtmp)) {
+                await shieldeff_mon(mtmp);
+            } else if (!await resist(mtmp, otmp.oclass, dmg, 0) && !((mtmp).mhp < 1)) {
                 mtmp.mhp -= dmg;
                 mtmp.mhpmax -= dmg;
                 if (((mtmp).mhp < 1) || mtmp.mhpmax <= 0 || mtmp.m_lev < 1) {
-                    /* die if already level 0, regardless of hit points */
-                    killed(mtmp);
+                    await killed(mtmp);
                 } else {
                     mtmp.m_lev--;
                     if (canseemon(mtmp)) {
-                        pline("%s suddenly seems weaker!", Monnam(mtmp));
+                        await pline("%s suddenly seems weaker!", await Monnam(mtmp));
                     }
                 }
             }
@@ -581,13 +543,12 @@ export function bhitm(mtmp, otmp) {
             wake = (0);
             break;
         default:
-            impossible("What an interesting effect (%d)", otyp);
+            await impossible("What an interesting effect (%d)", otyp);
             break;
     }
     if (wake && !((mtmp).mhp < 1)) {
-        /* seemimic() is done by wakeup() and might unblock vision */
-        wakeup(mtmp, helpful_gesture ? (0) : (1));
-        m_respond(mtmp);
+        await wakeup(mtmp, helpful_gesture ? (0) : (1));
+        await m_respond(mtmp);
         if (mtmp.isshk && !game.u.ushops) {
             hot_pursuit(mtmp);
         }
@@ -598,52 +559,46 @@ export function bhitm(mtmp, otmp) {
      * might be an invisible worm hit on the tail.
      */
         if (((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0) && !(canseemon(mtmp) || sensemon(mtmp))) {
-            map_invisible(game.bhitpos.x, game.bhitpos.y);
+            await map_invisible(game.bhitpos.x, game.bhitpos.y);
         }
     }
-    /* if effect was observable then discover the wand type provided
-       that the wand itself has been seen */
     if (learn_it) {
-        learnwand(otmp);
+        await learnwand(otmp);
     }
     return ret;
 }
 /* hero is held by a monster or engulfed or holding a monster and has zapped
    opening/unlocking magic at holder/engulfer/holdee or at self */
-export function release_hold() {
+export async function release_hold() {
     let mtmp = game.u.ustuck;
     if (!mtmp) {
-        impossible("release_hold when not held?");
+        await impossible("release_hold when not held?");
     } else if (game.u.uswallow) {
         if ((dmgtype_fromattack((mtmp.data), 26, 11) != null)) {
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                pline("%s opens its mouth!", Monnam(mtmp));
-            /* possible for sticky hero to be swallowed */
+                await pline("%s opens its mouth!", await Monnam(mtmp));
             } else {
-                You_feel("a sudden rush of air!");
+                await You_feel("a sudden rush of air!");
             }
         }
-        expels(mtmp, mtmp.data, (1));
+        await expels(mtmp, mtmp.data, (1));
     } else if (sticks(game.youmonst.data)) {
-        /* order matters if 'holding' status condition is enabled;
-           set_ustuck() will set flag for botl update, You() pline will
-           trigger a status update with "UHold" removed */
-        set_ustuck(null);
-        You("release %s.", mon_nam(mtmp));
+        await set_ustuck(null);
+        await You("release %s.", await mon_nam(mtmp));
     } else {
         let relbuf = '';
-        unstuck(game.u.ustuck);
+        await unstuck(game.u.ustuck);
         if (!(((mtmp.data).mflags1 & 8192) != 0)) {
-            relbuf = sprintf(relbuf, "from %s grasp", s_suffix(mon_nam(mtmp)));
+            relbuf = sprintf(relbuf, "from %s grasp", s_suffix(await mon_nam(mtmp)));
         } else {
-            relbuf = sprintf(relbuf, "by %s", mon_nam(mtmp));
+            relbuf = sprintf(relbuf, "by %s", await mon_nam(mtmp));
         }
-        You("are released %s.", relbuf);
+        await You("are released %s.", relbuf);
     }
 }
-export function probe_objchain(otmp) {
+export async function probe_objchain(otmp) {
     for (; otmp; otmp = otmp.nobj) {
-        observe_object(otmp);
+        await observe_object(otmp);
         if (((otmp).otyp >= LARGE_BOX && (otmp).otyp <= BAG_OF_TRICKS) || otmp.otyp == STATUE) {
             otmp.lknown = 1;
             if (!((otmp).otyp == LARGE_BOX && (otmp).spe == 1)) {
@@ -654,17 +609,16 @@ export function probe_objchain(otmp) {
         }
     }
 }
-export function probe_monster(mtmp) {
-    mstatusline(mtmp);
+export async function probe_monster(mtmp) {
+    await mstatusline(mtmp);
     if (game.notonhead) {
         return;
     }
     if (mtmp.minvent) {
-        /* don't show minvent for long worm tail */
-        probe_objchain(mtmp.minvent);
-        display_minventory(mtmp, 8 | 4 | 0, null);
+        await probe_objchain(mtmp.minvent);
+        await display_minventory(mtmp, 8 | 4 | 0, null);
     } else {
-        pline("%s is not carrying anything%s.", noit_Monnam(mtmp), (game.u.uswallow && (game.u.ustuck == (mtmp))) ? " besides you" : "");
+        await pline("%s is not carrying anything%s.", await noit_Monnam(mtmp), (game.u.uswallow && (game.u.ustuck == (mtmp))) ? " besides you" : "");
     }
 }
 /*
@@ -734,24 +688,17 @@ export function get_mon_location(mon, xp, yp, locflags) {
 /* used by revive() and animate_statue() */
 /* False: at obj's spot only,
                          * True: nearby is allowed */
-export function montraits(obj, cc, adjacentok) {
+export async function montraits(obj, cc, adjacentok) {
     let mtmp = null;
     let mtmp2 = ((obj).oextra && ((obj).oextra.omonst)) ? get_mtraits(obj, (1)) : null;
     if (mtmp2) {
         /* save_mtraits() validated mtmp2->mnum */
         mtmp2.data = game.mons[mtmp2.mnum];
         if (mtmp2.mhpmax > 0 || ((mtmp2.data) == game.mons[PM_DEATH] || (mtmp2.data) == game.mons[PM_FAMINE] || (mtmp2.data) == game.mons[PM_PESTILENCE])) {
-            mtmp = makemon(mtmp2.data, cc.x, cc.y, (1 | 2 | 4 | 16384 | 131072 | (adjacentok ? 16 : 0)));
+            mtmp = await makemon(mtmp2.data, cc.x, cc.y, (1 | 2 | 4 | 16384 | 131072 | (adjacentok ? 16 : 0)));
         }
         if (!mtmp) {
-            /* in case mtmp2 is a long worm; saved traits for
-                               long worm don't include tail segments so don't
-                               give mtmp any; it will be given a new 'wormno'
-                               though (unless those are exhausted) so be able
-                               to grow new tail segments */
-            /* mtmp2 is a copy of obj's object->oextra->omonst extension
-               and is not on the map or on any monst lists */
-            dealloc_monst(mtmp2);
+            await dealloc_monst(mtmp2);
             return null;
         }
         if (mtmp.m_lev < mtmp.data.mlevel) {
@@ -829,11 +776,9 @@ export function montraits(obj, cc, adjacentok) {
             }
             mtmp.isshk = 1;
         }
-        replmon(mtmp, mtmp2);
-        newsym(mtmp2.mx, mtmp2.my);
-        /* in case Protection_from_shape_changers is different
-           now than it was when the traits were stored */
-        restore_cham(mtmp2);
+        await replmon(mtmp, mtmp2);
+        await newsym(mtmp2.mx, mtmp2.my);
+        await restore_cham(mtmp2);
     }
     return mtmp2;
 }
@@ -888,7 +833,7 @@ export function zombie_can_dig(x, y) {
  * If corpse->quan is more than 1, only one corpse will be affected
  * and only one monster will be resurrected.
  */
-export function revive(corpse, by_hero) {
+export async function revive(corpse, by_hero) {
     let mtmp = null;
     let mptr = null;
     let container = null;
@@ -902,17 +847,14 @@ export function revive(corpse, by_hero) {
     let container_nesting = 0;
     let is_zomb = 0;
     if (corpse.otyp != CORPSE) {
-        impossible("Attempting to revive %s?", xname(corpse));
+        await impossible("Attempting to revive %s?", await xname(corpse));
         return null;
     }
     montype = corpse.corpsenm;
     /* treat buried auto-reviver (troll, Rider?) like a zombie
        so that it can dig itself out of the ground if it revives */
     is_zomb = game.mons[montype].mlet == S_ZOMBIE || (corpse.where == 6 && (((game.mons[montype]) == game.mons[PM_DEATH] || (game.mons[montype]) == game.mons[PM_FAMINE] || (game.mons[montype]) == game.mons[PM_PESTILENCE]) || (game.mons[montype]).mlet == S_TROLL));
-    /* if this corpse is being eaten, stop doing that; this should be done
-       after makemon() succeeds and skipped if it fails, but waiting until
-       we know the result for that would be too late */
-    cant_finish_meal(corpse);
+    await cant_finish_meal(corpse);
     x = y = 0;
     if (corpse.where != 2) {
         let locflags = is_zomb ? 2 : 0;
@@ -948,23 +890,13 @@ export function revive(corpse, by_hero) {
     }
     mptr = game.mons[montype];
     if ((game.level.monsters[x][y] != null)) {
-        /* Rules for revival from containers:
-         *  - the container cannot be locked
-         *  - the container cannot be heavily nested (>2 is arbitrary)
-         *  - the container cannot be a statue or bag of holding
-         *    (except in very rare cases for the latter)
-         */
-        /* if buried zombie cannot dig itself out, do not revive */
-        /* [should probably handle recorporealization first; if corpse and
-       ghost are at same location, revived creature shouldn't be bumped
-       to an adjacent spot by ghost which joins with it] */
-        if (enexto(xy, x, y, mptr)) {
+        if (await enexto(xy, x, y, mptr)) {
             x = xy.x , y = xy.y;
         }
     }
     if (corpse.oeroded2 || (game.mons[montype].mlet == S_EEL && !((game.level.locations[x][y].typ) >= POOL && (game.level.locations[x][y].typ) <= DRAWBRIDGE_UP))) {
         if (((game.viz_array[y][x] & 2) != 0)) {
-            pline("%s twitches feebly.", upstart(corpse_xname(corpse, null, 4)));
+            await pline("%s twitches feebly.", upstart(await corpse_xname(corpse, null, 4)));
         }
         return null;
     }
@@ -976,9 +908,7 @@ export function revive(corpse, by_hero) {
         mmflags |= 65536;
     }
     if (cant_revive({ get value() { return montype; }, set value(_v) { montype = _v; } }, (1), corpse)) {
-        /* make a zombie or doppelganger instead */
-        /* note: montype has changed; mptr keeps old value for newcham() */
-        mtmp = makemon(game.mons[montype], x, y, mmflags);
+        mtmp = await makemon(game.mons[montype], x, y, mmflags);
         if (mtmp) {
             if (((corpse).oextra && ((corpse).oextra.omid))) {
                 free_omid(corpse);
@@ -987,21 +917,20 @@ export function revive(corpse, by_hero) {
                 free_omonst(corpse);
             }
             if (mtmp.cham == PM_DOPPELGANGER) {
-                /* change shape to match the corpse */
-                newcham(mtmp, mptr, 0);
+                await newcham(mtmp, mptr, 0);
             } else if (mtmp.data.mlet == S_ZOMBIE) {
                 mtmp.mhp = mtmp.mhpmax = 100;
-                mon_adjust_speed(mtmp, 2, null);
+                await mon_adjust_speed(mtmp, 2, null);
             }
         }
     } else if (((corpse).oextra && ((corpse).oextra.omonst))) {
         xy.x = x , xy.y = y;
-        mtmp = montraits(corpse, xy, (0));
+        mtmp = await montraits(corpse, xy, (0));
         if (mtmp && mtmp.mtame && !mtmp.isminion) {
-            wary_dog(mtmp, (1));
+            await wary_dog(mtmp, (1));
         }
     } else {
-        mtmp = makemon(mptr, x, y, mmflags | 4);
+        mtmp = await makemon(mptr, x, y, mmflags | 4);
     }
     if (!mtmp) {
         return null;
@@ -1009,50 +938,41 @@ export function revive(corpse, by_hero) {
     if (mtmp.mundetected) {
         /* hiders shouldn't already be re-hidden when they revive */
         mtmp.mundetected = 0;
-        newsym(mtmp.mx, mtmp.my);
+        await newsym(mtmp.mx, mtmp.my);
     }
     if (((mtmp).m_ap_type & 7)) {
-        seemimic(mtmp);
+        await seemimic(mtmp);
     }
     one_of = (corpse.quan > 1);
     if (one_of) {
-        corpse = splitobj(corpse, 1);
+        corpse = await splitobj(corpse, 1);
     }
     if (by_hero) {
         /* if this is caused by the hero there might be a shop charge */
         let shkp = null;
         x = corpse.ox , y = corpse.oy;
-        if (costly_spot(x, y) && (((corpse).where == 3) ? corpse.unpaid : !corpse.no_charge)) {
-            shkp = shop_keeper(in_rooms(x, y, SHOPBASE));
+        if (await costly_spot(x, y) && (((corpse).where == 3) ? corpse.unpaid : !corpse.no_charge)) {
+            shkp = await shop_keeper(in_rooms(x, y, SHOPBASE));
         }
         if (((game.viz_array[y][x] & 2) != 0)) {
             let buf = '';
             buf = strcpy(buf, one_of ? "one of " : "");
-            /* shk_your: "the " or "your " or "<mon>'s " or "<Shk>'s ".
-               If the result is "Shk's " then it will be ambiguous:
-               is Shk the mon carrying it, or does Shk's shop own it?
-               Let's not worry about that... */
-            shk_your(eos(buf), corpse);
+            await shk_your(eos(buf), corpse);
             if (one_of) {
                 corpse.quan++;
             }
-            buf = strcat(buf, corpse_xname(corpse, null, 2));
+            buf = strcat(buf, await corpse_xname(corpse, null, 2));
             /* could be simplified to ''corpse->quan = 1L;'' */
             if (one_of) {
                 corpse.quan--;
             }
-            pline("%s glows iridescently.", upstart(buf));
+            await pline("%s glows iridescently.", upstart(buf));
             game.iflags.last_msg = PLNMSG_OBJ_GLOWS;
         } else if (shkp) {
-            /* need some prior description of the corpse since
-               stolen_value() will refer to the object as "it" */
-            pline("A corpse is resuscitated.");
+            await pline("A corpse is resuscitated.");
         }
-        /* don't charge for shopkeeper's own corpse if we just revived him */
-        /* [we don't give any comparable message about the corpse for
-           the !by_hero case because caller might have already done so] */
         if (shkp && mtmp != shkp) {
-            stolen_value(corpse, x, y, shkp.mpeaceful, (0));
+            await stolen_value(corpse, x, y, shkp.mpeaceful, (0));
         }
     }
     if (((corpse).oextra && ((corpse).oextra.omid))) {
@@ -1065,16 +985,14 @@ export function revive(corpse, by_hero) {
         ghost = find_mid(m_id, 1);
         if (ghost && ghost.data == game.mons[PM_GHOST]) {
             if (canseemon(ghost)) {
-                pline("%s is suddenly drawn into its former body!", Monnam(ghost));
+                await pline("%s is suddenly drawn into its former body!", await Monnam(ghost));
             }
             while ((otmp = ghost.minvent) != null) {
-                /* transfer the ghost's inventory along with it */
-                /* boulder isn't being pushed */
-                obj_extract_self(otmp);
-                add_to_minv(mtmp, otmp);
+                await obj_extract_self(otmp);
+                await add_to_minv(mtmp, otmp);
             }
             if (ghost.mtame && !mtmp.mtame) {
-                if (tamedog(mtmp, null, (0))) {
+                if (await tamedog(mtmp, null, (0))) {
                     /* tame the revived monster if its ghost was tame */
                     /* ghost's edog data is ignored */
                     mtmp.mtame = ghost.mtame;
@@ -1082,8 +1000,7 @@ export function revive(corpse, by_hero) {
             }
             /* was ghost, now alive, it's all very confusing */
             mtmp.mconf = 1;
-            /* separate ghost monster no longer exists */
-            mongone(ghost);
+            await mongone(ghost);
         }
         free_omid(corpse);
     }
@@ -1091,33 +1008,29 @@ export function revive(corpse, by_hero) {
     if (((corpse).oextra && ((corpse).oextra.oname)) && !(((mtmp.data).geno & 4096) != 0)) {
         mtmp = christen_monst(mtmp, ((corpse).oextra.oname));
     }
-    /* partially eaten corpse yields wounded monster */
     if (corpse.oeaten) {
-        mtmp.mhp = eaten_stat(mtmp.mhp, corpse);
+        mtmp.mhp = await eaten_stat(mtmp.mhp, corpse);
     }
     /* track that this monster was revived at least once */
     mtmp.mrevived = 1;
     switch (corpse.where) {
         case 3:
-            useup(corpse);
+            await useup(corpse);
             break;
         case 1:
-            delobj_core(corpse, (1));
+            await delobj_core(corpse, (1));
             break;
         case 4:
-            m_useup(corpse.v.v_ocarry, corpse);
+            await m_useup(corpse.v.v_ocarry, corpse);
             break;
         case 2:
-            obj_extract_self(corpse);
-            obfree(corpse, null);
+            await obj_extract_self(corpse);
+            await obfree(corpse, null);
             break;
         case 6:
             if (is_zomb) {
-                /* not useupf(), which charges;
-           delobj() won't use up a Rider's corpse, delobj_core(,TRUE) will */
-                /* obj_extract_self() will update corpse->ocontainer->owt */
-                obj_extract_self(corpse);
-                obfree(corpse, null);
+                await obj_extract_self(corpse);
+                await obfree(corpse, null);
                 break;
             }
             ;
@@ -1126,12 +1039,12 @@ export function revive(corpse, by_hero) {
         case 7:
         case 8:
         default:
-            panic("revive default case %d", corpse.where);
+            await panic("revive default case %d", corpse.where);
     }
     return mtmp;
 }
 /* nonnull */
-export function revive_egg(obj) {
+export async function revive_egg(obj) {
     /*
      * Note: generic eggs with corpsenm set to NON_PM will never hatch.
      */
@@ -1139,11 +1052,11 @@ export function revive_egg(obj) {
         return;
     }
     if (obj.corpsenm != NON_PM && !dead_species(obj.corpsenm, (1))) {
-        attach_egg_hatch_timeout(obj, 0);
+        await attach_egg_hatch_timeout(obj, 0);
     }
 }
 /* try to revive all corpses and eggs carried by `mon' */
-export function unturn_dead(mon) {
+export async function unturn_dead(mon) {
     let otmp = null;
     let otmp2 = null;
     let mtmp2 = null;
@@ -1162,21 +1075,19 @@ export function unturn_dead(mon) {
         /* note: worn amulet of life saving must be preserved in order to operate */
         otmp2 = otmp.nobj;
         if (otmp.otyp == EGG) {
-            revive_egg(otmp);
+            await revive_egg(otmp);
         }
         if (otmp.otyp != CORPSE) {
             /* random index was too high; mollify analyzer by including < 0 */
             continue;
         }
         if (youseeit) {
-            corpse = strcpy(corpse, corpse_xname(otmp, null, 0));
+            corpse = strcpy(corpse, await corpse_xname(otmp, null, 0));
             if (otmp.quan > 1) {
                 owner = strcpy(owner, "One of ");
-                /* save the name; the object is liable to go away */
-                /* shk_your/Shk_Your produces a value with a trailing space */
-                shk_your(eos(owner), otmp);
+                await shk_your(eos(owner), otmp);
             } else {
-                Shk_Your(owner, otmp);
+                await Shk_Your(owner, otmp);
             }
         }
         /* for a stack, only one is revived; if is_u, revive() calls
@@ -1185,7 +1096,7 @@ export function unturn_dead(mon) {
         /* norevive applies to revive timer, not to explicit unturn_dead() */
         save_norevive = otmp.oeroded2;
         otmp.oeroded2 = 0;
-        if ((mtmp2 = revive(otmp, !game.context.mon_moving)) != null) {
+        if ((mtmp2 = await revive(otmp, !game.context.mon_moving)) != null) {
             ++res;
             /* might get revived as a zombie rather than corpse's monster */
             different_type = (mtmp2.data != game.mons[corpsenm]);
@@ -1200,9 +1111,9 @@ export function unturn_dead(mon) {
                 owner = '';
             }
             if (youseeit) {
-                pline("%s%s suddenly %s%s%s!", owner, corpse, ((((mtmp2.data).mflags2 & 2) != 0) || (mtmp2.data) == game.mons[PM_MANES] || (((mtmp2.data).mlet == S_GOLEM) || (mtmp2.data).mlet == S_VORTEX)) ? "reanimates" : "comes alive", different_type ? " as " : "", different_type ? an(mon_pmname(mtmp2)) : "");
+                await pline("%s%s suddenly %s%s%s!", owner, corpse, ((((mtmp2.data).mflags2 & 2) != 0) || (mtmp2.data) == game.mons[PM_MANES] || (((mtmp2.data).mlet == S_GOLEM) || (mtmp2.data).mlet == S_VORTEX)) ? "reanimates" : "comes alive", different_type ? " as " : "", different_type ? await an(mon_pmname(mtmp2)) : "");
             } else if (canseemon(mtmp2)) {
-                pline("%s suddenly appears!", Amonnam(mtmp2));
+                await pline("%s suddenly appears!", await Amonnam(mtmp2));
             }
         } else {
             /* revival failed; corpse 'otmp' is intact */
@@ -1210,22 +1121,21 @@ export function unturn_dead(mon) {
         }
     }
     if (is_u && res) {
-        encumber_msg();
+        await encumber_msg();
     }
     return res;
 }
-export function unturn_you() {
-    /* hit carried corpses and eggs */
-    unturn_dead(game.youmonst);
+export async function unturn_you() {
+    await unturn_dead(game.youmonst);
     if ((((game.youmonst.data).mflags2 & 2) != 0)) {
-        You_feel("frightened and %sstunned.", game.u.uprops[STUNNED].intrinsic ? "even more " : "");
-        make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + rnd(30), (0));
+        await You_feel("frightened and %sstunned.", game.u.uprops[STUNNED].intrinsic ? "even more " : "");
+        await make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + rnd(30), (0));
     } else {
-        You("shudder in dread.");
+        await You("shudder in dread.");
     }
 }
 /* cancel obj, possibly carried by you or a monster */
-export function cancel_item(obj) {
+export async function cancel_item(obj) {
     let otyp = obj.otyp;
     if (((obj).where == 3)) {
         switch (otyp) {
@@ -1289,29 +1199,26 @@ export function cancel_item(obj) {
         /* not magic; cancels to blank spellbook */
         let cancelled_spe = (obj.oclass == WAND_CLASS || otyp == CRYSTAL_BALL) ? -1 : 0;
         if (obj.spe != cancelled_spe && otyp != WAN_CANCELLATION && otyp != MAGIC_LAMP && otyp != CANDELABRUM_OF_INVOCATION) {
-            /* can't cancel cancellation */
-            /* cancelling doesn't remove djinni */
-            costly_alteration(obj, COST_CANCEL);
+            await costly_alteration(obj, COST_CANCEL);
             obj.spe = cancelled_spe;
         }
         switch (obj.oclass) {
             case SCROLL_CLASS:
-                costly_alteration(obj, COST_CANCEL);
+                await costly_alteration(obj, COST_CANCEL);
                 obj.otyp = SCR_BLANK_PAPER;
                 obj.spe = 0;
                 break;
             case SPBOOK_CLASS:
                 if (otyp != SPE_CANCELLATION && otyp != SPE_BOOK_OF_THE_DEAD) {
-                    costly_alteration(obj, COST_CANCEL);
+                    await costly_alteration(obj, COST_CANCEL);
                     obj.otyp = SPE_BLANK_PAPER;
-                    /* cancelling a novel is more involved than a spellbook */
                     if (otyp == SPE_NOVEL) {
-                        blank_novel(obj);
+                        await blank_novel(obj);
                     }
                 }
                 break;
             case POTION_CLASS:
-                costly_alteration(obj, (otyp != POT_WATER) ? COST_CANCEL : obj.cursed ? COST_UNCURS : COST_UNBLSS);
+                await costly_alteration(obj, (otyp != POT_WATER) ? COST_CANCEL : obj.cursed ? COST_UNCURS : COST_UNBLSS);
                 if (otyp == POT_SICKNESS || otyp == POT_SEE_INVISIBLE) {
                     /* sickness is "biologically contaminated" fruit juice;
                    cancel it and it just becomes fruit juice...
@@ -1332,29 +1239,27 @@ export function cancel_item(obj) {
         let timout = peek_timer(REVIVE_MON, a);
         if (timout) {
             stop_timer(REVIVE_MON, a);
-            start_timer(timout, TIMER_OBJECT, ROT_CORPSE, a);
+            await start_timer(timout, TIMER_OBJECT, ROT_CORPSE, a);
         }
     }
-    unbless(obj);
-    uncurse(obj);
+    await unbless(obj);
+    await uncurse(obj);
     return;
 }
 /* soaking or cancelling a novel converts it into a blank spellbook but
    needs more than just changing its otyp (caller is responsible for that) */
-export function blank_novel(obj) {
+export async function blank_novel(obj) {
     (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
     /* novelidx overloads corpsenm, not used for spellbooks */
     obj.corpsenm = 0;
     /* get rid of [former] novel's title */
     free_oname(obj);
-    /* a blank spellbook weighs more than a novel; update obj's weight and
-       recursively the weight of any container holding it */
-    container_weight(obj);
+    await container_weight(obj);
 }
 /* Remove a positive enchantment or charge from obj,
  * possibly carried by you or a monster
  */
-export function drain_item(obj, by_you) {
+export async function drain_item(obj, by_you) {
     let u_ring = 0;
     /* Is this a charged/enchanted object? */
     if (!obj || (!game.objects[obj.otyp].oc_charged && obj.oclass != WEAPON_CLASS && obj.oclass != ARMOR_CLASS && !((obj).oclass == TOOL_CLASS && game.objects[(obj).otyp].oc_subtyp != P_NONE)) || obj.spe <= 0) {
@@ -1363,9 +1268,8 @@ export function drain_item(obj, by_you) {
     if (defends(15, obj) || defends_when_carried(15, obj) || obj_resists(obj, 10, 90)) {
         return (0);
     }
-    /* Charge for the cost of the object */
     if (by_you) {
-        costly_alteration(obj, COST_DRAIN);
+        await costly_alteration(obj, COST_DRAIN);
     }
     /* Drain the object and any implied effects */
     obj.spe--;
@@ -1421,7 +1325,7 @@ export function drain_item(obj, by_you) {
             break;
     }
     if (game.disp.botl) {
-        bot();
+        await bot();
     }
     if (((obj).where == 3)) {
         update_inventory();
@@ -1463,7 +1367,7 @@ export function obj_shudders(obj) {
  * there's a random factor here to keep from always using the stuff
  * at the top of the pile.
  */
-export function polyuse(objhdr, mat, minwt) {
+export async function polyuse(objhdr, mat, minwt) {
     let otmp = null;
     let otmp2 = null;
     for (otmp = objhdr; minwt > 0 && otmp; otmp = otmp2) {
@@ -1481,12 +1385,11 @@ export function polyuse(objhdr, mat, minwt) {
             continue;
         }
         if ((game.objects[otmp.otyp].oc_material == mat) == (rn2(minwt + 1) != 0)) {
-            if (costly_spot(otmp.ox, otmp.oy)) {
+            if (await costly_spot(otmp.ox, otmp.oy)) {
                 if (game.u.ushops) {
-                    addtobill(otmp, (0), (0), (0));
-                /* appropriately add damage to bill */
+                    await addtobill(otmp, (0), (0), (0));
                 } else {
-                    stolen_value(otmp, otmp.ox, otmp.oy, (0), (0));
+                    await stolen_value(otmp, otmp.ox, otmp.oy, (0), (0));
                 }
             }
             if (otmp.quan < 32767) {
@@ -1494,7 +1397,7 @@ export function polyuse(objhdr, mat, minwt) {
             } else {
                 minwt = 0;
             }
-            delobj(otmp);
+            await delobj(otmp);
         }
     }
 }
@@ -1502,7 +1405,7 @@ export function polyuse(objhdr, mat, minwt) {
  * Polymorph some of the stuff in this pile into a monster, preferably
  * a golem of the kind okind.
  */
-export function create_polymon(obj, okind) {
+export async function create_polymon(obj, okind) {
     let mdat = null;
     let mtmp = null;
     let material = null;
@@ -1578,14 +1481,14 @@ export function create_polymon(obj, okind) {
     if (!(game.mvitals[pm_index].mvflags & 2)) {
         mdat = game.mons[pm_index];
     }
-    mtmp = makemon(mdat, obj.ox, obj.oy, 131072);
-    polyuse(obj, okind, game.mons[pm_index].cwt);
+    mtmp = await makemon(mdat, obj.ox, obj.oy, 131072);
+    await polyuse(obj, okind, game.mons[pm_index].cwt);
     if (mtmp && ((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
-        pline("Some %sobjects meld, and %s arises from the pile!", material, a_monnam(mtmp));
+        await pline("Some %sobjects meld, and %s arises from the pile!", material, await a_monnam(mtmp));
     }
 }
 /* Assumes obj is on the floor. */
-export function do_osshock(obj) {
+export async function do_osshock(obj) {
     let i = 0;
     if (obj.otyp == SCR_MAIL) {
         return;
@@ -1601,20 +1504,19 @@ export function do_osshock(obj) {
     }
     if (obj.quan > 1) {
         if (obj.quan > 32767) {
-            obj = splitobj(obj, rnd(30000));
-        /* if quan > 1 then some will survive intact */
+            obj = await splitobj(obj, rnd(30000));
         } else {
-            obj = splitobj(obj, rnd(obj.quan - 1));
+            obj = await splitobj(obj, rnd(obj.quan - 1));
         }
     }
-    if (costly_spot(obj.ox, obj.oy)) {
+    if (await costly_spot(obj.ox, obj.oy)) {
         if (game.u.ushops) {
-            addtobill(obj, (0), (0), (0));
+            await addtobill(obj, (0), (0), (0));
         } else {
-            stolen_value(obj, obj.ox, obj.oy, (0), (0));
+            await stolen_value(obj, obj.ox, obj.oy, (0), (0));
         }
     }
-    delobj(obj);
+    await delobj(obj);
 }
 /* Returns TRUE if obj resists polymorphing */
 export function obj_unpolyable(obj) {
@@ -1634,7 +1536,7 @@ export const charged_objs = [WAND_CLASS, WEAPON_CLASS, ARMOR_CLASS, 0];
  *
  * This should be safe to call for an object anywhere.
  */
-export function poly_obj(obj, id) {
+export async function poly_obj(obj, id) {
     let otmp = null;
     let ox = 0;
     let oy = 0;
@@ -1656,16 +1558,15 @@ export function poly_obj(obj, id) {
         otmp = null;
         do {
             if (otmp) {
-                delobj(otmp);
+                await delobj(otmp);
             }
-            otmp = mkobj(obj.oclass, (0));
+            otmp = await mkobj(obj.oclass, (0));
         } while (--try_limit > 0 && game.objects[otmp.otyp].oc_magic != magic_obj);
     } else {
-        /* literally replace obj with this new thing */
-        otmp = mksobj(id, (0), (0));
+        otmp = await mksobj(id, (0), (0));
         /* Actually more things use corpsenm but they polymorph differently */
         if (((obj.otyp) == CORPSE || (obj.otyp) == STATUE || (obj.otyp) == FIGURINE) && ((id) == CORPSE || (id) == STATUE || (id) == FIGURINE)) {
-            set_corpsenm(otmp, obj.corpsenm);
+            await set_corpsenm(otmp, obj.corpsenm);
         }
     }
     otmp.quan = obj.quan;
@@ -1691,7 +1592,7 @@ export function poly_obj(obj, id) {
         /* first, turn into a generic egg */
         } else {
             otmp.otyp = EGG;
-            otmp.owt = weight(otmp);
+            otmp.owt = await weight(otmp);
         }
         otmp.corpsenm = NON_PM;
         otmp.spe = 0;
@@ -1700,7 +1601,7 @@ export function poly_obj(obj, id) {
             mnum = can_be_hatched(((rn2)(NUMMONS)));
             if (mnum != NON_PM && !dead_species(mnum, (1))) {
                 otmp.spe = 1;
-                set_corpsenm(otmp, mnum);
+                await set_corpsenm(otmp, mnum);
                 break;
             }
         }
@@ -1753,7 +1654,7 @@ export function poly_obj(obj, id) {
         }
     }
     if (((otmp).cobj != null)) {
-        delete_contents(otmp);
+        await delete_contents(otmp);
     }
     /* 'n' merged objects may be fused into 1 object */
     if (otmp.quan > 1 && (!game.objects[otmp.otyp].oc_merge || (can_merge && otmp.quan > rn2(1000)))) {
@@ -1815,23 +1716,17 @@ export function poly_obj(obj, id) {
             }
             break;
     }
-    otmp.owt = weight(otmp);
+    otmp.owt = await weight(otmp);
     /*
      * ** we are now done adjusting the object (except possibly wearing it) **
      */
     get_obj_location(obj, { get value() { return ox; }, set value(_v) { ox = _v; } }, { get value() { return oy; }, set value(_v) { oy = _v; } }, 2 | 1);
     old_wornmask = obj.owornmask & ~(4096 | 8192);
-    replace_object(obj, otmp);
+    await replace_object(obj, otmp);
     if (obj_location == 3) {
-        /*
-         * We may need to do extra adjustments for the hero if we're
-         * messing with the hero's inventory.  The following calls are
-         * equivalent to calling freeinv() on obj and addinv_nomerge()
-         * on otmp, while doing an in-place swap of the actual objects.
-         */
-        freeinv_core(obj);
-        addinv_core1(otmp);
-        addinv_core2(otmp);
+        await freeinv_core(obj);
+        await addinv_core1(otmp);
+        await addinv_core2(otmp);
         if (old_wornmask) {
             /*
          * Handle polymorph of worn item.  Stone-to-flesh cast on self can
@@ -1847,29 +1742,27 @@ export function poly_obj(obj, id) {
                return multiple bits (ring left|right); narrow that down to
                the bit(s) currently in use */
             new_wornmask = ((old_wornmask & (256 | 1024 | 512)) != 0) ? old_wornmask : (wearslot(otmp) & old_wornmask);
-            remove_worn_item(obj, (1));
+            await remove_worn_item(obj, (1));
             if ((new_wornmask & 256) != 0) {
                 /* if the new form can be worn in the same slot, make it so */
                 if (was_twohanded || !((otmp.oclass == WEAPON_CLASS || otmp.oclass == TOOL_CLASS) && game.objects[otmp.otyp].oc_big) || !game.uarms) {
-                    setuwep(otmp);
+                    await setuwep(otmp);
                 }
                 if (was_twoweap && game.uwep && !((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big)) {
                     set_twoweap((1));
                 }
             } else if ((new_wornmask & 1024) != 0) {
                 if (was_twohanded || !((otmp.oclass == WEAPON_CLASS || otmp.oclass == TOOL_CLASS) && game.objects[otmp.otyp].oc_big)) {
-                    setuswapwep(otmp);
+                    await setuswapwep(otmp);
                 }
                 if (was_twoweap && game.uswapwep) {
                     set_twoweap((1));
                 }
             } else if ((new_wornmask & 512) != 0) {
-                setuqwep(otmp);
+                await setuqwep(otmp);
             } else if (new_wornmask) {
-                setworn(otmp, new_wornmask);
-                /* set_wear() might result in otmp being destroyed if
-                   worn amulet has been turned into an amulet of change */
-                set_wear(otmp);
+                await setworn(otmp, new_wornmask);
+                await set_wear(otmp);
                 otmp = wearmask_to_obj(new_wornmask);
             }
         }
@@ -1879,37 +1772,35 @@ export function poly_obj(obj, id) {
                 unblock_point(ox, oy);
             }
         } else if (obj.otyp != BOULDER && otmp.otyp == BOULDER) {
-            /* leaving boulder in liquid would trigger sanity_check warning */
             if (is_pool_or_lava(ox, oy)) {
-                fracture_rock(otmp);
+                await fracture_rock(otmp);
             }
             if (does_block(ox, oy, game.level.locations[ox][oy])) {
                 block_point(ox, oy);
             }
         }
     }
-    if (((otmp && !((otmp).where == 3)) || obj.unpaid) && costly_spot(ox, oy)) {
-        /* note: if otmp is gone, billing for it was handled by useup() */
-        let shkp = shop_keeper(in_rooms(ox, oy, SHOPBASE));
-        if ((!obj.no_charge || (((obj).cobj != null) && (contained_cost(obj, shkp, 0, (0), (0)) != 0))) && inhishop(shkp)) {
+    if (((otmp && !((otmp).where == 3)) || obj.unpaid) && await costly_spot(ox, oy)) {
+        let shkp = await shop_keeper(in_rooms(ox, oy, SHOPBASE));
+        if ((!obj.no_charge || (((obj).cobj != null) && (await contained_cost(obj, shkp, 0, (0), (0)) != 0))) && inhishop(shkp)) {
             if (shkp.mpeaceful) {
-                if (game.u.ushops && (in_rooms(game.u.ux, game.u.uy, 0) == in_rooms(shkp.mx, shkp.my, 0)) && !costly_spot(game.u.ux, game.u.uy)) {
-                    make_angry_shk(shkp, ox, oy);
+                if (game.u.ushops && (in_rooms(game.u.ux, game.u.uy, 0) == in_rooms(shkp.mx, shkp.my, 0)) && !await costly_spot(game.u.ux, game.u.uy)) {
+                    await make_angry_shk(shkp, ox, oy);
                 } else {
-                    pline("%s gets angry!", Shknam(shkp));
+                    await pline("%s gets angry!", await Shknam(shkp));
                     hot_pursuit(shkp);
                 }
             } else {
-                Norep("%s is furious!", Shknam(shkp));
+                await Norep("%s is furious!", await Shknam(shkp));
             }
         }
     }
-    delobj(obj);
+    await delobj(obj);
     return otmp;
 }
 /* stone-to-flesh spell hits and maybe transforms or animates obj */
 /* nonnull */
-export function stone_to_flesh_obj(obj) {
+export async function stone_to_flesh_obj(obj) {
     let ptr = null;
     let mon = null;
     let shkp = null;
@@ -1932,43 +1823,40 @@ export function stone_to_flesh_obj(obj) {
         case ROCK_CLASS:
         case TOOL_CLASS:
             if (obj.otyp == BOULDER) {
-                /* add more if stone objects are added... */
-                obj = poly_obj(obj, ENORMOUS_MEATBALL);
+                obj = await poly_obj(obj, ENORMOUS_MEATBALL);
                 smell = (1);
             } else if (obj.otyp == STATUE || obj.otyp == FIGURINE) {
                 ptr = game.mons[obj.corpsenm];
                 if (((ptr).mlet == S_GOLEM)) {
                     golem_xform = (ptr != game.mons[PM_FLESH_GOLEM]);
                 } else if ((((ptr).mlet == S_BLOB || (ptr).mlet == S_JELLY || (ptr).mlet == S_FUNGUS || (ptr).mlet == S_VORTEX || (ptr).mlet == S_LIGHT || ((ptr).mlet == S_ELEMENTAL && (ptr) != game.mons[PM_STALKER]) || ((ptr).mlet == S_GOLEM && (ptr) != game.mons[PM_FLESH_GOLEM] && (ptr) != game.mons[PM_LEATHER_GOLEM]) || ((ptr).mlet == S_GHOST)) || ((ptr).mlet == S_PUDDING && (ptr) != game.mons[PM_BLACK_PUDDING]))) {
-                    /* Don't animate monsters that aren't flesh */
-                    obj = poly_obj(obj, MEATBALL);
+                    obj = await poly_obj(obj, MEATBALL);
                     smell = (1);
                     /* fireballs explode before the obstacle */
                     break;
                 }
                 if (obj.otyp == STATUE) {
-                    /* animate_statue() forces all golems to become flesh golems */
-                    mon = animate_statue(obj, oox, ooy, 2, null);
+                    mon = await animate_statue(obj, oox, ooy, 2, null);
                 } else {
                     if (golem_xform) {
                         ptr = game.mons[PM_FLESH_GOLEM];
                     }
-                    mon = makemon(ptr, oox, ooy, 1 | 131072);
+                    mon = await makemon(ptr, oox, ooy, 1 | 131072);
                     if (mon) {
-                        if (costly_spot(oox, ooy) && (((obj).where == 3) ? obj.unpaid : !obj.no_charge)) {
-                            shkp = shop_keeper(in_rooms(oox, ooy, SHOPBASE));
-                            stolen_value(obj, oox, ooy, (shkp && shkp.mpeaceful), (0));
+                        if (await costly_spot(oox, ooy) && (((obj).where == 3) ? obj.unpaid : !obj.no_charge)) {
+                            shkp = await shop_keeper(in_rooms(oox, ooy, SHOPBASE));
+                            await stolen_value(obj, oox, ooy, (shkp && shkp.mpeaceful), (0));
                         }
                         if (obj.timed) {
                             obj_stop_timers(obj);
                         }
                         if (((obj).where == 3)) {
-                            useup(obj);
+                            await useup(obj);
                         } else {
-                            delobj(obj);
+                            await delobj(obj);
                         }
                         if (((game.viz_array[mon.my][mon.mx] & 2) != 0)) {
-                            pline_The("figurine %sanimates!", golem_xform ? "turns to flesh and " : "");
+                            await pline_The("figurine %sanimates!", golem_xform ? "turns to flesh and " : "");
                         }
                     }
                 }
@@ -1976,7 +1864,7 @@ export function stone_to_flesh_obj(obj) {
                     ptr = mon.data;
                     /* this golem handling is redundant... */
                     if (((ptr).mlet == S_GOLEM) && ptr != game.mons[PM_FLESH_GOLEM]) {
-                        newcham(mon, game.mons[PM_FLESH_GOLEM], 2);
+                        await newcham(mon, game.mons[PM_FLESH_GOLEM], 2);
                     }
                 } else if ((ptr.geno & (16 | 4096)) != 0) {
                     /* didn't revive but can't leave corpse either */
@@ -1988,11 +1876,10 @@ export function stone_to_flesh_obj(obj) {
                    sets the G_NOCORPSE flag; drop statue's contents */
                         /* make stone-to-flesh miss it */
                         bypass_obj(item);
-                        /* drop any objects contained inside the statue */
-                        obj_extract_self(item);
-                        place_object(item, oox, ooy);
+                        await obj_extract_self(item);
+                        await place_object(item, oox, ooy);
                     }
-                    obj = poly_obj(obj, CORPSE);
+                    obj = await poly_obj(obj, CORPSE);
                 }
             } else {
                 res = 0;
@@ -2001,15 +1888,15 @@ export function stone_to_flesh_obj(obj) {
         /* maybe add weird things to become? */
         /* some of the rings are stone */
         case RING_CLASS:
-            obj = poly_obj(obj, MEAT_RING);
+            obj = await poly_obj(obj, MEAT_RING);
             smell = (1);
             break;
         case WAND_CLASS:
-            obj = poly_obj(obj, MEAT_STICK);
+            obj = await poly_obj(obj, MEAT_STICK);
             smell = (1);
             break;
         case GEM_CLASS:
-            obj = poly_obj(obj, MEATBALL);
+            obj = await poly_obj(obj, MEATBALL);
             smell = (1);
             break;
         case WEAPON_CLASS:
@@ -2021,26 +1908,19 @@ export function stone_to_flesh_obj(obj) {
     ((obj));
     if (smell) {
         if ((game.urole.mnum == (PM_MONK)) || !game.u.uconduct.unvegetarian || !(((game.youmonst.data).mflags1 & 536870912) != 0)) {
-            Norep("You smell the odor of meat.");
-        /* avoid 'assigned value not used' for poly_obj() calls */
-        /* non-meat eaters smell meat, meat eaters smell its flavor;
-           monks are considered non-meat eaters regardless of behavior;
-           other roles are non-meat eaters if they haven't broken
-           vegetarian conduct yet (or if poly'd into non-carnivorous/
-           non-omnivorous form, regardless of whether it's herbivorous,
-           non-eating, or something stranger) */
+            await Norep("You smell the odor of meat.");
         } else {
-            Norep("You smell a delicious smell.");
+            await Norep("You smell a delicious smell.");
         }
     }
-    newsym(oox, ooy);
+    await newsym(oox, ooy);
     return res;
 }
 /*
  * Object obj was hit by the effect of the wand/spell otmp.  Return
  * non-zero if the wand/spell had any effect.
  */
-export function bhito(obj, otmp) {
+export async function bhito(obj, otmp) {
     let res = 1;
     let learn_it = (0);
     let maybelearnit = 0;
@@ -2091,7 +1971,7 @@ export function bhito(obj, otmp) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/zap.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("%s for a moment.", Tobjnam(obj, "pulsate"));
+                    await pline("%s for a moment.", await Tobjnam(obj, "pulsate"));
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -2104,14 +1984,14 @@ export function bhito(obj, otmp) {
      * for the STONE_TO_FLESH spell.
      */
     if (!(obj.where == 1 || otmp.otyp == SPE_STONE_TO_FLESH)) {
-        impossible("bhito: obj is not floor or Stone To Flesh spell");
+        await impossible("bhito: obj is not floor or Stone To Flesh spell");
     }
     if (obj == game.uball) {
         res = 0;
     } else if (obj == game.uchain) {
         if (otmp.otyp == WAN_OPENING || otmp.otyp == SPE_KNOCK) {
             learn_it = (1);
-            unpunish();
+            await unpunish();
         } else {
             res = 0;
         }
@@ -2128,52 +2008,44 @@ export function bhito(obj, otmp) {
                 }
                 /* any saved lock context will be dangerously obsolete */
                 if (((obj).otyp == LARGE_BOX || (obj).otyp == CHEST)) {
-                    boxlock(obj, otmp);
+                    await boxlock(obj, otmp);
                 }
                 if (obj_shudders(obj)) {
                     let cover = ((obj == game.level.objects[game.u.ux][game.u.uy]) && game.u.uundetected && (((game.youmonst.data).mflags1 & 128) != 0));
                     if (((game.viz_array[obj.oy][obj.ox] & 2) != 0)) {
                         learn_it = (1);
                     }
-                    do_osshock(obj);
-                    /* eek - your cover might have been blown */
+                    await do_osshock(obj);
                     if (cover) {
-                        hideunder(game.youmonst);
+                        await hideunder(game.youmonst);
                     }
                     break;
                 }
-                obj = poly_obj(obj, STRANGE_OBJECT);
-                newsym(obj.ox, obj.oy);
+                obj = await poly_obj(obj, STRANGE_OBJECT);
+                await newsym(obj.ox, obj.oy);
                 break;
             case WAN_PROBING:
                 res = !obj.dknown;
-                observe_object(obj);
+                await observe_object(obj);
                 if (((obj).otyp >= LARGE_BOX && (obj).otyp <= BAG_OF_TRICKS) || obj.otyp == STATUE) {
                     obj.cknown = obj.lknown = 1;
                     if (((obj).otyp == LARGE_BOX || (obj).otyp == CHEST) && !obj.tknown) {
-                        /* obj->tknown applies to boxes and chests, not bags or
-                       statues; plural handling here and the "empty" case
-                       below are superfluous because containers don't stack */
                         if (obj.otrapped) {
-                            pline("%s trapped!", Tobjnam(obj, "are"));
+                            await pline("%s trapped!", await Tobjnam(obj, "are"));
                         }
                         obj.tknown = 1;
                     }
                     if (!obj.cobj) {
-                        pline("%s empty.", Tobjnam(obj, "are"));
+                        await pline("%s empty.", await Tobjnam(obj, "are"));
                     } else if (((obj).otyp == LARGE_BOX && (obj).spe == 1)) {
-                        /* we don't want to force alive vs dead
-                       determination for Schroedinger's Cat here,
-                       so just make probing be inconclusive for it */
-                        You("aren't sure whether %s has %s or its corpse inside.", the(xname(obj)), an((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? rndmonnam(null) : "cat"));
+                        await You("aren't sure whether %s has %s or its corpse inside.", await the(await xname(obj)), await an((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? await rndmonnam(null) : "cat"));
                         obj.cknown = 0;
                     } else {
                         let o = null;
-                        /* view contents (not recursively) */
                         for (o = obj.cobj; o; o = o.nobj) {
-                            observe_object(o);
+                            await observe_object(o);
                         }
-                        display_cinventory(obj);
+                        await display_cinventory(obj);
                     }
                     res = 1;
                 } else if (obj.otyp == TIN) {
@@ -2204,35 +2076,30 @@ export function bhito(obj, otmp) {
                 if (obj.otyp == BOULDER) {
                     ;
                     if (((game.viz_array[obj.oy][obj.ox] & 2) != 0)) {
-                        pline_The("boulder falls apart.");
-                    /* learn the type if you see or hear something break
-               (the sound could be implicit) */
+                        await pline_The("boulder falls apart.");
                     } else {
-                        You_hear("a crumbling sound.");
+                        await You_hear("a crumbling sound.");
                     }
-                    fracture_rock(obj);
+                    await fracture_rock(obj);
                 } else if (obj.otyp == STATUE) {
-                    if (break_statue(obj)) {
+                    if (await break_statue(obj)) {
                         if (((game.viz_array[obj.oy][obj.ox] & 2) != 0)) {
                             if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                                pline_The("%s shatters.", rndmonnam(null));
+                                await pline_The("%s shatters.", await rndmonnam(null));
                             } else {
-                                pline_The("statue shatters.");
+                                await pline_The("statue shatters.");
                             }
                         } else {
-                            You_hear("a crumbling sound.");
+                            await You_hear("a crumbling sound.");
                         }
                     }
                 } else {
                     let oox = obj.ox;
                     let ooy = obj.oy;
-                    if (game.context.mon_moving ? !breaks(obj, oox, ooy) : !hero_breaks(obj, oox, ooy, 0)) {
+                    if (game.context.mon_moving ? !await breaks(obj, oox, ooy) : !await hero_breaks(obj, oox, ooy, 0)) {
                         maybelearnit = (0);
-                    /* obj broke; force redisplay in case it was the only--
-                       or last--item under non-breaking pile-top; top item
-                       here might now be a lone object rather than a pile */
                     } else {
-                        newsym_force(oox, ooy);
+                        await newsym_force(oox, ooy);
                     }
                     res = 0;
                 }
@@ -2242,19 +2109,19 @@ export function bhito(obj, otmp) {
                 break;
             case WAN_CANCELLATION:
             case SPE_CANCELLATION:
-                cancel_item(obj);
-                newsym(obj.ox, obj.oy);
+                await cancel_item(obj);
+                await newsym(obj.ox, obj.oy);
                 break;
             case SPE_DRAIN_LIFE:
-                drain_item(obj, (1));
+                await drain_item(obj, (1));
                 break;
             case WAN_TELEPORTATION:
             case SPE_TELEPORT_AWAY:
 {
                     let ox = obj.ox;
                     let oy = obj.oy;
-                    rloco(obj);
-                    maybe_unhide_at(ox, oy);
+                    await rloco(obj);
+                    await maybe_unhide_at(ox, oy);
                 }
                 break;
             case WAN_MAKE_INVISIBLE:
@@ -2262,7 +2129,7 @@ export function bhito(obj, otmp) {
             case WAN_UNDEAD_TURNING:
             case SPE_TURN_UNDEAD:
                 if (obj.otyp == EGG) {
-                    revive_egg(obj);
+                    await revive_egg(obj);
                 } else if (obj.otyp == CORPSE) {
                     let mtmp = null;
                     let ox = 0;
@@ -2270,7 +2137,7 @@ export function bhito(obj, otmp) {
                     let save_norevive = 0;
                     let by_u = !game.context.mon_moving;
                     let corpsenm = corpse_revive_type(obj);
-                    let corpsname = cxname_singular(obj);
+                    let corpsname = await cxname_singular(obj);
                     /* get corpse's location before revive() uses it up */
                     if (!get_obj_location(obj, { get value() { return ox; }, set value(_v) { ox = _v; } }, { get value() { return oy; }, set value(_v) { oy = _v; } }, 0)) {
                         ox = obj.ox , oy = obj.oy;
@@ -2278,7 +2145,7 @@ export function bhito(obj, otmp) {
                     /* explicit revival magic overrides timer-based no-revive */
                     save_norevive = obj.oeroded2;
                     obj.oeroded2 = 0;
-                    mtmp = revive(obj, (1));
+                    mtmp = await revive(obj, (1));
                     if (!mtmp) {
                         obj.oeroded2 = save_norevive;
                         /* no monster implies corpse was left intact */
@@ -2286,7 +2153,7 @@ export function bhito(obj, otmp) {
                     } else {
                         if (((game.viz_array[oy][ox] & 2) != 0)) {
                             if ((canseemon(mtmp) || sensemon(mtmp))) {
-                                pline("%s is resurrected!", upstart(noname_monnam(mtmp, 1)));
+                                await pline("%s is resurrected!", upstart(await noname_monnam(mtmp, 1)));
                                 learn_it = by_u ? (1) : game.zap_oseen;
                             } else {
                                 /* saw corpse but don't see monster: maybe
@@ -2294,28 +2161,28 @@ export function bhito(obj, otmp) {
                                a different spot than <ox,oy> */
                                 /* couldn't see corpse's location */
                                 if (!(((game.mons[corpsenm]).mflags2 & 524288) != 0)) {
-                                    corpsname = The(corpsname);
+                                    corpsname = await The(corpsname);
                                 }
-                                pline("%s disappears.", corpsname);
+                                await pline("%s disappears.", corpsname);
                             }
                         } else {
                             if ((game.urole.mnum == (PM_HEALER)) && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !((((game.mons[corpsenm]).mflags2 & 2) != 0) || (game.mons[corpsenm]) == game.mons[PM_MANES] || (((game.mons[corpsenm]).mlet == S_GOLEM) || (game.mons[corpsenm]).mlet == S_VORTEX))) {
                                 if (!(((game.mons[corpsenm]).mflags2 & 524288) != 0)) {
-                                    corpsname = an(corpsname);
+                                    corpsname = await an(corpsname);
                                 }
                                 if (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                                    You_hear("%s reviving.", corpsname);
+                                    await You_hear("%s reviving.", corpsname);
                                 } else {
-                                    You_hear("a defibrillator.");
+                                    await You_hear("a defibrillator.");
                                 }
                                 learn_it = by_u ? (1) : game.zap_oseen;
                             }
                             if ((canseemon(mtmp) || sensemon(mtmp))) {
-                                pline("%s appears.", Monnam(mtmp));
+                                await pline("%s appears.", await Monnam(mtmp));
                             }
                         }
                         if (learn_it) {
-                            exercise(A_WIS, (1));
+                            await exercise(A_WIS, (1));
                         }
                     }
                 }
@@ -2325,7 +2192,7 @@ export function bhito(obj, otmp) {
             case WAN_LOCKING:
             case SPE_WIZARD_LOCK:
                 if (((obj).otyp == LARGE_BOX || (obj).otyp == CHEST)) {
-                    res = boxlock(obj, otmp);
+                    res = await boxlock(obj, otmp);
                 } else {
                     res = 0;
                 }
@@ -2342,15 +2209,15 @@ export function bhito(obj, otmp) {
                 res = 0;
                 break;
             case SPE_STONE_TO_FLESH:
-                res = stone_to_flesh_obj(obj);
+                res = await stone_to_flesh_obj(obj);
                 break;
             default:
-                impossible("What an interesting effect (%d)", otmp.otyp);
+                await impossible("What an interesting effect (%d)", otmp.otyp);
                 break;
         }
     }
     if (learn_it) {
-        learnwand(otmp);
+        await learnwand(otmp);
     }
     return res;
 }
@@ -2359,7 +2226,7 @@ export function bhito(obj, otmp) {
 /* callback for each object being hit */
 /* target location */
 /* direction for up/down zaps */
-export function bhitpile(obj, fhito, tx, ty, zz) {
+export async function bhitpile(obj, fhito, tx, ty, zz) {
     let otmp = null;
     let next_obj = null;
     let hidingunder = 0;
@@ -2376,15 +2243,8 @@ export function bhitpile(obj, fhito, tx, ty, zz) {
     if (obj.otyp == SPE_FORCE_BOLT || obj.otyp == WAN_STRIKING) {
         let t = t_at(tx, ty);
         let topofpile = game.level.objects[tx][ty];
-        /* We can't settle for the default calling sequence of
-           bhito(otmp) -> break_statue(otmp) -> activate_statue_trap(ox,oy)
-           because that last call might end up operating on our `next_obj'
-           (below), rather than on the current object, if it happens to
-           encounter a statue which mustn't become animated. */
-        if (t && t.ttyp == STATUE_TRAP && activate_statue_trap(t, tx, ty, (1))) {
-            /* effect was observable; discover the wand type provided
-           that the wand itself has been seen */
-            learnwand(obj);
+        if (t && t.ttyp == STATUE_TRAP && await activate_statue_trap(t, tx, ty, (1))) {
+            await learnwand(obj);
         }
         /* assume zapping up or down while hiding under the top item can
            still activate the trap even if it's below (when zapping up)
@@ -2417,7 +2277,7 @@ export function bhitpile(obj, fhito, tx, ty, zz) {
         hitanything += (fhito)(otmp, obj);
     }
     if (game.poly_zapped >= 0) {
-        create_polymon(game.level.objects[tx][ty], game.poly_zapped);
+        await create_polymon(game.level.objects[tx][ty], game.poly_zapped);
     }
     /* when boulders are present they're expected to be on top; with
        multiple boulders it's possible for some to have been changed into
@@ -2426,16 +2286,15 @@ export function bhitpile(obj, fhito, tx, ty, zz) {
     prevotyp = BOULDER;
     for (otmp = game.level.objects[tx][ty]; otmp; otmp = otmp.v.v_nexthere) {
         if (otmp.otyp == BOULDER && prevotyp != BOULDER) {
-            recreate_pile_at(tx, ty);
+            await recreate_pile_at(tx, ty);
             break;
         }
         prevotyp = otmp.otyp;
     }
-    /* pile might have been destroyed or dispersed */
     if (hidingunder) {
-        maybe_unhide_at(tx, ty);
+        await maybe_unhide_at(tx, ty);
     }
-    fill_pit(tx, ty);
+    await fill_pit(tx, ty);
     return hitanything;
 }
 /*
@@ -2443,40 +2302,40 @@ export function bhitpile(obj, fhito, tx, ty, zz) {
  *            it removes a charge from the wand if zappable.
  * added by GAN 11/03/86
  */
-export function zappable(wand) {
+export async function zappable(wand) {
     if (wand.spe < 0 || (wand.spe == 0 && rn2(121))) {
         return 0;
     }
     if (wand.spe == 0) {
-        You("wrest one last charge from the worn-out wand.");
+        await You("wrest one last charge from the worn-out wand.");
     }
     wand.spe--;
     return 1;
 }
-export function do_enlightenment_effect() {
-    You_feel("self-knowledgeable...");
-    (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
-    enlightenment(2, 0);
-    pline_The("feeling subsides.");
-    exercise(A_WIS, (1));
+export async function do_enlightenment_effect() {
+    await You_feel("self-knowledgeable...");
+    await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+    await enlightenment(2, 0);
+    await pline_The("feeling subsides.");
+    await exercise(A_WIS, (1));
 }
 /*
  * zapnodir - zaps a NODIR wand/spell.
  * Won't get here if wand has no charges (unless wresting 1 last charge).
  */
-export function zapnodir(obj) {
+export async function zapnodir(obj) {
     let known = (0);
     switch (obj.otyp) {
         case WAN_LIGHT:
         case SPE_LIGHT:
             known = (obj.dknown && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked));
-            litroom((1), obj);
-            lightdamage(obj, (1), 5);
+            await litroom((1), obj);
+            await lightdamage(obj, (1), 5);
             break;
         case WAN_SECRET_DOOR_DETECTION:
         case SPE_DETECT_UNSEEN:
             known = !!obj.dknown;
-            findit();
+            await findit();
             break;
         case WAN_STASIS:
 {
@@ -2494,45 +2353,41 @@ export function zapnodir(obj) {
                 break;
             }
         case WAN_CREATE_MONSTER:
-            if (create_critters(rn2(23) ? 1 : (rn2(7) + (2)), null, (0))) {
+            if (await create_critters(rn2(23) ? 1 : (rn2(7) + (2)), null, (0))) {
                 known = !!obj.dknown;
             }
             break;
         case WAN_WISHING:
             if ((game.u.uluck + game.u.moreluck) + rn2(5) < 0) {
-                /* create_critters() returns True iff hero sees a new monster appear */
-                pline("Unfortunately, nothing happens.");
+                await pline("Unfortunately, nothing happens.");
                 known = (0);
             } else {
                 known = !!obj.dknown;
-                /* wand of wishing asks player what to wish for so always becomes
-               discovered (unless it hasn't been seen) */
-                makewish();
+                await makewish();
             }
             break;
         case WAN_ENLIGHTENMENT:
             known = !!obj.dknown;
-            /* do_enlightenmnt_effect() always describes enlightenment */
-            do_enlightenment_effect();
+            await do_enlightenment_effect();
             break;
         default:
             break;
     }
     if (known) {
         if (!game.objects[obj.otyp].oc_name_known) {
-            more_experienced(0, 10);
+            await more_experienced(0, 10);
         }
-        learnwand(obj);
+        await learnwand(obj);
     }
 }
-export function backfire(otmp) {
+export async function backfire(otmp) {
     let dmg = 0;
     /* in case losehp() is fatal */
     otmp.in_use = (1);
-    pline("%s suddenly explodes!", The(xname(otmp)));
+    await pline("%s suddenly explodes!", await The(await xname(otmp)));
     dmg = d(otmp.spe + 2, 6);
-    losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "exploding wand", 0);
-    useupall(otmp);
+    await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "exploding wand", 0);
+    await useupall(otmp);
 }
 /* getobj callback for object to zap */
 export function zap_ok(obj) {
@@ -2542,41 +2397,40 @@ export function zap_ok(obj) {
     return GETOBJ_EXCLUDE;
 }
 /* #zap command, 'z' (or 'y' if numbed_pad==-1) */
-export function dozap() {
+export async function dozap() {
     let obj = null;
     let damage = 0;
     let need_dir = 0;
     if ((((game.youmonst.data).mflags1 & 8192) != 0)) {
-        You("aren't able to zap anything in your current form.");
+        await You("aren't able to zap anything in your current form.");
         return 0;
     }
-    if (check_capacity(null)) {
+    if (await check_capacity(null)) {
         return 0;
     }
-    obj = getobj("zap", zap_ok, 0);
+    obj = await getobj("zap", zap_ok, 0);
     if (!obj) {
         return 2;
     }
-    check_unpaid(obj);
+    await check_unpaid(obj);
     need_dir = game.objects[obj.otyp].oc_dir != 1;
-    if (!zappable(obj)) {
-        pline("%s", c_common_strings.c_nothing_happens);
+    if (!await zappable(obj)) {
+        await pline("%s", c_common_strings.c_nothing_happens);
     } else if (obj.cursed && !rn2(100)) {
-        /* the wand blows up in your face! */
-        backfire(obj);
-        exercise(A_STR, (0));
+        await backfire(obj);
+        await exercise(A_STR, (0));
         /* 'obj' is gone; skip update_inventory() because
            backfire() -> useupall() -> freeinv() did it */
         return 1;
-    } else if (need_dir && !getdir(null)) {
+    } else if (need_dir && !await getdir(null)) {
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            pline("%s glows and fades.", The(xname(obj)));
+            await pline("%s glows and fades.", await The(await xname(obj)));
         }
     } else if (need_dir && !game.u.dx && !game.u.dy && !game.u.dz) {
-        if ((damage = zapyourself(obj, (1))) != 0) {
+        if ((damage = await zapyourself(obj, (1))) != 0) {
             let buf = '';
-            buf = sprintf(buf, "zapped %sself with %s", (genders[game.flags.female ? 1 : 0].him), killer_xname(obj));
-            losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((damage) + 1) / 2)) : (damage)), buf, 2);
+            buf = sprintf(buf, "zapped %sself with %s", (genders[game.flags.female ? 1 : 0].him), await killer_xname(obj));
+            await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((damage) + 1) / 2)) : (damage)), buf, 2);
         }
     } else {
         /*      Are we having fun yet?
@@ -2586,28 +2440,27 @@ export function dozap() {
          * useup -> obfree -> dealloc_obj -> free(obj)
          */
         game.current_wand = obj;
-        weffects(obj);
+        await weffects(obj);
         obj = game.current_wand;
         game.current_wand = null;
     }
     if (obj && obj.spe < 0) {
-        pline("%s to dust.", Tobjnam(obj, "turn"));
-        /* calls freeinv() -> update_inventory() */
-        useupall(obj);
+        await pline("%s to dust.", await Tobjnam(obj, "turn"));
+        await useupall(obj);
     } else {
         update_inventory();
     }
     return 1;
 }
 /* Lock or unlock all boxes in inventory */
-export function boxlock_invent(obj) {
+export async function boxlock_invent(obj) {
     let otmp = null;
     let nextobj = null;
     let boxing = (0);
     for (otmp = game.invent; otmp; otmp = nextobj) {
         nextobj = otmp.nobj;
         if (((otmp).otyp == LARGE_BOX || (otmp).otyp == CHEST)) {
-            boxlock(otmp, obj);
+            await boxlock(otmp, obj);
             boxing = (1);
         }
     }
@@ -2615,7 +2468,7 @@ export function boxlock_invent(obj) {
         update_inventory();
     }
 }
-export function zapyourself(obj, ordinary) {
+export async function zapyourself(obj, ordinary) {
     let learn_it = (0);
     let damage = 0;
     /* for passing to destroy_items() */
@@ -2625,24 +2478,17 @@ export function zapyourself(obj, ordinary) {
         case SPE_FORCE_BOLT:
             learn_it = (1);
             if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-                /* no longer gives intrinsic, but gives very fast speed instead */
-                /* if blinding is resisted due to magical equipment (Sunsword), give
-       a sparkle animation (even if also resisted due to being blind)
-       _unless_ this is lightning-induced; we don't want a double sparkle
-       if hero is both lightning resistant and blindness resistant, or
-       worse, have a single sparkle where the player confuses blindness
-       resistance for lightning resistance */
-                shieldeff(game.u.ux, game.u.uy);
-                pline("Boing!");
+                await shieldeff(game.u.ux, game.u.uy);
+                await pline("Boing!");
                 monstseesu(M_SEEN_MAGR);
             } else {
                 if (ordinary) {
-                    You("bash yourself!");
+                    await You("bash yourself!");
                     damage = d(2, 12);
                 } else {
                     damage = d(1 + obj.spe, 6);
                 }
-                exercise(A_STR, (0));
+                await exercise(A_STR, (0));
                 monstunseesu(M_SEEN_MAGR);
             }
             break;
@@ -2650,41 +2496,41 @@ export function zapyourself(obj, ordinary) {
             learn_it = (1);
             orig_dmg = d(12, 6);
             if (!(game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic)) {
-                You("shock yourself!");
+                await You("shock yourself!");
                 damage = orig_dmg;
-                exercise(A_CON, (0));
+                await exercise(A_CON, (0));
                 monstunseesu(M_SEEN_ELEC);
             } else {
-                shieldeff(game.u.ux, game.u.uy);
-                You("zap yourself, but seem unharmed.");
+                await shieldeff(game.u.ux, game.u.uy);
+                await You("zap yourself, but seem unharmed.");
                 monstseesu(M_SEEN_ELEC);
-                ugolemeffects(6, orig_dmg);
+                await ugolemeffects(6, orig_dmg);
             }
-            destroy_items(game.youmonst, 6, orig_dmg);
-            flashburn(rnd(100), (1));
+            await destroy_items(game.youmonst, 6, orig_dmg);
+            await flashburn(rnd(100), (1));
             break;
         case SPE_FIREBALL:
-            You("explode a fireball on top of yourself!");
-            explode(game.u.ux, game.u.uy, 11, d(6, 6), WAND_CLASS, EXPL_FIERY);
+            await You("explode a fireball on top of yourself!");
+            await explode(game.u.ux, game.u.uy, 11, d(6, 6), WAND_CLASS, EXPL_FIERY);
             break;
         case WAN_FIRE:
         case FIRE_HORN:
             learn_it = (1);
             orig_dmg = d(12, 6);
             if ((game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                You_feel("rather warm.");
+                await shieldeff(game.u.ux, game.u.uy);
+                await You_feel("rather warm.");
                 monstseesu(M_SEEN_FIRE);
-                ugolemeffects(2, orig_dmg);
+                await ugolemeffects(2, orig_dmg);
             } else {
-                pline("You've set yourself afire!");
+                await pline("You've set yourself afire!");
                 damage = orig_dmg;
                 monstunseesu(M_SEEN_FIRE);
             }
-            burn_away_slime();
-            burnarmor(game.youmonst);
-            destroy_items(game.youmonst, 2, orig_dmg);
-            ignite_items(game.invent);
+            await burn_away_slime();
+            await burnarmor(game.youmonst);
+            await destroy_items(game.youmonst, 2, orig_dmg);
+            await ignite_items(game.invent);
             break;
         case WAN_COLD:
         case SPE_CONE_OF_COLD:
@@ -2692,27 +2538,27 @@ export function zapyourself(obj, ordinary) {
             learn_it = (1);
             orig_dmg = d(12, 6);
             if ((game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                You_feel("a little chill.");
+                await shieldeff(game.u.ux, game.u.uy);
+                await You_feel("a little chill.");
                 monstseesu(M_SEEN_COLD);
-                ugolemeffects(3, orig_dmg);
+                await ugolemeffects(3, orig_dmg);
             } else {
-                You("imitate a popsicle!");
+                await You("imitate a popsicle!");
                 damage = orig_dmg;
                 monstunseesu(M_SEEN_COLD);
             }
-            destroy_items(game.youmonst, 3, orig_dmg);
+            await destroy_items(game.youmonst, 3, orig_dmg);
             break;
         case WAN_MAGIC_MISSILE:
         case SPE_MAGIC_MISSILE:
             learn_it = (1);
             if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                pline_The("missiles bounce!");
+                await shieldeff(game.u.ux, game.u.uy);
+                await pline_The("missiles bounce!");
                 monstseesu(M_SEEN_MAGR);
             } else {
                 damage = d(4, 6);
-                pline("Idiot!  You've shot yourself!");
+                await pline("Idiot!  You've shot yourself!");
                 monstunseesu(M_SEEN_MAGR);
             }
             break;
@@ -2720,17 +2566,17 @@ export function zapyourself(obj, ordinary) {
         case SPE_POLYMORPH:
             if (!(game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic)) {
                 learn_it = (1);
-                polyself(POLY_NOFLAGS);
+                await polyself(POLY_NOFLAGS);
             }
             break;
         case WAN_CANCELLATION:
         case SPE_CANCELLATION:
-            cancel_monst(game.youmonst, obj, (1), (1), (1));
+            await cancel_monst(game.youmonst, obj, (1), (1), (1));
             break;
         case SPE_DRAIN_LIFE:
             if (!(game.u.uprops[DRAIN_RES].intrinsic || game.u.uprops[DRAIN_RES].extrinsic)) {
                 learn_it = (1);
-                losexp("life drainage");
+                await losexp("life drainage");
             }
             damage = 0;
             break;
@@ -2741,49 +2587,48 @@ export function zapyourself(obj, ordinary) {
          */
                 let msg = !((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !game.u.uprops[INVIS].blocked;
                 if (game.u.uprops[INVIS].blocked && game.uarmc.otyp == MUMMY_WRAPPING) {
-                    /* A mummy wrapping absorbs it and protects you */
-                    You_feel("rather itchy under %s.", yname(game.uarmc));
+                    await You_feel("rather itchy under %s.", await yname(game.uarmc));
                     break;
                 }
                 incr_itimeout({ get value() { return game.u.uprops[INVIS].intrinsic; }, set value(_v) { game.u.uprops[INVIS].intrinsic = _v; } }, (rn2(15) + (31)));
                 if (msg) {
                     learn_it = (1);
-                    newsym(game.u.ux, game.u.uy);
-                    self_invis_message();
+                    await newsym(game.u.ux, game.u.uy);
+                    await self_invis_message();
                 }
                 break;
             }
         case WAN_SPEED_MONSTER:
-            speed_up((rn2(25) + (50)));
+            await speed_up((rn2(25) + (50)));
             learn_it = (1);
             break;
         case WAN_SLEEP:
         case SPE_SLEEP:
             learn_it = (1);
             if ((game.u.uprops[SLEEP_RES].intrinsic || game.u.uprops[SLEEP_RES].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                You("don't feel sleepy!");
+                await shieldeff(game.u.ux, game.u.uy);
+                await You("don't feel sleepy!");
                 monstseesu(M_SEEN_SLEEP);
             } else {
                 if (ordinary) {
-                    pline_The("sleep ray hits you!");
+                    await pline_The("sleep ray hits you!");
                 } else {
-                    You("fall asleep!");
+                    await You("fall asleep!");
                 }
                 monstunseesu(M_SEEN_SLEEP);
-                fall_asleep(-rnd(50), (1));
+                await fall_asleep(-rnd(50), (1));
             }
             break;
         case WAN_SLOW_MONSTER:
         case SPE_SLOW_MONSTER:
             if (game.u.uprops[FAST].intrinsic & (16777215 | (67108864 | 33554432 | 16777216))) {
                 learn_it = (1);
-                u_slow_down();
+                await u_slow_down();
             }
             break;
         case WAN_TELEPORTATION:
         case SPE_TELEPORT_AWAY:
-            tele();
+            await tele();
             /* same criteria as when mounted (zap_steed) */
             /* same criteria as when unmounted (zapyourself) */
             if (((game.u.uprops[TELEPORT_CONTROL].intrinsic || game.u.uprops[TELEPORT_CONTROL].extrinsic) && !game.u.uprops[STUNNED].intrinsic) || !((game.viz_array[game.u.uy0][game.u.ux0] & 1) != 0) || dist2((game.u.ux0), (game.u.uy0), game.u.ux, game.u.uy) >= 16) {
@@ -2793,29 +2638,26 @@ export function zapyourself(obj, ordinary) {
         case WAN_DEATH:
         case SPE_FINGER_OF_DEATH:
             if (((((game.youmonst.data).mflags2 & 2) != 0) || (game.youmonst.data) == game.mons[PM_MANES] || (((game.youmonst.data).mlet == S_GOLEM) || (game.youmonst.data).mlet == S_VORTEX)) || (((game.youmonst.data).mflags2 & 256) != 0)) {
-                pline((obj.otyp == WAN_DEATH) ? "The wand shoots an apparently harmless beam at you." : "You seem no deader than before.");
+                await pline((obj.otyp == WAN_DEATH) ? "The wand shoots an apparently harmless beam at you." : "You seem no deader than before.");
                 break;
             }
             learn_it = (1);
             game.killer.name = sprintf(game.killer.name, "shot %sself with a death ray", (genders[game.flags.female ? 1 : 0].him));
             game.killer.format = 2;
-            /* probably don't need these to be urgent; player just gave input
-           without subsequent opportunity to dismiss --More-- with ESC */
-            urgent_pline("You irradiate yourself with pure energy!");
-            urgent_pline("You die.");
-            /* They might survive with an amulet of life saving */
-            done(DIED);
+            await urgent_pline("You irradiate yourself with pure energy!");
+            await urgent_pline("You die.");
+            await done(DIED);
             break;
         case WAN_UNDEAD_TURNING:
         case SPE_TURN_UNDEAD:
             learn_it = (1);
-            unturn_you();
+            await unturn_you();
             break;
         case SPE_HEALING:
         case SPE_EXTRA_HEALING:
             learn_it = (1);
-            healup(d(6, obj.otyp == SPE_EXTRA_HEALING ? 8 : 4), 0, (0), (obj.blessed || obj.otyp == SPE_EXTRA_HEALING));
-            You_feel("%sbetter.", obj.otyp == SPE_EXTRA_HEALING ? "much " : "");
+            await healup(d(6, obj.otyp == SPE_EXTRA_HEALING ? 8 : 4), 0, (0), (obj.blessed || obj.otyp == SPE_EXTRA_HEALING));
+            await You_feel("%sbetter.", obj.otyp == SPE_EXTRA_HEALING ? "much " : "");
             break;
         case WAN_LIGHT:
             damage = d(obj.spe, 25);
@@ -2824,9 +2666,9 @@ export function zapyourself(obj, ordinary) {
             if (!damage) {
                 damage = 5;
             }
-            damage = lightdamage(obj, ordinary, damage);
+            damage = await lightdamage(obj, ordinary, damage);
             damage += rnd(25);
-            if (flashburn(damage, (0))) {
+            if (await flashburn(damage, (0))) {
                 learn_it = (1);
             }
             damage = 0;
@@ -2834,25 +2676,22 @@ export function zapyourself(obj, ordinary) {
         case WAN_OPENING:
         case SPE_KNOCK:
             if (game.u.ustuck) {
-                release_hold();
+                await release_hold();
                 learn_it = (1);
             }
             if ((game.uball != null)) {
                 learn_it = (1);
-                unpunish();
+                await unpunish();
             }
-            if (!game.u.utrap || !openholdingtrap(game.youmonst, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
-                /* invent is hit iff hero doesn't escape from a trap */
-                /* similar logic to opening; invent is hit iff no trap triggered */
-                boxlock_invent(obj);
-                /* trigger previously escaped trapdoor */
-                openfallingtrap(game.youmonst, (1), { get value() { return learn_it; }, set value(_v) { learn_it = _v; } });
+            if (!game.u.utrap || !await openholdingtrap(game.youmonst, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
+                await boxlock_invent(obj);
+                await openfallingtrap(game.youmonst, (1), { get value() { return learn_it; }, set value(_v) { learn_it = _v; } });
             }
             break;
         case WAN_LOCKING:
         case SPE_WIZARD_LOCK:
-            if (game.u.utrap || !closeholdingtrap(game.youmonst, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
-                boxlock_invent(obj);
+            if (game.u.utrap || !await closeholdingtrap(game.youmonst, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } })) {
+                await boxlock_invent(obj);
             }
             break;
         case WAN_DIGGING:
@@ -2861,10 +2700,10 @@ export function zapyourself(obj, ordinary) {
         case WAN_NOTHING:
             break;
         case WAN_PROBING:
-            probe_objchain(game.invent);
+            await probe_objchain(game.invent);
             update_inventory();
             learn_it = (1);
-            ustatusline();
+            await ustatusline();
             break;
         case SPE_STONE_TO_FLESH:
 {
@@ -2873,15 +2712,15 @@ export function zapyourself(obj, ordinary) {
                 let didmerge = 0;
                 if (game.u.umonnum == PM_STONE_GOLEM) {
                     learn_it = (1);
-                    polymon(PM_FLESH_GOLEM);
+                    await polymon(PM_FLESH_GOLEM);
                 }
                 if (game.u.uprops[STONED].intrinsic) {
                     learn_it = (1);
-                    fix_petrification();
+                    await fix_petrification();
                 }
                 for (otmp = game.invent; otmp; otmp = onxt) {
                     onxt = otmp.nobj;
-                    if (bhito(otmp, obj)) {
+                    if (await bhito(otmp, obj)) {
                         learn_it = (1);
                     }
                 }
@@ -2898,7 +2737,7 @@ export function zapyourself(obj, ordinary) {
                             continue;
                         }
                         for (onxt = otmp.nobj; onxt; onxt = onxt.nobj) {
-                            if (merged({ get value() { return otmp; }, set value(_v) { otmp = _v; } }, onxt)) {
+                            if (await merged({ get value() { return otmp; }, set value(_v) { otmp = _v; } }, onxt)) {
                                 didmerge = (1);
                                 break;
                             }
@@ -2908,24 +2747,24 @@ export function zapyourself(obj, ordinary) {
                 break;
             }
         default:
-            impossible("zapyourself: object %d used?", obj.otyp);
+            await impossible("zapyourself: object %d used?", obj.otyp);
             break;
     }
     if (learn_it) {
-        learnwand(obj);
+        await learnwand(obj);
     }
     return damage;
 }
 /* called when poly'd hero uses breath attack against self */
-export function ubreatheu(mattk) {
+export async function ubreatheu(mattk) {
     let dtyp = 20 + mattk.adtyp - 1;
-    zhitu(dtyp, mattk.damn, flash_str(dtyp, (1)), game.u.ux, game.u.uy);
+    await zhitu(dtyp, mattk.damn, flash_str(dtyp, (1)), game.u.ux, game.u.uy);
 }
 /* light damages hero in gremlin form */
 /* item making light (fake book if spell) */
 /* wand/camera zap vs wand destruction */
 /* pseudo-damage used to determine blindness duration */
-export function lightdamage(obj, ordinary, amt) {
+export async function lightdamage(obj, ordinary, amt) {
     let buf = '';
     let how = null;
     let dmg = amt;
@@ -2938,32 +2777,30 @@ export function lightdamage(obj, ordinary, amt) {
         if (dmg > 20) {
             dmg = 20;
         }
-        pline("Ow, that light hurts%c", (dmg > 2 || game.u.mh <= 5) ? 33 : 46);
+        await pline("Ow, that light hurts%c", (dmg > 2 || game.u.mh <= 5) ? 33 : 46);
         /* [composing killer/reason is superfluous here; if fatal, cause
            of death will always be "killed while stuck in creature form"] */
         if (obj.oclass == SCROLL_CLASS || obj.oclass == SPBOOK_CLASS) {
             ordinary = (0);
         }
-        /* say blasted rather than zapped */
-        how = (obj.oclass == SPBOOK_CLASS) ? "spell of light" : (!obj.oartifact) ? ansimpleoname(obj) : bare_artifactname(obj);
+        how = (obj.oclass == SPBOOK_CLASS) ? "spell of light" : (!obj.oartifact) ? await ansimpleoname(obj) : await bare_artifactname(obj);
         buf = sprintf(buf, "%s %sself with %s", ordinary ? "zapped" : "blasted", (genders[game.flags.female ? 1 : 0].him), how);
-        /* might rehumanize(); could be fatal, but only for Unchanging */
-        losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), buf, 2);
+        await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), buf, 2);
     }
     return dmg;
 }
 /* light[ning] causes blindness */
-export function flashburn(duration, via_lightning) {
-    if (!resists_blnd(game.youmonst)) {
-        You(are_blinded_by_the_flash);
-        make_blinded(duration, (0));
+export async function flashburn(duration, via_lightning) {
+    if (!await resists_blnd(game.youmonst)) {
+        await You(are_blinded_by_the_flash);
+        await make_blinded(duration, (0));
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            Your("%s", c_common_strings.c_vision_clears);
+            await Your("%s", c_common_strings.c_vision_clears);
         }
         return (1);
     }
     if (!via_lightning && resists_blnd_by_arti(game.youmonst)) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
         return (1);
     }
     return (0);
@@ -2973,21 +2810,21 @@ export function flashburn(duration, via_lightning) {
  * Return FALSE if the steed was not hit by the wand.
  */
 /* wand or spell */
-export function zap_steed(obj) {
+export async function zap_steed(obj) {
     let steedhit = (0);
     game.bhitpos.x = game.u.usteed.mx , game.bhitpos.y = game.u.usteed.my;
     game.notonhead = (0);
     switch (obj.otyp) {
         case WAN_PROBING:
-            probe_monster(game.u.usteed);
-            learnwand(obj);
+            await probe_monster(game.u.usteed);
+            await learnwand(obj);
             steedhit = (1);
             break;
         case WAN_TELEPORTATION:
         case SPE_TELEPORT_AWAY:
-            tele();
+            await tele();
             if (((game.u.uprops[TELEPORT_CONTROL].intrinsic || game.u.uprops[TELEPORT_CONTROL].extrinsic) && !game.u.uprops[STUNNED].intrinsic) || !((game.viz_array[game.u.uy0][game.u.ux0] & 1) != 0) || dist2((game.u.ux0), (game.u.uy0), game.u.ux, game.u.uy) >= 16) {
-                learnwand(obj);
+                await learnwand(obj);
             }
             steedhit = (1);
             break;
@@ -3008,7 +2845,7 @@ export function zap_steed(obj) {
         case SPE_DRAIN_LIFE:
         case WAN_OPENING:
         case SPE_KNOCK:
-            bhitm(game.u.usteed, obj);
+            await bhitm(game.u.usteed, obj);
             steedhit = (1);
             break;
         default:
@@ -3025,15 +2862,15 @@ export function zap_steed(obj) {
  */
 const __cancel_monst_writing_vanishes = "Some writing vanishes from %s head!";
 const __cancel_monst_your = "your";
-export function cancel_monst(mdef, obj, youattack, allow_cancel_kill, self_cancel) {
+export async function cancel_monst(mdef, obj, youattack, allow_cancel_kill, self_cancel) {
     let youdefend = (mdef == game.youmonst);
-    if (youdefend ? (!youattack && (game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) : resist(mdef, obj.oclass, 0, 0)) {
+    if (youdefend ? (!youattack && (game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) : await resist(mdef, obj.oclass, 0, 0)) {
         return (0);
     }
     if (self_cancel) {
         let otmp = null;
         for (otmp = (youdefend ? game.invent : mdef.minvent); otmp; otmp = otmp.nobj) {
-            cancel_item(otmp);
+            await cancel_item(otmp);
         }
         if (youdefend) {
             game.disp.botl = (1);
@@ -3045,42 +2882,31 @@ export function cancel_monst(mdef, obj, youattack, allow_cancel_kill, self_cance
         if ((game.u.umonnum != game.u.umonster)) {
             if (game.u.umonnum == PM_CLAY_GOLEM) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    pline(__cancel_monst_writing_vanishes, __cancel_monst_your);
-                /* now handle special cases */
-                /* includes lycanthrope in creature form */
-                /*
-             * Return to normal form unless Unchanging.
-             * Hero in clay golem form dies if Unchanging.
-             * Does not cure lycanthropy or stop timed random polymorph.
-             */
-                /* note: "dark" rather than "heavy" is intentional... */
+                    await pline(__cancel_monst_writing_vanishes, __cancel_monst_your);
                 } else {
-                    You_feel("%s headed.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "dark" : "light");
+                    await You_feel("%s headed.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "dark" : "light");
                 }
                 /* fatal; death handled by rehumanize() */
                 game.u.mh = 0;
             }
             if ((game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic) && game.u.mh > 0) {
-                Your("amulet grows hot for a moment, then cools.");
+                await Your("amulet grows hot for a moment, then cools.");
             } else {
-                rehumanize();
+                await rehumanize();
             }
         }
     } else {
         mdef.mcan = 1;
-        /* force shapeshifter into its base form or mimic to unhide */
-        normal_shape(mdef);
+        await normal_shape(mdef);
         if (mdef.data == game.mons[PM_CLAY_GOLEM]) {
             if (canseemon(mdef)) {
-                pline(__cancel_monst_writing_vanishes, s_suffix(mon_nam(mdef)));
+                await pline(__cancel_monst_writing_vanishes, s_suffix(await mon_nam(mdef)));
             }
             if (allow_cancel_kill) {
                 if (youattack) {
-                    killed(mdef);
-                /* !allow_cancel_kill is for Magicbane, where clay golem
-               will be killed somewhere back up the call/return chain... */
+                    await killed(mdef);
                 } else {
-                    monkilled(mdef, "", 241);
+                    await monkilled(mdef, "", 241);
                 }
             }
         }
@@ -3089,7 +2915,7 @@ export function cancel_monst(mdef, obj, youattack, allow_cancel_kill, self_cance
 }
 /* you've zapped an immediate type wand up or down */
 /* wand or spell, nonnull */
-export function zap_updown(obj) {
+export async function zap_updown(obj) {
     let striking = (0);
     let disclose = (0);
     let map_zapped = (0);
@@ -3113,20 +2939,19 @@ export function zap_updown(obj) {
         case WAN_PROBING:
             ptmp = 0;
             if (game.u.dz < 0) {
-                You("probe towards the %s.", ceiling(x, y));
+                await You("probe towards the %s.", ceiling(x, y));
             } else {
                 let surf = null;
                 /*
          * Probing, either up/down or lateral.
          */
                 let ltyp = 0;
-                let rememberedltyp = update_mapseen_for(x, y);
-                ptmp += bhitpile(obj, bhito, x, y, game.u.dz);
+                let rememberedltyp = await update_mapseen_for(x, y);
+                ptmp += await bhitpile(obj, bhito, x, y, game.u.dz);
                 /* sequencing: zap_map() calls force_decor() for ice or furniture;
                we need to call it before probing for buried objects */
                 ltyp = ((game.level.locations[x][y].typ == DRAWBRIDGE_UP) ? db_under_typ(game.level.locations[x][y].flags) : game.level.locations[x][y].typ);
-                /* cancellation/opening/locking/striking/probing */
-                zap_map(x, y, obj);
+                await zap_map(x, y, obj);
                 if (ltyp == ICE || ((ltyp) >= STAIRS && (ltyp) <= ALTAR)) {
                     /*map_zapped = TRUE; // not needed due to early return*/
                     surf = "it";
@@ -3134,13 +2959,13 @@ export function zap_updown(obj) {
                         ptmp += 1;
                     }
                 } else {
-                    surf = the(surface(x, y));
+                    surf = await the(surface(x, y));
                 }
-                You("probe beneath %s.", surf);
-                ptmp += display_binventory(x, y, (1));
+                await You("probe beneath %s.", surf);
+                ptmp += await display_binventory(x, y, (1));
             }
             if (!ptmp) {
-                Your("probe reveals nothing.");
+                await Your("probe reveals nothing.");
             }
             return (1);
         case WAN_OPENING:
@@ -3152,21 +2977,16 @@ export function zap_updown(obj) {
                 stway = stway.next;
             }
             if (is_db_wall(x, y) && find_drawbridge({ get value() { return xx; }, set value(_v) { xx = _v; } }, { get value() { return yy; }, set value(_v) { yy = _v; } })) {
-                /* up or down, but at closed portcullis only */
-                open_drawbridge(xx, yy);
+                await open_drawbridge(xx, yy);
                 disclose = (1);
-            } else if (game.u.dz > 0 && stway && stway.sx == x && stway.sy == y && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level)) && !ok_to_quest()) {
-                /* can't use the stairs down to quest level 2 until
-                      leader "unlocks" them; give feedback if you try */
-                pline_The("stairs seem to ripple momentarily.");
+            } else if (game.u.dz > 0 && stway && stway.sx == x && stway.sy == y && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level)) && !await ok_to_quest()) {
+                await pline_The("stairs seem to ripple momentarily.");
                 disclose = (1);
             }
             if (game.u.dz > 0 && game.u.utrap) {
-                /* down will release you from bear trap or web */
-                /* down will trigger trapdoor, hole, or [spiked-] pit */
-                openholdingtrap(game.youmonst, { get value() { return disclose; }, set value(_v) { disclose = _v; } });
+                await openholdingtrap(game.youmonst, { get value() { return disclose; }, set value(_v) { disclose = _v; } });
             } else if (game.u.dz > 0 && !game.u.utrap) {
-                openfallingtrap(game.youmonst, (0), { get value() { return disclose; }, set value(_v) { disclose = _v; } });
+                await openfallingtrap(game.youmonst, (0), { get value() { return disclose; }, set value(_v) { disclose = _v; } });
             }
             break;
         case WAN_STRIKING:
@@ -3177,37 +2997,31 @@ export function zap_updown(obj) {
         case SPE_WIZARD_LOCK:
             if (((game.level.locations[x][y].typ == DRAWBRIDGE_DOWN) ? (game.u.dz > 0) : (is_drawbridge_wall(x, y) >= 0 && !is_db_wall(x, y))) && find_drawbridge({ get value() { return xx; }, set value(_v) { xx = _v; } }, { get value() { return yy; }, set value(_v) { yy = _v; } })) {
                 if (!striking) {
-                    close_drawbridge(xx, yy);
-                /* down at open bridge or up or down at open portcullis */
+                    await close_drawbridge(xx, yy);
                 } else {
-                    destroy_drawbridge(xx, yy);
+                    await destroy_drawbridge(xx, yy);
                 }
                 disclose = (1);
             } else if (striking && game.u.dz < 0 && rn2(3) && !(((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) && !(((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) && !(game.u.uinwater) && !(((((game.dungeon_topology.d_qstart_level)).dlevel || ((game.dungeon_topology.d_qstart_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level))))) {
                 let dmg = 0;
-                pline("A rock is dislodged from the %s and falls on your %s.", ceiling(x, y), body_part(HEAD));
+                await pline("A rock is dislodged from the %s and falls on your %s.", ceiling(x, y), await body_part(HEAD));
                 dmg = rnd(hard_helmet(game.uarmh) ? 2 : 6);
-                losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "falling rock", 0);
-                if ((otmp = mksobj_at(ROCK, x, y, (0), (0))) != null) {
-                    /* set dknown, maybe bknown */
-                    xname(otmp);
-                    stackobj(otmp);
+                await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dmg) + 1) / 2)) : (dmg)), "falling rock", 0);
+                if ((otmp = await mksobj_at(ROCK, x, y, (0), (0))) != null) {
+                    await xname(otmp);
+                    await stackobj(otmp);
                 }
-                /* target spot will now pass closed_door() test below
-           (except on rogue level) */
-                newsym(x, y);
+                await newsym(x, y);
             } else if (game.u.dz > 0 && ttmp) {
-                if (!striking && closeholdingtrap(game.youmonst, { get value() { return disclose; }, set value(_v) { disclose = _v; } })) {
+                if (!striking && await closeholdingtrap(game.youmonst, { get value() { return disclose; }, set value(_v) { disclose = _v; } })) {
                     ;
                 } else if (striking && ttmp.ttyp == TRAPDOOR) {
                     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !ttmp.tseen) {
-                        /* now stuck in web or bear trap */
-                        /* striking transforms trapdoor into hole */
-                        pline("%s beneath you shatters.", c_common_strings.c_Something);
+                        await pline("%s beneath you shatters.", c_common_strings.c_Something);
                     } else if (!ttmp.tseen) {
-                        pline("There's a trapdoor beneath you; it shatters.");
+                        await pline("There's a trapdoor beneath you; it shatters.");
                     } else {
-                        pline("The trapdoor beneath you shatters.");
+                        await pline("The trapdoor beneath you shatters.");
                         disclose = (1);
                     }
                     ttmp.ttyp = HOLE;
@@ -3216,18 +3030,18 @@ export function zap_updown(obj) {
                map browsing can take place before it reverts to being
                covered by monster or object(s) */
                     ttmp.tseen = 1;
-                    newsym(x, y);
-                    dotrap(ttmp, 0);
+                    await newsym(x, y);
+                    await dotrap(ttmp, 0);
                 } else if (!striking && ttmp.ttyp == HOLE) {
                     /* locking transforms hole into trapdoor */
                     ttmp.ttyp = TRAPDOOR;
                     /* hadn't fallen down hole; won't fall now */
                     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || !ttmp.tseen) {
-                        pline("Some %s swirls beneath you.", is_ice(x, y) ? "frost" : "dust");
+                        await pline("Some %s swirls beneath you.", is_ice(x, y) ? "frost" : "dust");
                     } else {
                         ttmp.tseen = 1;
-                        newsym(x, y);
-                        pline("A trapdoor appears beneath you.");
+                        await newsym(x, y);
+                        await pline("A trapdoor appears beneath you.");
                         disclose = (1);
                     }
                 }
@@ -3235,9 +3049,9 @@ export function zap_updown(obj) {
             break;
         case SPE_STONE_TO_FLESH:
             if ((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) || (((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) || (game.u.uinwater) || ((((((game.dungeon_topology.d_qstart_level)).dlevel || ((game.dungeon_topology.d_qstart_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level)))) && game.u.dz < 0)) {
-                pline("%s", c_common_strings.c_nothing_happens);
+                await pline("%s", c_common_strings.c_nothing_happens);
             } else if (game.u.dz < 0) {
-                pline("Blood drips on your %s.", body_part(FACE));
+                await pline("Blood drips on your %s.", await body_part(FACE));
             } else if (game.u.dz > 0 && !(game.level.objects[game.u.ux][game.u.uy] != null)) {
                 /*
             Print this message only if there wasn't an engraving
@@ -3246,9 +3060,9 @@ export function zap_updown(obj) {
                 e = engr_at(game.u.ux, game.u.uy);
                 if (!(e && e.engr_type == 2)) {
                     if (is_pool(game.u.ux, game.u.uy) || is_ice(game.u.ux, game.u.uy)) {
-                        pline("%s", c_common_strings.c_nothing_happens);
+                        await pline("%s", c_common_strings.c_nothing_happens);
                     } else {
-                        pline("Blood %ss %s your %s.", is_lava(game.u.ux, game.u.uy) ? "boil" : "pool", ((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) ? "beneath" : "at", makeplural(body_part(FOOT)));
+                        await pline("Blood %ss %s your %s.", is_lava(game.u.ux, game.u.uy) ? "boil" : "pool", ((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) ? "beneath" : "at", await makeplural(await body_part(FOOT)));
                     }
                 }
             }
@@ -3257,11 +3071,9 @@ export function zap_updown(obj) {
             break;
     }
     if (game.u.dz > 0) {
-        bhitpile(obj, bhito, x, y, game.u.dz);
-        /* note: engraving handling that used to be here has been moved
-           to zap_map() */
+        await bhitpile(obj, bhito, x, y, game.u.dz);
         if (!map_zapped) {
-            zap_map(x, y, obj);
+            await zap_map(x, y, obj);
         }
     } else if (game.u.dz < 0) {
         if (game.u.uundetected && (((game.youmonst.data).mflags1 & 128) != 0)) {
@@ -3271,10 +3083,10 @@ export function zap_updown(obj) {
             let hitit = 0;
             otmp = game.level.objects[game.u.ux][game.u.uy];
             if (otmp) {
-                hitit = bhito(otmp, obj);
+                hitit = await bhito(otmp, obj);
             }
             if (hitit) {
-                hideunder(game.youmonst);
+                await hideunder(game.youmonst);
                 disclose = (1);
             }
         }
@@ -3285,52 +3097,49 @@ export function zap_updown(obj) {
 export function zapsetup() {
     game.obj_zapped = (0);
 }
-export function zapwrapup() {
-    /* if do_osshock() set obj_zapped while polying, give a message now */
+export async function zapwrapup() {
     if (game.obj_zapped) {
-        You_feel("shuddering vibrations.");
+        await You_feel("shuddering vibrations.");
     }
     game.obj_zapped = (0);
 }
 /* called for various wand and spell effects - M. Stephenson */
-export function weffects(obj) {
+export async function weffects(obj) {
     let otyp = obj.otyp;
     let disclose = (0);
     let was_unkn = !game.objects[otyp].oc_name_known;
-    exercise(A_WIS, (1));
-    if (game.u.usteed && (game.objects[otyp].oc_dir != 1) && !game.u.dx && !game.u.dy && (game.u.dz > 0) && zap_steed(obj)) {
+    await exercise(A_WIS, (1));
+    if (game.u.usteed && (game.objects[otyp].oc_dir != 1) && !game.u.dx && !game.u.dy && (game.u.dz > 0) && await zap_steed(obj)) {
         disclose = (1);
     } else if (game.objects[otyp].oc_dir == 2) {
         zapsetup();
         if (game.u.uswallow) {
-            /* [how about `bhitpile(u.ustuck->minvent)' effect?] */
-            bhitm(game.u.ustuck, obj);
+            await bhitm(game.u.ustuck, obj);
         } else if (game.u.dz) {
-            disclose = zap_updown(obj);
+            disclose = await zap_updown(obj);
         } else {
-            bhit(game.u.dx, game.u.dy, (rn2(8) + (6)), ZAPPED_WAND, bhitm, bhito, obj);
+            await bhit(game.u.dx, game.u.dy, (rn2(8) + (6)), ZAPPED_WAND, bhitm, bhito, obj);
         }
-        /* give feedback for obj_zapped */
-        zapwrapup();
+        await zapwrapup();
     } else if (game.objects[otyp].oc_dir == 1) {
-        zapnodir(obj);
+        await zapnodir(obj);
     } else {
         /* neither immediate nor directionless */
         if (otyp == WAN_DIGGING || otyp == SPE_DIG) {
-            zap_dig();
+            await zap_dig();
         } else if (otyp >= SPE_MAGIC_MISSILE && otyp <= SPE_FINGER_OF_DEATH) {
-            ubuzz((10 + ((abs((otyp) - SPE_MAGIC_MISSILE) % 10))), Math.trunc(game.u.ulevel / 2) + 1);
+            await ubuzz((10 + ((abs((otyp) - SPE_MAGIC_MISSILE) % 10))), Math.trunc(game.u.ulevel / 2) + 1);
         } else if (otyp >= WAN_MAGIC_MISSILE && otyp <= WAN_LIGHTNING) {
-            ubuzz((0 + ((abs((otyp) - WAN_MAGIC_MISSILE) % 10))), (otyp == WAN_MAGIC_MISSILE) ? 2 : 6);
+            await ubuzz((0 + ((abs((otyp) - WAN_MAGIC_MISSILE) % 10))), (otyp == WAN_MAGIC_MISSILE) ? 2 : 6);
         } else {
-            impossible("weffects: unexpected spell or wand");
+            await impossible("weffects: unexpected spell or wand");
         }
         disclose = (1);
     }
     if (disclose) {
-        learnwand(obj);
+        await learnwand(obj);
         if (was_unkn) {
-            more_experienced(0, 10);
+            await more_experienced(0, 10);
         }
     }
     return;
@@ -3405,12 +3214,12 @@ export function exclam(force) {
 /* zap text or missile name */
 /* target; for missile, might be hero */
 /* usually either "." or "!" via exclam() */
-export function hit(str, mtmp, force) {
+export async function hit(str, mtmp, force) {
     let verbosely = (mtmp == game.youmonst || (game.flags.verbose && (((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0) || (canseemon(mtmp) || sensemon(mtmp)) || (game.u.uswallow && (game.u.ustuck == (mtmp))))));
-    pline("%s %s %s%s", The(str), vtense(str, "hit"), verbosely ? mon_nam(mtmp) : "it", force);
+    await pline("%s %s %s%s", await The(str), await vtense(str, "hit"), verbosely ? await mon_nam(mtmp) : "it", force);
 }
-export function miss(str, mtmp) {
-    pline("%s %s %s.", The(str), vtense(str, "miss"), ((((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0) || (canseemon(mtmp) || sensemon(mtmp))) && game.flags.verbose) ? mon_nam(mtmp) : "it");
+export async function miss(str, mtmp) {
+    await pline("%s %s %s.", await The(str), await vtense(str, "miss"), ((((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0) || (canseemon(mtmp) || sensemon(mtmp))) && game.flags.verbose) ? await mon_nam(mtmp) : "it");
 }
 export function skiprange(range, skipstart, skipend) {
     let tr = (Math.trunc(range / 4));
@@ -3424,7 +3233,7 @@ export function skiprange(range, skipstart, skipend) {
 /* Maybe explode a trap hit by object otmp's effect;
    cancellation beam hitting a magical trap causes an explosion.
    Might delete the trap; won't destroy otmp. */
-export function maybe_explode_trap(ttmp, otmp, learn_it) {
+export async function maybe_explode_trap(ttmp, otmp, learn_it) {
     if (!ttmp || !otmp) {
         return;
     }
@@ -3432,21 +3241,20 @@ export function maybe_explode_trap(ttmp, otmp, learn_it) {
         let x = ttmp.tx;
         let y = ttmp.ty;
         if (((ttmp.ttyp) == MAGIC_PORTAL || (ttmp.ttyp) == VIBRATING_SQUARE)) {
-            shieldeff(x, y);
+            await shieldeff(x, y);
             /* secret corridor likewise, although only ones within view will
            still be secret; for the !cansee(x,y) case, show_map_spot()
            above has already converted the spot to regular corridor */
             if (((game.viz_array[y][x] & 2) != 0)) {
                 ttmp.tseen = 1;
-                newsym(x, y);
+                await newsym(x, y);
                 learn_it.value = (1);
             }
         } else if (((ttmp.ttyp) == TELEP_TRAP || (ttmp.ttyp) == LEVEL_TELEP || (ttmp.ttyp) == MAGIC_TRAP || (ttmp.ttyp) == ANTI_MAGIC || (ttmp.ttyp) == POLY_TRAP)) {
             let seeit = ((game.viz_array[y][x] & 2) != 0);
-            /* note: this explosion mustn't destroy otmp */
-            explode(x, y, -WAN_CANCELLATION, 20 + d(3, 6), (MAXOCLASSES + 3), EXPL_MAGICAL);
-            deltrap(ttmp);
-            newsym(x, y);
+            await explode(x, y, -WAN_CANCELLATION, 20 + d(3, 6), (MAXOCLASSES + 3), EXPL_MAGICAL);
+            await deltrap(ttmp);
+            await newsym(x, y);
             if (seeit) {
                 learn_it.value = (1);
             }
@@ -3456,17 +3264,13 @@ export function maybe_explode_trap(ttmp, otmp, learn_it) {
 /* zap_map() occurs before hitting monsters or objects and handles wands or
    spells that don't dish out 'elemental' damage */
 /* zapped wand, or book for cast spell */
-export function zap_map(x, y, obj) {
+export async function zap_map(x, y, obj) {
     let ttmp = t_at(x, y);
     /* might be changed by drawbridge handling */
     let dbx = x;
     let dby = y;
     let learn_it = (0);
-    /*
-     * We handle drawbridge for lateral zaps; zap_updown() handles up/down.
-     * Engravings only get hit by down zaps and we handle that here.
-     */
-    maybe_explode_trap(ttmp, obj, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } });
+    await maybe_explode_trap(ttmp, obj, { get value() { return learn_it; }, set value(_v) { learn_it = _v; } });
     ttmp = t_at(x, y);
     if (game.u.dz > 0) {
         let ebuf = '';
@@ -3478,29 +3282,28 @@ export function zap_map(x, y, obj) {
                 /* subset of engraving effects; none sets `disclose' */
                 case WAN_POLYMORPH:
                 case SPE_POLYMORPH:
-                    del_engr(e);
-                    etxt = random_engraving(ebuf, pristinebuf);
-                    make_engr_at(x, y, etxt, pristinebuf, game.moves, 0);
+                    await del_engr(e);
+                    etxt = await random_engraving(ebuf, pristinebuf);
+                    await make_engr_at(x, y, etxt, pristinebuf, game.moves, 0);
                     break;
                 case WAN_CANCELLATION:
                 case SPE_CANCELLATION:
                 case WAN_MAKE_INVISIBLE:
-                    del_engr(e);
+                    await del_engr(e);
                     break;
                 case WAN_TELEPORTATION:
                 case SPE_TELEPORT_AWAY:
-                    rloc_engr(e);
+                    await rloc_engr(e);
                     break;
                 case SPE_STONE_TO_FLESH:
                     if (e.engr_type == 2) {
-                        /* only affects things in stone */
-                        pline_The((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "floor runs like butter!" : "edges on the floor get smoother.");
-                        wipe_engr_at(x, y, d(2, 4), (1));
+                        await pline_The((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "floor runs like butter!" : "edges on the floor get smoother.");
+                        await wipe_engr_at(x, y, d(2, 4), (1));
                     }
                     break;
                 case WAN_STRIKING:
                 case SPE_FORCE_BOLT:
-                    wipe_engr_at(x, y, d(2, 4), (1));
+                    await wipe_engr_at(x, y, d(2, 4), (1));
                     break;
                 default:
                     break;
@@ -3517,7 +3320,7 @@ export function zap_map(x, y, obj) {
                         if (((game.viz_array[dby][dbx] & 2) != 0) || ((game.viz_array[y][x] & 2) != 0)) {
                             learn_it = (1);
                         }
-                        open_drawbridge(dbx, dby);
+                        await open_drawbridge(dbx, dby);
                     }
                     break;
                 case WAN_LOCKING:
@@ -3525,14 +3328,13 @@ export function zap_map(x, y, obj) {
                     if ((((game.viz_array[dby][dbx] & 2) != 0) || ((game.viz_array[y][x] & 2) != 0)) && game.level.locations[dbx][dby].typ == DRAWBRIDGE_DOWN) {
                         learn_it = (1);
                     }
-                    /* drawbridge_down: span of lowered drawbridge */
-                    close_drawbridge(dbx, dby);
+                    await close_drawbridge(dbx, dby);
                     break;
                 case WAN_STRIKING:
                 case SPE_FORCE_BOLT:
                     if (ltyp != DRAWBRIDGE_UP) {
                         learn_it = (1);
-                        destroy_drawbridge(dbx, dby);
+                        await destroy_drawbridge(dbx, dby);
                     }
                     break;
             }
@@ -3546,7 +3348,7 @@ export function zap_map(x, y, obj) {
            view that hasn't been entered yet */
         oldtyp = game.lastseentyp[x][y];
         oldglyph = glyph_at(x, y);
-        show_map_spot(x, y, (0));
+        await show_map_spot(x, y, (0));
         if (oldtyp != game.lastseentyp[x][y] || oldglyph != glyph_at(x, y)) {
             learn_it = (1);
         }
@@ -3555,24 +3357,22 @@ export function zap_map(x, y, obj) {
             /* secret door gets revealed, converted into regular door */
             cvt_sdoor_to_door(game.level.locations[x][y]);
             recalc_block_point(x, y);
-            newsym(x, y);
+            await newsym(x, y);
             if (((game.viz_array[y][x] & 2) != 0)) {
-                pline("Probing reveals a secret door.");
+                await pline("Probing reveals a secret door.");
                 learn_it = (1);
             } else if ((((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
-                /* "You feel a draft." (open doorway) */
-                draft_message((0));
+                await draft_message((0));
             }
         } else if (ltyp == SCORR) {
             game.level.locations[x][y].typ = CORR;
             unblock_point(x, y);
-            newsym(x, y);
-            pline("Probing exposes a secret corridor.");
+            await newsym(x, y);
+            await pline("Probing exposes a secret corridor.");
             learn_it = (1);
         } else if (ltyp == ICE || ((ltyp) >= STAIRS && (ltyp) <= ALTAR)) {
             if (game.u.dz > 0) {
-                /* down, which also means x,y == u.ux,u.uy */
-                force_decor((1));
+                await force_decor((1));
                 learn_it = (1);
             }
         }
@@ -3588,17 +3388,17 @@ export function zap_map(x, y, obj) {
             let use_the = 0;
             let hallu = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) != 0;
             ttmp.tseen = 1;
-            newsym(x, y);
+            await newsym(x, y);
             if (!t_already_seen || hallu) {
                 ttmpname = trapname(ttmp.ttyp, (0));
                 use_the = !hallu ? (ttmp.ttyp == VIBRATING_SQUARE && Invocation_lev(game.u.uz)) : !rn2(4);
-                You("find %s%c", use_the ? the(ttmpname) : an(ttmpname), use_the ? 33 : 46);
+                await You("find %s%c", use_the ? await the(ttmpname) : await an(ttmpname), use_the ? 33 : 46);
                 learn_it = !hallu;
             }
         }
     }
     if (learn_it) {
-        learnwand(obj);
+        await learnwand(obj);
     }
     return;
 }
@@ -3630,7 +3430,7 @@ export function zap_map(x, y, obj) {
 /* fns called when mon/obj hit */
 /* object tossed/used, set to NULL
                                    * if object is destroyed */
-export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
+export async function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
     let mtmp = null;
     let result = null;
     let obj = null;
@@ -3683,14 +3483,14 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
             allow_skip = !rn2(3);
         }
         if (weapon == FLASHED_LIGHT) {
-            tmp_at((-1), (((S_flashbeam) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((S_flashbeam) <= S_trwall) ? ((S_flashbeam) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((S_flashbeam) < S_altar) ? (((S_flashbeam) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((S_flashbeam) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((S_flashbeam) < S_arrow_trap + (TRAPNUM - 1)) ? (((S_flashbeam) - S_grave) + GLYPH_CMAP_B_OFF) : ((S_flashbeam) <= S_goodpos) ? (((S_flashbeam) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
+            await tmp_at((-1), (((S_flashbeam) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((S_flashbeam) <= S_trwall) ? ((S_flashbeam) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((S_flashbeam) < S_altar) ? (((S_flashbeam) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((S_flashbeam) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((S_flashbeam) < S_arrow_trap + (TRAPNUM - 1)) ? (((S_flashbeam) - S_grave) + GLYPH_CMAP_B_OFF) : ((S_flashbeam) <= S_goodpos) ? (((S_flashbeam) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
         } else if (weapon == THROWN_TETHERED_WEAPON && obj) {
             tethered_weapon = (1);
             /* simplify 'if's that follow below */
             weapon = THROWN_WEAPON;
-            tmp_at((-3), (((obj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((obj).corpsenm + ((((obj).spe & 3) == 1) ? (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((obj).otyp == CORPSE) ? (((obj).corpsenm + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(obj).dknown && ((obj).oclass == POTION_CLASS || ((obj).otyp >= FIRST_REAL_GEM && ((obj).otyp <= LAST_GLASS_GEM)) || ((obj).otyp >= FIRST_SPELL && ((obj).otyp <= LAST_SPELL)))) ? (((obj).oclass + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((obj).otyp + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
+            await tmp_at((-3), (((obj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((obj).corpsenm + ((((obj).spe & 3) == 1) ? (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((obj).otyp == CORPSE) ? (((obj).corpsenm + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(obj).dknown && ((obj).oclass == POTION_CLASS || ((obj).otyp >= FIRST_REAL_GEM && ((obj).otyp <= LAST_GLASS_GEM)) || ((obj).otyp >= FIRST_SPELL && ((obj).otyp <= LAST_SPELL)))) ? (((obj).oclass + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((obj).otyp + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
         } else if (weapon != ZAPPED_WAND && weapon != INVIS_BEAM) {
-            tmp_at((-4), (((obj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((obj).corpsenm + ((((obj).spe & 3) == 1) ? (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((obj).otyp == CORPSE) ? (((obj).corpsenm + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(obj).dknown && ((obj).oclass == POTION_CLASS || ((obj).otyp >= FIRST_REAL_GEM && ((obj).otyp <= LAST_GLASS_GEM)) || ((obj).otyp >= FIRST_SPELL && ((obj).otyp <= LAST_SPELL)))) ? (((obj).oclass + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((obj).otyp + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
+            await tmp_at((-4), (((obj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((obj).corpsenm + ((((obj).spe & 3) == 1) ? (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((obj).otyp == CORPSE) ? (((obj).corpsenm + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(obj).dknown && ((obj).oclass == POTION_CLASS || ((obj).otyp >= FIRST_REAL_GEM && ((obj).otyp <= LAST_GLASS_GEM)) || ((obj).otyp >= FIRST_SPELL && ((obj).otyp <= LAST_SPELL)))) ? (((obj).oclass + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((obj).otyp + (((obj).where == 1 && ((game.otg_otmp = game.level.objects[(obj).ox][(obj).oy].v.v_nexthere) != null) && ((obj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
         }
         while (range-- > 0) {
             let x = 0;
@@ -3705,9 +3505,8 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                 game.bhitpos.y -= ddy;
                 break;
             }
-            if (((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_subtyp == P_PICK_AXE) && inside_shop(x, y) && (mtmp = shkcatch(obj, x, y)) != null) {
-                /* do not leave last symbol */
-                tmp_at((-7), 0);
+            if (((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_subtyp == P_PICK_AXE) && inside_shop(x, y) && (mtmp = await shkcatch(obj, x, y)) != null) {
+                await tmp_at((-7), 0);
                 result = mtmp;
                 break bhit_done;
             }
@@ -3723,9 +3522,9 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
             if (weapon == THROWN_WEAPON || weapon == KICKED_WEAPON) {
                 /* iron bars will block anything big enough and break some things */
                 if (obj.lamplit && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    show_transient_light(obj, x, y);
+                    await show_transient_light(obj, x, y);
                 }
-                if (typ == IRONBARS && hits_bars(pobj, x - ddx, y - ddy, x, y, point_blank ? 0 : !rn2(5), 1)) {
+                if (typ == IRONBARS && await hits_bars(pobj, x - ddx, y - ddy, x, y, point_blank ? 0 : !rn2(5), 1)) {
                     /* caveat: obj might now be null... */
                     /* not currently needed due to 'break'; keep */
                     obj = pobj;
@@ -3737,11 +3536,11 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                 }
             } else if (weapon == FLASHED_LIGHT) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    show_transient_light(null, x, y);
+                    await show_transient_light(null, x, y);
                 }
             }
             if (weapon == ZAPPED_WAND) {
-                zap_map(x, y, obj);
+                await zap_map(x, y, obj);
                 /* terrain might have changed (exposed secret door|corridor) */
                 typ = game.level.locations[x][y].typ;
             }
@@ -3749,9 +3548,9 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
             ttmp = t_at(x, y);
             if (!mtmp && ttmp && (ttmp.ttyp == WEB) && (weapon == THROWN_WEAPON || weapon == KICKED_WEAPON) && !rn2(3)) {
                 if (((game.viz_array[y][x] & 2) != 0)) {
-                    pline("%s gets stuck in a web!", Yname2(obj));
+                    await pline("%s gets stuck in a web!", await Yname2(obj));
                     ttmp.tseen = (1);
-                    newsym(x, y);
+                    await newsym(x, y);
                 }
                 if (was_returning) {
                     game.iflags.returning_missile = null;
@@ -3767,9 +3566,9 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
          */
                     in_skip = (1);
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        pline("%s %s%s.", Yname2(obj), otense(obj, "skip"), skipcount ? " again" : "");
+                        await pline("%s %s%s.", await Yname2(obj), await otense(obj, "skip"), skipcount ? " again" : "");
                     } else {
-                        You_hear("%s skip.", yname(obj));
+                        await You_hear("%s skip.", await yname(obj));
                     }
                     skipcount++;
                 } else if (skiprange_start > skiprange_end + 1) {
@@ -3784,7 +3583,7 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                     }
                 } else if (mtmp && ((mtmp.data).mlet == S_EEL || ((((mtmp.data).mflags1 & 2) != 0) || (((mtmp.data).mflags1 & 512) != 0) || (((mtmp.data).mflags1 & 1024) != 0)))) {
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && (canseemon(mtmp) || sensemon(mtmp))) {
-                        pline("%s %s over %s.", Yname2(obj), otense(obj, "pass"), mon_nam(mtmp));
+                        await pline("%s %s over %s.", await Yname2(obj), await otense(obj, "pass"), await mon_nam(mtmp));
                     }
                     mtmp = null;
                 }
@@ -3801,7 +3600,7 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
            them); exception: if the hero knows there is a monster there,
            they will be aiming at the monster */
             xyglyph = glyph_at(x, y);
-            if (mtmp && (((weapon == THROWN_WEAPON || weapon == KICKED_WEAPON) && (shade_miss(game.youmonst, mtmp, obj, (1), (1)) || (((mtmp).m_ap_type & 7) == M_AP_OBJECT && !((((xyglyph) >= GLYPH_MON_MALE_OFF && (xyglyph) < (GLYPH_MON_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_MON_FEM_OFF && (xyglyph) < (GLYPH_MON_FEM_OFF + NUMMONS))) || (((xyglyph) >= GLYPH_PET_MALE_OFF && (xyglyph) < (GLYPH_PET_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_PET_FEM_OFF && (xyglyph) < (GLYPH_PET_FEM_OFF + NUMMONS))) || (((xyglyph) >= GLYPH_RIDDEN_MALE_OFF && (xyglyph) < (GLYPH_RIDDEN_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_RIDDEN_FEM_OFF && (xyglyph) < (GLYPH_RIDDEN_FEM_OFF + NUMMONS))) || (((xyglyph) >= GLYPH_DETECT_MALE_OFF && (xyglyph) < (GLYPH_DETECT_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_DETECT_FEM_OFF && (xyglyph) < (GLYPH_DETECT_FEM_OFF + NUMMONS)))) && !((xyglyph) >= GLYPH_WARNING_OFF && (xyglyph) < (GLYPH_WARNING_OFF + 6)) && !((xyglyph) == GLYPH_INVIS_OFF)))) || (weapon == FLASHED_LIGHT && ((mtmp).m_ap_type & 7) == M_AP_OBJECT))) {
+            if (mtmp && (((weapon == THROWN_WEAPON || weapon == KICKED_WEAPON) && (await shade_miss(game.youmonst, mtmp, obj, (1), (1)) || (((mtmp).m_ap_type & 7) == M_AP_OBJECT && !((((xyglyph) >= GLYPH_MON_MALE_OFF && (xyglyph) < (GLYPH_MON_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_MON_FEM_OFF && (xyglyph) < (GLYPH_MON_FEM_OFF + NUMMONS))) || (((xyglyph) >= GLYPH_PET_MALE_OFF && (xyglyph) < (GLYPH_PET_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_PET_FEM_OFF && (xyglyph) < (GLYPH_PET_FEM_OFF + NUMMONS))) || (((xyglyph) >= GLYPH_RIDDEN_MALE_OFF && (xyglyph) < (GLYPH_RIDDEN_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_RIDDEN_FEM_OFF && (xyglyph) < (GLYPH_RIDDEN_FEM_OFF + NUMMONS))) || (((xyglyph) >= GLYPH_DETECT_MALE_OFF && (xyglyph) < (GLYPH_DETECT_MALE_OFF + NUMMONS)) || ((xyglyph) >= GLYPH_DETECT_FEM_OFF && (xyglyph) < (GLYPH_DETECT_FEM_OFF + NUMMONS)))) && !((xyglyph) >= GLYPH_WARNING_OFF && (xyglyph) < (GLYPH_WARNING_OFF + 6)) && !((xyglyph) == GLYPH_INVIS_OFF)))) || (weapon == FLASHED_LIGHT && ((mtmp).m_ap_type & 7) == M_AP_OBJECT))) {
                 mtmp = null;
             }
             if (mtmp) {
@@ -3815,9 +3614,9 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                    use mtmp->minvis, not canspotmon(), because it makes no
                    difference whether hero can see the monster or not. */
                         obj.ox = game.u.ux , obj.oy = game.u.uy;
-                        flash_hits_mon(mtmp, obj);
+                        await flash_hits_mon(mtmp, obj);
                     } else {
-                        tmp_at((-7), 0);
+                        await tmp_at((-7), 0);
                         /* caller will call flash_hits_mon() */
                         /* Like FLASHED_LIGHT, INVIS_BEAM should continue
                    through invisible targets; unlike it, we aren't
@@ -3834,12 +3633,11 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                         break bhit_done;
                     }
                 } else if (weapon != ZAPPED_WAND) {
-                    /* THROWN_WEAPON, KICKED_WEAPON */
                     if (!tethered_weapon) {
-                        tmp_at((-7), 0);
+                        await tmp_at((-7), 0);
                     }
                     if (((game.viz_array[y][x] & 2) != 0) && !(canseemon(mtmp) || sensemon(mtmp))) {
-                        map_invisible(x, y);
+                        await map_invisible(x, y);
                     }
                     result = mtmp;
                     break bhit_done;
@@ -3852,18 +3650,17 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                 }
             } else {
                 if (weapon == ZAPPED_WAND && obj.otyp == WAN_PROBING && ((game.level.locations[x][y].glyph) == GLYPH_INVIS_OFF)) {
-                    /* 'I' present but no monster: erase; do this before tmp_at() */
-                    unmap_object(x, y);
-                    newsym(x, y);
+                    await unmap_object(x, y);
+                    await newsym(x, y);
                 }
             }
             if (fhito) {
-                if (bhitpile(obj, fhito, x, y, 0)) {
+                if (await bhitpile(obj, fhito, x, y, 0)) {
                     range--;
                 }
             } else {
-                if (weapon == KICKED_WEAPON && ((obj.oclass == COIN_CLASS && (game.level.objects[x][y] != null)) || ship_object(obj, x, y, costly_spot(x, y)))) {
-                    tmp_at((-7), 0);
+                if (weapon == KICKED_WEAPON && ((obj.oclass == COIN_CLASS && (game.level.objects[x][y] != null)) || await ship_object(obj, x, y, await costly_spot(x, y)))) {
+                    await tmp_at((-7), 0);
                     break bhit_done;
                 }
             }
@@ -3875,13 +3672,13 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                     case SPE_KNOCK:
                     case SPE_WIZARD_LOCK:
                     case SPE_FORCE_BOLT:
-                        if (doorlock(obj, x, y)) {
+                        if (await doorlock(obj, x, y)) {
                             if (((game.viz_array[y][x] & 2) != 0) || (obj.otyp == WAN_STRIKING && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf))) {
-                                learnwand(obj);
+                                await learnwand(obj);
                             }
                             if (game.level.locations[x][y].flags == 1 && in_rooms(x, y, SHOPBASE)) {
                                 shopdoor = (1);
-                                add_damage(x, y, 400);
+                                await add_damage(x, y, 400);
                             }
                         }
                         break;
@@ -3894,10 +3691,10 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
             }
             if (weapon != ZAPPED_WAND && weapon != INVIS_BEAM) {
                 if (((game.level.locations[x][y].glyph) == GLYPH_INVIS_OFF) && ((game.viz_array[y][x] & 2) != 0)) {
-                    unmap_object(x, y);
-                    newsym(x, y);
+                    await unmap_object(x, y);
+                    await newsym(x, y);
                 }
-                tmp_at(x, y);
+                await tmp_at(x, y);
                 (game.windowprocs.win_delay_output)();
                 /* kicked objects fall in pools */
                 if ((weapon == KICKED_WEAPON) && is_pool_or_lava(x, y)) {
@@ -3914,14 +3711,14 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
                 let t = null;
                 if ((bobj = sobj_at(BOULDER, x, y)) != null) {
                     if (((game.viz_array[y][x] & 2) != 0)) {
-                        pline("%s hits %s.", The(distant_name(obj, xname)), an(xname(bobj)));
+                        await pline("%s hits %s.", await The(await distant_name(obj, xname)), await an(await xname(bobj)));
                     }
                     range = 0;
                 } else if (obj == game.uball) {
-                    if (!test_move(x - ddx, y - ddy, ddx, ddy, 1)) {
+                    if (!await test_move(x - ddx, y - ddy, ddx, ddy, 1)) {
                         /* nb: it didn't hit anything directly */
                         if (((game.viz_array[y][x] & 2) != 0)) {
-                            pline("%s jerks to an abrupt halt.", The(distant_name(obj, xname)));
+                            await pline("%s jerks to an abrupt halt.", await The(await distant_name(obj, xname)));
                         }
                         /* hero falls into the trap, so ball stops */
                         range = 0;
@@ -3935,14 +3732,14 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
             point_blank = (0);
         }
         if ((weapon != ZAPPED_WAND && weapon != INVIS_BEAM && !tethered_weapon) || (was_returning && was_returning != game.iflags.returning_missile)) {
-            tmp_at((-7), 0);
+            await tmp_at((-7), 0);
         }
         if (shopdoor) {
-            pay_for_damage("destroy", (0));
+            await pay_for_damage("destroy", (0));
         }
     }
     if (weapon == THROWN_WEAPON || weapon == KICKED_WEAPON) {
-        transient_light_cleanup();
+        await transient_light_cleanup();
     }
     return result;
 }
@@ -3952,7 +3749,7 @@ export function bhit(ddx, ddy, range, weapon, fhitm, fhito, pobj) {
  * early on a failed catch since continuing to throw after being hit
  * is too obviously silly.
  */
-export function boomhit(obj, dx, dy) {
+export async function boomhit(obj, dx, dy) {
     let i = 0;
     let ct = 0;
     let boom = 0;
@@ -3963,11 +3760,11 @@ export function boomhit(obj, dx, dy) {
     game.bhitpos.y = game.u.uy;
     boom = counterclockwise ? S_boomleft : S_boomright;
     i = xytodir(dx, dy);
-    tmp_at((-4), (((boom) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((boom) <= S_trwall) ? ((boom) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((boom) < S_altar) ? (((boom) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((boom) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((boom) < S_arrow_trap + (TRAPNUM - 1)) ? (((boom) - S_grave) + GLYPH_CMAP_B_OFF) : ((boom) <= S_goodpos) ? (((boom) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
+    await tmp_at((-4), (((boom) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((boom) <= S_trwall) ? ((boom) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((boom) < S_altar) ? (((boom) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((boom) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((boom) < S_arrow_trap + (TRAPNUM - 1)) ? (((boom) - S_grave) + GLYPH_CMAP_B_OFF) : ((boom) <= S_goodpos) ? (((boom) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
     for (ct = 0; ct < 10; ct++) {
         i = (((i) + (N_DIRS_Z - 2)) % (N_DIRS_Z - 2));
         boom = (S_boomleft + S_boomright - boom);
-        tmp_at((-6), (((boom) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((boom) <= S_trwall) ? ((boom) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((boom) < S_altar) ? (((boom) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((boom) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((boom) < S_arrow_trap + (TRAPNUM - 1)) ? (((boom) - S_grave) + GLYPH_CMAP_B_OFF) : ((boom) <= S_goodpos) ? (((boom) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
+        await tmp_at((-6), (((boom) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((boom) <= S_trwall) ? ((boom) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((boom) < S_altar) ? (((boom) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((boom) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((boom) < S_arrow_trap + (TRAPNUM - 1)) ? (((boom) - S_grave) + GLYPH_CMAP_B_OFF) : ((boom) <= S_goodpos) ? (((boom) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
         dx = xdir[i];
         dy = ydir[i];
         game.bhitpos.x += dx;
@@ -3978,11 +3775,11 @@ export function boomhit(obj, dx, dy) {
             break;
         }
         if ((mtmp = (game.level.monsters[game.bhitpos.x][game.bhitpos.y])) != null) {
-            m_respond(mtmp);
+            await m_respond(mtmp);
             if (nhits-- < 0) {
-                tmp_at((-7), 0);
+                await tmp_at((-7), 0);
                 return mtmp;
-            } else if (throwit_mon_hit(obj, mtmp) || !game.thrownobj) {
+            } else if (await throwit_mon_hit(obj, mtmp) || !game.thrownobj) {
                 break;
             }
         }
@@ -3993,24 +3790,24 @@ export function boomhit(obj, dx, dy) {
         }
         if (((game.bhitpos.x) == game.u.ux && (game.bhitpos.y) == game.u.uy)) {
             if ((game.u.uprops[FUMBLING].intrinsic || game.u.uprops[FUMBLING].extrinsic) || rn2(20) >= (acurr(A_DEX))) {
-                let dam = dmgval(obj, game.youmonst);
-                thitu(10 + obj.spe, (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dam) + 1) / 2)) : (dam)), { get value() { return obj; }, set value(_v) { obj = _v; } }, "boomerang");
-                endmultishot((1));
+                let dam = await dmgval(obj, game.youmonst);
+                await thitu(10 + obj.spe, (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dam) + 1) / 2)) : (dam)), { get value() { return obj; }, set value(_v) { obj = _v; } }, "boomerang");
+                await endmultishot((1));
                 break;
             } else {
-                tmp_at((-7), 0);
-                You("skillfully catch the boomerang.");
+                await tmp_at((-7), 0);
+                await You("skillfully catch the boomerang.");
                 return game.youmonst;
             }
         }
-        tmp_at(game.bhitpos.x, game.bhitpos.y);
+        await tmp_at(game.bhitpos.x, game.bhitpos.y);
         (game.windowprocs.win_delay_output)();
         if (((game.level.locations[game.bhitpos.x][game.bhitpos.y].typ) == SINK)) {
             ;
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                pline("Klonk!");
+                await pline("Klonk!");
             }
-            wake_nearto(game.bhitpos.x, game.bhitpos.y, 20);
+            await wake_nearto(game.bhitpos.x, game.bhitpos.y, 20);
             break;
         }
         /* ct==0, initial position, we want next delta to be same;
@@ -4019,7 +3816,7 @@ export function boomhit(obj, dx, dy) {
             i = counterclockwise ? (((i) + 7) % (N_DIRS_Z - 2)) : (((i) + 1) % (N_DIRS_Z - 2));
         }
     }
-    tmp_at((-7), 0);
+    await tmp_at((-7), 0);
     return null;
 }
 /* used by buzz(); also used by munslime(muse.c); returns damage applied
@@ -4028,7 +3825,7 @@ export function boomhit(obj, dx, dy) {
 /* zap or breath type */
 /* number of hit dice to use */
 /* to return worn armor for caller to disintegrate */
-export function zhitm(mon, type, nd, ootmp) {
+export async function zhitm(mon, type, nd, ootmp) {
     let tmp = 0;
     let orig_dmg = 0;
     let damgtype = zaptype(type) % 10;
@@ -4037,7 +3834,7 @@ export function zhitm(mon, type, nd, ootmp) {
     ootmp.value = null;
     switch (damgtype) {
         case (1 - 1):
-            if (resists_magm(mon) || defended(mon, 1)) {
+            if (resists_magm(mon) || await defended(mon, 1)) {
                 sho_shieldeff = (1);
                 break;
             }
@@ -4047,7 +3844,7 @@ export function zhitm(mon, type, nd, ootmp) {
             }
             break;
         case (2 - 1):
-            if (Resists_Elem(mon, FIRE_RES) || defended(mon, 2)) {
+            if (await Resists_Elem(mon, FIRE_RES) || await defended(mon, 2)) {
                 sho_shieldeff = (1);
                 break;
             }
@@ -4058,18 +3855,18 @@ export function zhitm(mon, type, nd, ootmp) {
             /* includes spell bonus but not monster vuln to fire */
             /* includes spell bonus but not monster vuln to cold */
             orig_dmg = tmp;
-            if (Resists_Elem(mon, COLD_RES)) {
+            if (await Resists_Elem(mon, COLD_RES)) {
                 tmp += 7;
             }
-            if (burnarmor(mon)) {
+            if (await burnarmor(mon)) {
                 if (!rn2(3)) {
-                    tmp += destroy_items(mon, 2, orig_dmg);
-                    ignite_items(mon.minvent);
+                    tmp += await destroy_items(mon, 2, orig_dmg);
+                    await ignite_items(mon.minvent);
                 }
             }
             break;
         case (3 - 1):
-            if (Resists_Elem(mon, COLD_RES) || defended(mon, 3)) {
+            if (await Resists_Elem(mon, COLD_RES) || await defended(mon, 3)) {
                 sho_shieldeff = (1);
                 break;
             }
@@ -4078,23 +3875,21 @@ export function zhitm(mon, type, nd, ootmp) {
                 tmp = spell_damage_bonus(tmp);
             }
             orig_dmg = tmp;
-            if (Resists_Elem(mon, FIRE_RES)) {
+            if (await Resists_Elem(mon, FIRE_RES)) {
                 tmp += d(nd, 3);
             }
             if (!rn2(3)) {
-                tmp += destroy_items(mon, 3, orig_dmg);
+                tmp += await destroy_items(mon, 3, orig_dmg);
             }
             break;
         case (4 - 1):
             tmp = 0;
-            sleep_monst(mon, d(nd, 25), type == ((4 - 1)) ? WAND_CLASS : 0);
+            await sleep_monst(mon, d(nd, 25), type == ((4 - 1)) ? WAND_CLASS : 0);
             break;
         case (5 - 1):
             if (abs(type) != (20 + ((5 - 1)))) {
                 if (mon.data == game.mons[PM_DEATH]) {
-                    /* resistance and shield effect and revealing concealed mimic are
-           handled by sleep_monst() */
-                    healmon(mon, Math.trunc(mon.mhpmax * 3 / 2), Math.trunc(mon.mhpmax / 2));
+                    await healmon(mon, Math.trunc(mon.mhpmax * 3 / 2), Math.trunc(mon.mhpmax / 2));
                     if (mon.mhpmax >= 1000) {
                         mon.mhpmax = 1000 - 1;
                     }
@@ -4110,26 +3905,24 @@ export function zhitm(mon, type, nd, ootmp) {
                 type = -1;
             } else {
                 let otmp2 = null;
-                if (Resists_Elem(mon, DISINT_RES) || defended(mon, 5)) {
+                if (await Resists_Elem(mon, DISINT_RES) || await defended(mon, 5)) {
                     sho_shieldeff = (1);
                 } else if (mon.misc_worn_check & 8) {
-                    /* destroy shield; victim survives */
-                    ootmp.value = which_armor(mon, 8);
+                    ootmp.value = await which_armor(mon, 8);
                 } else if (mon.misc_worn_check & 1) {
-                    /* destroy suit, also cloak if present */
-                    ootmp.value = which_armor(mon, 1);
-                    if ((otmp2 = which_armor(mon, 2)) != null) {
-                        m_useup(mon, otmp2);
+                    ootmp.value = await which_armor(mon, 1);
+                    if ((otmp2 = await which_armor(mon, 2)) != null) {
+                        await m_useup(mon, otmp2);
                     }
                 } else {
                     /* no suit, victim dies; destroy cloak
                    and shirt now in case target gets life-saved */
                     tmp = 1000;
-                    if ((otmp2 = which_armor(mon, 2)) != null) {
-                        m_useup(mon, otmp2);
+                    if ((otmp2 = await which_armor(mon, 2)) != null) {
+                        await m_useup(mon, otmp2);
                     }
-                    if ((otmp2 = which_armor(mon, 64)) != null) {
-                        m_useup(mon, otmp2);
+                    if ((otmp2 = await which_armor(mon, 64)) != null) {
+                        await m_useup(mon, otmp2);
                     }
                 }
                 type = -1;
@@ -4143,11 +3936,11 @@ export function zhitm(mon, type, nd, ootmp) {
                 tmp = spell_damage_bonus(tmp);
             }
             orig_dmg = tmp;
-            if (Resists_Elem(mon, SHOCK_RES) || defended(mon, 6)) {
+            if (await Resists_Elem(mon, SHOCK_RES) || await defended(mon, 6)) {
                 sho_shieldeff = (1);
                 tmp = 0;
             }
-            if (!resists_blnd(mon) && !(type > 0 && (game.u.uswallow && (game.u.ustuck == (mon)))) && nd > 2) {
+            if (!await resists_blnd(mon) && !(type > 0 && (game.u.uswallow && (game.u.ustuck == (mon)))) && nd > 2) {
                 /* sufficiently powerful lightning blinds monsters */
                 let rnd_tmp = rnd(50);
                 mon.mcansee = 0;
@@ -4158,37 +3951,37 @@ export function zhitm(mon, type, nd, ootmp) {
                 }
             }
             if (!rn2(3)) {
-                tmp += destroy_items(mon, 6, orig_dmg);
+                tmp += await destroy_items(mon, 6, orig_dmg);
             }
             break;
         case (7 - 1):
-            if (Resists_Elem(mon, POISON_RES) || defended(mon, 7)) {
+            if (await Resists_Elem(mon, POISON_RES) || await defended(mon, 7)) {
                 sho_shieldeff = (1);
                 break;
             }
             tmp = d(nd, 6);
             break;
         case (8 - 1):
-            if (Resists_Elem(mon, ACID_RES) || defended(mon, 8)) {
+            if (await Resists_Elem(mon, ACID_RES) || await defended(mon, 8)) {
                 sho_shieldeff = (1);
                 break;
             }
             tmp = d(nd, 6);
             if (!rn2(6)) {
-                acid_damage(((mon).mw));
+                await acid_damage(((mon).mw));
             }
             if (!rn2(6)) {
-                erode_armor(mon, 3);
+                await erode_armor(mon, 3);
             }
             break;
     }
     if (sho_shieldeff) {
-        shieldeff(mon.mx, mon.my);
+        await shieldeff(mon.mx, mon.my);
     }
     if (((type) >= 10 && (type) < 20) && ((game.urole.mnum == (PM_KNIGHT)) && game.u.uhave.questart)) {
         tmp *= 2;
     }
-    if (tmp > 0 && type >= 0 && resist(mon, type < (10 + (0)) ? WAND_CLASS : 0, 0, 0)) {
+    if (tmp > 0 && type >= 0 && await resist(mon, type < (10 + (0)) ? WAND_CLASS : 0, 0, 0)) {
         tmp = Math.trunc(tmp / 2);
     }
     if (tmp < 0) {
@@ -4197,7 +3990,7 @@ export function zhitm(mon, type, nd, ootmp) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/zap.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("zapped monster hp = %d (= %d - %d)", mon.mhp - tmp, mon.mhp, tmp);
+            await pline("zapped monster hp = %d (= %d - %d)", mon.mhp - tmp, mon.mhp, tmp);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -4205,73 +3998,73 @@ export function zhitm(mon, type, nd, ootmp) {
     mon.mhp -= tmp;
     return tmp;
 }
-export function zhitu(type, nd, fltxt, sx, sy) {
+export async function zhitu(type, nd, fltxt, sx, sy) {
     let dam = 0;
     let abstyp = zaptype(type);
     let orig_dam = 0;
     switch (abstyp % 10) {
         case (1 - 1):
             if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-                shieldeff(sx, sy);
-                pline_The("missiles bounce off!");
+                await shieldeff(sx, sy);
+                await pline_The("missiles bounce off!");
                 monstseesu(M_SEEN_MAGR);
             } else {
                 dam = d(nd, 6);
-                exercise(A_STR, (0));
+                await exercise(A_STR, (0));
                 monstunseesu(M_SEEN_MAGR);
             }
             break;
         case (2 - 1):
             orig_dam = d(nd, 6);
             if ((game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic)) {
-                shieldeff(sx, sy);
-                You("don't feel hot!");
+                await shieldeff(sx, sy);
+                await You("don't feel hot!");
                 monstseesu(M_SEEN_FIRE);
-                ugolemeffects(2, orig_dam);
+                await ugolemeffects(2, orig_dam);
             } else {
                 dam = orig_dam;
                 monstunseesu(M_SEEN_FIRE);
             }
-            burn_away_slime();
-            if (burnarmor(game.youmonst)) {
+            await burn_away_slime();
+            if (await burnarmor(game.youmonst)) {
                 if (!rn2(3)) {
-                    destroy_items(game.youmonst, 2, orig_dam);
+                    await destroy_items(game.youmonst, 2, orig_dam);
                 }
                 if (!rn2(3)) {
-                    ignite_items(game.invent);
+                    await ignite_items(game.invent);
                 }
             }
             break;
         case (3 - 1):
             orig_dam = d(nd, 6);
             if ((game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic)) {
-                shieldeff(sx, sy);
-                You("don't feel cold.");
+                await shieldeff(sx, sy);
+                await You("don't feel cold.");
                 monstseesu(M_SEEN_COLD);
-                ugolemeffects(3, orig_dam);
+                await ugolemeffects(3, orig_dam);
             } else {
                 dam = orig_dam;
                 monstunseesu(M_SEEN_COLD);
             }
             if (!rn2(3)) {
-                destroy_items(game.youmonst, 3, orig_dam);
+                await destroy_items(game.youmonst, 3, orig_dam);
             }
             break;
         case (4 - 1):
             if ((game.u.uprops[SLEEP_RES].intrinsic || game.u.uprops[SLEEP_RES].extrinsic)) {
-                shieldeff(game.u.ux, game.u.uy);
-                You("don't feel sleepy.");
+                await shieldeff(game.u.ux, game.u.uy);
+                await You("don't feel sleepy.");
                 monstseesu(M_SEEN_SLEEP);
             } else {
                 monstunseesu(M_SEEN_SLEEP);
-                fall_asleep(-d(nd, 25), (1));
+                await fall_asleep(-d(nd, 25), (1));
             }
             break;
         case (5 - 1):
             if (abstyp == (20 + ((5 - 1)))) {
                 let disn_prot = inventory_resistance_check(5);
                 if ((game.u.uprops[DISINT_RES].intrinsic || game.u.uprops[DISINT_RES].extrinsic)) {
-                    You("are not disintegrated.");
+                    await You("are not disintegrated.");
                     monstseesu(M_SEEN_DISINT);
                     break;
                 } else if (disn_prot) {
@@ -4279,33 +4072,29 @@ export function zhitu(type, nd, fltxt, sx, sy) {
                 }
                 monstunseesu(M_SEEN_DISINT);
                 if (game.uarms) {
-                    /* destroy shield; other possessions are safe */
-                    disintegrate_arm(game.uarms);
+                    await disintegrate_arm(game.uarms);
                     break;
                 } else if (game.uarm) {
-                    /* destroy suit; if present, cloak goes too */
                     if (game.uarmc) {
-                        disintegrate_arm(game.uarmc);
+                        await disintegrate_arm(game.uarmc);
                     }
-                    disintegrate_arm(game.uarm);
+                    await disintegrate_arm(game.uarm);
                     break;
                 }
-                /* no shield or suit, you're dead; wipe out cloak
-               and/or shirt in case of life-saving or bones */
                 if (game.uarmc) {
-                    disintegrate_arm(game.uarmc);
+                    await disintegrate_arm(game.uarmc);
                 }
                 if (game.uarmu) {
-                    disintegrate_arm(game.uarmu);
+                    await disintegrate_arm(game.uarmu);
                 }
             } else if (((((game.youmonst.data).mflags2 & 2) != 0) || (game.youmonst.data) == game.mons[PM_MANES] || (((game.youmonst.data).mlet == S_GOLEM) || (game.youmonst.data).mlet == S_VORTEX)) || (((game.youmonst.data).mflags2 & 256) != 0)) {
-                shieldeff(sx, sy);
-                You("seem unaffected.");
+                await shieldeff(sx, sy);
+                await You("seem unaffected.");
                 break;
             } else if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-                shieldeff(sx, sy);
+                await shieldeff(sx, sy);
                 monstseesu(M_SEEN_MAGR);
-                You("aren't affected.");
+                await You("aren't affected.");
                 break;
             }
             monstunseesu(M_SEEN_MAGR);
@@ -4313,48 +4102,47 @@ export function zhitu(type, nd, fltxt, sx, sy) {
             game.killer.name = strcpy(game.killer.name, fltxt ? fltxt : "");
             /* when killed by disintegration breath, don't leave corpse */
             game.u.ugrave_arise = (type == -(20 + ((5 - 1)))) ? -3 : NON_PM;
-            done(DIED);
+            await done(DIED);
             /* wizard mode terrain wish: skip livelogging, etc */
             return;
         case (6 - 1):
             orig_dam = d(nd, 6);
             if ((game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic)) {
-                shieldeff(sx, sy);
-                You("aren't affected.");
+                await shieldeff(sx, sy);
+                await You("aren't affected.");
                 monstseesu(M_SEEN_ELEC);
-                ugolemeffects(6, orig_dam);
+                await ugolemeffects(6, orig_dam);
             } else {
                 dam = orig_dam;
-                exercise(A_CON, (0));
+                await exercise(A_CON, (0));
                 monstunseesu(M_SEEN_ELEC);
             }
             if (!rn2(3)) {
-                destroy_items(game.youmonst, 6, orig_dam);
+                await destroy_items(game.youmonst, 6, orig_dam);
             }
             break;
         case (7 - 1):
-            poisoned("blast", A_DEX, "poisoned blast", 15, (0));
+            await poisoned("blast", A_DEX, "poisoned blast", 15, (0));
             break;
         case (8 - 1):
             if ((game.u.uprops[ACID_RES].intrinsic || game.u.uprops[ACID_RES].extrinsic)) {
-                pline_The("%s doesn't hurt.", hliquid("acid"));
+                await pline_The("%s doesn't hurt.", hliquid("acid"));
                 monstseesu(M_SEEN_ACID);
                 dam = 0;
             } else {
-                pline_The("%s burns!", hliquid("acid"));
+                await pline_The("%s burns!", hliquid("acid"));
                 dam = d(nd, 6);
-                exercise(A_STR, (0));
+                await exercise(A_STR, (0));
                 monstunseesu(M_SEEN_ACID);
             }
-            /* using two weapons at once makes both of them more vulnerable */
             if (!rn2(game.u.twoweap ? 3 : 6)) {
-                acid_damage(game.uwep);
+                await acid_damage(game.uwep);
             }
             if (game.u.twoweap && !rn2(3)) {
-                acid_damage(game.uswapwep);
+                await acid_damage(game.uswapwep);
             }
             if (!rn2(6)) {
-                erode_armor(game.youmonst, 3);
+                await erode_armor(game.youmonst, 3);
             }
             break;
     }
@@ -4364,20 +4152,7 @@ export function zhitu(type, nd, fltxt, sx, sy) {
         /* fire horn and frost horn get handled as wands by caller */
         let verb = (abstyp < 10) ? ((otmp && otmp.oclass == TOOL_CLASS) ? "played" : "zapped") : (abstyp < 20) ? "cast" : (abstyp < 30) ? "exhaled" : "imagined";
         if (type < 0 || (type == 0 && game.buzzer != null)) {
-            /*
-     * 5.0: when fatal, this used to yield "Killed by <fltxt>." without any
-     * information about who was responsible.  Now 'buzzer' is used to try
-     * to supply "zapped/cast/breathed by <mon> [imitating <other_mon>]."
-     *
-     * Room for improvement:  there is no monster available when player is
-     * hit by divine lighting or by Plane of Air thunderstorm so cause of
-     * death remains "killed by a bolt of lightning" w/o extra explanation.
-     *
-     * Wand of death, spell of finger of death, and disintegration breath
-     * don't use this routine so don't include 'inflicted by'.
-     */
-            /* if gb.buzzer is Null, kbuf[] will end up with just <fltxt> */
-            death_inflicted_by(kbuf, fltxt, game.buzzer);
+            await death_inflicted_by(kbuf, fltxt, game.buzzer);
             /* change "death inflicted by mon" to "death <verb> by mon" */
             if (game.buzzer) {
                 kbuf = strsubst(kbuf, "inflicted", verb);
@@ -4393,7 +4168,7 @@ export function zhitu(type, nd, fltxt, sx, sy) {
         if (dam && (game.u.uprops[HALF_SPDAM].intrinsic || game.u.uprops[HALF_SPDAM].extrinsic) && abstyp < 20) {
             dam = Math.trunc((dam + 1) / 2);
         }
-        losehp(dam, kbuf, 0);
+        await losehp(dam, kbuf, 0);
     }
     return;
 }
@@ -4402,7 +4177,7 @@ export function zhitu(type, nd, fltxt, sx, sy) {
  * at position x,y; return the number of objects burned
  */
 /* caller needs to decide about visibility checks */
-export function burn_floor_objects(x, y, give_feedback, u_caused) {
+export async function burn_floor_objects(x, y, give_feedback, u_caused) {
     let obj = null;
     let obj2 = null;
     let i = 0;
@@ -4428,34 +4203,32 @@ export function burn_floor_objects(x, y, give_feedback, u_caused) {
                 if (give_feedback) {
                     /* save name before potential delobj() */
                     obj.quan = 1;
-                    buf1 = strcpy(buf1, ((x) == game.u.ux && (y) == game.u.uy) ? xname(obj) : distant_name(obj, xname));
+                    buf1 = strcpy(buf1, ((x) == game.u.ux && (y) == game.u.uy) ? await xname(obj) : await distant_name(obj, xname));
                     obj.quan = 2;
-                    buf2 = strcpy(buf2, ((x) == game.u.ux && (y) == game.u.uy) ? xname(obj) : distant_name(obj, xname));
+                    buf2 = strcpy(buf2, ((x) == game.u.ux && (y) == game.u.uy) ? await xname(obj) : await distant_name(obj, xname));
                     obj.quan = scrquan;
                 }
                 if (u_caused) {
-                    useupf(obj, delquan);
+                    await useupf(obj, delquan);
                 } else if (delquan < scrquan) {
                     /* useupf(), which charges, only if hero caused damage */
                     obj.quan -= delquan;
-                    obj.owt = weight(obj);
+                    obj.owt = await weight(obj);
                 } else {
-                    delobj(obj);
+                    await delobj(obj);
                 }
                 cnt += delquan;
                 if (give_feedback) {
                     if (delquan > 1) {
-                        pline("%ld %s burn.", delquan, buf2);
+                        await pline("%ld %s burn.", delquan, buf2);
                     } else {
-                        pline("%s burns.", An(buf1));
+                        await pline("%s burns.", await An(buf1));
                     }
                 }
             }
         }
     }
-    /* This also ignites floor items, but does not change cnt
-       because they weren't consumed. */
-    ignite_items(game.level.objects[x][y]);
+    await ignite_items(game.level.objects[x][y]);
     return cnt;
 }
 /* which direction a ray bounces.
@@ -4507,35 +4280,35 @@ export function zap_hit(ac, type) {
     return (3 - chance < ac + spell_bonus);
 }
 /* hero vs other */
-export function disintegrate_mon(mon, type, fltxt) {
+export async function disintegrate_mon(mon, type, fltxt) {
     let otmp = null;
     let otmp2 = null;
-    let m_amulet = mlifesaver(mon);
+    let m_amulet = await mlifesaver(mon);
     if (canseemon(mon)) {
         if (!m_amulet) {
-            pline("%s is disintegrated!", Monnam(mon));
+            await pline("%s is disintegrated!", await Monnam(mon));
         } else {
-            hit(fltxt, mon, "!");
+            await hit(fltxt, mon, "!");
         }
     }
     for (otmp = mon.minvent; otmp; otmp = otmp2) {
         otmp2 = otmp.nobj;
         if (!(game.objects[otmp.otyp].oc_oprop == DISINT_RES || obj_resists(otmp, 5, 50) || is_quest_artifact(otmp) || otmp == m_amulet)) {
-            extract_from_minvent(mon, otmp, (1), (1));
-            obfree(otmp, null);
+            await extract_from_minvent(mon, otmp, (1), (1));
+            await obfree(otmp, null);
         }
     }
     if (type < 0) {
-        monkilled(mon, null, -242);
+        await monkilled(mon, null, -242);
     } else {
-        xkilled(mon, 1 | 2);
+        await xkilled(mon, 1 | 2);
     }
 }
-export function ubuzz(type, nd) {
-    dobuzz(type, nd, game.u.ux, game.u.uy, game.u.dx, game.u.dy, (1), (0), (0));
+export async function ubuzz(type, nd) {
+    await dobuzz(type, nd, game.u.ux, game.u.uy, game.u.dx, game.u.dy, (1), (0), (0));
 }
-export function buzz(type, nd, sx, sy, dx, dy) {
-    dobuzz(type, nd, sx, sy, dx, dy, (1), (0), (0));
+export async function buzz(type, nd, sx, sy, dx, dy) {
+    await dobuzz(type, nd, sx, sy, dx, dy, (1), (0), (0));
 }
 /*
  * type ==   0 to   9 : you zapping a wand
@@ -4551,7 +4324,7 @@ export function buzz(type, nd, sx, sy, dx, dy) {
 /* starting point */
 /* direction delta */
 /* report out of sight hit/miss events */
-export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
+export async function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
     let range = 0;
     let fltyp = zaptype(type);
     let damgtype = fltyp % 10;
@@ -4572,30 +4345,30 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
         if (type < 0) {
             return;
         }
-        tmp = zhitm(game.u.ustuck, type, nd, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
+        tmp = await zhitm(game.u.ustuck, type, nd, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
         if (!game.u.ustuck) {
             game.u.uswallow = 0;
         } else {
-            pline("%s rips into %s%s", The(flash_str(fltyp, (0))), mon_nam(game.u.ustuck), exclam(tmp));
+            await pline("%s rips into %s%s", await The(flash_str(fltyp, (0))), await mon_nam(game.u.ustuck), exclam(tmp));
             /* Using disintegration from the inside only makes a hole... */
             if (tmp == 1000) {
                 game.u.ustuck.mhp = 0;
             }
             if (((game.u.ustuck).mhp < 1)) {
-                killed(game.u.ustuck);
+                await killed(game.u.ustuck);
             }
         }
         return;
     }
     if (type < 0) {
-        newsym(game.u.ux, game.u.uy);
+        await newsym(game.u.ux, game.u.uy);
     }
     range = (rn2(7) + (7));
     if (dx == 0 && dy == 0) {
         range = 1;
     }
     Object.assign(save_bhitpos, game.bhitpos);
-    tmp_at((-1), zapdir_to_glyph(dx, dy, hdmgtype));
+    await tmp_at((-1), await zapdir_to_glyph(dx, dy, hdmgtype));
     while (range-- > 0) {
         lsx = sx;
         sx += dx;
@@ -4610,12 +4383,12 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
         if (((game.viz_array[sy][sx] & 2) != 0)) {
             /* reveal/unreveal invisible monsters before tmp_at() */
             if (mon && !(canseemon(mon) || sensemon(mon))) {
-                map_invisible(sx, sy);
+                await map_invisible(sx, sy);
             } else if (!mon) {
-                unmap_invisible(sx, sy);
+                await unmap_invisible(sx, sy);
             }
             if (((game.level.locations[sx][sy].typ) >= POOL) || (isok(lsx, lsy) && ((game.viz_array[lsy][lsx] & 2) != 0))) {
-                tmp_at(sx, sy);
+                await tmp_at(sx, sy);
             }
             (game.windowprocs.win_delay_output)();
         }
@@ -4623,11 +4396,7 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
         game.bhitpos.x = sx , game.bhitpos.y = sy;
         gas_hit = (damgtype == (7 - 1));
         if (!fireball && !gas_hit) {
-            /* fireballs only damage when they explode; poison gas leaves
-           a trail of 1x1 clouds via zap_over_floor(), but that gets
-           skipped for a hit that is reflected so is deferred until we
-           know whether reflection is happening */
-            range += zap_over_floor(sx, sy, type, { get value() { return shopdamage; }, set value(_v) { shopdamage = _v; } }, (1), 0);
+            range += await zap_over_floor(sx, sy, type, { get value() { return shopdamage; }, set value(_v) { shopdamage = _v; } }, (1), 0);
             /* zap with fire -> melt ice -> drown monster, so monster
                found and cached above might not be here any more */
             mon = (game.level.monsters[sx][sy]);
@@ -4642,39 +4411,37 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
         let __steed_redirect = (0);
         if (!mon && ((sx) == game.u.ux && (sy) == game.u.uy) && range >= 0) {
             nomul(0);
-            if (game.u.usteed && !rn2(3) && !mon_reflects(game.u.usteed, null)) {
+            if (game.u.usteed && !rn2(3) && !await mon_reflects(game.u.usteed, null)) {
                 mon = game.u.usteed;
                 __steed_redirect = (1);
             } else if (!forcemiss && zap_hit(game.u.uac, 0)) {
                 range -= 2;
-                pline_dir(xytodir(-dx, -dy), "%s hits you!", The(flash_str(fltyp, (0))));
+                await pline_dir(xytodir(-dx, -dy), "%s hits you!", await The(flash_str(fltyp, (0))));
                 if ((game.u.uprops[REFLECTING].intrinsic || game.u.uprops[REFLECTING].extrinsic)) {
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        ureflects("But %s reflects from your %s!", "it");
+                        await ureflects("But %s reflects from your %s!", "it");
                     } else {
-                        pline("For some reason you are not affected.");
+                        await pline("For some reason you are not affected.");
                     }
                     monstseesu(M_SEEN_REFL);
                     dx = -dx;
                     dy = -dy;
-                    shieldeff(sx, sy);
+                    await shieldeff(sx, sy);
                     gas_hit = (0);
                 } else {
-                    /* flash_str here only used for killer; suppress
-                     * hallucination */
-                    zhitu(type, nd, flash_str(fltyp, (1)), sx, sy);
+                    await zhitu(type, nd, flash_str(fltyp, (1)), sx, sy);
                     monstunseesu(M_SEEN_REFL);
                 }
             } else if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                pline("%s whizzes by you!", The(flash_str(fltyp, (0))));
+                await pline("%s whizzes by you!", await The(flash_str(fltyp, (0))));
             } else if (damgtype == (6 - 1)) {
-                Your("%s tingles.", body_part(ARM));
+                await Your("%s tingles.", await body_part(ARM));
             }
             if (!__steed_redirect) {
                 if (damgtype == (6 - 1)) {
-                    flashburn(d(nd, 50), (1));
+                    await flashburn(d(nd, 50), (1));
                 }
-                stop_occupation();
+                await stop_occupation();
                 nomul(0);
             }
         }
@@ -4687,42 +4454,41 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
             }
             game.notonhead = (mon.mx != game.bhitpos.x || mon.my != game.bhitpos.y);
             if (!forcemiss && zap_hit(find_mac(mon), spell_type)) {
-                if (mon_reflects(mon, null)) {
+                if (await mon_reflects(mon, null)) {
                     if (((game.viz_array[mon.my][mon.mx] & 2) != 0)) {
-                        hit(flash_str(fltyp, (0)), mon, exclam(0));
-                        shieldeff(mon.mx, mon.my);
-                        mon_reflects(mon, "But it reflects from %s %s!");
+                        await hit(flash_str(fltyp, (0)), mon, exclam(0));
+                        await shieldeff(mon.mx, mon.my);
+                        await mon_reflects(mon, "But it reflects from %s %s!");
                         gas_hit = (0);
                     }
                     dx = -dx;
                     dy = -dy;
                 } else {
                     let mon_could_move = mon.mcanmove;
-                    let tmp = zhitm(mon, type, nd, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
+                    let tmp = await zhitm(mon, type, nd, { get value() { return otmp; }, set value(_v) { otmp = _v; } });
                     if (((mon.data) == game.mons[PM_DEATH] || (mon.data) == game.mons[PM_FAMINE] || (mon.data) == game.mons[PM_PESTILENCE]) && abs(type) == (20 + ((5 - 1)))) {
                         if (canseemon(mon)) {
-                            hit(flash_str(fltyp, (0)), mon, ".");
-                            pline("%s disintegrates.", Monnam(mon));
-                            pline("%s body reintegrates before your %s!", s_suffix(Monnam(mon)), ((!(((game.youmonst.data).mflags1 & 4096) == 0) ? 0 : ((game.youmonst.data) == game.mons[PM_CYCLOPS] || (game.youmonst.data) == game.mons[PM_FLOATING_EYE]) ? 1 : 2) == 1) ? body_part(EYE) : makeplural(body_part(EYE)));
-                            pline("%s resurrects!", Monnam(mon));
+                            await hit(flash_str(fltyp, (0)), mon, ".");
+                            await pline("%s disintegrates.", await Monnam(mon));
+                            await pline("%s body reintegrates before your %s!", s_suffix(await Monnam(mon)), ((!(((game.youmonst.data).mflags1 & 4096) == 0) ? 0 : ((game.youmonst.data) == game.mons[PM_CYCLOPS] || (game.youmonst.data) == game.mons[PM_FLOATING_EYE]) ? 1 : 2) == 1) ? await body_part(EYE) : await makeplural(await body_part(EYE)));
+                            await pline("%s resurrects!", await Monnam(mon));
                         }
                         mon.mhp = mon.mhpmax;
                         break;
                     }
                     if (mon.data == game.mons[PM_DEATH] && damgtype == (5 - 1)) {
                         if (canseemon(mon)) {
-                            hit(flash_str(fltyp, (0)), mon, ".");
-                            pline("%s absorbs the deadly %s!", Monnam(mon), type == (20 + ((5 - 1))) ? "blast" : "ray");
-                            pline("It seems even stronger than before.");
+                            await hit(flash_str(fltyp, (0)), mon, ".");
+                            await pline("%s absorbs the deadly %s!", await Monnam(mon), type == (20 + ((5 - 1))) ? "blast" : "ray");
+                            await pline("It seems even stronger than before.");
                         }
                         break;
                     }
                     if (tmp == 1000) {
-                        disintegrate_mon(mon, type, flash_str(fltyp, (0)));
+                        await disintegrate_mon(mon, type, flash_str(fltyp, (0)));
                     } else if (((mon).mhp < 1)) {
                         if (type < 0) {
-                            /* mon has just been killed by another monster */
-                            monkilled(mon, flash_str(fltyp, (0)), 242);
+                            await monkilled(mon, flash_str(fltyp, (0)), 242);
                         } else {
                             let xkflags = 0;
                             /* killed by hero; we know 'type' isn't negative;
@@ -4732,40 +4498,36 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
                             if (damgtype == (2 - 1) && ((mon.data) == game.mons[PM_PAPER_GOLEM] || (mon.data) == game.mons[PM_STRAW_GOLEM])) {
                                 xkflags |= 2;
                             }
-                            /* paper golem or straw golem */
-                            xkilled(mon, xkflags);
+                            await xkilled(mon, xkflags);
                         }
                     } else {
                         if (!otmp) {
                             if (sayhit || canseemon(mon)) {
-                                hit(flash_str(fltyp, (0)), mon, exclam(tmp));
+                                await hit(flash_str(fltyp, (0)), mon, exclam(tmp));
                             }
                         } else {
-                            /* some armor was destroyed; no damage done */
                             if (canseemon(mon)) {
-                                pline("%s %s is disintegrated!", s_suffix(Monnam(mon)), distant_name(otmp, xname));
+                                await pline("%s %s is disintegrated!", s_suffix(await Monnam(mon)), await distant_name(otmp, xname));
                             }
-                            m_useup(mon, otmp);
+                            await m_useup(mon, otmp);
                         }
                         if (mon_could_move && !mon.mcanmove) {
-                            slept_monst(mon);
+                            await slept_monst(mon);
                         }
                         if (damgtype != (4 - 1)) {
-                            wakeup(mon, (type >= 0) ? (1) : (0));
+                            await wakeup(mon, (type >= 0) ? (1) : (0));
                         }
                     }
                 }
                 range -= 2;
             } else {
                 if (saymiss || (canseemon(mon) && !disguised_as_non_mon(mon))) {
-                    miss(flash_str(fltyp, (0)), mon);
+                    await miss(flash_str(fltyp, (0)), mon);
                 }
             }
         }
-        /* gas that missed or that hit without being reflected will leave
-           a 1x1 cloud here; the earlier zap_over_floor() was deferred */
         if (gas_hit) {
-            zap_over_floor(sx, sy, type, { get value() { return shopdamage; }, set value(_v) { shopdamage = _v; } }, (1), 0);
+            await zap_over_floor(sx, sy, type, { get value() { return shopdamage; }, set value(_v) { shopdamage = _v; } }, (1), 0);
         }
         }
         if (__skip_to_bounce || !((game.level.locations[sx][sy].typ) >= POOL) || (closed_door(sx, sy) && range >= 0)) {
@@ -4773,8 +4535,7 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
             bchance = (!isok(sx, sy) || game.level.locations[sx][sy].typ == STONE) ? 10 : (In_mines(game.u.uz) && ((game.level.locations[sx][sy].typ) && (game.level.locations[sx][sy].typ) <= DBWALL)) ? 20 : 75;
             if ((--range > 0 && isok(lsx, lsy) && ((game.viz_array[lsy][lsx] & 2) != 0)) || fireball) {
                 if ((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level))))) {
-                    /* nothing to bounce off of */
-                    pline_The("%s vanishes into the aether!", flash_str(fltyp, (0)));
+                    await pline_The("%s vanishes into the aether!", flash_str(fltyp, (0)));
                     if (fireball) {
                         type = ((2 - 1));
                     }
@@ -4784,23 +4545,23 @@ export function dobuzz(type, nd, sx, sy, dx, dy, sayhit, saymiss, forcemiss) {
                     sy = lsy;
                     break;
                 } else {
-                    pline_The("%s bounces!", flash_str(fltyp, (0)));
+                    await pline_The("%s bounces!", flash_str(fltyp, (0)));
                 }
             }
             bounce_dir(sx, sy, { get value() { return dx; }, set value(_v) { dx = _v; } }, { get value() { return dy; }, set value(_v) { dy = _v; } }, bchance);
-            tmp_at((-6), zapdir_to_glyph(dx, dy, hdmgtype));
+            await tmp_at((-6), await zapdir_to_glyph(dx, dy, hdmgtype));
         }
     }
-    tmp_at((-7), 0);
+    await tmp_at((-7), 0);
     if (fireball) {
-        explode(sx, sy, type, d(12, 6), 0, EXPL_FIERY);
+        await explode(sx, sy, type, d(12, 6), 0, EXPL_FIERY);
     }
     if (shopdamage) {
-        pay_for_damage(damgtype == (2 - 1) ? "burn away" : damgtype == (3 - 1) ? "shatter" : damgtype == (8 - 1) ? "damage" : damgtype == (5 - 1) ? "disintegrate" : "destroy", (0));
+        await pay_for_damage(damgtype == (2 - 1) ? "burn away" : damgtype == (3 - 1) ? "shatter" : damgtype == (8 - 1) ? "damage" : damgtype == (5 - 1) ? "disintegrate" : "destroy", (0));
     }
-    game.bhitpos = save_bhitpos;
+    Object.assign(game.bhitpos, save_bhitpos);
 }
-export function melt_ice(x, y, msg) {
+export async function melt_ice(x, y, msg) {
     let lev = game.level.locations[x][y];
     let otmp = null;
     let mtmp = null;
@@ -4816,35 +4577,33 @@ export function melt_ice(x, y, msg) {
     /* no more ice to melt away */
     spot_stop_timers(x, y, MELT_ICE_AWAY);
     if (t_at(x, y)) {
-        trap_ice_effects(x, y, (1));
+        await trap_ice_effects(x, y, (1));
     }
-    /* TRUE because ice_is_melting */
-    obj_ice_effects(x, y, (0));
-    unearth_objs(x, y);
+    await obj_ice_effects(x, y, (0));
+    await unearth_objs(x, y);
     if ((game.u.uinwater)) {
-        vision_recalc(1);
+        await vision_recalc(1);
     }
-    newsym(x, y);
+    await newsym(x, y);
     if (((game.viz_array[y][x] & 2) != 0) || ((x) == game.u.ux && (y) == game.u.uy)) {
-        Norep("%s", msg);
+        await Norep("%s", msg);
     }
     if ((otmp = sobj_at(BOULDER, x, y)) != null) {
         if (((game.viz_array[y][x] & 2) != 0)) {
-            pline("%s settles...", An(xname(otmp)));
+            await pline("%s settles...", await An(await xname(otmp)));
         }
         do {
-            obj_extract_self(otmp);
-            /* try again if there's another boulder and pool didn't fill */
-            if (!boulder_hits_pool(otmp, x, y, (0))) {
-                impossible("melt_ice: no pool?");
+            await obj_extract_self(otmp);
+            if (!await boulder_hits_pool(otmp, x, y, (0))) {
+                await impossible("melt_ice: no pool?");
             }
         } while (is_pool(x, y) && (otmp = sobj_at(BOULDER, x, y)) != null);
-        newsym(x, y);
+        await newsym(x, y);
     }
     if (((x) == game.u.ux && (y) == game.u.uy)) {
-        spoteffects((1));
+        await spoteffects((1));
     } else if (is_pool(x, y) && (mtmp = (game.level.monsters[x][y])) != null) {
-        minliquid(mtmp);
+        await minliquid(mtmp);
     }
 }
 /*
@@ -4852,7 +4611,7 @@ export function melt_ice(x, y, msg) {
  * permanent instead.
  */
 /* <x,y>'s old melt timeout (deleted by time we get here) */
-export function start_melt_ice_timeout(x, y, min_time) {
+export async function start_melt_ice_timeout(x, y, min_time) {
     let when = 0;
     let where = 0;
     when = min_time;
@@ -4869,13 +4628,13 @@ export function start_melt_ice_timeout(x, y, min_time) {
         /* if we're within MAX_ICE_TIME, install a melt timer;
        otherwise, omit it to leave this ice permanent */
         where = (x << 16) | y;
-        start_timer(when, TIMER_LEVEL, MELT_ICE_AWAY, long_to_any(where));
+        await start_timer(when, TIMER_LEVEL, MELT_ICE_AWAY, long_to_any(where));
     }
 }
 /*
  * Called when ice has melted completely away.
  */
-export function melt_ice_away(arg, timeout) {
+export async function melt_ice_away(arg, timeout) {
     let x = 0;
     let y = 0;
     let where = arg.a_long;
@@ -4885,8 +4644,7 @@ export function melt_ice_away(arg, timeout) {
     game.context.mon_moving = (1);
     y = (where & 65535);
     x = ((where >> 16) & 65535);
-    /* melt_ice does newsym when appropriate */
-    melt_ice(x, y, "Some ice melts away.");
+    await melt_ice(x, y, "Some ice melts away.");
     game.context.mon_moving = save_mon_moving;
 }
 /* Burn floor scrolls, evaporate pools, etc... in a single square.
@@ -4901,7 +4659,7 @@ export function melt_ice_away(arg, timeout) {
 /* ignore any monster here */
 /* supplied when breaking a wand; or POT_OIL
                                * when a lit potion of oil explodes */
-export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand_typ) {
+export async function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand_typ) {
     let zapverb = null;
     let mon = null;
     let t = null;
@@ -4920,25 +4678,22 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
         case (2 - 1):
             t = t_at(x, y);
             if (t && t.ttyp == WEB) {
-                /* a burning web is too flimsy to notice if you can't see it */
                 if (see_it) {
-                    Norep("A web bursts into flames!");
+                    await Norep("A web bursts into flames!");
                 }
-                delfloortrap(t) , t = null;
+                await delfloortrap(t) , t = null;
                 if (see_it) {
-                    newsym(x, y);
+                    await newsym(x, y);
                 }
             }
             if (is_ice(x, y)) {
-                melt_ice(x, y, null);
+                await melt_ice(x, y, null);
             } else if (is_pool(x, y)) {
                 let on_water_level = (((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level))));
                 let msggiven = (0);
                 let msgtxt = (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) ? "You hear hissing gas." : (type >= 0) ? "That seemed remarkably uneventful." : null;
                 if (!on_water_level) {
-                    /* don't create steam clouds on Plane of Water; air bubble
-               movement and gas regions don't understand each other */
-                    create_gas_cloud(x, y, rnd(5), 0);
+                    await create_gas_cloud(x, y, rnd(5), 0);
                     if (game.iflags.last_msg == PLNMSG_ENVELOPED_IN_GAS) {
                         msggiven = (1);
                     }
@@ -4954,7 +4709,7 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                 } else {
                     rangemod -= 3;
                     lev.typ = ROOM , lev.flags = 0;
-                    t = maketrap(x, y, PIT);
+                    t = await maketrap(x, y, PIT);
                     /*if (t) -- this was before the vapor cloud was added --
                       t->tseen = 1;*/
                     if (see_it) {
@@ -4962,7 +4717,7 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                     }
                 }
                 if (msgtxt && !msggiven) {
-                    Norep("%s", msgtxt);
+                    await Norep("%s", msgtxt);
                 }
                 if (lev.typ == ROOM) {
                     if ((mon = (game.level.monsters[x][y])) != null) {
@@ -4977,25 +4732,25 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                             mon.mundetected = 0;
                         }
                     }
-                    newsym(x, y);
+                    await newsym(x, y);
                     if (t) {
                         /* if water walking/swimming/magical breathing, maybe fall
                        into the new pit (after the water evaporation message);
                        if flying or levitating, nothing will happen */
                         if (((x) == game.u.ux && (y) == game.u.uy)) {
-                            dotrap(t, 0);
+                            await dotrap(t, 0);
                         } else if (mon) {
-                            mintrap(mon, 0);
+                            await mintrap(mon, 0);
                         }
                     }
                 }
             } else if (((lev.typ) == FOUNTAIN)) {
-                create_gas_cloud(x, y, rnd(3), 0);
+                await create_gas_cloud(x, y, rnd(3), 0);
                 if (see_it) {
-                    pline("Steam billows from the fountain.");
+                    await pline("Steam billows from the fountain.");
                 }
                 rangemod -= 1;
-                dryup(x, y, type > 0);
+                await dryup(x, y, type > 0);
             }
             break;
         case (3 - 1):
@@ -5005,11 +4760,10 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                 let chance = ((2) > (5 + game.level.flags.temperature * 10) ? (2) : (5 + game.level.flags.temperature * 10));
                 if (((lev.typ) == WATER) || (lavawall && rn2(chance))) {
                     ;
-                    /* For now, don't let WATER freeze. */
                     if (see_it) {
-                        pline_The("%s freezes for a moment.", hliquid(lavawall ? "lava" : "water"));
+                        await pline_The("%s freezes for a moment.", hliquid(lavawall ? "lava" : "water"));
                     } else {
-                        You_hear("a soft crackling.");
+                        await You_hear("a soft crackling.");
                     }
                     rangemod -= 1000;
                 } else {
@@ -5027,53 +4781,51 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                             } else {
                                 lev.typ = HWALL;
                             }
-                            fix_wall_spines(((0) > (x - 1) ? (0) : (x - 1)), ((0) > (y - 1) ? (0) : (y - 1)), ((80 - 1) < (x + 1) ? (80 - 1) : (x + 1)), ((21 - 1) < (y + 1) ? (21 - 1) : (y + 1)));
+                            await fix_wall_spines(((0) > (x - 1) ? (0) : (x - 1)), ((0) > (y - 1) ? (0) : (y - 1)), ((80 - 1) < (x + 1) ? (80 - 1) : (x + 1)), ((21 - 1) < (y + 1) ? (21 - 1) : (y + 1)));
                         } else {
                             lev.typ = lava ? ROOM : ICE;
                         }
                     }
-                    bury_objs(x, y);
+                    await bury_objs(x, y);
                     if (!lava) {
                         ;
                     }
                     if (see_it) {
                         if (lava) {
-                            Norep("The %s cools and solidifies.", hliquid("lava"));
+                            await Norep("The %s cools and solidifies.", hliquid("lava"));
                         } else if (moat) {
-                            Norep("The %s is bridged with ice!", buf);
+                            await Norep("The %s is bridged with ice!", buf);
                         } else {
-                            Norep("The %s freezes.", hliquid("water"));
+                            await Norep("The %s freezes.", hliquid("water"));
                         }
-                        newsym(x, y);
+                        await newsym(x, y);
                     } else if (!lava) {
-                        You_hear("a crackling sound.");
+                        await You_hear("a crackling sound.");
                     }
                     if (((x) == game.u.ux && (y) == game.u.uy)) {
                         if (game.u.uinwater) {
-                            /* not just `if (Underwater)' */
-                            /* leave the no longer existent water */
-                            set_uinwater(0);
+                            await set_uinwater(0);
                             game.u.uundetected = 0;
-                            docrt();
+                            await docrt();
                             game.vision_full_recalc = 1;
                         } else if (game.u.utrap && game.u.utraptype == TT_LAVA) {
                             if ((game.u.uprops[PASSES_WALLS].intrinsic || game.u.uprops[PASSES_WALLS].extrinsic)) {
-                                You("pass through the now-solid rock.");
-                                reset_utrap((1));
+                                await You("pass through the now-solid rock.");
+                                await reset_utrap((1));
                             } else {
                                 set_utrap((rn2(50) + (20)), TT_INFLOOR);
-                                You("are firmly stuck in the cooling rock.");
+                                await You("are firmly stuck in the cooling rock.");
                             }
                         }
                     } else if ((mon = (game.level.monsters[x][y])) != null) {
                         if ((((mon.data).mflags1 & 2) != 0) && mon.mundetected) {
                             mon.mundetected = 0;
-                            newsym(x, y);
+                            await newsym(x, y);
                         }
                     }
                     if (!lava) {
-                        start_melt_ice_timeout(x, y, 0);
-                        obj_ice_effects(x, y, (1));
+                        await start_melt_ice_timeout(x, y, 0);
+                        await obj_ice_effects(x, y, (1));
                     }
                 }
             } else if (is_ice(x, y)) {
@@ -5082,13 +4834,13 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                     /* Already ice here, so just firm it up. */
                     /* Now ensure that only ice that is already timed is affected */
                     spot_stop_timers(x, y, MELT_ICE_AWAY);
-                    start_melt_ice_timeout(x, y, melt_time);
+                    await start_melt_ice_timeout(x, y, melt_time);
                 }
             }
             break;
         case (7 - 1):
             if (((lev.typ) >= POOL)) {
-                create_gas_cloud(x, y, 1, 8);
+                await create_gas_cloud(x, y, 1, 8);
             }
             break;
         case (6 - 1):
@@ -5102,18 +4854,17 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                     break;
                 }
                 if ((lev.flags & 8) != 0) {
-                    /* but nothing actually happens... */
                     if (see_it) {
-                        Norep("The %s %s somewhat but remain intact.", defsyms[S_bars].explanation, (damgtype == (8 - 1)) ? "corrode" : "melt");
+                        await Norep("The %s %s somewhat but remain intact.", defsyms[S_bars].explanation, (damgtype == (8 - 1)) ? "corrode" : "melt");
                     }
                 } else {
                     rangemod -= 3;
                     if (see_it) {
-                        Norep("The %s %s.", defsyms[S_bars].explanation, (damgtype == (8 - 1)) ? "corrode away" : "melt");
+                        await Norep("The %s %s.", defsyms[S_bars].explanation, (damgtype == (8 - 1)) ? "corrode away" : "melt");
                     }
-                    dissolve_bars(x, y);
+                    await dissolve_bars(x, y);
                     if (in_rooms(x, y, SHOPBASE)) {
-                        add_damage(x, y, (type >= 0) ? 300 : 0);
+                        await add_damage(x, y, (type >= 0) ? 300 : 0);
                         if (type >= 0) {
                             shopdamage.value = (1);
                         }
@@ -5149,11 +4900,11 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
     if (game.level.locations[x][y].typ == SDOOR) {
         cvt_sdoor_to_door(game.level.locations[x][y]);
         recalc_block_point(x, y);
-        newsym(x, y);
+        await newsym(x, y);
         if (see_it) {
-            pline("%s %s reveals a secret door.", yourzap ? "Your" : "The", zapverb);
+            await pline("%s %s reveals a secret door.", yourzap ? "Your" : "The", zapverb);
         } else if ((((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
-            draft_message((0));
+            await draft_message((0));
         }
     }
     if (closed_door(x, y)) {
@@ -5186,12 +4937,12 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                     }
                     if (see_it) {
                         if (exploding_wand_typ) {
-                            pline_The("door remains intact.");
+                            await pline_The("door remains intact.");
                         } else {
-                            pline_The("door absorbs %s %s!", yourzap ? "your" : "the", zapverb);
+                            await pline_The("door absorbs %s %s!", yourzap ? "your" : "the", zapverb);
                         }
                     } else {
-                        You_feel("vibrations.");
+                        await You_feel("vibrations.");
                     }
                     break;
                 }
@@ -5215,70 +4966,63 @@ export function zap_over_floor(x, y, type, shopdamage, ignoremon, exploding_wand
                 }
                 if (see_it) {
                     if (exploding_wand_typ) {
-                        pline_The("door remains intact.");
-                    /* death spells/wands don't disintegrate */
-                    /* Magical explosion from misc exploding wand */
-                    /* "the door absorbs the blast" would be
-                   inaccurate for an exploding wand since
-                   other adjacent locations still get hit */
+                        await pline_The("door remains intact.");
                     } else {
-                        pline_The("door absorbs %s %s!", yourzap ? "your" : "the", zapverb);
+                        await pline_The("door absorbs %s %s!", yourzap ? "your" : "the", zapverb);
                     }
                 } else {
-                    You_feel("vibrations.");
+                    await You_feel("vibrations.");
                 }
                 break;
         }
         if (new_doormask >= 0) {
             if (in_rooms(x, y, SHOPBASE)) {
                 if (type >= 0) {
-                    add_damage(x, y, 400);
+                    await add_damage(x, y, 400);
                     shopdamage.value = (1);
                 } else {
-                    add_damage(x, y, 0);
+                    await add_damage(x, y, 0);
                 }
             }
             lev.flags = new_doormask;
             recalc_block_point(x, y);
             if (see_it) {
-                pline("%s", see_txt);
-                newsym(x, y);
+                await pline("%s", see_txt);
+                await newsym(x, y);
             } else if (sense_txt) {
-                You("%s", sense_txt);
+                await You("%s", sense_txt);
             } else if (hear_txt) {
-                You_hear("%s", hear_txt);
+                await You_hear("%s", hear_txt);
             }
             if (picking_at(x, y)) {
-                stop_occupation();
+                await stop_occupation();
                 reset_pick();
             }
         }
     }
     if ((game.level.objects[x][y] != null) && damgtype == (2 - 1)) {
-        if (burn_floor_objects(x, y, (0), type > 0) && ((game.viz_array[y][x] & 1) != 0)) {
-            newsym(x, y);
-            You("%s of smoke.", !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "see a puff" : "smell a whiff");
+        if (await burn_floor_objects(x, y, (0), type > 0) && ((game.viz_array[y][x] & 1) != 0)) {
+            await newsym(x, y);
+            await You("%s of smoke.", !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "see a puff" : "smell a whiff");
         }
     }
     if (!ignoremon && (mon = (game.level.monsters[x][y])) != null) {
-        wakeup(mon, (type >= 0) ? (1) : (0));
+        await wakeup(mon, (type >= 0) ? (1) : (0));
     }
     return rangemod;
 }
 /* monster has cast flames or frost at target on <x,y>; called by mcastu() */
 /* canonical damage type */
 /* so far, only used for targeting <u.ux,u.uy> */
-export function mon_spell_hits_spot(caster, adtyp, x, y) {
+export async function mon_spell_hits_spot(caster, adtyp, x, y) {
     if (adtyp == 1 || adtyp == 8) {
         /* "shower of missiles" or [hypothetical] "acid rain" attack:
        thoroughly clobber an engraving (unless its type makes it be
        scuff-protected); zap_over_floor() doesn't handle this */
         let ep = engr_at(x, y);
         let etext = ep ? ep.engr_txt[actual_text] : null;
-        /* hero and player will still remember prior text until the spot
-           is re-examined (lookhere or move off and back on) */
         if (etext) {
-            wipe_engr_at(x, y, strlen(etext) + d(6, 6), (1));
+            await wipe_engr_at(x, y, strlen(etext) + d(6, 6), (1));
         }
     }
     if (adtyp >= 1 && adtyp <= 8) {
@@ -5291,28 +5035,23 @@ export function mon_spell_hits_spot(caster, adtyp, x, y) {
         /* convert AD_xxxx to ZT_xxxx */
         let zt_typ = adtyp - 1;
         let zapdmgtyp = -(10 + (zt_typ));
-        /* damage is from monster spell */
-        zap_over_floor(x, y, zapdmgtyp, { get value() { return shopdummy; }, set value(_v) { shopdummy = _v; } }, (1), 0);
+        await zap_over_floor(x, y, zapdmgtyp, { get value() { return shopdummy; }, set value(_v) { shopdummy = _v; } }, (1), 0);
     } else {
-        impossible("Unsupported damage type (%d) for mon_spell_hits_spot.", adtyp);
+        await impossible("Unsupported damage type (%d) for mon_spell_hits_spot.", adtyp);
     }
 }
 /* fractured by pick-axe or wand of striking or by vault guard or shopkeeper */
 /* no texts here! */
-export function fracture_rock(obj) {
+export async function fracture_rock(obj) {
     let x = 0;
     let y = 0;
     let by_you = !game.context.mon_moving;
-    if (by_you && get_obj_location(obj, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 0) && costly_spot(x, y)) {
+    if (by_you && get_obj_location(obj, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 0) && await costly_spot(x, y)) {
         let shkp = null;
         let objroom = in_rooms(x, y, SHOPBASE);
-        if (billable({ get value() { return shkp; }, set value(_v) { shkp = _v; } }, obj, objroom, (0))) {
-            /* shop message says "you owe <shk> <$> for it!" so we need
-               to precede that with a message explaining what "it" is */
-            You("fracture %s %s.", s_suffix(shkname(shkp)), xname(obj));
-            /* breakobj won't destroy fracturing statue or boulder but
-               will charge for shop goods */
-            breakobj(obj, x, y, (1), (0));
+        if (await billable({ get value() { return shkp; }, set value(_v) { shkp = _v; } }, obj, objroom, (0))) {
+            await You("fracture %s %s.", s_suffix(await shkname(shkp)), await xname(obj));
+            await breakobj(obj, x, y, (1), (0));
         }
     }
     if (by_you && obj.otyp == BOULDER) {
@@ -5321,43 +5060,41 @@ export function fracture_rock(obj) {
     obj.otyp = ROCK;
     obj.oclass = GEM_CLASS;
     obj.quan = (rn2(60) + (7));
-    obj.owt = weight(obj);
+    obj.owt = await weight(obj);
     obj.dknown = obj.bknown = obj.rknown = 0;
     obj.known = game.objects[obj.otyp].oc_uses_known ? 0 : 1;
     dealloc_oextra(obj);
     if (obj.where == 1) {
-        obj_extract_self(obj);
-        place_object(obj, obj.ox, obj.oy);
+        await obj_extract_self(obj);
+        await place_object(obj, obj.ox, obj.oy);
         if (!does_block(obj.ox, obj.oy, game.level.locations[obj.ox][obj.oy])) {
             unblock_point(obj.ox, obj.oy);
-            /* need immediate update in case this is a striking/force bolt
-               zap that is about hit more things */
-            vision_recalc(0);
+            await vision_recalc(0);
         }
         if (((game.viz_array[obj.oy][obj.ox] & 2) != 0)) {
-            newsym(obj.ox, obj.oy);
+            await newsym(obj.ox, obj.oy);
         }
     }
 }
 /* handle statue hit by striking/force bolt/pick-axe */
-export function break_statue(obj) {
+export async function break_statue(obj) {
     /* [obj is assumed to be on floor, so no get_obj_location() needed] */
     let trap = t_at(obj.ox, obj.oy);
     let item = null;
     let by_you = !game.context.mon_moving;
-    if (trap && trap.ttyp == STATUE_TRAP && activate_statue_trap(trap, obj.ox, obj.oy, (1))) {
+    if (trap && trap.ttyp == STATUE_TRAP && await activate_statue_trap(trap, obj.ox, obj.oy, (1))) {
         return (0);
     }
     while ((item = obj.cobj) != null) {
-        obj_extract_self(item);
-        place_object(item, obj.ox, obj.oy);
+        await obj_extract_self(item);
+        await place_object(item, obj.ox, obj.oy);
     }
     if (by_you && (game.urole.mnum == (PM_ARCHEOLOGIST)) && (obj.spe & 4)) {
-        You_feel("guilty about damaging such a historic statue.");
+        await You_feel("guilty about damaging such a historic statue.");
         adjalign(-1);
     }
     obj.spe = 0;
-    fracture_rock(obj);
+    await fracture_rock(obj);
     return (1);
 }
 /* Return TRUE if obj is eligible to pass to maybe_destroy_item given
@@ -5452,7 +5189,8 @@ export function inventory_resistance_check(dmgtyp) {
 }
 /* for enlightenment; currently only useful in wizard mode; cf from_what() */
 let __item_what_whatbuf = '';
-export function item_what(dmgtyp) {
+__nh_register_static(() => { __item_what_whatbuf = ''; });
+export async function item_what(dmgtyp) {
     let what = null;
     let prop = adtyp_to_prop(dmgtyp);
     let xtrinsic = game.u.uprops[prop].extrinsic;
@@ -5475,15 +5213,15 @@ export function item_what(dmgtyp) {
         } else if (xtrinsic & 8) {
             what = shield_simple_name(game.uarms);
         } else if (xtrinsic & (65536 | 524288)) {
-            what = simpleonames((xtrinsic & 65536) ? game.uamul : game.ublindf);
+            what = await simpleonames((xtrinsic & 65536) ? game.uamul : game.ublindf);
         } else if (xtrinsic & (131072 | 262144)) {
             if ((xtrinsic & (131072 | 262144)) == (131072 | 262144)) {
                 what = "rings";
             } else {
-                what = simpleonames((xtrinsic & 131072) ? game.uleft : game.uright);
+                what = await simpleonames((xtrinsic & 131072) ? game.uleft : game.uright);
             }
         } else if (xtrinsic & 256) {
-            what = simpleonames(game.uwep);
+            what = await simpleonames(game.uwep);
         }
         /* format the output to be ready for enl_msg() to append it to
            "Your items {are,were} protected against <damage-type>" */
@@ -5517,7 +5255,7 @@ export const destroy_strings = [["freezes and shatters", "freeze and shatter", "
    whether it's the player or a monster having an item destroyed: players lose
    the HP and possibly die in this function, and the return value is unused,
    whereas monsters return the damage to their caller to be taken off later */
-export function maybe_destroy_item(carrier, obj, dmgtyp) {
+export async function maybe_destroy_item(carrier, obj, dmgtyp) {
     let i = 0;
     let cnt = 0;
     let quan = 0;
@@ -5543,11 +5281,11 @@ export function maybe_destroy_item(carrier, obj, dmgtyp) {
             dmg = rnd(4);
             break;
         case 2:
-            xresist = (obj.oclass != POTION_CLASS && obj.otyp != GLOB_OF_GREEN_SLIME && (u_carry ? (game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic) : Resists_Elem(carrier, FIRE_RES)));
+            xresist = (obj.oclass != POTION_CLASS && obj.otyp != GLOB_OF_GREEN_SLIME && (u_carry ? (game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic) : await Resists_Elem(carrier, FIRE_RES)));
             if (obj.otyp == SPE_BOOK_OF_THE_DEAD) {
                 skip = 1;
                 if (u_carry ? !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) : vis) {
-                    pline("%s glows a strange %s, but remains intact.", The(u_carry ? xname(obj) : distant_name(obj, xname)), hcolor("dark red"));
+                    await pline("%s glows a strange %s, but remains intact.", await The(u_carry ? await xname(obj) : await distant_name(obj, xname)), hcolor("dark red"));
                 }
                 break;
             }
@@ -5573,7 +5311,7 @@ export function maybe_destroy_item(carrier, obj, dmgtyp) {
             }
             break;
         case 6:
-            xresist = (obj.oclass != RING_CLASS && (u_carry ? (game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic) : Resists_Elem(carrier, SHOCK_RES)));
+            xresist = (obj.oclass != RING_CLASS && (u_carry ? (game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic) : await Resists_Elem(carrier, SHOCK_RES)));
             quan = obj.quan;
             switch (obj.oclass) {
                 case RING_CLASS:
@@ -5595,14 +5333,12 @@ export function maybe_destroy_item(carrier, obj, dmgtyp) {
             break;
         default:
             skip = 1;
-            /* just in case ineligible damage type gets through... */
-            impossible("maybe_destroy_item with unexpected dmgtyp %d", dmgtyp);
+            await impossible("maybe_destroy_item with unexpected dmgtyp %d", dmgtyp);
             break;
     }
     if (chargeit) {
-        /* FIXME: recharge only handles items in hero's inventory */
         if (u_carry) {
-            recharge(obj, 0);
+            await recharge(obj, 0);
         }
     } else if (!skip) {
         /* for checking glob of slime after it's
@@ -5622,19 +5358,17 @@ export function maybe_destroy_item(carrier, obj, dmgtyp) {
         }
         if (u_carry || vis) {
             mult = (cnt == 1) ? ((quan == 1) ? "" : "One of ") : ((cnt < quan) ? "Some of " : (quan == 2) ? "Both of " : "All of ");
-            pline("%s%s %s!", mult, (cnt == 1 && quan == 1) ? Yname2(obj) : yname(obj), destroy_strings[dindx][(cnt > 1)]);
+            await pline("%s%s %s!", mult, (cnt == 1 && quan == 1) ? await Yname2(obj) : await yname(obj), destroy_strings[dindx][(cnt > 1)]);
         }
         if (u_carry) {
             if (osym == POTION_CLASS && dmgtyp != 3 && (!(((game.youmonst.data).mflags1 & 1024) != 0) || (((game.youmonst.data).mflags1 & 4096) == 0))) {
-                /* effects that happen only to the player */
-                potionbreathe(obj);
+                await potionbreathe(obj);
             }
             if (obj.owornmask) {
                 if (obj.owornmask & (131072 | 262144)) {
-                    Ring_gone(obj);
-                /* m_useup handles these for monster */
+                    await Ring_gone(obj);
                 } else {
-                    setnotworn(obj);
+                    await setnotworn(obj);
                 }
             }
             if (obj == game.current_wand) {
@@ -5643,9 +5377,9 @@ export function maybe_destroy_item(carrier, obj, dmgtyp) {
         }
         for (i = 0; i < cnt; i++) {
             if (u_carry) {
-                useup(obj);
+                await useup(obj);
             } else {
-                m_useup(carrier, obj);
+                await m_useup(carrier, obj);
             }
         }
         if (dmg) {
@@ -5653,15 +5387,15 @@ export function maybe_destroy_item(carrier, obj, dmgtyp) {
                 return xresist ? 0 : dmg;
             }
             if (xresist) {
-                You("aren't hurt!");
+                await You("aren't hurt!");
             } else {
                 let how = destroy_strings[dindx][2];
                 let one = (cnt == 1);
                 if (dmgtyp == 2 && osym == FOOD_CLASS) {
                     how = "exploding glob of slime";
                 }
-                losehp(dmg, one ? how : makeplural(how), one ? 0 : 1);
-                exercise(A_STR, (0));
+                await losehp(dmg, one ? how : await makeplural(how), one ? 0 : 1);
+                await exercise(A_STR, (0));
             }
         }
     }
@@ -5676,7 +5410,7 @@ export function maybe_destroy_item(carrier, obj, dmgtyp) {
                         * destruction */
 /* AD_**** - currently only cold, fire, elec */
 /* the amount of HP damage the attack dealt */
-export function destroy_items(mon, dmgtyp, dmg_in) {
+export async function destroy_items(mon, dmgtyp, dmg_in) {
     let obj = null;
     let i = 0;
     let defer = 0;
@@ -5763,7 +5497,7 @@ export function destroy_items(mon, dmgtyp, dmg_in) {
         if (where == 10) {
             where = obj.where;
         } else if (where != obj.where) {
-            impossible("destroy_item: items in multiple chains");
+            await impossible("destroy_item: items in multiple chains");
         }
         if (u_carry && ((obj.owornmask != 0 && (game.objects[obj.otyp].oc_oprop == LEVITATION || game.objects[obj.otyp].oc_oprop == FLYING)) || (obj.otyp == POT_WATER && ((game.u.ulycn) >= LOW_PM && (game.u.ulycn) < NUMMONS) && ((game.u.umonnum != game.u.umonster) ? obj.blessed : obj.cursed)))) {
             /* if loss of this item might dump us onto a trap, hold off
@@ -5788,7 +5522,7 @@ export function destroy_items(mon, dmgtyp, dmg_in) {
            second iteration of the loop */
             obj = items_to_destroy[i].otmp;
             if (obj && obj.o_id == items_to_destroy[i].oid && obj.where == where && (items_to_destroy[i].deferred == (defer == 1))) {
-                dmg_out += maybe_destroy_item(mon, obj, dmgtyp);
+                dmg_out += await maybe_destroy_item(mon, obj, dmgtyp);
                 items_to_destroy[i].otmp = null;
             }
         }
@@ -5796,7 +5530,7 @@ export function destroy_items(mon, dmgtyp, dmg_in) {
     bypass_objlist(objchn__parent[objchn__field], (0));
     return dmg_out;
 }
-export function resist(mtmp, oclass, damage, tell) {
+export async function resist(mtmp, oclass, damage, tell) {
     let resisted = 0;
     let alev = 0;
     let dlev = 0;
@@ -5837,7 +5571,7 @@ export function resist(mtmp, oclass, damage, tell) {
     resisted = rn2(100 + alev - dlev) < mtmp.data.mr;
     if (resisted) {
         if (tell) {
-            shieldeff_mon(mtmp);
+            await shieldeff_mon(mtmp);
         }
         damage = Math.trunc((damage + 1) / 2);
     }
@@ -5845,9 +5579,9 @@ export function resist(mtmp, oclass, damage, tell) {
         mtmp.mhp -= damage;
         if (((mtmp).mhp < 1)) {
             if (game.m_using) {
-                monkilled(mtmp, "", 242);
+                await monkilled(mtmp, "", 242);
             } else {
-                killed(mtmp);
+                await killed(mtmp);
             }
         }
     }
@@ -5860,7 +5594,7 @@ const __wishcmdassist_retry_too = "a randomly chosen item will be granted.";
 const __wishcmdassist_suppress_cmdassist = "(Suppress this assistance with !cmdassist in your config file.)";
 const __wishcmdassist_cardinals = ["zero", "one", "two", "three", "four", "five"];
 const __wishcmdassist_too_many = "too many";
-export function wishcmdassist(triesleft) {
+export async function wishcmdassist(triesleft) {
     let i = 0;
     let win = 0;
     let buf = '';
@@ -5882,7 +5616,7 @@ export function wishcmdassist(triesleft) {
     if (game.iflags.cmdassist) {
         (game.windowprocs.win_putstr)(win, 0, __wishcmdassist_suppress_cmdassist);
     }
-    (game.windowprocs.win_display_nhwindow)(win, (1));
+    await (game.windowprocs.win_display_nhwindow)(win, (1));
     (game.windowprocs.win_destroy_nhwindow)(win);
 }
 game.wish_history = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
@@ -5924,25 +5658,25 @@ export function wish_history_flush() {
 }
 /* shows menu of previous wishes, copies selected into buf, max BUFSZ len.
    buf is not modified, if nothing was selected. */
-export function wish_history_menu(buf) {
+export async function wish_history_menu(buf) {
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let npick = 0;
     let picks = null;
     let idx = 0;
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 20 - 1; i >= 0; i--) {
         idx = (game.wish_history_idx + i) % 20;
         if (game.wish_history[idx]) {
             any.a_int = (i + 1);
-            add_menu(win, nul_glyphinfo, any, 0, 0, 0, 8, game.wish_history[idx], 0);
+            await add_menu(win, nul_glyphinfo, any, 0, 0, 0, 8, game.wish_history[idx], 0);
         }
     }
     (game.windowprocs.win_end_menu)(win, "Wish what?");
-    npick = select_menu(win, 1, picks);
+    npick = await select_menu(win, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(win);
     if (npick > 0) {
         i = picks.item.a_int;
@@ -5953,7 +5687,7 @@ export function wish_history_menu(buf) {
         }
     }
 }
-export function makewish() {
+export async function makewish() {
     let buf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let bufcpy = '';
     let wish = '';
@@ -5968,7 +5702,7 @@ export function makewish() {
     /* lint suppression; only its address matters */
     Object.assign(nothing, cg.zeroobj);
     if (game.flags.verbose) {
-        You("may wish for an object.");
+        await You("may wish for an object.");
     }
     retry: while (true) {
         promptbuf = strcpy(promptbuf, "For what do you wish");
@@ -5977,13 +5711,9 @@ export function makewish() {
         }
         promptbuf = strcat(promptbuf, "?");
         if (game.iflags.menu_requested && game.wish_history[0] && (tries == 0)) {
-            wish_history_menu(buf);
+            await wish_history_menu(buf);
         } else {
-            /* §23.239 VOID_CHAR_OUT_PARAM_RETURNS: getlin returns the
-               buffer; call sites rebind (gate __getlin_returns_buffer).
-               Without the rebind, buf stayed the zero-array and every
-               ^W wish parsed garbage (seed0360/0398 cluster). */
-            buf = getlin(promptbuf, buf);
+            buf = await getlin(promptbuf, buf);
         }
         if (game.iflags.term_gone) {
             if (!game.iflags.debug_fuzzer) {
@@ -5993,10 +5723,10 @@ export function makewish() {
         }
         buf = mungspaces(buf);
         if (buf[0] == 27) {
-            buf = '';
+            buf[0] = 0;
         } else if (!strncmpi((buf), ("help"), -1)) {
-            wishcmdassist(5 - tries);
-            buf = '';
+            await wishcmdassist(5 - tries);
+            buf[0] = 0;
             continue retry;
         }
         /*
@@ -6006,14 +5736,14 @@ export function makewish() {
      *  distinct.
      */
         bufcpy = strcpy(bufcpy, buf);
-        otmp = readobjnam(buf, nothing);
+        otmp = await readobjnam(buf, nothing);
         if (!otmp) {
-            pline("Nothing fitting that description exists in the game.");
+            await pline("Nothing fitting that description exists in the game.");
             if (++tries < 5) {
                 continue retry;
             }
-            pline("%s", c_common_strings.c_thats_enough_tries);
-            otmp = readobjnam(null, null);
+            await pline("%s", c_common_strings.c_thats_enough_tries);
+            otmp = await readobjnam(null, null);
             if (!otmp) {
                 return;
             }
@@ -6029,12 +5759,11 @@ export function makewish() {
         }
         wish_history_add(bufcpy);
         if (otmp.oartifact) {
-            /* update artifact bookkeeping; doesn't produce a livelog event */
-            artifact_origin(otmp, 4 | 256);
+            await artifact_origin(otmp, 4 | 256);
         }
         /* wisharti conduct handled in readobjnam() */
         maybe_LL_arti = ((oldwisharti < game.u.uconduct.wisharti) ? 64 : 0);
-        wish = nh_snprintf("makewish", 6388, wish, 256 /* sizeof(char [256]) */, "\"%s\", got \"%s\"", bufcpy, doname(otmp));
+        wish = nh_snprintf("makewish", 6388, wish, 256 /* sizeof(char [256]) */, "\"%s\", got \"%s\"", bufcpy, await doname(otmp));
         if (!game.u.uconduct.wishes++) {
             livelog_printf((32 | 1 | maybe_LL_arti), "made %s first wish - %s", (genders[game.flags.female ? 1 : 0].his), wish);
         } else if (!oldwisharti && game.u.uconduct.wisharti) {
@@ -6049,8 +5778,7 @@ export function makewish() {
         }
         let verb = (((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) || game.u.uinwater) ? "slip" : (otmp.otyp == CORPSE && otmp.usecount) ? "materialize" : "drop");
         let oops_msg = (game.u.uswallow ? "Oops!  %s out of your reach!" : ((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) || (((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))) || game.level.locations[game.u.ux][game.u.uy].typ < IRONBARS || game.level.locations[game.u.ux][game.u.uy].typ >= ICE) ? "Oops!  %s away from you!" : !(otmp.otyp == CORPSE && otmp.usecount) ? "Oops!  %s to the floor!" : "Careful! %s on the floor!");
-        /* The(aobjnam()) is safe since otmp is unidentified -dlc */
-        hold_another_object(otmp, oops_msg, The(aobjnam(otmp, verb)), null);
+        await hold_another_object(otmp, oops_msg, await The(await aobjnam(otmp, verb)), null);
         game.u.ublesscnt += (rn2(100) + (50));
         break;
     }
@@ -6061,6 +5789,7 @@ export function makewish() {
  * wand/spell/breath weapon. */
 /* suppress hallucination (for death reasons) */
 let __flash_str_fltxt = '';
+__nh_register_static(() => { __flash_str_fltxt = ''; });
 export function flash_str(typ, nohallu) {
     typ = zaptype(typ);
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !nohallu) {
@@ -6071,13 +5800,283 @@ export function flash_str(typ, nohallu) {
     return __flash_str_fltxt;
 }
 /*zap.c*/
+/* For a wand (or wand-like tool) zapped by the player, if the
+       effect was observable (determined by caller; usually seen, but
+       possibly heard or felt if the hero is blinded) then discover the
+       object type provided that the object itself is known (as more
+       than just "a wand").  If object type is already discovered and
+       we observed the effect, mark the individual wand as having been
+       seen.  Suppress spells (which use fake spellbook object for `obj')
+       so that casting a spell won't re-discover its forgotten book. */
+/* if type already discovered, treat this item has having been seen
+           even if hero is currently blinded (skips redundant makeknown) */
+/* will usually be dknown already */
+/* otherwise discover it if item itself has been or can be seen */
+/* make the discovery iff we know what we're manipulating */
+/* 5.0: used to 'break' to avoid setting learn_it here */
+/* if a long worm has mcorpsenm set, it was polymorphed by
+               the current zap and shouldn't be affected if hit again */
+/* magic resistance protects from polymorph traps, so make
+               it guard against involuntary polymorph attacks too... */
+/* natural shapechangers aren't affected by system shock
+               (unless protection from shapechangers is interfering
+               with their metabolism...) */
+/* svc.context.bypasses = TRUE; ## for make_corpse() */
+/* no corpse after system shock */
+/* format monster's name before altering its visibility */
+/* keep the immediate effects of make invisible and teleportation
+               ambiguous by using the same message that's used if we
+               teleported mtmp (and it ended up somewhere you can't see) */
+/* zapping either holder/holdee or self [zapyourself()] will
+               release hero from holder's grasp or holdee from hero's grasp */
+/* Pestilence will always resist; damage is half of (healamt/2) */
+/* [wakeup() doesn't rouse victims of temporary sleep,
+           so it's okay to leave `wake' set to TRUE here;
+           revealing concealed mimic is handled by sleep_monst()] */
+/* before possible polymorph */
+/* die if already level 0, regardless of hit points */
+/* seemimic() is done by wakeup() and might unblock vision */
+/* if effect was observable then discover the wand type provided
+       that the wand itself has been seen */
+/* possible for sticky hero to be swallowed */
+/* gives "you get regurgitated" or "you get expelled from <mon>" */
+/* order matters if 'holding' status condition is enabled;
+           set_ustuck() will set flag for botl update, You() pline will
+           trigger a status update with "UHold" removed */
+/* don't show minvent for long worm tail */
+/* in case mtmp2 is a long worm; saved traits for
+                               long worm don't include tail segments so don't
+                               give mtmp any; it will be given a new 'wormno'
+                               though (unless those are exhausted) so be able
+                               to grow new tail segments */
+/* mtmp2 is a copy of obj's object->oextra->omonst extension
+               and is not on the map or on any monst lists */
+/* in case Protection_from_shape_changers is different
+           now than it was when the traits were stored */
+/* if this corpse is being eaten, stop doing that; this should be done
+       after makemon() succeeds and skipped if it fails, but waiting until
+       we know the result for that would be too late */
+/* Rules for revival from containers:
+         *  - the container cannot be locked
+         *  - the container cannot be heavily nested (>2 is arbitrary)
+         *  - the container cannot be a statue or bag of holding
+         *    (except in very rare cases for the latter)
+         */
+/* if buried zombie cannot dig itself out, do not revive */
+/* [should probably handle recorporealization first; if corpse and
+       ghost are at same location, revived creature shouldn't be bumped
+       to an adjacent spot by ghost which joins with it] */
+/* make a zombie or doppelganger instead */
+/* note: montype has changed; mptr keeps old value for newcham() */
+/* change shape to match the corpse */
+/* shk_your: "the " or "your " or "<mon>'s " or "<Shk>'s ".
+               If the result is "Shk's " then it will be ambiguous:
+               is Shk the mon carrying it, or does Shk's shop own it?
+               Let's not worry about that... */
+/* need some prior description of the corpse since
+               stolen_value() will refer to the object as "it" */
+/* don't charge for shopkeeper's own corpse if we just revived him */
+/* [we don't give any comparable message about the corpse for
+           the !by_hero case because caller might have already done so] */
+/* transfer the ghost's inventory along with it */
+/* separate ghost monster no longer exists */
+/* partially eaten corpse yields wounded monster */
+/* not useupf(), which charges;
+           delobj() won't use up a Rider's corpse, delobj_core(,TRUE) will */
+/* obj_extract_self() will update corpse->ocontainer->owt */
+/* save the name; the object is liable to go away */
+/* shk_your/Shk_Your produces a value with a trailing space */
+/* hit carried corpses and eggs */
+/* can't cancel cancellation */
+/* cancelling doesn't remove djinni */
+/* cancelling a novel is more involved than a spellbook */
+/* a blank spellbook weighs more than a novel; update obj's weight and
+       recursively the weight of any container holding it */
+/* Charge for the cost of the object */
+/* appropriately add damage to bill */
 /* there is no flesh type, but all food is type 0, so we use it */
+/* if quan > 1 then some will survive intact */
+/* literally replace obj with this new thing */
+/*
+         * We may need to do extra adjustments for the hero if we're
+         * messing with the hero's inventory.  The following calls are
+         * equivalent to calling freeinv() on obj and addinv_nomerge()
+         * on otmp, while doing an in-place swap of the actual objects.
+         */
+/* set_wear() might result in otmp being destroyed if
+                   worn amulet has been turned into an amulet of change */
+/* leaving boulder in liquid would trigger sanity_check warning */
+/* note: if otmp is gone, billing for it was handled by useup() */
+/* add more if stone objects are added... */
+/* Don't animate monsters that aren't flesh */
+/* animate_statue() forces all golems to become flesh golems */
+/* avoid 'assigned value not used' for poly_obj() calls */
+/* non-meat eaters smell meat, meat eaters smell its flavor;
+           monks are considered non-meat eaters regardless of behavior;
+           other roles are non-meat eaters if they haven't broken
+           vegetarian conduct yet (or if poly'd into non-carnivorous/
+           non-omnivorous form, regardless of whether it's herbivorous,
+           non-eating, or something stranger) */
+/* eek - your cover might have been blown */
+/* target object has now been "seen (up close)" */
+/* obj->tknown applies to boxes and chests, not bags or
+                       statues; plural handling here and the "empty" case
+                       below are superfluous because containers don't stack */
+/* we don't want to force alive vs dead
+                       determination for Schroedinger's Cat here,
+                       so just make probing be inconclusive for it */
+/* view contents (not recursively) */
+/* learn the type if you see or hear something break
+               (the sound could be implicit) */
+/* obj broke; force redisplay in case it was the only--
+                       or last--item under non-breaking pile-top; top item
+                       here might now be a lone object rather than a pile */
 /* didn't see corpse but do see monster: it
                                has been placed somewhere other than <ox,oy>
                                or blind hero spots it with ESP */
+/* We can't settle for the default calling sequence of
+           bhito(otmp) -> break_statue(otmp) -> activate_statue_trap(ox,oy)
+           because that last call might end up operating on our `next_obj'
+           (below), rather than on the current object, if it happens to
+           encounter a statue which mustn't become animated. */
+/* pile might have been destroyed or dispersed */
+/* create_critters() returns True iff hero sees a new monster appear */
+/* wand of wishing asks player what to wish for so always becomes
+               discovered (unless it hasn't been seen) */
+/* do_enlightenmnt_effect() always describes enlightenment */
+/* effect was observable; discover the wand type provided
+           that the wand itself has been seen */
+/* the wand blows up in your face! */
+/* calls freeinv() -> update_inventory() */
 /* in case any box->lknown has changed */
+/* A mummy wrapping absorbs it and protects you */
+/* no longer gives intrinsic, but gives very fast speed instead */
+/* probably don't need these to be urgent; player just gave input
+           without subsequent opportunity to dismiss --More-- with ESC */
+/* They might survive with an amulet of life saving */
+/* zapping either self or holder/holdee [bhitm()] will release
+               holder's grasp from the hero or hero's grasp from holdee */
+/* invent is hit iff hero doesn't escape from a trap */
+/* trigger previously escaped trapdoor */
+/* similar logic to opening; invent is hit iff no trap triggered */
+/* say blasted rather than zapped */
+/* might rehumanize(); could be fatal, but only for Unchanging */
+/* if blinding is resisted due to magical equipment (Sunsword), give
+       a sparkle animation (even if also resisted due to being blind)
+       _unless_ this is lightning-induced; we don't want a double sparkle
+       if hero is both lightning resistant and blindness resistant, or
+       worse, have a single sparkle where the player confuses blindness
+       resistance for lightning resistance */
+/* now handle special cases */
+/* includes lycanthrope in creature form */
+/*
+             * Return to normal form unless Unchanging.
+             * Hero in clay golem form dies if Unchanging.
+             * Does not cure lycanthropy or stop timed random polymorph.
+             */
+/* note: "dark" rather than "heavy" is intentional... */
+/* force shapeshifter into its base form or mimic to unhide */
+/* !allow_cancel_kill is for Magicbane, where clay golem
+               will be killed somewhere back up the call/return chain... */
+/* up or down, but at closed portcullis only */
+/* can't use the stairs down to quest level 2 until
+                      leader "unlocks" them; give feedback if you try */
+/* down will release you from bear trap or web */
+/* down will trigger trapdoor, hole, or [spiked-] pit */
+/* down at open bridge or up or down at open portcullis */
+/* set dknown, maybe bknown */
+/* now stuck in web or bear trap */
+/* striking transforms trapdoor into hole */
+/* note: engraving handling that used to be here has been moved
+           to zap_map() */
+/* if do_osshock() set obj_zapped while polying, give a message now */
+/* [how about `bhitpile(u.ustuck->minvent)' effect?] */
+/* give feedback for obj_zapped */
+/* note: this explosion mustn't destroy otmp */
+/*
+     * We handle drawbridge for lateral zaps; zap_updown() handles up/down.
+     * Engravings only get hit by down zaps and we handle that here.
+     */
+/* only affects things in stone */
+/* drawbridge_down: span of lowered drawbridge */
+/* "You feel a draft." (open doorway) */
+/* down, which also means x,y == u.ux,u.uy */
+/* cancellation/opening/locking/striking/probing */
+/* THROWN_WEAPON, KICKED_WEAPON */
+/* 'I' present but no monster: erase; do this before tmp_at() */
+/* do not leave last symbol */
+/* resistance and shield effect and revealing concealed mimic are
+           handled by sleep_monst() */
+/* destroy shield; victim survives */
+/* destroy suit, also cloak if present */
+/* destroy shield; other possessions are safe */
+/* destroy suit; if present, cloak goes too */
+/* no shield or suit, you're dead; wipe out cloak
+               and/or shirt in case of life-saving or bones */
+/* using two weapons at once makes both of them more vulnerable */
+/*
+     * 5.0: when fatal, this used to yield "Killed by <fltxt>." without any
+     * information about who was responsible.  Now 'buzzer' is used to try
+     * to supply "zapped/cast/breathed by <mon> [imitating <other_mon>]."
+     *
+     * Room for improvement:  there is no monster available when player is
+     * hit by divine lighting or by Plane of Air thunderstorm so cause of
+     * death remains "killed by a bolt of lightning" w/o extra explanation.
+     *
+     * Wand of death, spell of finger of death, and disintegration breath
+     * don't use this routine so don't include 'inflicted by'.
+     */
+/* if gb.buzzer is Null, kbuf[] will end up with just <fltxt> */
+/* This also ignites floor items, but does not change cnt
+       because they weren't consumed. */
+/* fireballs only damage when they explode; poison gas leaves
+           a trail of 1x1 clouds via zap_over_floor(), but that gets
+           skipped for a hit that is reflected so is deferred until we
+           know whether reflection is happening */
+/* mon has just been killed by another monster */
+/* paper golem or straw golem */
+/* some armor was destroyed; no damage done */
+/* flash_str here only used for killer; suppress
+                     * hallucination */
+/* gas that missed or that hit without being reflected will leave
+           a 1x1 cloud here; the earlier zap_over_floor() was deferred */
+/* nothing to bounce off of */
 /* "damage" indicates wall rather than door */
+/* TRUE because ice_is_melting */
+/* boulder isn't being pushed */
+/* try again if there's another boulder and pool didn't fill */
 /* possibly drown, notice objects */
+/* melt_ice does newsym when appropriate */
+/* a burning web is too flimsy to notice if you can't see it */
+/* don't create steam clouds on Plane of Water; air bubble
+               movement and gas regions don't understand each other */
+/* For now, don't let WATER freeze. */
+/* not just `if (Underwater)' */
+/* leave the no longer existent water */
+/* but nothing actually happens... */
+/* target spot will now pass closed_door() test below
+           (except on rogue level) */
+/* death spells/wands don't disintegrate */
+/* Magical explosion from misc exploding wand */
+/* "the door absorbs the blast" would be
+                   inaccurate for an exploding wand since
+                   other adjacent locations still get hit */
+/* hero and player will still remember prior text until the spot
+           is re-examined (lookhere or move off and back on) */
+/* damage is from monster spell */
+/* shop message says "you owe <shk> <$> for it!" so we need
+               to precede that with a message explaining what "it" is */
+/* breakobj won't destroy fracturing statue or boulder but
+               will charge for shop goods */
+/* need immediate update in case this is a striking/force bolt
+               zap that is about hit more things */
+/* drop any objects contained inside the statue */
+/* just in case ineligible damage type gets through... */
+/* FIXME: recharge only handles items in hero's inventory */
+/* effects that happen only to the player */
+/* m_useup handles these for monster */
+/* update artifact bookkeeping; doesn't produce a livelog event */
+/* The(aobjnam()) is safe since otmp is unidentified -dlc */
 /* always return "blast of foo" for simplicity;
            this could be extended with hallucinatory rays, but probably
            not worth it at this time */

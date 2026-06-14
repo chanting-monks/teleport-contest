@@ -26,15 +26,14 @@ import { unconscious } from './trap.js';
 import { possibly_unwield } from './weapon.js';
 import { mon_break_armor } from './worn.js';
 
-export function were_change(mon) {
+export async function were_change(mon) {
     if (!(((mon.data).mflags2 & 4) != 0)) {
         /* `+4' => skip "were" prefix to get name of beast */
         return;
     }
     if ((((mon.data).mflags2 & 8) != 0)) {
         if (!(game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic) && !rn2(night() ? (game.flags.moonphase == 4 ? 3 : 30) : (game.flags.moonphase == 4 ? 10 : 50))) {
-            /* change back into human form */
-            new_were(mon);
+            await new_were(mon);
             game.were_changes++;
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !canseemon(mon)) {
                 let howler = null;
@@ -51,13 +50,13 @@ export function were_change(mon) {
                 }
                 if (howler) {
                     ;
-                    You_hear("a %s howling at the moon.", howler);
-                    wake_nearto(mon.mx, mon.my, 4 * 4);
+                    await You_hear("a %s howling at the moon.", howler);
+                    await wake_nearto(mon.mx, mon.my, 4 * 4);
                 }
             }
         }
     } else if (!rn2(30) || (game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic)) {
-        new_were(mon);
+        await new_were(mon);
         game.were_changes++;
     }
 }
@@ -103,7 +102,7 @@ export function were_beastie(pm) {
     }
     return NON_PM;
 }
-export function new_were(mon) {
+export async function new_were(mon) {
     let pm = 0;
     /* neither hero nor werecreature can change from human form to
        critter form if hero has Protection_from_shape_changers extrinsic;
@@ -113,11 +112,11 @@ export function new_were(mon) {
     }
     pm = counter_were(((mon.data).pmidx));
     if (pm < LOW_PM) {
-        impossible("unknown lycanthrope %s.", mon.data.pmnames[NEUTRAL]);
+        await impossible("unknown lycanthrope %s.", mon.data.pmnames[NEUTRAL]);
         return;
     }
     if (canseemon(mon) && !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-        pline("%s changes into a %s.", Monnam(mon), (((game.mons[pm]).mflags2 & 8) != 0) ? "human" : pmname(game.mons[pm], Mgender(mon)) + 4);
+        await pline("%s changes into a %s.", await Monnam(mon), (((game.mons[pm]).mflags2 & 8) != 0) ? "human" : pmname(game.mons[pm], Mgender(mon)) + 4);
     }
     set_mon_data(mon, game.mons[pm]);
     if (((mon).msleeping || !(mon).mcanmove)) {
@@ -127,20 +126,19 @@ export function new_were(mon) {
         mon.mfrozen = 0;
         mon.mcanmove = 1;
     }
-    /* regenerate by 1/4 of the lost hit points */
-    healmon(mon, Math.trunc((mon.mhpmax - mon.mhp) / 4), 0);
-    newsym(mon.mx, mon.my);
-    mon_break_armor(mon, (0));
-    possibly_unwield(mon, (0));
+    await healmon(mon, Math.trunc((mon.mhpmax - mon.mhp) / 4), 0);
+    await newsym(mon.mx, mon.my);
+    await mon_break_armor(mon, (0));
+    await possibly_unwield(mon, (0));
     /* vision capability isn't changing so we don't call set_apparxy() to
        update mon's idea of where hero is; peaceful check is redundant */
     if (game.context.mon_moving && !mon.mpeaceful && onscary(mon.mux, mon.muy, mon) && monnear(mon, mon.mux, mon.muy)) {
-        monflee(mon, (rn2(9) + (2)), (1), (1));
+        await monflee(mon, (rn2(9) + (2)), (1), (1));
     }
 }
 /* were-creature (even you) summons a horde */
 /* number of visible helpers created */
-export function were_summon(ptr, yours, visible, genbuf) {
+export async function were_summon(ptr, yours, visible, genbuf) {
     let i = 0;
     let typ = 0;
     let pm = ((ptr).pmidx);
@@ -176,7 +174,7 @@ export function were_summon(ptr, yours, visible, genbuf) {
             default:
                 continue;
         }
-        mtmp = makemon(game.mons[typ], game.u.ux, game.u.uy, 0);
+        mtmp = await makemon(game.mons[typ], game.u.ux, game.u.uy, 0);
         if (mtmp) {
             total++;
             if (canseemon(mtmp)) {
@@ -184,45 +182,47 @@ export function were_summon(ptr, yours, visible, genbuf) {
             }
         }
         if (yours && mtmp) {
-            tamedog(mtmp, null, (0));
+            await tamedog(mtmp, null, (0));
         }
     }
     return total;
 }
-export function you_were() {
+export async function you_were() {
     let qbuf = '';
     let controllable_poly = (game.u.uprops[POLYMORPH_CONTROL].intrinsic || game.u.uprops[POLYMORPH_CONTROL].extrinsic) && !(game.u.uprops[STUNNED].intrinsic || (game.multi < 0 && (unconscious() || is_fainted())));
     if ((game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic) || game.u.umonnum == game.u.ulycn) {
         return;
     }
     if (controllable_poly) {
-        qbuf = sprintf(qbuf, "Do you want to change into %s?", an(game.mons[game.u.ulycn].pmnames[NEUTRAL] + 4));
-        if (!paranoid_query(((game.flags.paranoia_bits & 256) != 0), qbuf)) {
+        qbuf = sprintf(qbuf, "Do you want to change into %s?", await an(game.mons[game.u.ulycn].pmnames[NEUTRAL] + 4));
+        if (!await paranoid_query(((game.flags.paranoia_bits & 256) != 0), qbuf)) {
             return;
         }
     } else if (monster_nearby()) {
         return;
     }
     game.were_changes++;
-    polymon(game.u.ulycn);
+    await polymon(game.u.ulycn);
 }
-export function you_unwere(purify) {
+export async function you_unwere(purify) {
     let controllable_poly = (game.u.uprops[POLYMORPH_CONTROL].intrinsic || game.u.uprops[POLYMORPH_CONTROL].extrinsic) && !(game.u.uprops[STUNNED].intrinsic || (game.multi < 0 && (unconscious() || is_fainted())));
     if (purify) {
-        You_feel("purified.");
-        set_ulycn(NON_PM);
+        await You_feel("purified.");
+        await set_ulycn(NON_PM);
     }
-    /* 40% of initial were change */
-    if (!(game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic) && (((game.youmonst.data).mflags2 & 4) != 0) && !monster_nearby() && (!controllable_poly || !paranoid_query(((game.flags.paranoia_bits & 256) != 0), "Remain in beast form?"))) {
-        rehumanize();
+    if (!(game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic) && (((game.youmonst.data).mflags2 & 4) != 0) && !monster_nearby() && (!controllable_poly || !await paranoid_query(((game.flags.paranoia_bits & 256) != 0), "Remain in beast form?"))) {
+        await rehumanize();
     } else if ((((game.youmonst.data).mflags2 & 4) != 0) && !game.u.mtimedone) {
         game.u.mtimedone = (rn2(200) + (200));
     }
 }
 /* lycanthropy is being caught or cured, but no shape change is involved */
-export function set_ulycn(which) {
+export async function set_ulycn(which) {
     game.u.ulycn = which;
-    /* add or remove lycanthrope's innate intrinsics (Drain_resistance) */
-    set_uasmon();
+    await set_uasmon();
 }
 /*were.c*/
+/* change back into human form */
+/* regenerate by 1/4 of the lost hit points */
+/* 40% of initial were change */
+/* add or remove lycanthrope's innate intrinsics (Drain_resistance) */

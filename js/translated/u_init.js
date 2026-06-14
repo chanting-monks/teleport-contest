@@ -93,16 +93,15 @@ const Skill_S = [{ skill: P_DAGGER, skmax: P_BASIC }, { skill: P_KNIFE, skmax: P
 const Skill_T = [{ skill: P_DAGGER, skmax: P_EXPERT }, { skill: P_KNIFE, skmax: P_SKILLED }, { skill: P_AXE, skmax: P_BASIC }, { skill: P_PICK_AXE, skmax: P_BASIC }, { skill: P_SHORT_SWORD, skmax: P_EXPERT }, { skill: P_BROAD_SWORD, skmax: P_BASIC }, { skill: P_LONG_SWORD, skmax: P_BASIC }, { skill: P_TWO_HANDED_SWORD, skmax: P_BASIC }, { skill: P_SABER, skmax: P_SKILLED }, { skill: P_MACE, skmax: P_BASIC }, { skill: P_MORNING_STAR, skmax: P_BASIC }, { skill: P_FLAIL, skmax: P_BASIC }, { skill: P_HAMMER, skmax: P_BASIC }, { skill: P_QUARTERSTAFF, skmax: P_BASIC }, { skill: P_POLEARMS, skmax: P_BASIC }, { skill: P_SPEAR, skmax: P_BASIC }, { skill: P_TRIDENT, skmax: P_BASIC }, { skill: P_LANCE, skmax: P_BASIC }, { skill: P_BOW, skmax: P_BASIC }, { skill: P_SLING, skmax: P_BASIC }, { skill: P_CROSSBOW, skmax: P_BASIC }, { skill: P_DART, skmax: P_EXPERT }, { skill: P_SHURIKEN, skmax: P_BASIC }, { skill: P_BOOMERANG, skmax: P_BASIC }, { skill: P_WHIP, skmax: P_BASIC }, { skill: P_UNICORN_HORN, skmax: P_SKILLED }, { skill: P_DIVINATION_SPELL, skmax: P_BASIC }, { skill: P_ENCHANTMENT_SPELL, skmax: P_BASIC }, { skill: P_ESCAPE_SPELL, skmax: P_SKILLED }, { skill: P_RIDING, skmax: P_BASIC }, { skill: P_TWO_WEAPON_COMBAT, skmax: P_SKILLED }, { skill: P_BARE_HANDED_COMBAT, skmax: P_SKILLED }, { skill: P_NONE, skmax: 0 }];
 const Skill_V = [{ skill: P_DAGGER, skmax: P_EXPERT }, { skill: P_AXE, skmax: P_EXPERT }, { skill: P_PICK_AXE, skmax: P_SKILLED }, { skill: P_SHORT_SWORD, skmax: P_SKILLED }, { skill: P_BROAD_SWORD, skmax: P_SKILLED }, { skill: P_LONG_SWORD, skmax: P_EXPERT }, { skill: P_TWO_HANDED_SWORD, skmax: P_EXPERT }, { skill: P_SABER, skmax: P_BASIC }, { skill: P_HAMMER, skmax: P_EXPERT }, { skill: P_QUARTERSTAFF, skmax: P_BASIC }, { skill: P_POLEARMS, skmax: P_SKILLED }, { skill: P_SPEAR, skmax: P_EXPERT }, { skill: P_TRIDENT, skmax: P_BASIC }, { skill: P_LANCE, skmax: P_SKILLED }, { skill: P_SLING, skmax: P_BASIC }, { skill: P_ATTACK_SPELL, skmax: P_BASIC }, { skill: P_ESCAPE_SPELL, skmax: P_BASIC }, { skill: P_RIDING, skmax: P_SKILLED }, { skill: P_TWO_WEAPON_COMBAT, skmax: P_SKILLED }, { skill: P_BARE_HANDED_COMBAT, skmax: P_EXPERT }, { skill: P_NONE, skmax: 0 }];
 const Skill_W = [{ skill: P_DAGGER, skmax: P_EXPERT }, { skill: P_KNIFE, skmax: P_SKILLED }, { skill: P_AXE, skmax: P_SKILLED }, { skill: P_SHORT_SWORD, skmax: P_BASIC }, { skill: P_CLUB, skmax: P_SKILLED }, { skill: P_MACE, skmax: P_BASIC }, { skill: P_QUARTERSTAFF, skmax: P_EXPERT }, { skill: P_POLEARMS, skmax: P_SKILLED }, { skill: P_SPEAR, skmax: P_BASIC }, { skill: P_TRIDENT, skmax: P_BASIC }, { skill: P_SLING, skmax: P_SKILLED }, { skill: P_DART, skmax: P_EXPERT }, { skill: P_SHURIKEN, skmax: P_BASIC }, { skill: P_ATTACK_SPELL, skmax: P_EXPERT }, { skill: P_HEALING_SPELL, skmax: P_SKILLED }, { skill: P_DIVINATION_SPELL, skmax: P_EXPERT }, { skill: P_ENCHANTMENT_SPELL, skmax: P_SKILLED }, { skill: P_CLERIC_SPELL, skmax: P_SKILLED }, { skill: P_ESCAPE_SPELL, skmax: P_EXPERT }, { skill: P_MATTER_SPELL, skmax: P_EXPERT }, { skill: P_RIDING, skmax: P_BASIC }, { skill: P_BARE_HANDED_COMBAT, skmax: P_BASIC }, { skill: P_NONE, skmax: 0 }];
-export function knows_object(obj, override_pauper) {
+export async function knows_object(obj, override_pauper) {
     if (game.u.uroleplay.pauper && !override_pauper) {
         return;
     }
-    /* mark as known, but not yet encountered */
-    discover_object(obj, (1), (0), (0));
+    await discover_object(obj, (1), (0), (0));
 }
 /* Know ordinary (non-magical) objects of a certain class,
    like all gems except the loadstone and luckstone. */
-export function knows_class(sym) {
+export async function knows_class(sym) {
     let odummy = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
     let o = null;
     let ct = 0;
@@ -143,7 +142,7 @@ export function knows_class(sym) {
             }
         }
         if (game.objects[ct].oc_class == sym && !game.objects[ct].oc_magic) {
-            knows_object(ct, (0));
+            await knows_object(ct, (0));
         }
     }
 }
@@ -153,7 +152,7 @@ export function knows_class(sym) {
    once, so any non-inventory initialisations should be nonrandom and
    idempotent (i.e. doing them twice is OK) */
 const __u_init_role_M_spell = [Healing_book, Protection_book, Confuse_monster_book];
-export function u_init_role() {
+export async function u_init_role() {
     fnEnter("u_init_role", "u_init.c", 0);
     let i = 0;
     /* the program used to check moves<=1 && invent==NULL do decide whether
@@ -167,22 +166,16 @@ export function u_init_role() {
      * skew the results if we use rn2(2)...  --KAA
      */
         case PM_ARCHEOLOGIST:
-            ini_inv(Archeologist);
+            await ini_inv(Archeologist);
             if (!rn2(10)) {
-                ini_inv(Tinopener);
+                await ini_inv(Tinopener);
             } else if (!rn2(4)) {
-                ini_inv(Lamp);
+                await ini_inv(Lamp);
             } else if (!rn2(5)) {
-                ini_inv(Magicmarker);
+                await ini_inv(Magicmarker);
             }
-            /* FALSE: don't override pauper here,
-                                    * but sack will be made known in
-                                    * pauper_reinit() */
-            knows_object(SACK, (0));
-            /* FALSE: don't override pauper here,
-                                          * but TOUCHSTONE will be made known
-                                          * in pauper_reinit() */
-            knows_object(TOUCHSTONE, (0));
+            await knows_object(SACK, (0));
+            await knows_object(TOUCHSTONE, (0));
             /* give knights chess-like mobility--idea from wooledge@..cwru.edu */
             /* KMH, conduct --
          * Some may claim that this isn't agnostic, since they
@@ -195,19 +188,18 @@ export function u_init_role() {
             break;
         case PM_BARBARIAN:
             if (rn2(100) >= 50) {
-                ini_inv(Barbarian_0);
+                await ini_inv(Barbarian_0);
             } else {
-                ini_inv(Barbarian_1);
+                await ini_inv(Barbarian_1);
             }
             if (!rn2(6)) {
-                ini_inv(Lamp);
+                await ini_inv(Lamp);
             }
-            /* bows, arrows, spears only */
-            knows_class(WEAPON_CLASS);
-            knows_class(ARMOR_CLASS);
+            await knows_class(WEAPON_CLASS);
+            await knows_class(ARMOR_CLASS);
             break;
         case PM_CAVE_DWELLER:
-            ini_inv(Cave_man);
+            await ini_inv(Cave_man);
             break;
         /* paupers don't know any spells yet, but several roles will recognize
        the spellbook for a key spell (not necessarily that role's special
@@ -215,61 +207,60 @@ export function u_init_role() {
        high chance to find the book; some other roles know a non-book item */
         case PM_HEALER:
             game.u.umoney0 = (rn2(1000) + (1001));
-            ini_inv(Healer);
+            await ini_inv(Healer);
             if (!rn2(25)) {
-                ini_inv(Lamp);
+                await ini_inv(Lamp);
             }
-            knows_object(POT_FULL_HEALING, (0));
+            await knows_object(POT_FULL_HEALING, (0));
             break;
         case PM_KNIGHT:
-            ini_inv(Knight);
-            knows_class(WEAPON_CLASS);
-            knows_class(ARMOR_CLASS);
+            await ini_inv(Knight);
+            await knows_class(WEAPON_CLASS);
+            await knows_class(ARMOR_CLASS);
             game.u.uprops[JUMPING].intrinsic |= 67108864;
             break;
         case PM_MONK:
 {
-                ini_inv(Monk);
-                ini_inv(__u_init_role_M_spell[Math.trunc(rn2(90) / 30)]);
+                await ini_inv(Monk);
+                await ini_inv(__u_init_role_M_spell[Math.trunc(rn2(90) / 30)]);
                 if (!rn2(4)) {
-                    ini_inv(Magicmarker);
+                    await ini_inv(Magicmarker);
                 } else if (!rn2(10)) {
-                    ini_inv(Lamp);
+                    await ini_inv(Lamp);
                 }
-                knows_class(ARMOR_CLASS);
-                /* sufficiently martial-arts oriented item to ignore language issue */
-                knows_object(SHURIKEN, (0));
+                await knows_class(ARMOR_CLASS);
+                await knows_object(SHURIKEN, (0));
                 break;
             }
         case PM_CLERIC:
-            ini_inv(Priest);
+            await ini_inv(Priest);
             if (!rn2(5)) {
-                ini_inv(Magicmarker);
+                await ini_inv(Magicmarker);
             } else if (!rn2(10)) {
-                ini_inv(Lamp);
+                await ini_inv(Lamp);
             }
-            knows_object(POT_WATER, (1));
+            await knows_object(POT_WATER, (1));
             break;
         case PM_RANGER:
-            ini_inv(Ranger);
-            knows_class(WEAPON_CLASS);
+            await ini_inv(Ranger);
+            await knows_class(WEAPON_CLASS);
             break;
         case PM_ROGUE:
             game.u.umoney0 = 0;
-            ini_inv(Rogue);
+            await ini_inv(Rogue);
             if (!rn2(5)) {
-                ini_inv(Blindfold);
+                await ini_inv(Blindfold);
             }
-            knows_object(SACK, (0));
-            knows_class(WEAPON_CLASS);
+            await knows_object(SACK, (0));
+            await knows_class(WEAPON_CLASS);
             break;
         case PM_SAMURAI:
-            ini_inv(Samurai);
+            await ini_inv(Samurai);
             if (!rn2(5)) {
-                ini_inv(Blindfold);
+                await ini_inv(Blindfold);
             }
-            knows_class(WEAPON_CLASS);
-            knows_class(ARMOR_CLASS);
+            await knows_class(WEAPON_CLASS);
+            await knows_class(ARMOR_CLASS);
             for (i = MAXOCLASSES; i < NUM_OBJECTS; ++i) {
                 /* in order to assist non-Japanese speakers, pre-discover items
            that switch to Japanese names when playing as a Samurai */
@@ -277,35 +268,35 @@ export function u_init_role() {
                     continue;
                 }
                 if (Japanese_item_name(i, null)) {
-                    knows_object(i, (0));
+                    await knows_object(i, (0));
                 }
             }
             break;
         case PM_TOURIST:
             game.u.umoney0 = rnd(1000);
-            ini_inv(Tourist);
+            await ini_inv(Tourist);
             if (!rn2(25)) {
-                ini_inv(Tinopener);
+                await ini_inv(Tinopener);
             } else if (!rn2(25)) {
-                ini_inv(Leash);
+                await ini_inv(Leash);
             } else if (!rn2(25)) {
-                ini_inv(Towel);
+                await ini_inv(Towel);
             } else if (!rn2(20)) {
-                ini_inv(Magicmarker);
+                await ini_inv(Magicmarker);
             }
             break;
         case PM_VALKYRIE:
-            ini_inv(Valkyrie);
+            await ini_inv(Valkyrie);
             if (!rn2(6)) {
-                ini_inv(Lamp);
+                await ini_inv(Lamp);
             }
-            knows_class(WEAPON_CLASS);
-            knows_class(ARMOR_CLASS);
+            await knows_class(WEAPON_CLASS);
+            await knows_class(ARMOR_CLASS);
             break;
         case PM_WIZARD:
-            ini_inv(Wizard);
+            await ini_inv(Wizard);
             if (!rn2(5)) {
-                ini_inv(Blindfold);
+                await ini_inv(Blindfold);
             }
             break;
         default:
@@ -318,7 +309,7 @@ export function u_init_role() {
 }
 /* race-specific initializations, same restrictions as u_init_role */
 const __u_init_race_trotyp = [WOODEN_FLUTE, TOOLED_HORN, WOODEN_HARP, BELL, BUGLE, LEATHER_DRUM];
-export function u_init_race() {
+export async function u_init_race() {
     fnEnter("u_init_race", "u_init.c", 0);
     switch ((game.urace.mnum)) {
         case PM_HUMAN:
@@ -331,48 +322,46 @@ export function u_init_race() {
          * get only non-magic instruments.
          */
                 let Instrument = [{ trotyp: __u_init_race_trotyp[rn2((Math.trunc(24 /* sizeof(const int [6]) */ / 4 /* sizeof(const int) */)))], trspe: 0, trclass: TOOL_CLASS, trquan_min: 1, trquan_max: 1, trbless: 0 }, { trotyp: 0, trspe: 0, trclass: 0, trquan_min: 0, trquan_max: 0, trbless: 0 }];
-                ini_inv(Instrument);
+                await ini_inv(Instrument);
             }
-            /* Elves can recognize all elvish objects */
-            knows_object(ELVEN_SHORT_SWORD, (0));
-            knows_object(ELVEN_ARROW, (0));
-            knows_object(ELVEN_BOW, (0));
-            knows_object(ELVEN_SPEAR, (0));
-            knows_object(ELVEN_DAGGER, (0));
-            knows_object(ELVEN_BROADSWORD, (0));
-            knows_object(ELVEN_MITHRIL_COAT, (0));
-            knows_object(ELVEN_LEATHER_HELM, (0));
-            knows_object(ELVEN_SHIELD, (0));
-            knows_object(ELVEN_BOOTS, (0));
-            knows_object(ELVEN_CLOAK, (0));
+            await knows_object(ELVEN_SHORT_SWORD, (0));
+            await knows_object(ELVEN_ARROW, (0));
+            await knows_object(ELVEN_BOW, (0));
+            await knows_object(ELVEN_SPEAR, (0));
+            await knows_object(ELVEN_DAGGER, (0));
+            await knows_object(ELVEN_BROADSWORD, (0));
+            await knows_object(ELVEN_MITHRIL_COAT, (0));
+            await knows_object(ELVEN_LEATHER_HELM, (0));
+            await knows_object(ELVEN_SHIELD, (0));
+            await knows_object(ELVEN_BOOTS, (0));
+            await knows_object(ELVEN_CLOAK, (0));
             break;
         case PM_DWARF:
-            knows_object(DWARVISH_SPEAR, (0));
-            knows_object(DWARVISH_SHORT_SWORD, (0));
-            knows_object(DWARVISH_MATTOCK, (0));
-            knows_object(DWARVISH_IRON_HELM, (0));
-            knows_object(DWARVISH_MITHRIL_COAT, (0));
-            knows_object(DWARVISH_CLOAK, (0));
-            knows_object(DWARVISH_ROUNDSHIELD, (0));
+            await knows_object(DWARVISH_SPEAR, (0));
+            await knows_object(DWARVISH_SHORT_SWORD, (0));
+            await knows_object(DWARVISH_MATTOCK, (0));
+            await knows_object(DWARVISH_IRON_HELM, (0));
+            await knows_object(DWARVISH_MITHRIL_COAT, (0));
+            await knows_object(DWARVISH_CLOAK, (0));
+            await knows_object(DWARVISH_ROUNDSHIELD, (0));
             break;
         case PM_GNOME:
             break;
         case PM_ORC:
             if (!(game.urole.mnum == (PM_WIZARD))) {
-                ini_inv(Xtra_food);
+                await ini_inv(Xtra_food);
             }
-            /* Orcs can recognize all orcish objects */
-            knows_object(ORCISH_SHORT_SWORD, (0));
-            knows_object(ORCISH_ARROW, (0));
-            knows_object(ORCISH_BOW, (0));
-            knows_object(ORCISH_SPEAR, (0));
-            knows_object(ORCISH_DAGGER, (0));
-            knows_object(ORCISH_CHAIN_MAIL, (0));
-            knows_object(ORCISH_RING_MAIL, (0));
-            knows_object(ORCISH_HELM, (0));
-            knows_object(ORCISH_SHIELD, (0));
-            knows_object(URUK_HAI_SHIELD, (0));
-            knows_object(ORCISH_CLOAK, (0));
+            await knows_object(ORCISH_SHORT_SWORD, (0));
+            await knows_object(ORCISH_ARROW, (0));
+            await knows_object(ORCISH_BOW, (0));
+            await knows_object(ORCISH_SPEAR, (0));
+            await knows_object(ORCISH_DAGGER, (0));
+            await knows_object(ORCISH_CHAIN_MAIL, (0));
+            await knows_object(ORCISH_RING_MAIL, (0));
+            await knows_object(ORCISH_HELM, (0));
+            await knows_object(ORCISH_SHIELD, (0));
+            await knows_object(URUK_HAI_SHIELD, (0));
+            await knows_object(ORCISH_CLOAK, (0));
             break;
         default:
             break;
@@ -381,7 +370,7 @@ export function u_init_race() {
 /* for 'pauper' aka 'unprepared'; take away any skills (bare-handed combat,
    riding) that are better than unskilled; learn the book (without carrying
    it or knowing its spell yet) for some key spells */
-export function pauper_reinit() {
+export async function pauper_reinit() {
     let skill = 0;
     let preknown = STRANGE_OBJECT;
     if (!game.u.uroleplay.pauper) {
@@ -428,24 +417,23 @@ export function pauper_reinit() {
             break;
     }
     if (preknown != STRANGE_OBJECT) {
-        knows_object(preknown, (1));
+        await knows_object(preknown, (1));
     }
 }
 /* boost STR and CON until hero can carry inventory */
-export function u_init_carry_attr_boost() {
+export async function u_init_carry_attr_boost() {
     while (inv_weight() > 0) {
-        /* make sure you can carry all you have - especially for Tourists */
-        if (adjattrib(A_STR, 1, (1))) {
+        if (await adjattrib(A_STR, 1, (1))) {
             continue;
         }
-        if (adjattrib(A_CON, 1, (1))) {
+        if (await adjattrib(A_CON, 1, (1))) {
             continue;
         }
         break;
     }
 }
 /* initialise u, except inventory, attributes, skills and discoveries */
-export function u_init_misc() {
+export async function u_init_misc() {
     fnEnter("u_init_misc", "u_init.c", 0);
     let i = 0;
     let tmpuroleplay = game.u.uroleplay;
@@ -458,26 +446,26 @@ export function u_init_misc() {
     memset(game.ubirthday, 0, 1 /* sizeof(time_t) */);
     memset(game.urealtime, 0, 1 /* sizeof(struct u_realtime) */);
     /* restore options set via rcfile */
-    game.u.uroleplay = tmpuroleplay;
+    Object.assign(game.u.uroleplay, tmpuroleplay);
     /* documentation of more zero values as desirable */
     /* no divine gifts bestowed */
     game.u.uz.dlevel = 1;
     game.u.uz0.dlevel = 0;
-    game.u.utolev = game.u.uz;
+    Object.assign(game.u.utolev, game.u.uz);
     game.u.umoved = (0);
     game.u.umortality = 0;
     game.u.ugrave_arise = NON_PM;
     game.u.umonnum = game.u.umonster = game.urole.mnum;
     game.u.ulycn = NON_PM;
-    set_uasmon();
+    await set_uasmon();
     /* set up some of the initial attributes */
     game.u.ulevel = 0;
     game.u.uhp = game.u.uhpmax = game.u.uhppeak = newhp();
     game.u.uen = game.u.uenmax = game.u.uenpeak = newpw();
     game.u.uspellprot = 0;
-    adjabil(0, 1);
+    await adjabil(0, 1);
     game.u.ulevel = game.u.ulevelmax = 1;
-    init_uhunger();
+    await init_uhunger();
     for (i = 0; i <= MAXSPELL; i++) {
         game.spl_book[i].sp_id = 0;
     }
@@ -505,7 +493,7 @@ export function u_init_misc() {
     return;
 }
 /* the appropriate set of skills for the role */
-export function skills_for_role() {
+export async function skills_for_role() {
     let skills = null;
     switch ((game.urole.mnum)) {
         case PM_ARCHEOLOGIST:
@@ -548,14 +536,14 @@ export function skills_for_role() {
             skills = Skill_W;
             break;
         default:
-            panic("No skills found for role");
+            await panic("No skills found for role");
             break;
     }
     return skills;
 }
 /* skills aren't initialized, so we use the role-specific skill lists */
-export function restricted_spell_discipline(otyp) {
-    let skills = skills_for_role();
+export async function restricted_spell_discipline(otyp) {
+    let skills = await skills_for_role();
     let this_skill = spell_skilltype(otyp);
     const __nhi_skills_arr = skills;
     for (let __nhi_skills = 0; (skills = __nhi_skills_arr[__nhi_skills]) && (skills && skills.skill != P_NONE); __nhi_skills++) {
@@ -573,47 +561,26 @@ export function trquan(trop) {
     return trop.trquan_min + rn2(trop.trquan_max - trop.trquan_min + 1);
 }
 /* create random object of certain class, filtering out too powerful items */
-export function ini_inv_mkobj_filter(oclass, got_level1_spellbook) {
+export async function ini_inv_mkobj_filter(oclass, got_level1_spellbook) {
     let obj = null;
     let otyp = 0;
     let trycnt = 0;
-    /*
-     * For random objects, do not create certain overly powerful
-     * items: wand of wishing, ring of levitation, or the
-     * polymorph/polymorph control combination.  Specific objects,
-     * i.e. the discovery wishing, are still OK.
-     * Also, don't get a couple of really useless items.  (Note:
-     * punishment isn't "useless".  Some players who start out with
-     * one will immediately read it and use the iron ball as a
-     * weapon.)
-     */
-    obj = mkobj(oclass, (0));
+    obj = await mkobj(oclass, (0));
     otyp = obj.otyp;
-    while (otyp == WAN_WISHING || otyp == game.nocreate || otyp == game.nocreate2 || otyp == game.nocreate3 || otyp == game.nocreate4 || otyp == RIN_LEVITATION || otyp == POT_HALLUCINATION || otyp == POT_ACID || otyp == SCR_AMNESIA || otyp == SCR_FIRE || otyp == SCR_BLANK_PAPER || otyp == SPE_BLANK_PAPER || otyp == RIN_AGGRAVATE_MONSTER || otyp == RIN_HUNGER || otyp == WAN_NOTHING || (otyp == RIN_POISON_RESISTANCE && (game.urace.mnum == (PM_ORC))) || (otyp == SCR_ENCHANT_WEAPON && (game.urole.mnum == (PM_MONK))) || (otyp == SPE_FORCE_BOLT && (game.urole.mnum == (PM_WIZARD))) || (obj.oclass == SPBOOK_CLASS && (game.objects[otyp].oc_oc2 > (got_level1_spellbook ? 3 : 1) || restricted_spell_discipline(otyp))) || otyp == SPE_NOVEL) {
-        /* orcs start with poison resistance */
-        /* wizard patch -- they already have one */
-        /* powerful spells are either useless to
-              low level players or unbalancing; also
-              spells in restricted skill categories */
-        dealloc_obj(obj);
+    while (otyp == WAN_WISHING || otyp == game.nocreate || otyp == game.nocreate2 || otyp == game.nocreate3 || otyp == game.nocreate4 || otyp == RIN_LEVITATION || otyp == POT_HALLUCINATION || otyp == POT_ACID || otyp == SCR_AMNESIA || otyp == SCR_FIRE || otyp == SCR_BLANK_PAPER || otyp == SPE_BLANK_PAPER || otyp == RIN_AGGRAVATE_MONSTER || otyp == RIN_HUNGER || otyp == WAN_NOTHING || (otyp == RIN_POISON_RESISTANCE && (game.urace.mnum == (PM_ORC))) || (otyp == SCR_ENCHANT_WEAPON && (game.urole.mnum == (PM_MONK))) || (otyp == SPE_FORCE_BOLT && (game.urole.mnum == (PM_WIZARD))) || (obj.oclass == SPBOOK_CLASS && (game.objects[otyp].oc_oc2 > (got_level1_spellbook ? 3 : 1) || await restricted_spell_discipline(otyp))) || otyp == SPE_NOVEL) {
+        await dealloc_obj(obj);
         if (++trycnt > 1000) {
-            /* This lonely pancake's potential will never be realized.
-             * It will exist only as a thought, of something that could have
-             * been, but never will be. It will never experience maple syrup
-             * oozing into its nooks, or see the delightful expression on
-             * someone's face as they are about to let it dance across their
-             * taste buds. */
-            obj = mksobj(PANCAKE, (1), (0));
+            obj = await mksobj(PANCAKE, (1), (0));
             break;
         }
-        obj = mkobj(oclass, (0));
+        obj = await mkobj(oclass, (0));
         otyp = obj.otyp;
     }
     return obj;
 }
 /* substitute object with something else based on race.
    only changes otyp, and returns it. */
-export function ini_inv_obj_substitution(trop, obj) {
+export async function ini_inv_obj_substitution(trop, obj) {
     if (game.urace.mnum != PM_HUMAN) {
         let i = 0;
         for (i = 0; inv_subs[i].race_pm != NON_PM; ++i) {
@@ -621,7 +588,7 @@ export function ini_inv_obj_substitution(trop, obj) {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/u_init.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("ini_inv: substituting %s for %s%s", (game.obj_descr[(game.objects[inv_subs[i].subs_otyp]).oc_name_idx].oc_name), (trop.trotyp == 0) ? "random " : "", (game.obj_descr[(game.objects[obj.otyp]).oc_name_idx].oc_name));
+                        await pline("ini_inv: substituting %s for %s%s", (game.obj_descr[(game.objects[inv_subs[i].subs_otyp]).oc_name_idx].oc_name), (trop.trotyp == 0) ? "random " : "", (game.obj_descr[(game.objects[obj.otyp]).oc_name_idx].oc_name));
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
@@ -638,7 +605,7 @@ export function ini_inv_obj_substitution(trop, obj) {
 }
 /* returns: TRUE to stop generating items from this trobj,
    FALSE for normal behaviour */
-export function ini_inv_adjust_obj(trop, obj) {
+export async function ini_inv_adjust_obj(trop, obj) {
     let stop = (0);
     if (trop.trclass == COIN_CLASS) {
         /* no "blessed" or "identified" money */
@@ -678,19 +645,18 @@ export function ini_inv_adjust_obj(trop, obj) {
             obj.blessed = trop.trbless;
         }
     }
-    /* defined after setting otyp+quan + blessedness */
-    obj.owt = weight(obj);
+    obj.owt = await weight(obj);
     return stop;
 }
 /* initial inventory: wear, wield, learn the spell/obj */
-export function ini_inv_use_obj(obj) {
+export async function ini_inv_use_obj(obj) {
     fnEnter("ini_inv_use_obj", "u_init.c", 0);
     /* Make the type known if necessary */
     if ((game.obj_descr[(game.objects[obj.otyp]).oc_descr_idx].oc_descr) && obj.known) {
-        discover_object(obj.otyp, (1), (1), (0));
+        await discover_object(obj.otyp, (1), (1), (0));
     }
     if (obj.otyp == OIL_LAMP) {
-        discover_object(POT_OIL, (1), (1), (0));
+        await discover_object(POT_OIL, (1), (1), (0));
     }
     if (obj.oclass == ARMOR_CLASS) {
         if ((obj.oclass == ARMOR_CLASS && game.objects[obj.otyp].oc_subtyp == ARM_SHIELD) && !game.uarms && !(game.uwep && ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big))) {
@@ -699,37 +665,37 @@ export function ini_inv_use_obj(obj) {
                weapon ready to swap with the primary; just make sure we
                aren't two-weaponing (academic; no one starts that way) */
             set_twoweap((0));
-            setworn(obj, 8);
+            await setworn(obj, 8);
         } else if ((obj.oclass == ARMOR_CLASS && game.objects[obj.otyp].oc_subtyp == ARM_HELM) && !game.uarmh) {
-            setworn(obj, 4);
+            await setworn(obj, 4);
         } else if ((obj.oclass == ARMOR_CLASS && game.objects[obj.otyp].oc_subtyp == ARM_GLOVES) && !game.uarmg) {
-            setworn(obj, 16);
+            await setworn(obj, 16);
         } else if ((obj.oclass == ARMOR_CLASS && game.objects[obj.otyp].oc_subtyp == ARM_SHIRT) && !game.uarmu) {
-            setworn(obj, 64);
+            await setworn(obj, 64);
         } else if ((obj.oclass == ARMOR_CLASS && game.objects[obj.otyp].oc_subtyp == ARM_CLOAK) && !game.uarmc) {
-            setworn(obj, 2);
+            await setworn(obj, 2);
         } else if ((obj.oclass == ARMOR_CLASS && game.objects[obj.otyp].oc_subtyp == ARM_BOOTS) && !game.uarmf) {
-            setworn(obj, 32);
+            await setworn(obj, 32);
         } else if ((obj.oclass == ARMOR_CLASS && game.objects[obj.otyp].oc_subtyp == ARM_SUIT) && !game.uarm) {
-            setworn(obj, 1);
+            await setworn(obj, 1);
         }
     }
     if (obj.oclass == WEAPON_CLASS || ((obj).oclass == TOOL_CLASS && game.objects[(obj).otyp].oc_subtyp != P_NONE) || obj.otyp == TIN_OPENER || obj.otyp == FLINT || obj.otyp == ROCK) {
         if (((obj.oclass == WEAPON_CLASS || obj.oclass == GEM_CLASS) && game.objects[obj.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[obj.otyp].oc_subtyp <= -P_BOW) || ((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[obj.otyp].oc_subtyp <= -P_DART)) {
             if (!game.uquiver) {
-                setuqwep(obj);
+                await setuqwep(obj);
             }
         } else if (!game.uwep && (!game.uarms || !((obj.oclass == WEAPON_CLASS || obj.oclass == TOOL_CLASS) && game.objects[obj.otyp].oc_big))) {
-            setuwep(obj);
+            await setuwep(obj);
         } else if (!game.uswapwep) {
-            setuswapwep(obj);
+            await setuswapwep(obj);
         }
     }
     if (obj.oclass == SPBOOK_CLASS && obj.otyp != SPE_BLANK_PAPER) {
-        initialspell(obj);
+        await initialspell(obj);
     }
 }
-export function ini_inv(trop) { let __ti = 0;
+export async function ini_inv(trop) { let __ti = 0;
     let obj = null;
     let otyp = 0;
     /* got a level 1 spellbook? */
@@ -742,9 +708,9 @@ export function ini_inv(trop) { let __ti = 0;
     while (trop[__ti].trclass) {
         otyp = trop[__ti].trotyp;
         if (otyp != 0) {
-            obj = mksobj(otyp, (1), (0));
+            obj = await mksobj(otyp, (1), (0));
         } else {
-            obj = ini_inv_mkobj_filter(trop[__ti].trclass, got_sp1);
+            obj = await ini_inv_mkobj_filter(trop[__ti].trclass, got_sp1);
             otyp = obj.otyp;
             switch (otyp) {
                 /* Heavily relies on the facts that 1) we create wands
@@ -768,17 +734,17 @@ export function ini_inv(trop) { let __ti = 0;
                 game.nocreate4 = otyp;
             }
         }
-        otyp = ini_inv_obj_substitution(trop[__ti], obj);
+        otyp = await ini_inv_obj_substitution(trop[__ti], obj);
         ((otyp));
         if (game.u.uroleplay.nudist && obj.oclass == ARMOR_CLASS) {
-            dealloc_obj(obj);
+            await dealloc_obj(obj);
             __ti++;
             continue;
         }
-        if (ini_inv_adjust_obj(trop[__ti], obj)) {
+        if (await ini_inv_adjust_obj(trop[__ti], obj)) {
             quan = 1;
         }
-        obj = addinv(obj);
+        obj = await addinv(obj);
         /* First spellbook should be level 1 - did we get it? */
         if (obj.oclass == SPBOOK_CLASS && game.objects[obj.otyp].oc_oc2 == 1) {
             got_sp1 = (1);
@@ -794,38 +760,37 @@ export function ini_inv(trop) { let __ti = 0;
 
    this function can be run multiple times and will overwrite the effects of
    previous runs */
-export function u_init_inventory_attrs() {
+export async function u_init_inventory_attrs() {
     fnEnter("u_init_inventory_attrs", "u_init.c", 0);
     game.lastinvnr = 51;
     while (game.invent) {
-        useupall(game.invent);
+        await useupall(game.invent);
     }
     game.u.umoney0 = 0;
-    u_init_role();
-    u_init_race();
+    await u_init_role();
+    await u_init_race();
     if (game.flags.explore) {
-        ini_inv(Wishing);
+        await ini_inv(Wishing);
     }
     if (game.u.umoney0) {
-        ini_inv(Money);
+        await ini_inv(Money);
     }
     /* in case sack has gold in it */
     game.u.umoney0 += hidden_gold((1));
     init_attr(75);
-    /* minor variation to attrs */
-    vary_init_attr();
-    u_init_carry_attr_boost();
+    await vary_init_attr();
+    await u_init_carry_attr_boost();
 }
 /* side effects of starting inventory (e.g. discovering it) and skills (both
    those based on role and those based on starting inventory) */
-export function u_init_skills_discoveries() {
+export async function u_init_skills_discoveries() {
     let otmp = null;
     for (otmp = game.invent; otmp; otmp = otmp.nobj) {
-        ini_inv_use_obj(otmp);
+        await ini_inv_use_obj(otmp);
     }
-    skill_init(skills_for_role());
+    await skill_init(await skills_for_role());
     if (game.u.uroleplay.pauper) {
-        pauper_reinit();
+        await pauper_reinit();
     }
     /* If we have at least one spell, force starting Pw to be enough,
        so hero can cast the level 1 spell they should have */
@@ -835,11 +800,46 @@ export function u_init_skills_discoveries() {
     find_ac();
 }
 /*u_init.c*/
+/* mark as known, but not yet encountered */
+/* FALSE: don't override pauper here,
+                                          * but TOUCHSTONE will be made known
+                                          * in pauper_reinit() */
+/* sufficiently martial-arts oriented item to ignore language issue */
+/* bows, arrows, spears only */
+/* FALSE: don't override pauper here,
+                                    * but sack will be made known in
+                                    * pauper_reinit() */
 /* we don't override pauper here because that would give
                    samarai an advantage of knowing several items in advance */
+/* Elves can recognize all elvish objects */
+/* Orcs can recognize all orcish objects */
 /* Dwarves can recognize all dwarvish objects */
 /* compensate for generally inferior equipment */
 /* food ration isn't interesting to discover, but put "gunyoki" into
            discoveries list for players who might not recognize what it is */
+/* make sure you can carry all you have - especially for Tourists */
+/*
+     * For random objects, do not create certain overly powerful
+     * items: wand of wishing, ring of levitation, or the
+     * polymorph/polymorph control combination.  Specific objects,
+     * i.e. the discovery wishing, are still OK.
+     * Also, don't get a couple of really useless items.  (Note:
+     * punishment isn't "useless".  Some players who start out with
+     * one will immediately read it and use the iron ball as a
+     * weapon.)
+     */
+/* orcs start with poison resistance */
+/* wizard patch -- they already have one */
+/* powerful spells are either useless to
+              low level players or unbalancing; also
+              spells in restricted skill categories */
+/* This lonely pancake's potential will never be realized.
+             * It will exist only as a thought, of something that could have
+             * been, but never will be. It will never experience maple syrup
+             * oozing into its nooks, or see the delightful expression on
+             * someone's face as they are about to let it dance across their
+             * taste buds. */
+/* defined after setting otyp+quan + blessedness */
 /* Put post-creation object adjustments that don't depend on whether
          * it was UNDEF_TYP or not after this. */
+/* minor variation to attrs */

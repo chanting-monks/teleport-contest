@@ -76,7 +76,7 @@ export function free_edog(mtmp) {
     }
     mtmp.mtame = 0;
 }
-export function initedog(mtmp, everything) {
+export async function initedog(mtmp, everything) {
     let edogp = ((mtmp).mextra.edog);
     let minhungry = game.moves + 1000;
     let minimumtame = (((mtmp.data).mflags2 & 4194304) != 0) ? 10 : 5;
@@ -105,19 +105,11 @@ export function initedog(mtmp, everything) {
             edogp.apport = 1;
         }
     }
-    /* always set for newly tamed pet or feral former pet; hungrytime might
-       already be higher when taming magic affects already tame monst */
-    if (edogp.hungrytime < minhungry) {
+    if (!(edogp.hungrytime >= minhungry)) { /* ghost-proof: see build-engine note */
         edogp.hungrytime = minhungry;
     }
     if (!game.u.uconduct.pets && game.program_state.in_moveloop) {
-        /* livelog first pet, but only if you didn't start with one (the starting
-     * pet will be initialized before in_moveloop is true) */
-        /* "obtained" a pet rather than "tamed" it because it might have come
-         * from a figurine or some other method in which it was created tame
-         * using an() is safe unless it somehow becomes possible to tame a
-         * unique monster */
-        livelog_printf(32, "obtained %s first pet (%s)", (genders[game.flags.female ? 1 : 0].his), an(mon_pmname(mtmp)));
+        livelog_printf(32, "obtained %s first pet (%s)", (genders[game.flags.female ? 1 : 0].his), await an(mon_pmname(mtmp)));
     }
     game.u.uconduct.pets++;
 }
@@ -133,7 +125,7 @@ export function pet_type() {
         return rn2(2) ? PM_KITTEN : PM_LITTLE_DOG;
     }
 }
-export function pick_familiar_pm(otmp, quietly) {
+export async function pick_familiar_pm(otmp, quietly) {
     let pm = null;
     if (otmp) {
         /* figurine; otherwise spell */
@@ -141,11 +133,8 @@ export function pick_familiar_pm(otmp, quietly) {
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
         pm = game.mons[mndx];
         if ((game.mvitals[mndx].mvflags & 1) && mbirth_limit(mndx) != 120) {
-            /* activating a figurine provides one way to exceed the
-           maximum number of the target critter created--unless
-           it has a special limit (erinys, Nazgul) */
             if (!quietly) {
-                pline("... into a pile of dust.");
+                await pline("... into a pile of dust.");
             }
             return null;
         }
@@ -156,14 +145,14 @@ export function pick_familiar_pm(otmp, quietly) {
     } else {
         let skill = spell_skilltype(SPE_CREATE_FAMILIAR);
         let max = 3 * (game.u.weapon_skills[skill].skill);
-        pm = rndmonst_adj(0, max);
+        pm = await rndmonst_adj(0, max);
         if (!pm && !quietly) {
-            There("seems to be nothing available for a familiar.");
+            await There("seems to be nothing available for a familiar.");
         }
     }
     return pm;
 }
-export function make_familiar(otmp, x, y, quietly) {
+export async function make_familiar(otmp, x, y, quietly) {
     let pm = null;
     let mtmp = null;
     let chance = 0;
@@ -172,18 +161,17 @@ export function make_familiar(otmp, x, y, quietly) {
     do {
         let mmflags = 0;
         let cgend = 0;
-        if (!(pm = pick_familiar_pm(otmp, quietly))) {
+        if (!(pm = await pick_familiar_pm(otmp, quietly))) {
             break;
         }
         mmflags = 2048 | 8 | 1 | 131072;
         cgend = otmp ? (otmp.spe & 3) : 0;
         mmflags |= ((cgend == 1) ? 65536 : (cgend == 2) ? 32768 : 0);
-        mtmp = makemon(pm, x, y, mmflags);
+        mtmp = await makemon(pm, x, y, mmflags);
         if (otmp) {
             if (!mtmp) {
-                /* monster has been genocided or target spot is occupied */
                 if (!quietly) {
-                    pline_The("figurine writhes and then shatters into pieces!");
+                    await pline_The("figurine writhes and then shatters into pieces!");
                 }
                 break;
             } else if (mtmp.isminion) {
@@ -202,7 +190,7 @@ export function make_familiar(otmp, x, y, quietly) {
     if (!mtmp) {
         return null;
     }
-    if (is_pool(mtmp.mx, mtmp.my) && minliquid(mtmp)) {
+    if (is_pool(mtmp.mx, mtmp.my) && await minliquid(mtmp)) {
         return null;
     }
     if (otmp) {
@@ -216,9 +204,8 @@ export function make_familiar(otmp, x, y, quietly) {
             /* 0,1,2:  b=80%,10,10; nc=10%,80,10; c=10%,10,80 */
             reallytame = (0);
             if (chance == 2) {
-                /* hostile (cursed figurine) */
                 if (!quietly) {
-                    You("get a bad feeling about this.");
+                    await You("get a bad feeling about this.");
                 }
                 mtmp.mpeaceful = 0;
                 set_malign(mtmp);
@@ -230,20 +217,20 @@ export function make_familiar(otmp, x, y, quietly) {
         }
     }
     if (reallytame) {
-        initedog(mtmp, (1));
+        await initedog(mtmp, (1));
     }
     mtmp.msleeping = 0;
     set_malign(mtmp);
-    newsym(mtmp.mx, mtmp.my);
+    await newsym(mtmp.mx, mtmp.my);
     if (mtmp.mtame && attacktype(mtmp.data, 254)) {
         /* must wield weapon immediately since pets will otherwise drop it */
         mtmp.weapon_check = NEED_HTH_WEAPON;
-        mon_wield_item(mtmp);
+        await mon_wield_item(mtmp);
     }
     return mtmp;
 }
 /* despite rather general name, used exclusively for hero's starting pet */
-export function makedog() {
+export async function makedog() {
     fnEnter("makedog", "dog.c", 0);
     traceCheckpoint('makedog.start', { ux: game.u.ux, uy: game.u.uy });
     let mtmp = null;
@@ -271,12 +258,7 @@ export function makedog() {
             petname = "Sirius";
         }
     }
-    /* specifying NO_MINVENT prevents makemon() from having a 1% chance
-       of creating a pony with an already worn saddle; dogs and cats
-       aren't affected because they don't have any initial inventory
-       [if anybody adds stranger pets that are expected to have such,
-       they'll need to modify this] */
-    mtmp = makemon(game.mons[pettype], game.u.ux, game.u.uy, 2048 | 1);
+    mtmp = await makemon(game.mons[pettype], game.u.ux, game.u.uy, 2048 | 1);
     if (!mtmp) {
         return (null);
     }
@@ -285,24 +267,21 @@ export function makedog() {
         game.context.startingpet_mid = mtmp.m_id;
         if (!game.u.uroleplay.pauper) {
             if (pettype == PM_PONY) {
-                /* initial horses start wearing a saddle (pauper hero excluded) */
-                /* NULL obj arg means put_saddle_on_mon()
-                 * will carry out the saddle creation */
-                put_saddle_on_mon(null, mtmp);
+                await put_saddle_on_mon(null, mtmp);
             }
         }
         /* starting pet's type has been seen up close (unless PermaBlind)
            and for tourist treat it as having already been photographed */
         game.bhitpos.x = mtmp.mx , game.bhitpos.y = mtmp.my;
         game.notonhead = (0);
-        see_monster_closeup(mtmp, carrying(EXPENSIVE_CAMERA) ? (1) : (0));
+        await see_monster_closeup(mtmp, carrying(EXPENSIVE_CAMERA) ? (1) : (0));
     } else {
-        impossible("makedog() when startingpet_mid is already non-zero?");
+        await impossible("makedog() when startingpet_mid is already non-zero?");
     }
     if (!game.petname_used++ && __nh_char_at0(petname)) {
         mtmp = christen_monst(mtmp, petname);
     }
-    initedog(mtmp, (1));
+    await initedog(mtmp, (1));
     traceCheckpoint('makedog.end', { mx: mtmp.mx, my: mtmp.my, mtame: mtmp.mtame, mpeaceful: mtmp.mpeaceful, pmidx: mtmp.data ? mtmp.data.pmidx : -1 });
     return mtmp;
 }
@@ -311,12 +290,12 @@ export function set_mon_lastmove(mtmp) {
 }
 /* record `last move time' for all monsters prior to level save so that
    mon_arrive() can catch up for lost time when they're restored later */
-export function update_mlstmv() {
-    iter_mons(set_mon_lastmove);
+export async function update_mlstmv() {
+    await iter_mons(set_mon_lastmove);
 }
 /* note: always reset when used so doesn't need to be part of struct 'g' */
 game.failed_arrivals = null;
-export function losedogs() {
+export async function losedogs() {
     let mtmp = null;
     let mprev__parent = null;
     let mprev__field = null;
@@ -366,11 +345,8 @@ export function losedogs() {
             }
         }
     }
-    /* when a hostile shopkeeper chases hero to another level
-       and then gets paid off there, get rid of summoned kops
-       here now that he has returned to his shop level */
     if (dismissKops > 0) {
-        make_happy_shoppers((1));
+        await make_happy_shoppers((1));
     }
     for ((mprev__parent = game, mprev__field = "migrating_mons"); (mtmp = mprev__parent[mprev__field]) != null; ) {
         /* put monsters who went onto migrating_mons in order to be accessible
@@ -388,7 +364,7 @@ export function losedogs() {
         if (mtmp.mux == game.u.uz.dnum && mtmp.muy == game.u.uz.dlevel && xyloc == 2) {
             /* remove mtmp from migrating_mons */
             mprev__parent[mprev__field] = mtmp.nmon;
-            mon_arrive(mtmp, Before_you);
+            await mon_arrive(mtmp, Before_you);
         } else {
             /* the Wizard is kept regardless of location so that he is
            ready to be brought back; nothing should be scheduled to
@@ -403,14 +379,13 @@ export function losedogs() {
        first to failed_arrivals, then to migrating_mons scheduled
        to arrive back on this level if hero leaves and returns */
         game.mydogs = mtmp.nmon;
-        mon_arrive(mtmp, With_you);
+        await mon_arrive(mtmp, With_you);
     }
     for ((mprev__parent = game, mprev__field = "migrating_mons"); (mtmp = mprev__parent[mprev__field]) != null; ) {
         xyloc = mtmp.mtrack[0].x;
         if (mtmp.mux == game.u.uz.dnum && mtmp.muy == game.u.uz.dlevel && xyloc != 2) {
             mprev__parent[mprev__field] = mtmp.nmon;
-            /* note: if there's no room, it ends up on failed_arrivals list */
-            mon_arrive(mtmp, After_you);
+            await mon_arrive(mtmp, After_you);
         } else {
             (mprev__parent = mtmp, mprev__field = "nmon");
         }
@@ -424,13 +399,11 @@ export function losedogs() {
            because m_into_limbo() expects it to be there */
         mtmp.nmon = game.level.monlist;
         game.level.monlist = mtmp;
-        /* set this monster to migrate back to this level if hero leaves
-           and then returns */
-        m_into_limbo(mtmp);
+        await m_into_limbo(mtmp);
     }
 }
 /* called from resurrect() in addition to losedogs() */
-export function mon_arrive(mtmp, when) {
+export async function mon_arrive(mtmp, when) {
     let t = null;
     let xlocale = 0;
     let ylocale = 0;
@@ -470,26 +443,15 @@ export function mon_arrive(mtmp, when) {
     fromdlev.dnum = mtmp.mtrack[2].x;
     fromdlev.dlevel = mtmp.mtrack[2].y;
     mon_track_clear(mtmp);
-    /* in case Protection_from_shape_changers is different now from when
-       'mtmp' went onto the migrating monsters list; that's handled in
-       getlev() when returning to a previously visited level and by the
-       special level code for monsters specified in the level, but needed
-       here for monsters migrating to a newly created level */
-    restore_cham(mtmp);
+    await restore_cham(mtmp);
     if (mtmp == game.u.usteed) {
         return;
     }
     if (when == With_you) {
         if (!(game.level.monsters[game.u.ux][game.u.uy] != null) && !rn2(mtmp.mtame ? 10 : mtmp.mpeaceful ? 5 : 2)) {
-            rloc_to(mtmp, game.u.ux, game.u.uy);
-        /* don't place steed on the map */
-        /* When a monster accompanies you, sometimes it will arrive
-           at your intended destination and you'll end up next to
-           that spot.  This code doesn't control the final outcome;
-           goto_level(do.c) decides who ends up at your target spot
-           when there is a monster there too. */
+            await rloc_to(mtmp, game.u.ux, game.u.uy);
         } else {
-            mnexto(mtmp, 4);
+            await mnexto(mtmp, 4);
         }
         mtmp.mstate &= ~256;
         return;
@@ -505,7 +467,7 @@ export function mon_arrive(mtmp, when) {
      */
         /* heal monster for time spent in limbo */
         let nmv = game.moves - 1 - mtmp.mlstmv;
-        mon_catchup_elapsed_time(mtmp, nmv);
+        await mon_catchup_elapsed_time(mtmp, nmv);
         /* let monster move a bit on new level (see placement code below) */
         wander = ((nmv) < (8) ? (nmv) : (8));
     } else {
@@ -569,12 +531,12 @@ export function mon_arrive(mtmp, when) {
             if (t) {
                 xlocale = t.tx , ylocale = t.ty;
                 break;
-            } else if (game.iflags.debug_fuzzer && (stway = stairway_find_dir(!builds_up(game.u.uz))) != null) {
+            } else if (game.iflags.debug_fuzzer && (stway = stairway_find_dir(!await builds_up(game.u.uz))) != null) {
                 /* debugfuzzer returns from or enters another branch */
                 xlocale = stway.sx , ylocale = stway.sy;
                 break;
             } else if (!(game.u.uevent.qexpelled && ((((((game.dungeon_topology.d_qstart_level)).dlevel || ((game.dungeon_topology.d_qstart_level)).dnum) && on_level(game.u.uz0, (game.dungeon_topology.d_qstart_level)))) || (((((game.dungeon_topology.d_qstart_level)).dlevel || ((game.dungeon_topology.d_qstart_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_qstart_level))))))) {
-                impossible("mon_arrive: no corresponding portal?");
+                await impossible("mon_arrive: no corresponding portal?");
             }
             ;
         default:
@@ -583,9 +545,8 @@ export function mon_arrive(mtmp, when) {
             break;
     }
     if ((mtmp.migflags & 8192) != 0) {
-        /* Pick up the rest of the MIGR_TO_SPECIES objects */
         if (game.migrating_objs) {
-            deliver_obj_to_mon(mtmp, 0, 4);
+            await deliver_obj_to_mon(mtmp, 0, 4);
         }
     }
     if (xlocale && wander) {
@@ -614,32 +575,29 @@ export function mon_arrive(mtmp, when) {
     mtmp.mx = 0;
     mtmp.my = xyflags;
     if (xlocale) {
-        failed_to_place = !mnearto(mtmp, xlocale, ylocale, (0), 4);
+        failed_to_place = !await mnearto(mtmp, xlocale, ylocale, (0), 4);
     } else {
-        failed_to_place = !rloc(mtmp, 4);
+        failed_to_place = !await rloc(mtmp, 4);
     }
     if (failed_to_place) {
         if (when != Wiz_arrive) {
-            relmon(mtmp, { get value() { return game.failed_arrivals; }, set value(_v) { game.failed_arrivals = _v; } });
-        /* losedogs() will deal with this */
-        /* when==Wiz_arrive => not being called by losedogs() */
+            await relmon(mtmp, { get value() { return game.failed_arrivals; }, set value(_v) { game.failed_arrivals = _v; } });
         } else {
-            m_into_limbo(mtmp);
+            await m_into_limbo(mtmp);
         }
     }
     mtmp.mstate &= ~256;
 }
 /* heal monster for time spent elsewhere */
 /* number of moves */
-export function mon_catchup_elapsed_time(mtmp, nmv) {
+export async function mon_catchup_elapsed_time(mtmp, nmv) {
     /* avoid zillions of casts and lint warnings */
     let imv = 0;
     if (nmv < 0) {
-        panic("catchup from future time?");
+        await panic("catchup from future time?");
         return;
     } else if (nmv == 0) {
-        /* safe, but shouldn't happen */
-        impossible("catchup from now?");
+        await impossible("catchup from now?");
     } else if (nmv >= 32767) {
         imv = 32767 - 1;
     } else {
@@ -680,7 +638,7 @@ export function mon_catchup_elapsed_time(mtmp, nmv) {
     }
     if (mtmp.meating) {
         if (imv > mtmp.meating) {
-            finish_meating(mtmp);
+            await finish_meating(mtmp);
         /* might finish eating or be able to use special ability again */
         } else {
             mtmp.meating -= imv;
@@ -712,20 +670,18 @@ export function mon_catchup_elapsed_time(mtmp, nmv) {
         }
     }
     if (!mtmp.mtame && mtmp.mleashed) {
-        /* leashed monsters should always be with hero, consequently
-           never losing any time to be accounted for later */
-        impossible("catching up for leashed monster?");
-        m_unleash(mtmp, (0));
+        await impossible("catching up for leashed monster?");
+        await m_unleash(mtmp, (0));
     }
     if (!(((mtmp.data).mflags1 & 8388608) != 0)) {
         imv = Math.trunc(imv / 20);
     }
-    healmon(mtmp, imv, 0);
+    await healmon(mtmp, imv, 0);
     set_mon_lastmove(mtmp);
 }
 /* bookkeeping when mtmp is about to leave the current level;
    common to keepdogs() and migrate_to_level() */
-export function mon_leave(mtmp) {
+export async function mon_leave(mtmp) {
     let obj = null;
     let num_segs = 0;
     for (obj = mtmp.minvent; obj; obj = obj.nobj) {
@@ -750,11 +706,9 @@ export function mon_leave(mtmp) {
            tail segments during migration, a very long worm with
            more segments than can fit in that field gets truncated */
         num_segs = ((cnt) < (32 - 1) ? (cnt) : (32 - 1));
-        wormgone(mtmp);
-        /* put the head back; note: mtmp might not be on the map if this
-           is happening during a failed attempt to migrate to this level */
+        await wormgone(mtmp);
         if (mx) {
-            place_monster(mtmp, mx, my);
+            await place_monster(mtmp, mx, my);
         }
     }
     return num_segs;
@@ -779,7 +733,7 @@ export function keep_mon_accessible(mon) {
 }
 /* called when you move to another level */
 /* true for ascension or final escape */
-export function keepdogs(pets_only) {
+export async function keepdogs(pets_only) {
     let mtmp = null;
     let mtmp2 = null;
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp2) {
@@ -796,7 +750,7 @@ export function keepdogs(pets_only) {
                unlike level change for steed, don't bother trying
                to achieve a normal trap escape first */
             mtmp.mtrapped = 0;
-            finish_meating(mtmp);
+            await finish_meating(mtmp);
             mtmp.msleeping = 0;
             mtmp.mfrozen = 0;
             mtmp.mcanmove = 1;
@@ -811,66 +765,52 @@ export function keepdogs(pets_only) {
             let num_segs = 0;
             let stay_behind = (0);
             if (mtmp.mtrapped) {
-                mintrap(mtmp, 0);
+                await mintrap(mtmp, 0);
             }
             if (mtmp == game.u.usteed) {
                 /* make sure steed is eligible to accompany hero */
                 mtmp.mtrapped = 0;
                 mtmp.meating = 0;
-                mdrop_special_objs(mtmp);
+                await mdrop_special_objs(mtmp);
             } else if (mtmp.meating || mtmp.mtrapped) {
                 if (canseemon(mtmp)) {
-                    pline_mon(mtmp, "%s is still %s.", Monnam(mtmp), mtmp.meating ? "eating" : "trapped");
+                    await pline_mon(mtmp, "%s is still %s.", await Monnam(mtmp), mtmp.meating ? "eating" : "trapped");
                 }
                 stay_behind = (1);
             } else if (mon_has_amulet(mtmp)) {
                 if (canseemon(mtmp)) {
-                    pline("%s seems very disoriented for a moment.", Monnam(mtmp));
+                    await pline("%s seems very disoriented for a moment.", await Monnam(mtmp));
                 }
                 stay_behind = (1);
             }
             if (stay_behind) {
                 if (mtmp.mleashed) {
-                    pline("%s leash suddenly comes loose.", (((mtmp.data).mflags1 & 131072) != 0) ? (mtmp.female ? "Her" : "His") : "Its");
-                    m_unleash(mtmp, (0));
+                    await pline("%s leash suddenly comes loose.", (((mtmp.data).mflags1 & 131072) != 0) ? (mtmp.female ? "Her" : "His") : "Its");
+                    await m_unleash(mtmp, (0));
                 }
                 if (mtmp == game.u.usteed) {
-                    /* can't happen unless someone makes a change
-                       which scrambles the stay_behind logic above */
-                    impossible("steed left behind?");
-                    dismount_steed(DISMOUNT_GENERIC);
+                    await impossible("steed left behind?");
+                    await dismount_steed(DISMOUNT_GENERIC);
                 }
                 continue;
             }
-            /* prepare to take mtmp off the map */
-            num_segs = mon_leave(mtmp);
-            /* take off map and move mtmp from fmon list to mydogs */
-            /* mtmp->mx,my retain current value */
-            relmon(mtmp, { get value() { return game.mydogs; }, set value(_v) { game.mydogs = _v; } });
+            num_segs = await mon_leave(mtmp);
+            await relmon(mtmp, { get value() { return game.mydogs; }, set value(_v) { game.mydogs = _v; } });
             mtmp.mx = mtmp.my = 0;
             mtmp.wormno = num_segs;
             mtmp.mlstmv = game.moves;
         } else if (keep_mon_accessible(mtmp)) {
-            /* we want to be able to find the Wizard when his next
-               resurrection chance comes up, but have him resume his
-               present location if player returns to this level before
-               that time; also needed for monsters (shopkeeper, temple
-               priest, vault guard) who have level data in mon->mextra
-               in case #wizmakemap is used to replace their home level
-               while they're away from it */
-            migrate_to_level(mtmp, ledger_no(game.u.uz), 2, null);
+            await migrate_to_level(mtmp, ledger_no(game.u.uz), 2, null);
         } else if (mtmp.mleashed) {
-            /* this can happen if your quest leader ejects you from the
-               "home" level while a leashed pet isn't next to you */
-            pline("%s leash goes slack.", s_suffix(Monnam(mtmp)));
-            m_unleash(mtmp, (0));
+            await pline("%s leash goes slack.", s_suffix(await Monnam(mtmp)));
+            await m_unleash(mtmp, (0));
         }
     }
 }
 /* destination level */
 /* MIGR_xxx destination xy location: */
 /* optional destination coordinates */
-export function migrate_to_level(mtmp, tolev, xyloc, cc) {
+export async function migrate_to_level(mtmp, tolev, xyloc, cc) {
     let new_lev = { dnum: 0, dlevel: 0 };
     let xyflags = 0;
     let mx = mtmp.mx;
@@ -878,19 +818,17 @@ export function migrate_to_level(mtmp, tolev, xyloc, cc) {
     let num_segs = 0;
     if (mtmp.mleashed) {
         mtmp.mtame--;
-        m_unleash(mtmp, (1));
+        await m_unleash(mtmp, (1));
     }
-    num_segs = mon_leave(mtmp);
-    /* take off map and move mtmp from fmon list to migrating_mons */
-    /* mtmp->mx,my retain their value */
-    relmon(mtmp, { get value() { return game.migrating_mons; }, set value(_v) { game.migrating_mons = _v; } });
+    num_segs = await mon_leave(mtmp);
+    await relmon(mtmp, { get value() { return game.migrating_mons; }, set value(_v) { game.migrating_mons = _v; } });
     mtmp.mstate |= 4;
-    new_lev.dnum = ledger_to_dnum(tolev);
-    new_lev.dlevel = ledger_to_dlev(tolev);
+    new_lev.dnum = await ledger_to_dnum(tolev);
+    new_lev.dlevel = await ledger_to_dlev(tolev);
     /* overload mtmp->[mx,my], mtmp->[mux,muy], and mtmp->mtrack[] as
        destination codes */
     xyflags = (depth(new_lev) < depth(game.u.uz));
-    if (In_W_tower(mx, my, game.u.uz)) {
+    if (await In_W_tower(mx, my, game.u.uz)) {
         xyflags |= 2;
     }
     mtmp.wormno = num_segs;
@@ -909,13 +847,13 @@ export function migrate_to_level(mtmp, tolev, xyloc, cc) {
     /* don't extinguish a mobile light; it still exists but has changed
        from local (monst->mx > 0) to global (mx==0, not on this level) */
     if ((((mtmp.data).mlet == S_LIGHT || (mtmp.data) == game.mons[PM_FLAMING_SPHERE] || (mtmp.data) == game.mons[PM_SHOCKING_SPHERE] || (mtmp.data) == game.mons[PM_BABY_GOLD_DRAGON] || (mtmp.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((mtmp.data) == game.mons[PM_FIRE_ELEMENTAL] || (mtmp.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) {
-        vision_recalc(0);
+        await vision_recalc(0);
     }
 }
 /* when entering the endgame, levels from the dungeon and its branches are
    discarded because they can't be reached again; do the same for monsters
    and objects scheduled to migrate to those levels */
-export function discard_migrations() {
+export async function discard_migrations() {
     let mtmp = null;
     let mprev__parent = null;
     let mprev__field = null;
@@ -931,12 +869,12 @@ export function discard_migrations() {
         } else {
             mprev__parent[mprev__field] = mtmp.nmon;
             mtmp.nmon = null;
-            discard_minvent(mtmp, (0));
+            await discard_minvent(mtmp, (0));
             /* bypass mongone() and its call to m_detach() plus dmonsfree() */
             if ((((mtmp.data).mlet == S_LIGHT || (mtmp.data) == game.mons[PM_FLAMING_SPHERE] || (mtmp.data) == game.mons[PM_SHOCKING_SPHERE] || (mtmp.data) == game.mons[PM_BABY_GOLD_DRAGON] || (mtmp.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((mtmp.data) == game.mons[PM_FIRE_ELEMENTAL] || (mtmp.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) {
-                del_light_source(LS_MONSTER, monst_to_any(mtmp));
+                await del_light_source(LS_MONSTER, monst_to_any(mtmp));
             }
-            dealloc_monst(mtmp);
+            await dealloc_monst(mtmp);
         }
     }
     for ((oprev__parent = game, oprev__field = "migrating_objs"); (otmp = oprev__parent[oprev__field]) != null; ) {
@@ -960,20 +898,13 @@ export function discard_migrations() {
             /* overloaded for destination usage;
                                    * obfree() will complain if nonzero */
             otmp.owornmask = 0;
-            /*
-             * obfree(otmp,)
-             *  -> dealloc_obj(otmp)
-             *      -> obj_stop_timers(otmp)
-             *      -> del_light_source(LS_OBJECT, obj_to_any(otmp))
-             */
-            /* releases any contents too */
-            obfree(otmp, null);
+            await obfree(otmp, null);
         }
     }
 }
 /* returns the quality of an item of food; the lower the better;
    fungi and ghouls will eat even tainted food */
-export function dogfood(mon, obj) {
+export async function dogfood(mon, obj) {
     let mptr = mon.data;
     let fptr = null;
     let carni = (((mptr).mflags1 & 536870912) != 0);
@@ -981,7 +912,7 @@ export function dogfood(mon, obj) {
     let starving = 0;
     let mblind = 0;
     let fx = 0;
-    if (obj.otrapped && !Resists_Elem(mon, POISON_RES)) {
+    if (obj.otrapped && !await Resists_Elem(mon, POISON_RES)) {
         return POISON;
     }
     if (is_quest_artifact(obj) || obj_resists(obj, 0, 95)) {
@@ -996,7 +927,7 @@ export function dogfood(mon, obj) {
             if (obj.otyp == CORPSE && ((fptr) == game.mons[PM_DEATH] || (fptr) == game.mons[PM_FAMINE] || (fptr) == game.mons[PM_PESTILENCE])) {
                 return TABU;
             }
-            if ((obj.otyp == CORPSE || obj.otyp == EGG) && (((fptr) == game.mons[PM_COCKATRICE] || (fptr) == game.mons[PM_CHICKATRICE]) || (fptr) == game.mons[PM_MEDUSA]) && !Resists_Elem(mon, STONE_RES)) {
+            if ((obj.otyp == CORPSE || obj.otyp == EGG) && (((fptr) == game.mons[PM_COCKATRICE] || (fptr) == game.mons[PM_CHICKATRICE]) || (fptr) == game.mons[PM_MEDUSA]) && !await Resists_Elem(mon, STONE_RES)) {
                 return POISON;
             }
             if (obj.otyp == LUMP_OF_ROYAL_JELLY && mon.data == game.mons[PM_KILLER_BEE]) {
@@ -1014,11 +945,8 @@ export function dogfood(mon, obj) {
             /* even carnivores will eat carrots if they're temporarily blind */
             mblind = (!mon.mcansee && (((mon.data).mflags1 & 4096) == 0));
             if (mptr == game.mons[PM_GHOUL]) {
-                /* ghouls prefer old corpses and unhatchable eggs, yum!
-           they'll eat fresh non-veggy corpses and hatchable eggs
-           when starving; they never eat stone-to-flesh'd meat */
                 if (obj.otyp == CORPSE) {
-                    return (peek_at_iced_corpse_age(obj) + 50 <= game.moves && !(fx == PM_LIZARD || fx == PM_LICHEN)) ? DOGFOOD : (starving && !((fptr).mlet == S_BLOB || (fptr).mlet == S_JELLY || (fptr).mlet == S_FUNGUS || (fptr).mlet == S_VORTEX || (fptr).mlet == S_LIGHT || ((fptr).mlet == S_ELEMENTAL && (fptr) != game.mons[PM_STALKER]) || ((fptr).mlet == S_GOLEM && (fptr) != game.mons[PM_FLESH_GOLEM] && (fptr) != game.mons[PM_LEATHER_GOLEM]) || ((fptr).mlet == S_GHOST))) ? ACCFOOD : POISON;
+                    return (await peek_at_iced_corpse_age(obj) + 50 <= game.moves && !(fx == PM_LIZARD || fx == PM_LICHEN)) ? DOGFOOD : (starving && !((fptr).mlet == S_BLOB || (fptr).mlet == S_JELLY || (fptr).mlet == S_FUNGUS || (fptr).mlet == S_VORTEX || (fptr).mlet == S_LIGHT || ((fptr).mlet == S_ELEMENTAL && (fptr) != game.mons[PM_STALKER]) || ((fptr).mlet == S_GOLEM && (fptr) != game.mons[PM_FLESH_GOLEM] && (fptr) != game.mons[PM_LEATHER_GOLEM]) || ((fptr).mlet == S_GHOST))) ? ACCFOOD : POISON;
                 }
                 if (obj.otyp == EGG) {
                     return ((game.moves - (obj).age) > (2 * 200)) ? CADAVER : starving ? ACCFOOD : POISON;
@@ -1038,7 +966,7 @@ export function dogfood(mon, obj) {
                     }
                     return carni ? CADAVER : MANFOOD;
                 case CORPSE:
-                    if ((peek_at_iced_corpse_age(obj) + 50 <= game.moves && !(fx == PM_LIZARD || fx == PM_LICHEN) && mptr.mlet != S_FUNGUS) || ((((fptr).mflags1 & 134217728) != 0) && !Resists_Elem(mon, ACID_RES)) || ((((fptr).mflags1 & 268435456) != 0) && !Resists_Elem(mon, POISON_RES))) {
+                    if ((await peek_at_iced_corpse_age(obj) + 50 <= game.moves && !(fx == PM_LIZARD || fx == PM_LICHEN) && mptr.mlet != S_FUNGUS) || ((((fptr).mflags1 & 134217728) != 0) && !await Resists_Elem(mon, ACID_RES)) || ((((fptr).mflags1 & 268435456) != 0) && !await Resists_Elem(mon, POISON_RES))) {
                         return POISON;
                     } else if ((((obj).otyp == CORPSE || (obj).otyp == EGG || (obj).otyp == TIN) && (obj).corpsenm >= LOW_PM && (pm_to_cham((obj).corpsenm) != NON_PM || dmgtype(game.mons[(obj).corpsenm], 43))) && mon.mtame > 1 && !starving) {
                         return MANFOOD;
@@ -1101,7 +1029,7 @@ export function dogfood(mon, obj) {
  * on the original mtmp.  It now returns TRUE if the taming succeeded.
  */
 /* food or scroll/spell */
-export function tamedog(mtmp, obj, givemsg) {
+export async function tamedog(mtmp, obj, givemsg) {
     let blessed_scroll = (0);
     if (obj && (obj.oclass == SCROLL_CLASS || obj.oclass == SPBOOK_CLASS)) {
         blessed_scroll = obj.blessed ? (1) : (0);
@@ -1113,9 +1041,8 @@ export function tamedog(mtmp, obj, givemsg) {
     if (mtmp.mfrozen) {
         mtmp.mfrozen = Math.trunc((mtmp.mfrozen + 1) / 2);
     }
-    /* end indefinite sleep; using distance==1 limits the waking to mtmp */
     if (mtmp.msleeping) {
-        wake_nearto(mtmp.mx, mtmp.my, 1);
+        await wake_nearto(mtmp.mx, mtmp.my, 1);
     }
     /* [different from wakeup()] */
     /* The Wiz, Medusa and the quest nemeses aren't even made peaceful. */
@@ -1123,8 +1050,7 @@ export function tamedog(mtmp, obj, givemsg) {
         return (0);
     }
     if (givemsg && !mtmp.mpeaceful && (canseemon(mtmp) || sensemon(mtmp))) {
-        /* worst case, at least it'll be peaceful. */
-        pline_mon(mtmp, "%s seems %s.", Monnam(mtmp), (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "really chill" : "more amiable");
+        await pline_mon(mtmp, "%s seems %s.", await Monnam(mtmp), (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "really chill" : "more amiable");
         /* don't give another message below */
         givemsg = (0);
     }
@@ -1137,28 +1063,25 @@ export function tamedog(mtmp, obj, givemsg) {
     mtmp.mflee = 0;
     mtmp.mfleetim = 0;
     if (mtmp == game.u.ustuck) {
-        /* make grabber let go now, whether it becomes tame or not */
         if (game.u.uswallow) {
-            expels(mtmp, mtmp.data, (1));
+            await expels(mtmp, mtmp.data, (1));
         } else if (!((game.u.umonnum != game.u.umonster) && sticks(game.youmonst.data))) {
-            unstuck(mtmp);
+            await unstuck(mtmp);
         }
     }
     if (mtmp.mtame && obj) {
         /* feeding it treats makes it tamer */
         let tasty = 0;
-        if (mtmp.mcanmove && !mtmp.mconf && !mtmp.meating && ((tasty = dogfood(mtmp, obj)) == DOGFOOD || (tasty <= ACCFOOD && ((mtmp).mextra.edog).hungrytime <= game.moves))) {
+        if (mtmp.mcanmove && !mtmp.mconf && !mtmp.meating && ((tasty = await dogfood(mtmp, obj)) == DOGFOOD || (tasty <= ACCFOOD && ((mtmp).mextra.edog).hungrytime <= game.moves))) {
             if (canseemon(mtmp)) {
                 /* pet will "catch" and eat this thrown food */
                 let big_corpse = (obj.otyp == CORPSE && ((obj.corpsenm) >= LOW_PM && (obj.corpsenm) < NUMMONS) && game.mons[obj.corpsenm].msize > mtmp.data.msize);
-                pline_mon(mtmp, "%s catches %s%s", Monnam(mtmp), the(xname(obj)), !big_corpse ? "." : ", or vice versa!");
+                await pline_mon(mtmp, "%s catches %s%s", await Monnam(mtmp), await the(await xname(obj)), !big_corpse ? "." : ", or vice versa!");
             } else if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
-                pline("%s.", Tobjnam(obj, "stop"));
+                await pline("%s.", await Tobjnam(obj, "stop"));
             }
-            /* dog_eat expects a floor object */
-            /* defer eating until the edog extension has been set up */
-            place_object(obj, mtmp.mx, mtmp.my);
-            dog_eat(mtmp, obj, mtmp.mx, mtmp.my, (0));
+            await place_object(obj, mtmp.mx, mtmp.my);
+            await dog_eat(mtmp, obj, mtmp.mx, mtmp.my, (0));
             /* eating might have killed it, but that doesn't matter here;
                a non-null result suppresses "miss" message for thrown
                food and also implies that the object has been deleted */
@@ -1183,11 +1106,10 @@ export function tamedog(mtmp, obj, givemsg) {
         return (0);
     }
     if (mtmp.isshk) {
-        /* pacify angry shopkeeper but don't tame him/her/it/them */
-        make_happy_shk(mtmp, (0));
+        await make_happy_shk(mtmp, (0));
         return (0);
     }
-    if (!mtmp.mcanmove || mtmp.isshk || mtmp.isgd || mtmp.ispriest || mtmp.isminion || (((mtmp.data).mflags3 & 31)) || (((mtmp.data).mflags2 & 8) != 0) || ((((mtmp.data).mflags2 & 256) != 0) && !(((game.youmonst.data).mflags2 & 256) != 0)) || (obj && dogfood(mtmp, obj) >= MANFOOD)) {
+    if (!mtmp.mcanmove || mtmp.isshk || mtmp.isgd || mtmp.ispriest || mtmp.isminion || (((mtmp.data).mflags3 & 31)) || (((mtmp.data).mflags2 & 8) != 0) || ((((mtmp.data).mflags2 & 256) != 0) && !(((game.youmonst.data).mflags2 & 256) != 0)) || (obj && await dogfood(mtmp, obj) >= MANFOOD)) {
         return (0);
     }
     /* monsters with conflicting structures cannot be tamed
@@ -1198,27 +1120,26 @@ export function tamedog(mtmp, obj, givemsg) {
     }
     if (!((mtmp).mextra && ((mtmp).mextra.edog))) {
         newedog(mtmp);
-        initedog(mtmp, (1));
+        await initedog(mtmp, (1));
     } else {
-        initedog(mtmp, (0));
+        await initedog(mtmp, (0));
     }
     if (obj) {
-        place_object(obj, mtmp.mx, mtmp.my);
-        /* devour the food (might grow into larger, genocided monster) */
-        if (dog_eat(mtmp, obj, mtmp.mx, mtmp.my, (1)) == 2) {
+        await place_object(obj, mtmp.mx, mtmp.my);
+        if (await dog_eat(mtmp, obj, mtmp.mx, mtmp.my, (1)) == 2) {
             return (1);
         }
     }
     if (givemsg && (canseemon(mtmp) || sensemon(mtmp))) {
-        pline_mon(mtmp, "%s seems quite %s.", Monnam(mtmp), (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "approachable" : "friendly");
+        await pline_mon(mtmp, "%s seems quite %s.", await Monnam(mtmp), (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "approachable" : "friendly");
     }
-    newsym(mtmp.mx, mtmp.my);
+    await newsym(mtmp.mx, mtmp.my);
     if (mtmp.wormno) {
-        redraw_worm(mtmp);
+        await redraw_worm(mtmp);
     }
     if (attacktype(mtmp.data, 254)) {
         mtmp.weapon_check = NEED_HTH_WEAPON;
-        mon_wield_item(mtmp);
+        await mon_wield_item(mtmp);
     }
     return (1);
 }
@@ -1229,10 +1150,10 @@ export function tamedog(mtmp, obj, givemsg) {
  * If you abused the pet at all while alive, it revives untame.
  * If the pet wasn't abused and was very tame, it might revive tame.
  */
-export function wary_dog(mtmp, was_dead) {
+export async function wary_dog(mtmp, was_dead) {
     let edog = null;
     let quietly = was_dead;
-    finish_meating(mtmp);
+    await finish_meating(mtmp);
     if (!mtmp.mtame) {
         return;
     }
@@ -1253,9 +1174,9 @@ export function wary_dog(mtmp, was_dead) {
         if (!quietly && ((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
             if ((((game.youmonst.data).mflags1 & 4096) == 0)) {
                 if ((((mtmp.data).mflags1 & 4096) == 0)) {
-                    pline_mon(mtmp, "%s %s to look you in the %s.", Monnam(mtmp), mtmp.mpeaceful ? "seems unable" : "refuses", body_part(EYE));
+                    await pline_mon(mtmp, "%s %s to look you in the %s.", await Monnam(mtmp), mtmp.mpeaceful ? "seems unable" : "refuses", await body_part(EYE));
                 } else {
-                    pline_mon(mtmp, "%s avoids your gaze.", Monnam(mtmp));
+                    await pline_mon(mtmp, "%s avoids your gaze.", await Monnam(mtmp));
                 }
             }
         }
@@ -1268,16 +1189,14 @@ export function wary_dog(mtmp, was_dead) {
     }
     if (!mtmp.mtame) {
         if (!quietly && (canseemon(mtmp) || sensemon(mtmp))) {
-            pline_mon(mtmp, "%s %s.", Monnam(mtmp), mtmp.mpeaceful ? "is no longer tame" : "has become feral");
+            await pline_mon(mtmp, "%s %s.", await Monnam(mtmp), mtmp.mpeaceful ? "is no longer tame" : "has become feral");
         }
-        newsym(mtmp.mx, mtmp.my);
-        /* a life-saved monster might be leashed;
-           don't leave it that way if it's no longer tame */
+        await newsym(mtmp.mx, mtmp.my);
         if (mtmp.mleashed) {
-            m_unleash(mtmp, (1));
+            await m_unleash(mtmp, (1));
         }
         if (mtmp == game.u.usteed) {
-            dismount_steed(DISMOUNT_THROWN);
+            await dismount_steed(DISMOUNT_THROWN);
         }
     } else if (edog) {
         /* it's still a pet; start a clean pet-slate now */
@@ -1296,7 +1215,7 @@ export function wary_dog(mtmp, was_dead) {
         }
     }
 }
-export function abuse_dog(mtmp) {
+export async function abuse_dog(mtmp) {
     if (!mtmp.mtame) {
         return;
     }
@@ -1309,27 +1228,108 @@ export function abuse_dog(mtmp) {
         ((mtmp).mextra.edog).abuse++;
     }
     if (!mtmp.mtame && mtmp.mleashed) {
-        m_unleash(mtmp, (1));
+        await m_unleash(mtmp, (1));
     }
     if (mtmp.mx != 0) {
         if (mtmp.mtame && rn2(mtmp.mtame)) {
-            yelp(mtmp);
-        /* don't make a sound if pet is in the middle of leaving the level */
-        /* newsym isn't necessary in this case either */
-        /* give them a moment's worry */
+            await yelp(mtmp);
         } else {
-            growl(mtmp);
+            await growl(mtmp);
         }
         if (!mtmp.mtame) {
-            newsym(mtmp.mx, mtmp.my);
+            await newsym(mtmp.mx, mtmp.my);
             if (mtmp.wormno) {
-                redraw_worm(mtmp);
+                await redraw_worm(mtmp);
             }
         }
     }
 }
 /*dog.c*/
+/* always set for newly tamed pet or feral former pet; hungrytime might
+       already be higher when taming magic affects already tame monst */
+/* livelog first pet, but only if you didn't start with one (the starting
+     * pet will be initialized before in_moveloop is true) */
+/* "obtained" a pet rather than "tamed" it because it might have come
+         * from a figurine or some other method in which it was created tame
+         * using an() is safe unless it somehow becomes possible to tame a
+         * unique monster */
+/* activating a figurine provides one way to exceed the
+           maximum number of the target critter created--unless
+           it has a special limit (erinys, Nazgul) */
+/* monster has been genocided or target spot is occupied */
+/* hostile (cursed figurine) */
+/* specifying NO_MINVENT prevents makemon() from having a 1% chance
+       of creating a pony with an already worn saddle; dogs and cats
+       aren't affected because they don't have any initial inventory
+       [if anybody adds stranger pets that are expected to have such,
+       they'll need to modify this] */
+/* initial horses start wearing a saddle (pauper hero excluded) */
+/* NULL obj arg means put_saddle_on_mon()
+                 * will carry out the saddle creation */
+/* when a hostile shopkeeper chases hero to another level
+       and then gets paid off there, get rid of summoned kops
+       here now that he has returned to his shop level */
+/* note: if there's no room, it ends up on failed_arrivals list */
+/* set this monster to migrate back to this level if hero leaves
+           and then returns */
+/* in case Protection_from_shape_changers is different now from when
+       'mtmp' went onto the migrating monsters list; that's handled in
+       getlev() when returning to a previously visited level and by the
+       special level code for monsters specified in the level, but needed
+       here for monsters migrating to a newly created level */
+/* don't place steed on the map */
+/* When a monster accompanies you, sometimes it will arrive
+           at your intended destination and you'll end up next to
+           that spot.  This code doesn't control the final outcome;
+           goto_level(do.c) decides who ends up at your target spot
+           when there is a monster there too. */
+/* Pick up the rest of the MIGR_TO_SPECIES objects */
+/* losedogs() will deal with this */
+/* when==Wiz_arrive => not being called by losedogs() */
+/* safe, but shouldn't happen */
+/* leashed monsters should always be with hero, consequently
+           never losing any time to be accounted for later */
+/* put the head back; note: mtmp might not be on the map if this
+           is happening during a failed attempt to migrate to this level */
+/* can't happen unless someone makes a change
+                       which scrambles the stay_behind logic above */
+/* prepare to take mtmp off the map */
+/* take off map and move mtmp from fmon list to mydogs */
+/* mtmp->mx,my retain current value */
+/* we want to be able to find the Wizard when his next
+               resurrection chance comes up, but have him resume his
+               present location if player returns to this level before
+               that time; also needed for monsters (shopkeeper, temple
+               priest, vault guard) who have level data in mon->mextra
+               in case #wizmakemap is used to replace their home level
+               while they're away from it */
+/* this can happen if your quest leader ejects you from the
+               "home" level while a leashed pet isn't next to you */
+/* take off map and move mtmp from fmon list to migrating_mons */
+/* mtmp->mx,my retain their value */
+/*
+             * obfree(otmp,)
+             *  -> dealloc_obj(otmp)
+             *      -> obj_stop_timers(otmp)
+             *      -> del_light_source(LS_OBJECT, obj_to_any(otmp))
+             */
+/* releases any contents too */
+/* ghouls prefer old corpses and unhatchable eggs, yum!
+           they'll eat fresh non-veggy corpses and hatchable eggs
+           when starving; they never eat stone-to-flesh'd meat */
 /* turning into slime is preferable to starvation */
 /* monkeys and apes (tamable) plus sasquatch prefer these,
                yetis will only will only eat them if starving */
+/* end indefinite sleep; using distance==1 limits the waking to mtmp */
+/* worst case, at least it'll be peaceful. */
+/* make grabber let go now, whether it becomes tame or not */
+/* dog_eat expects a floor object */
+/* pacify angry shopkeeper but don't tame him/her/it/them */
+/* defer eating until the edog extension has been set up */
+/* devour the food (might grow into larger, genocided monster) */
+/* a life-saved monster might be leashed;
+           don't leave it that way if it's no longer tame */
 /* else lifesaved, so retain current values */
+/* don't make a sound if pet is in the middle of leaving the level */
+/* newsym isn't necessary in this case either */
+/* give them a moment's worry */

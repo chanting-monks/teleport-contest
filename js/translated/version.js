@@ -112,16 +112,16 @@ export function status_version(buf, bufsz, indent) {
     return buf;
 }
 /* the #versionshort command */
-export function doversion() {
+export async function doversion() {
     let buf = '';
     if (game.iflags.menu_requested) {
-        return doextversion();
+        return await doextversion();
     }
-    pline("%s", getversionstring(buf, 256 /* sizeof(char [256]) */));
+    await pline("%s", getversionstring(buf, 256 /* sizeof(char [256]) */));
     return 0;
 }
 /* the '#version' command; also a choice for '?' */
-export function doextversion() {
+export async function doextversion() {
     let rtcontext = 0;
     let rtbuf = null;
     let f = null;
@@ -194,7 +194,7 @@ export function doextversion() {
                 continue;
             }
             buf = strncpy(buf, rtbuf, 256 - 1);
-            buf[256 - 1] = 0;
+            buf = __nh_char_write(buf, 256 - 1, 0);
         } else {
             break;
         }
@@ -222,11 +222,11 @@ export function doextversion() {
     if (use_dlb) {
         fclose(f);
     }
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
-export function early_version_info(pastebuf) {
+export async function early_version_info(pastebuf) {
     let buf1 = '';
     let buf2 = '';
     let buf = null;
@@ -243,14 +243,9 @@ export function early_version_info(pastebuf) {
     } else {
         buf = buf1;
     }
-    raw_printf("%s", buf);
+    await raw_printf("%s", buf);
     if (pastebuf) {
-        /*
-         * Call a platform/port-specific routine to insert the
-         * version information into a paste buffer. Useful for
-         * easy inclusion in bug reports.
-         */
-        raw_printf("%s", "Paste buffer copy is not available.\n");
+        await raw_printf("%s", "Paste buffer copy is not available.\n");
     }
 }
 /*
@@ -286,7 +281,7 @@ export function insert_rtoption(buf) {
        'filetime' is historically signed but ought to have been unsigned */
 /* !SFCTOOL */
 /* SFCTOOL */
-export function check_version(version_data, filename, complain, utdflags) {
+export async function check_version(version_data, filename, complain, utdflags) {
     if (!filename) {
         /* 'complain' requires 'filename' for pline("%s") */
         complain = (0);
@@ -297,16 +292,16 @@ export function check_version(version_data, filename, complain, utdflags) {
     }
     if (version_data.incarnation != game.nomakedefs.version_number) {
         if (complain) {
-            pline("Version mismatch for file \"%s\".", filename);
+            await pline("Version mismatch for file \"%s\".", filename);
             if (game.WIN_MESSAGE != (-1)) {
-                (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+                await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
             }
         }
         return (0);
     } else if ((version_data.feature_set & ~game.nomakedefs.ignored_features) != (game.nomakedefs.version_features & ~game.nomakedefs.ignored_features) || ((utdflags & 4) == 0 && version_data.entity_count != game.nomakedefs.version_sanity1)) {
         if (complain) {
-            pline("Configuration incompatibility for file \"%s\".", filename);
-            (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+            await pline("Configuration incompatibility for file \"%s\".", filename);
+            await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
         }
         return (0);
     }
@@ -444,7 +439,7 @@ export function store_critical_bytes(nhfp) {
  *   SF_DM_IL32LLP64_ON_I32LP64      (8) Windows x64 savefile on Unix 64
  *   SF_DM_MISMATCH                  (9) some other mismatch
  */
-export function uptodate(nhfp, name, utdflags) {
+export async function uptodate(nhfp, name, utdflags) {
     let vers_info = { incarnation: 0, feature_set: 0, entity_count: 0 };
     let indicator = 0;
     let sfstatus = 0;
@@ -452,15 +447,15 @@ export function uptodate(nhfp, name, utdflags) {
     let quietly = (utdflags & 32) != 0;
     let verbose = name ? (1) : (0);
     sfi_char(nhfp, { get value() { return indicator; }, set value(_v) { indicator = _v; } }, "indicate-format", 1);
-    if ((sfstatus = compare_critical_bytes(nhfp, { get value() { return idx_1st_mismatch; }, set value(_v) { idx_1st_mismatch = _v; } }, utdflags)) != 0) {
+    if ((sfstatus = await compare_critical_bytes(nhfp, { get value() { return idx_1st_mismatch; }, set value(_v) { idx_1st_mismatch = _v; } }, utdflags)) != 0) {
         if (sfstatus > 0 && idx_1st_mismatch) {
             if (!quietly) {
-                raw_printf("comparison of critical bytes mismatched at %d (%s).", game.critical_sizes[idx_1st_mismatch].ucsize, game.critical_sizes[idx_1st_mismatch].nm);
+                await raw_printf("comparison of critical bytes mismatched at %d (%s).", game.critical_sizes[idx_1st_mismatch].ucsize, game.critical_sizes[idx_1st_mismatch].nm);
             }
         }
     }
     sfi_version_info(nhfp, vers_info, "version_info");
-    if (!check_version(vers_info, name, verbose, utdflags)) {
+    if (!await check_version(vers_info, name, verbose, utdflags)) {
         if (verbose) {
             if ((utdflags & 16) == 0) {
                 (game.windowprocs.win_wait_synch)();
@@ -484,7 +479,7 @@ export function uptodate(nhfp, name, utdflags) {
  *   SF_DM_IL32LLP64_ON_I32LP64      (8) Windows x64 savefile on Unix 64
  *   SF_DM_MISMATCH                  (9) some other mismatch
  */
-export function compare_critical_bytes(nhfp, idx_1st_mismatch, utdflags) {
+export async function compare_critical_bytes(nhfp, idx_1st_mismatch, utdflags) {
     let active_csc_count = (Math.trunc(80 /* sizeof(struct critical_sizes_with_names [80]) */ / 1 /* sizeof(struct critical_sizes_with_names) */));
     let file_csc_count = 0;
     let i = 0;
@@ -494,7 +489,7 @@ export function compare_critical_bytes(nhfp, idx_1st_mismatch, utdflags) {
     sfi_char(nhfp, { get value() { return file_csc_count; }, set value(_v) { file_csc_count = _v; } }, "count-critical_sizes", 1);
     if (file_csc_count > cnt) {
         if (!quietly) {
-            raw_printf("critical byte counts do not match, file:%d, critical_sizes:%d.", file_csc_count, (Math.trunc(80 /* sizeof(struct critical_sizes_with_names [80]) */ / 1 /* sizeof(struct critical_sizes_with_names) */)));
+            await raw_printf("critical byte counts do not match, file:%d, critical_sizes:%d.", file_csc_count, (Math.trunc(80 /* sizeof(struct critical_sizes_with_names [80]) */ / 1 /* sizeof(struct critical_sizes_with_names) */)));
         }
         return 2;
     }
@@ -546,7 +541,7 @@ export function compare_critical_bytes(nhfp, idx_1st_mismatch, utdflags) {
  *   SF_DM_IL32LLP64_ON_I32LP64      (8) Windows x64 savefile on Unix 64
  *   SF_DM_MISMATCH                  (9) some other mismatch
  */
-export function validate(nhfp, name, without_waitsynch_perfile) {
+export async function validate(nhfp, name, without_waitsynch_perfile) {
     let utdflags = 0;
     let validsf = 0;
     if (nhfp.structlevel) {
@@ -558,8 +553,13 @@ export function validate(nhfp, name, without_waitsynch_perfile) {
     if (nhfp.fieldlevel) {
         utdflags |= 2 | 4;
     }
-    validsf = uptodate(nhfp, name, utdflags);
+    validsf = await uptodate(nhfp, name, utdflags);
     return validsf;
 }
 /* MINIMAL_FOR_RECOVER */
 /*version.c*/
+/*
+         * Call a platform/port-specific routine to insert the
+         * version information into a paste buffer. Useful for
+         * easy inclusion in bug reports.
+         */

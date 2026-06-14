@@ -16,6 +16,7 @@ import { fnEnter } from '../c2js-runtime/trace.js';
  */
 import { game } from '../gstate.js';
 import { impossible } from '../c2js-runtime/panic.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_char_at0 } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { def_oc_syms } from './drawing.js';
@@ -44,10 +45,9 @@ export function isbig(sroom) {
     return (area > 20);
 }
 /* make and stock a room of a given type */
-export function do_mkroom(roomtype) {
+export async function do_mkroom(roomtype) {
     if (roomtype >= SHOPBASE) {
-        /* someday, we should be able to specify shop type */
-        mkshop();
+        await mkshop();
     } else {
         switch (roomtype) {
             case COURT:
@@ -66,10 +66,10 @@ export function do_mkroom(roomtype) {
                 mkzoo(BARRACKS);
                 break;
             case SWAMP:
-                mkswamp();
+                await mkswamp();
                 break;
             case TEMPLE:
-                mktemple();
+                await mktemple();
                 break;
             case LEPREHALL:
                 mkzoo(LEPREHALL);
@@ -81,11 +81,11 @@ export function do_mkroom(roomtype) {
                 mkzoo(ANTHOLE);
                 break;
             default:
-                impossible("Tried to make a room of type %d.", roomtype);
+                await impossible("Tried to make a room of type %d.", roomtype);
         }
     }
 }
-export function mkshop() {
+export async function mkshop() {
     let sroom = null;
     let i = 0;
     let ep = null;
@@ -130,11 +130,11 @@ export function mkshop() {
                     return;
                 }
                 if (__nh_char_at0(ep) == 95) {
-                    mktemple();
+                    await mktemple();
                     return;
                 }
                 if (__nh_char_at0(ep) == 125) {
-                    mkswamp();
+                    await mkswamp();
                     return;
                 }
                 for (i = 0; shtypes[i].name; i++) {
@@ -161,7 +161,7 @@ export function mkshop() {
             return;
         }
         if (game.rooms.indexOf(sroom) >= game.nroom) {
-            impossible("rooms[] not closed by -1?");
+            await impossible("rooms[] not closed by -1?");
             return;
         }
         if (sroom.rtype != OROOM) {
@@ -171,7 +171,7 @@ export function mkshop() {
             continue;
         }
         if (sroom.doorct == 1 || (game.flags.debug && ep && sroom.doorct != 0)) {
-            if (invalid_shop_shape(sroom)) {
+            if (await invalid_shop_shape(sroom)) {
                 continue;
             } else {
                 break;
@@ -247,19 +247,18 @@ export function mkzoo(type) {
         sroom.needfill = 1;
     }
 }
-export function mk_zoo_thronemon(x, y) {
-    let i = rnd(level_difficulty());
+export async function mk_zoo_thronemon(x, y) {
+    let i = rnd(await level_difficulty());
     let pm = (i > 9) ? PM_OGRE_TYRANT : (i > 5) ? PM_ELVEN_MONARCH : (i > 2) ? PM_DWARF_RULER : PM_GNOME_RULER;
-    let mon = makemon(game.mons[pm], x, y, 0);
+    let mon = await makemon(game.mons[pm], x, y, 0);
     if (mon) {
         mon.msleeping = 1;
         mon.mpeaceful = 0;
         set_malign(mon);
-        /* Give him a sceptre to pound in judgment */
-        mongets(mon, MACE);
+        await mongets(mon, MACE);
     }
 }
-export function fill_zoo(sroom) {
+export async function fill_zoo(sroom) {
     let mon = null;
     let sx = 0;
     let sy = 0;
@@ -313,7 +312,7 @@ export function fill_zoo(sroom) {
             break;
         case ZOO:
         case LEPREHALL:
-            goldlim = 500 * level_difficulty();
+            goldlim = 500 * await level_difficulty();
             break;
     }
     for (sx = sroom.lx; sx <= sroom.hx; sx++) {
@@ -329,7 +328,7 @@ export function fill_zoo(sroom) {
             if (type == COURT && ((game.level.locations[sx][sy].typ) == THRONE)) {
                 continue;
             }
-            mon = makemon((type == COURT) ? courtmon() : (type == BARRACKS) ? squadmon() : (type == MORGUE) ? morguemon() : (type == BEEHIVE) ? (sx == tx && sy == ty ? game.mons[PM_QUEEN_BEE] : game.mons[PM_KILLER_BEE]) : (type == LEPREHALL) ? game.mons[PM_LEPRECHAUN] : (type == COCKNEST) ? game.mons[PM_COCKATRICE] : (type == ANTHOLE) ? antholemon() : null, sx, sy, 4096 | 8192);
+            mon = await makemon((type == COURT) ? await courtmon() : (type == BARRACKS) ? await squadmon() : (type == MORGUE) ? await morguemon() : (type == BEEHIVE) ? (sx == tx && sy == ty ? game.mons[PM_QUEEN_BEE] : game.mons[PM_KILLER_BEE]) : (type == LEPREHALL) ? game.mons[PM_LEPRECHAUN] : (type == COCKNEST) ? game.mons[PM_COCKATRICE] : (type == ANTHOLE) ? await antholemon() : null, sx, sy, 4096 | 8192);
             if (mon) {
                 mon.msleeping = 1;
                 if (type == COURT && mon.mpeaceful) {
@@ -347,48 +346,46 @@ export function fill_zoo(sroom) {
                         i = goldlim;
                     }
                     if (i >= goldlim) {
-                        i = 5 * level_difficulty();
+                        i = 5 * await level_difficulty();
                     }
                     goldlim -= i;
-                    mkgold((rn2(i) + (10)), sx, sy);
+                    await mkgold((rn2(i) + (10)), sx, sy);
                     break;
                 case MORGUE:
                     if (!rn2(5)) {
-                        mk_tt_object(CORPSE, sx, sy);
+                        await mk_tt_object(CORPSE, sx, sy);
                     }
-                    /* lots of treasure buried with dead */
                     if (!rn2(10)) {
-                        mksobj_at((rn2(3)) ? LARGE_BOX : CHEST, sx, sy, (1), (0));
+                        await mksobj_at((rn2(3)) ? LARGE_BOX : CHEST, sx, sy, (1), (0));
                     }
                     if (!rn2(5)) {
-                        make_grave(sx, sy, null);
+                        await make_grave(sx, sy, null);
                     }
                     break;
                 case BEEHIVE:
                     if (!rn2(3)) {
-                        mksobj_at(LUMP_OF_ROYAL_JELLY, sx, sy, (1), (0));
+                        await mksobj_at(LUMP_OF_ROYAL_JELLY, sx, sy, (1), (0));
                     }
                     break;
                 case BARRACKS:
                     if (!rn2(20)) {
-                        mksobj_at((rn2(3)) ? LARGE_BOX : CHEST, sx, sy, (1), (0));
+                        await mksobj_at((rn2(3)) ? LARGE_BOX : CHEST, sx, sy, (1), (0));
                     }
                     break;
                 case COCKNEST:
                     if (!rn2(3)) {
-                        /* the payroll and some loot */
-                        let sobj = mk_tt_object(STATUE, sx, sy);
+                        let sobj = await mk_tt_object(STATUE, sx, sy);
                         if (sobj) {
                             for (i = rn2(5); i; i--) {
-                                add_to_container(sobj, mkobj(RANDOM_CLASS, (0)));
+                                await add_to_container(sobj, await mkobj(RANDOM_CLASS, (0)));
                             }
-                            sobj.owt = weight(sobj);
+                            sobj.owt = await weight(sobj);
                         }
                     }
                     break;
                 case ANTHOLE:
                     if (!rn2(3)) {
-                        mkobj_at(FOOD_CLASS, sx, sy, (0));
+                        await mkobj_at(FOOD_CLASS, sx, sy, (0));
                     }
                     break;
             }
@@ -401,12 +398,12 @@ export function fill_zoo(sroom) {
                 let gold = null;
                 game.level.locations[tx][ty].typ = THRONE;
                 somexyspace(sroom, mm);
-                gold = mksobj(GOLD_PIECE, (1), (0));
-                gold.quan = (rn2(50 * level_difficulty()) + (10));
-                gold.owt = weight(gold);
-                chest = mksobj_at(CHEST, mm.x, mm.y, (1), (0));
-                add_to_container(chest, gold);
-                chest.owt = weight(chest);
+                gold = await mksobj(GOLD_PIECE, (1), (0));
+                gold.quan = (rn2(50 * await level_difficulty()) + (10));
+                gold.owt = await weight(gold);
+                chest = await mksobj_at(CHEST, mm.x, mm.y, (1), (0));
+                await add_to_container(chest, gold);
+                chest.owt = await weight(chest);
                 /* so it can be found later */
                 chest.spe = 2;
                 game.level.flags.has_court = 1;
@@ -430,28 +427,28 @@ export function fill_zoo(sroom) {
     }
 }
 /* make a swarm of undead around mm */
-export function mkundead(mm, revive_corpses, mm_flags) {
-    let cnt = Math.trunc((level_difficulty() + 1) / 10) + rnd(5);
+export async function mkundead(mm, revive_corpses, mm_flags) {
+    let cnt = Math.trunc((await level_difficulty() + 1) / 10) + rnd(5);
     let mdat = null;
     let otmp = null;
     let cc = { x: 0, y: 0 };
     while (cnt--) {
-        mdat = morguemon();
-        if (mdat && enexto(cc, mm.x, mm.y, mdat) && (!revive_corpses || !(otmp = sobj_at(CORPSE, cc.x, cc.y)) || !revive(otmp, (0)))) {
-            makemon(mdat, cc.x, cc.y, mm_flags);
+        mdat = await morguemon();
+        if (mdat && await enexto(cc, mm.x, mm.y, mdat) && (!revive_corpses || !(otmp = sobj_at(CORPSE, cc.x, cc.y)) || !await revive(otmp, (0)))) {
+            await makemon(mdat, cc.x, cc.y, mm_flags);
         }
     }
     /* reduced chance for undead corpse */
     game.level.flags.graveyard = (1);
 }
-export function morguemon() {
+export async function morguemon() {
     let i = rn2(100);
-    let hd = rn2(level_difficulty());
+    let hd = rn2(await level_difficulty());
     if (hd > 10 && i < 10) {
         if (In_hell(game.u.uz) || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
-            return mkclass(S_DEMON, 0);
+            return await mkclass(S_DEMON, 0);
         } else {
-            let ndemon_res = ndemon((-128));
+            let ndemon_res = await ndemon((-128));
             /* else do what? As is, it will drop to ghost/wraith/zombie */
             if (ndemon_res != NON_PM) {
                 return game.mons[ndemon_res];
@@ -459,17 +456,17 @@ export function morguemon() {
         }
     }
     if (hd > 8 && i > 85) {
-        return mkclass(S_VAMPIRE, 0);
+        return await mkclass(S_VAMPIRE, 0);
     }
-    return ((i < 20) ? game.mons[PM_GHOST] : (i < 40) ? game.mons[PM_WRAITH] : mkclass(S_ZOMBIE, 0));
+    return ((i < 20) ? game.mons[PM_GHOST] : (i < 40) ? game.mons[PM_WRAITH] : await mkclass(S_ZOMBIE, 0));
 }
-export function antholemon() {
+export async function antholemon() {
     let mtyp = 0;
     let indx = 0;
     let trycnt = 0;
     /* casts are for dealing with time_t */
     indx = (game.ubirthday % 3);
-    indx += level_difficulty();
+    indx += await level_difficulty();
     do {
         switch ((indx + trycnt) % 3) {
             /* Same monsters within a level, different ones between levels */
@@ -487,7 +484,7 @@ export function antholemon() {
     return ((game.mvitals[mtyp].mvflags & (2 | 1)) ? null : game.mons[mtyp]);
 }
 /* Michiel Huisjes & Fred de Wilde */
-export function mkswamp() {
+export async function mkswamp() {
     let sroom = null;
     let i = 0;
     let eelct = 0;
@@ -509,15 +506,14 @@ export function mkswamp() {
                 }
                 if (!(game.level.objects[sx][sy] != null) && !(game.level.monsters[sx][sy] != null) && !t_at(sx, sy) && !nexttodoor(sx, sy)) {
                     if ((sx + sy) % 2) {
-                        del_engr_at(sx, sy);
+                        await del_engr_at(sx, sy);
                         game.level.locations[sx][sy].typ = POOL;
                         if (!eelct || !rn2(4)) {
-                            /* mkclass() won't do, as we might get kraken */
-                            makemon(rn2(5) ? game.mons[PM_GIANT_EEL] : rn2(2) ? game.mons[PM_PIRANHA] : game.mons[PM_ELECTRIC_EEL], sx, sy, 0);
+                            await makemon(rn2(5) ? game.mons[PM_GIANT_EEL] : rn2(2) ? game.mons[PM_PIRANHA] : game.mons[PM_ELECTRIC_EEL], sx, sy, 0);
                             eelct++;
                         }
                     } else if (!rn2(4)) {
-                        makemon(mkclass(S_FUNGUS, 0), sx, sy, 0);
+                        await makemon(await mkclass(S_FUNGUS, 0), sx, sy, 0);
                     }
                 }
             }
@@ -526,6 +522,7 @@ export function mkswamp() {
     }
 }
 let __shrine_pos_buf = { x: 0, y: 0 };
+__nh_register_static(() => { __shrine_pos_buf = { x: 0, y: 0 }; });
 export function shrine_pos(roomno) {
     let delta = 0;
     let troom = game.rooms[roomno - 3];
@@ -544,7 +541,7 @@ export function shrine_pos(roomno) {
     }
     return __shrine_pos_buf;
 }
-export function mktemple() {
+export async function mktemple() {
     let sroom = null;
     let shrine_spot = null;
     let lev = null;
@@ -561,7 +558,7 @@ export function mktemple() {
     lev = game.level.locations[shrine_spot.x][shrine_spot.y];
     lev.typ = ALTAR;
     lev.flags = induced_align(80);
-    priestini(game.u.uz, sroom, shrine_spot.x, shrine_spot.y, (0));
+    await priestini(game.u.uz, sroom, shrine_spot.x, shrine_spot.y, (0));
     lev.flags |= 8;
     game.level.flags.has_temple = 1;
 }
@@ -703,37 +700,37 @@ export function search_special(type) {
     }
     return null;
 }
-export function courtmon() {
-    let i = rn2(60) + rn2(3 * level_difficulty());
+export async function courtmon() {
+    let i = rn2(60) + rn2(3 * await level_difficulty());
     if (i > 100) {
-        return mkclass(S_DRAGON, 0);
+        return await mkclass(S_DRAGON, 0);
     } else if (i > 95) {
-        return mkclass(S_GIANT, 0);
+        return await mkclass(S_GIANT, 0);
     } else if (i > 85) {
-        return mkclass(S_TROLL, 0);
+        return await mkclass(S_TROLL, 0);
     } else if (i > 75) {
-        return mkclass(S_CENTAUR, 0);
+        return await mkclass(S_CENTAUR, 0);
     } else if (i > 60) {
-        return mkclass(S_ORC, 0);
+        return await mkclass(S_ORC, 0);
     } else if (i > 45) {
         return game.mons[PM_BUGBEAR];
     } else if (i > 30) {
         return game.mons[PM_HOBGOBLIN];
     } else if (i > 15) {
-        return mkclass(S_GNOME, 0);
+        return await mkclass(S_GNOME, 0);
     } else {
-        return mkclass(S_KOBOLD, 0);
+        return await mkclass(S_KOBOLD, 0);
     }
 }
 const squadprob = [{ pm: PM_SOLDIER, prob: 80 }, { pm: PM_SERGEANT, prob: 15 }, { pm: PM_LIEUTENANT, prob: 4 }, { pm: PM_CAPTAIN, prob: 1 }];
 /* return soldier types. */
-export function squadmon() {
+export async function squadmon() {
     let sel_prob = 0;
     let i = 0;
     let cpro = 0;
     let mndx = 0;
     gotone: {
-        sel_prob = rnd(80 + level_difficulty());
+        sel_prob = rnd(80 + await level_difficulty());
         cpro = 0;
         for (i = 0; i < (Math.trunc(4 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/mkroom.c:807:14) [4]) */ / 1 /* sizeof(const struct (anonymous struct at /share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/mkroom.c:807:14)) */)); i++) {
             cpro += squadprob[i].prob;
@@ -941,7 +938,7 @@ export function cmap_to_type(sym) {
  * Note that the invalidity of the shape derives from the position of its door
  * already being chosen. It's quite possible that if the door were somewhere
  * else on the perimeter of this room, it would work fine as a shop.*/
-export function invalid_shop_shape(sroom) {
+export async function invalid_shop_shape(sroom) {
     let x = 0;
     let y = 0;
     let doorx = game.doors[sroom.fdoor].x;
@@ -960,7 +957,7 @@ export function invalid_shop_shape(sroom) {
         }
     }
     if (insidect < 1) {
-        impossible("invalid_shop_shape: no squares inside door?");
+        await impossible("invalid_shop_shape: no squares inside door?");
         return (1);
     }
     if (insidect == 1) {
@@ -987,7 +984,12 @@ export function invalid_shop_shape(sroom) {
 }
 /* !SFCTOOL */
 /*mkroom.c*/
+/* someday, we should be able to specify shop type */
+/* Give him a sceptre to pound in judgment */
+/* lots of treasure buried with dead */
+/* the payroll and some loot */
 /* try again if chosen type has been genocided or used up */
+/* mkclass() won't do, as we might get kraken */
 /* open door in vertical wall */
 /* open door in horizontal wall */
 /* closed door in vertical wall */

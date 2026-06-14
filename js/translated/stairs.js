@@ -80,32 +80,30 @@ export function stairway_find_special_dir(up) {
     return tmp;
 }
 /* place you on the special staircase */
-export function u_on_sstairs(upflag) {
+export async function u_on_sstairs(upflag) {
     let stway = stairway_find_special_dir(upflag);
     if (stway) {
-        u_on_newpos(stway.sx, stway.sy);
+        await u_on_newpos(stway.sx, stway.sy);
     } else {
-        u_on_rndspot(upflag);
+        await u_on_rndspot(upflag);
     }
 }
 /* place you on upstairs (or special equivalent) */
-export function u_on_upstairs() {
+export async function u_on_upstairs() {
     let stway = stairway_find_dir((1));
     if (stway) {
-        u_on_newpos(stway.sx, stway.sy);
-    /* destination upstairs implies moving down */
+        await u_on_newpos(stway.sx, stway.sy);
     } else {
-        u_on_sstairs(0);
+        await u_on_sstairs(0);
     }
 }
 /* place you on dnstairs (or special equivalent) */
-export function u_on_dnstairs() {
+export async function u_on_dnstairs() {
     let stway = stairway_find_dir((0));
     if (stway) {
-        u_on_newpos(stway.sx, stway.sy);
-    /* destination dnstairs implies moving up */
+        await u_on_newpos(stway.sx, stway.sy);
     } else {
-        u_on_sstairs(1);
+        await u_on_sstairs(1);
     }
 }
 export function On_stairs(x, y) {
@@ -159,6 +157,8 @@ export function stairs_description(sway, outbuf, stcase) {
     return outbuf;
 }
 /*stairs.c*/
+/* destination upstairs implies moving down */
+/* destination dnstairs implies moving up */
 /* known branch stairs; tacking on destination level is too verbose */
 /* stairs up from level one are a special case; they are marked
            as having been traversed because the hero obviously started

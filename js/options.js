@@ -14,6 +14,26 @@ export function parseNethackrc(rc) {
         const line = rawLine.trim();
         if (!line || line.startsWith('#')) continue;
 
+        // C ref options.c parsebindings — BIND=key:command rebinds a
+        // key to an extended command (seed2600's rc: BIND=v:inventory).
+        const bindMatch = line.match(/^BIND=(.+)/i);
+        if (bindMatch) {
+            const bi = bindMatch[1].indexOf(':');
+            if (bi > 0) {
+                const keyTxt = bindMatch[1].slice(0, bi).trim();
+                const cmdTxt = bindMatch[1].slice(bi + 1).trim().toLowerCase();
+                // Key forms: single char, ^X (ctrl), M-x (meta).
+                let code = null;
+                if (keyTxt.length === 1) code = keyTxt.charCodeAt(0);
+                else if (keyTxt.length === 2 && keyTxt[0] === '^') {
+                    code = keyTxt.toUpperCase().charCodeAt(1) & 0x1f;
+                }
+                if (code != null) {
+                    (result.binds = result.binds || []).push({ key: code, cmd: cmdTxt });
+                }
+            }
+            continue;
+        }
         const optMatch = line.match(/^OPTIONS=(.+)/i);
         if (!optMatch) continue;
 

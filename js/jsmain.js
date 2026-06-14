@@ -154,9 +154,21 @@ export class NethackGame {
         // NHOPTB defaults the in-place initoptions walk applies.
         g._rcWrittenFlags = new Set();
         g._rcWrittenIflags = new Set();
+        // BIND=key:command rebinds (C options.c parsebindings).
+        // Stored as {charCode: extcmdName}; rhack remaps bound keys
+        // to the equivalent built-in dispatch before the switch.
+        if (Array.isArray(opts.binds)) {
+            g._cmd_key_binds = {};
+            for (const b of opts.binds) g._cmd_key_binds[b.key] = b.cmd;
+        }
         const __setFlag = (k, v) => { g.flags[k] = v; g._rcWrittenFlags.add(k); };
         const __setIflag = (k, v) => { g.iflags[k] = v; g._rcWrittenIflags.add(k); };
         __setFlag('verbose', true);
+        // C-correct default (ref options.c:7258 initoptions_init):
+        // flags.menu_style = MENU_FULL.  With 0 (TRADITIONAL) the
+        // 'Z' cast flow showed "[a-b *?]" prompts where C renders
+        // the spell menu (seed0501 step 4).
+        __setFlag('menu_style', 2);
         // C-correct default (ref optlist.h:410 NHOPTB(legacy, ..., On, ...)).
         // rc options like `!legacy` override below.
         __setFlag('legacy', 1);

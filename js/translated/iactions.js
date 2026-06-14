@@ -84,26 +84,24 @@ const __item_naming_classification_Call = "Call";
 /* "re-call" seems a bit weird, but "recall" and
            "rename" don't fit for changing a type name */
 const __item_naming_classification_Recall = "Re-call or un-call";
-export function item_naming_classification(obj, onamebuf, ocallbuf) {
+export async function item_naming_classification(obj, onamebuf, ocallbuf) {
     (ocallbuf = __nh_char_write(ocallbuf, 0, 0), onamebuf = __nh_char_write(onamebuf, 0, 0));
     if (name_ok(obj) == GETOBJ_SUGGEST) {
-        onamebuf = sprintf(onamebuf, "%s %s %s", (!((obj).oextra && ((obj).oextra.oname)) || !__nh_char_at0(((obj).oextra.oname))) ? __item_naming_classification_Name : __item_naming_classification_Rename, the_unique_obj(obj) ? "the" : !((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "this specific" : "this stack of", simpleonames(obj));
+        onamebuf = sprintf(onamebuf, "%s %s %s", (!((obj).oextra && ((obj).oextra.oname)) || !__nh_char_at0(((obj).oextra.oname))) ? __item_naming_classification_Name : __item_naming_classification_Rename, the_unique_obj(obj) ? "the" : !((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "this specific" : "this stack of", await simpleonames(obj));
     }
     if (call_ok(obj) == GETOBJ_SUGGEST) {
-        let callname = simpleonames(obj);
-        /* prefix known unique item with "the", make all other types plural */
-        /* treats unID'd fake amulets as if real */
+        let callname = await simpleonames(obj);
         if (the_unique_obj(obj)) {
-            callname = the(callname);
+            callname = await the(callname);
         } else if (!((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD)))) {
-            callname = makeplural(callname);
+            callname = await makeplural(callname);
         }
         ocallbuf = sprintf(ocallbuf, "%s the type for %s", (!game.objects[obj.otyp].oc_uname || !__nh_char_at0(game.objects[obj.otyp].oc_uname)) ? __item_naming_classification_Call : __item_naming_classification_Recall, callname);
     }
     return (__nh_char_at0(onamebuf) || __nh_char_at0(ocallbuf)) ? (1) : (0);
 }
 /* construct text for the menu entries for IA_READ_OBJ */
-export function item_reading_classification(obj, outbuf) {
+export async function item_reading_classification(obj, outbuf) {
     let otyp = obj.otyp;
     let res = IA_READ_OBJ;
     outbuf.value = 0;
@@ -122,24 +120,24 @@ export function item_reading_classification(obj, outbuf) {
         let novel = (otyp == SPE_NOVEL);
         let blank = (otyp == SPE_BLANK_PAPER && game.objects[otyp].oc_name_known);
         let tome = (otyp == SPE_BOOK_OF_THE_DEAD && game.objects[otyp].oc_name_known);
-        outbuf = sprintf(outbuf, "%s this %s", (novel || blank) ? "Read" : tome ? "Examine" : "Study", novel ? simpleonames(obj) : tome ? "tome" : "spellbook");
+        outbuf = sprintf(outbuf, "%s this %s", (novel || blank) ? "Read" : tome ? "Examine" : "Study", novel ? await simpleonames(obj) : tome ? "tome" : "spellbook");
     } else {
         res = IA_NONE;
     }
     return res;
 }
-export function ia_addmenu(win, act, let_, txt) {
-    let any = 0;
+export async function ia_addmenu(win, act, let_, txt) {
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     any.a_int = act;
-    add_menu(win, nul_glyphinfo, any, let_, 0, 0, clr, txt, 0);
+    await add_menu(win, nul_glyphinfo, any, let_, 0, 0, clr, txt, 0);
 }
 /* set up a command to execute on a specific item next */
-export function itemactions_pushkeys(otmp, act) {
+export async function itemactions_pushkeys(otmp, act) {
     switch (act) {
         default:
-            impossible("Unknown item action %d", act);
+            await impossible("Unknown item action %d", act);
             break;
         case IA_NONE:
             break;
@@ -254,7 +252,7 @@ export function itemactions_pushkeys(otmp, act) {
     }
 }
 /* Show menu of possible actions hero could do with item otmp */
-export function itemactions(otmp) {
+export async function itemactions(otmp) {
     let n = 0;
     let act = IA_NONE;
     let win = 0;
@@ -273,46 +271,44 @@ export function itemactions(otmp) {
         let action = (otmp == game.uquiver) ? "un-ready" : "un-wield";
         let which = ((otmp).quan != 1 || ((otmp).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "these" : "this";
         let what = ((otmp.oclass == WEAPON_CLASS || ((otmp).oclass == TOOL_CLASS && game.objects[(otmp).otyp].oc_subtyp != P_NONE)) ? "weapon" : "item");
-        buf = sprintf(buf, "%s '%c' to %s %s %s", verb, 45, action, which, ((otmp).quan != 1 || ((otmp).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? makeplural(what) : what);
-        ia_addmenu(win, IA_UNWIELD, 45, buf);
+        buf = sprintf(buf, "%s '%c' to %s %s %s", verb, 45, action, which, ((otmp).quan != 1 || ((otmp).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? await makeplural(what) : what);
+        await ia_addmenu(win, IA_UNWIELD, 45, buf);
     }
     if (otmp.oclass == COIN_CLASS) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Flip a coin");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Flip a coin");
     } else if (otmp.otyp == CREAM_PIE) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Hit yourself with this cream pie");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Hit yourself with this cream pie");
     } else if (otmp.otyp == BULLWHIP) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Lash out with this whip");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Lash out with this whip");
     } else if (otmp.otyp == GRAPPLING_HOOK) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Grapple something with this hook");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Grapple something with this hook");
     } else if (otmp.otyp == BAG_OF_TRICKS && game.objects[otmp.otyp].oc_name_known) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Reach into this bag");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Reach into this bag");
     } else if (((otmp).otyp >= LARGE_BOX && (otmp).otyp <= BAG_OF_TRICKS)) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Open this container");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Open this container");
     } else if (otmp.otyp == CAN_OF_GREASE) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Use the can to grease an item");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Use the can to grease an item");
     } else if (otmp.otyp == LOCK_PICK || otmp.otyp == CREDIT_CARD || otmp.otyp == SKELETON_KEY) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this tool to pick a lock");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this tool to pick a lock");
     } else if (otmp.otyp == TINNING_KIT) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this kit to tin a corpse");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this kit to tin a corpse");
     } else if (otmp.otyp == LEASH) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Tie a pet to this leash");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Tie a pet to this leash");
     } else if (otmp.otyp == SADDLE) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Place this saddle on a pet");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Place this saddle on a pet");
     } else if (otmp.otyp == MAGIC_WHISTLE || otmp.otyp == TIN_WHISTLE) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Blow this whistle");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Blow this whistle");
     } else if (otmp.otyp == EUCALYPTUS_LEAF) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this leaf as a whistle");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this leaf as a whistle");
     } else if (otmp.otyp == STETHOSCOPE) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Listen through the stethoscope");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Listen through the stethoscope");
     } else if (otmp.otyp == MIRROR) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Show something its reflection");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Show something its reflection");
     } else if (otmp.otyp == BELL || otmp.otyp == BELL_OF_OPENING) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Ring the bell");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Ring the bell");
     } else if (otmp.otyp == CANDELABRUM_OF_INVOCATION) {
         buf = sprintf(buf, "%s the candelabrum", light);
-        /* bag of tricks skips this unless discovered */
-        /* bag of tricks gets here only if not yet discovered */
-        ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
     } else if (otmp.otyp == WAX_CANDLE || otmp.otyp == TALLOW_CANDLE) {
         let multiple = (otmp.quan == 1) ? (0) : (1);
         let s = multiple ? "these" : "this";
@@ -320,104 +316,94 @@ export function itemactions(otmp) {
         if (o && o.spe < 7) {
             buf = sprintf(buf, "Attach %s to your candelabrum, or %s %s", s, !otmp.lamplit ? "light" : "extinguish", multiple ? "them" : "it");
         } else {
-            buf = sprintf(buf, "%s %s %s", light, s, simpleonames(otmp));
+            buf = sprintf(buf, "%s %s %s", light, s, await simpleonames(otmp));
         }
-        ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
     } else if (otmp.otyp == OIL_LAMP || otmp.otyp == MAGIC_LAMP || otmp.otyp == BRASS_LANTERN) {
         buf = sprintf(buf, "%s this light source", light);
-        ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
     } else if (otmp.otyp == POT_OIL && game.objects[otmp.otyp].oc_name_known) {
         buf = sprintf(buf, "%s this oil", light);
-        ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, buf);
     } else if (otmp.oclass == POTION_CLASS) {
         buf = sprintf(buf, "Dip something into %s potion%s", ((otmp).quan != 1 || ((otmp).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "one of these" : "this", (((otmp.quan) == 1) ? "" : "s"));
-        ia_addmenu(win, IA_DIP_OBJ, 97, buf);
+        await ia_addmenu(win, IA_DIP_OBJ, 97, buf);
     } else if (otmp.otyp == EXPENSIVE_CAMERA) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Take a photograph");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Take a photograph");
     } else if (otmp.otyp == TOWEL) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Clean yourself off with this towel");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Clean yourself off with this towel");
     } else if (otmp.otyp == CRYSTAL_BALL) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Peer into this crystal ball");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Peer into this crystal ball");
     } else if (otmp.otyp == MAGIC_MARKER) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Write on something with this marker");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Write on something with this marker");
     } else if (otmp.otyp == FIGURINE) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Make this figurine transform");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Make this figurine transform");
     } else if (otmp.otyp == UNICORN_HORN) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this unicorn horn");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Use this unicorn horn");
     } else if (otmp.otyp == HORN_OF_PLENTY && game.objects[otmp.otyp].oc_name_known) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Blow into the horn of plenty");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Blow into the horn of plenty");
     } else if (otmp.otyp >= WOODEN_FLUTE && otmp.otyp <= DRUM_OF_EARTHQUAKE) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Play this musical instrument");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Play this musical instrument");
     } else if (otmp.otyp == LAND_MINE || otmp.otyp == BEARTRAP) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Arm this trap");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Arm this trap");
     } else if (otmp.otyp == PICK_AXE || otmp.otyp == DWARVISH_MATTOCK) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Dig with this digging tool");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Dig with this digging tool");
     } else if (otmp.oclass == WAND_CLASS) {
-        ia_addmenu(win, IA_APPLY_OBJ, 97, "Break this wand");
+        await ia_addmenu(win, IA_APPLY_OBJ, 97, "Break this wand");
     }
-    if (item_naming_classification(otmp, buf, buf2)) {
-        /* FIXME? this should probably be moved to 'D' rather than be 'a' */
-        /* 'c', 'C' - call an item or its type something */
+    if (await item_naming_classification(otmp, buf, buf2)) {
         if (buf) {
-            ia_addmenu(win, IA_NAME_OBJ, 99, buf);
+            await ia_addmenu(win, IA_NAME_OBJ, 99, buf);
         }
         if (buf2) {
-            ia_addmenu(win, IA_NAME_OTYP, 67, buf2);
+            await ia_addmenu(win, IA_NAME_OTYP, 67, buf2);
         }
     }
     if (!already_worn) {
         buf = sprintf(buf, "Drop this %s", (otmp.quan > 1) ? "stack" : "item");
-        /* d: drop item, works on everything except worn items; those will
-       always have a takeoff/remove choice so we don't have to worry
-       about the menu maybe being empty when 'd' is suppressed */
-        ia_addmenu(win, IA_DROP_OBJ, 100, buf);
+        await ia_addmenu(win, IA_DROP_OBJ, 100, buf);
     }
     if (otmp.otyp == TIN) {
         buf = sprintf(buf, "Open %s%s and eat the contents", (otmp.quan > 1) ? "one of these tins" : "this tin", (otmp.otyp == TIN && game.uwep && game.uwep.otyp == TIN_OPENER) ? " with your tin opener" : "");
-        ia_addmenu(win, IA_EAT_OBJ, 101, buf);
+        await ia_addmenu(win, IA_EAT_OBJ, 101, buf);
     } else if (is_edible(otmp)) {
         buf = sprintf(buf, "Eat %s", (otmp.quan > 1) ? "one of these" : "this");
-        ia_addmenu(win, IA_EAT_OBJ, 101, buf);
+        await ia_addmenu(win, IA_EAT_OBJ, 101, buf);
     }
     if (otmp.otyp == TOWEL) {
-        ia_addmenu(win, IA_ENGRAVE_OBJ, 69, "Wipe the floor with this towel");
+        await ia_addmenu(win, IA_ENGRAVE_OBJ, 69, "Wipe the floor with this towel");
     } else if (otmp.otyp == MAGIC_MARKER) {
-        ia_addmenu(win, IA_ENGRAVE_OBJ, 69, "Scribble graffiti on the floor");
+        await ia_addmenu(win, IA_ENGRAVE_OBJ, 69, "Scribble graffiti on the floor");
     } else if (otmp.oclass == WEAPON_CLASS || otmp.oclass == WAND_CLASS || otmp.oclass == GEM_CLASS || otmp.oclass == RING_CLASS) {
         buf = sprintf(buf, "%s on the %s with %s", ((otmp.oclass == WEAPON_CLASS && game.objects[otmp.otyp].oc_subtyp >= P_DAGGER && game.objects[otmp.otyp].oc_subtyp <= P_SABER) || otmp.oclass == WAND_CLASS || ((otmp.oclass == GEM_CLASS || otmp.oclass == RING_CLASS) && game.objects[otmp.otyp].oc_tough)) ? "Engrave" : "Write", surface(game.u.ux, game.u.uy), (otmp.quan > 1) ? "one of these items" : "this item");
-        ia_addmenu(win, IA_ENGRAVE_OBJ, 69, buf);
+        await ia_addmenu(win, IA_ENGRAVE_OBJ, 69, buf);
     }
     if (otmp == game.uquiver) {
         let shoot = (((otmp.oclass == WEAPON_CLASS || otmp.oclass == GEM_CLASS) && game.objects[otmp.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[otmp.otyp].oc_subtyp <= -P_BOW) && ((game.uwep) && game.objects[(otmp).otyp].oc_subtyp == -game.objects[(game.uwep).otyp].oc_subtyp));
         buf = sprintf(buf, "%s %s", shoot ? "Shoot" : "Throw", (otmp.quan > 1) ? "one of these" : "this");
         if (shoot) {
             (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-            buf = __nh_buf_append(buf, sprintf('', " with your wielded %s", simpleonames(game.uwep)));
+            buf = __nh_buf_append(buf, sprintf('', " with your wielded %s", await simpleonames(game.uwep)));
         }
-        ia_addmenu(win, IA_FIRE_OBJ, 102, buf);
+        await ia_addmenu(win, IA_FIRE_OBJ, 102, buf);
     }
-    /* i: #adjust inventory letter; gold can't be adjusted unless there
-       is some in a slot other than '$' (which shouldn't be possible) */
-    if (otmp.oclass != COIN_CLASS || check_invent_gold("item-action")) {
-        ia_addmenu(win, IA_ADJUST_OBJ, 105, "Adjust inventory by assigning new letter");
+    if (otmp.oclass != COIN_CLASS || await check_invent_gold("item-action")) {
+        await ia_addmenu(win, IA_ADJUST_OBJ, 105, "Adjust inventory by assigning new letter");
     }
     /* I: #adjust inventory item by splitting its stack  */
     if (otmp.quan > 1 && otmp.oclass != COIN_CLASS) {
-        ia_addmenu(win, IA_ADJUST_STACK, 73, "Adjust inventory by splitting this stack");
+        await ia_addmenu(win, IA_ADJUST_STACK, 73, "Adjust inventory by splitting this stack");
     }
     if (((game.level.locations[game.u.ux][game.u.uy].typ) == ALTAR) && !game.u.uswallow) {
-        /* FIXME: see the multi-shot FIXME about "one of" for 't: throw' */
-        /* FIXME: this doesn't match #offer's likely candidates, which don't
-           include corpses on Astral and don't include amulets off Astral */
         if (otmp.otyp == CORPSE) {
-            ia_addmenu(win, IA_SACRIFICE, 79, "Offer this corpse as a sacrifice at this altar");
+            await ia_addmenu(win, IA_SACRIFICE, 79, "Offer this corpse as a sacrifice at this altar");
         } else if (otmp.otyp == AMULET_OF_YENDOR || otmp.otyp == FAKE_AMULET_OF_YENDOR) {
-            ia_addmenu(win, IA_SACRIFICE, 79, "Offer this amulet as a sacrifice at this altar");
+            await ia_addmenu(win, IA_SACRIFICE, 79, "Offer this amulet as a sacrifice at this altar");
         }
     }
-    if (otmp.unpaid && (mtmp = shop_keeper(in_rooms(game.u.ux, game.u.uy, SHOPBASE))) != null && inhishop(mtmp)) {
+    if (otmp.unpaid && (mtmp = await shop_keeper(in_rooms(game.u.ux, game.u.uy, SHOPBASE))) != null && inhishop(mtmp)) {
         buf = sprintf(buf, "Buy this unpaid %s", (otmp.quan > 1) ? "stack" : "item");
-        ia_addmenu(win, IA_BUY_OBJ, 112, buf);
+        await ia_addmenu(win, IA_BUY_OBJ, 112, buf);
     }
     if (!already_worn) {
         /* FIXME: should also handle player owned container (so not
@@ -434,7 +420,7 @@ export function itemactions(otmp) {
             if (!game.uleft || !game.uright) {
                 buf = strcpy(buf, "Put this ring on");
             } else {
-                buf = sprintf(buf, "[both ring %s in use]", makeplural(body_part(FINGER)));
+                buf = sprintf(buf, "[both ring %s in use]", await makeplural(await body_part(FINGER)));
             }
         } else if (otmp.otyp == BLINDFOLD || otmp.otyp == TOWEL || otmp.otyp == LENSES) {
             if (game.ublindf) {
@@ -446,63 +432,57 @@ export function itemactions(otmp) {
             }
         }
         if (buf) {
-            ia_addmenu(win, IA_WEAR_OBJ, 80, buf);
+            await ia_addmenu(win, IA_WEAR_OBJ, 80, buf);
         }
     }
     if (otmp.oclass == POTION_CLASS) {
         buf = sprintf(buf, "Quaff (drink) %s", (otmp.quan > 1) ? "one of these potions" : "this potion");
-        ia_addmenu(win, IA_QUAFF_OBJ, 113, buf);
+        await ia_addmenu(win, IA_QUAFF_OBJ, 113, buf);
     }
     /* Q: quiver throwable item */
     if ((otmp.oclass == GEM_CLASS || otmp.oclass == WEAPON_CLASS) && otmp != game.uquiver) {
         buf = sprintf(buf, "Quiver this %s for easy %s with 'f'ire", (otmp.quan > 1) ? "stack" : "item", (((otmp.oclass == WEAPON_CLASS || otmp.oclass == GEM_CLASS) && game.objects[otmp.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[otmp.otyp].oc_subtyp <= -P_BOW) && ((game.uwep) && game.objects[(otmp).otyp].oc_subtyp == -game.objects[(game.uwep).otyp].oc_subtyp)) ? "shooting" : "throwing");
-        ia_addmenu(win, IA_QUIVER_OBJ, 81, buf);
+        await ia_addmenu(win, IA_QUIVER_OBJ, 81, buf);
     }
-    if (item_reading_classification(otmp, buf) == IA_READ_OBJ) {
-        ia_addmenu(win, IA_READ_OBJ, 114, buf);
+    if (await item_reading_classification(otmp, buf) == IA_READ_OBJ) {
+        await ia_addmenu(win, IA_READ_OBJ, 114, buf);
     }
     /* R: remove accessory or rub item */
     if (otmp.owornmask & ((131072 | 262144) | 65536 | 524288)) {
         buf = sprintf(buf, "Remove this %s", (otmp.owornmask & 65536) ? "amulet" : (otmp.owornmask & (131072 | 262144)) ? "ring" : (otmp.owornmask & 524288) ? "eyewear" : "accessory");
-        /* catchall -- can't happen */
-        ia_addmenu(win, IA_TAKEOFF_OBJ, 82, buf);
+        await ia_addmenu(win, IA_TAKEOFF_OBJ, 82, buf);
     }
     if (otmp.otyp == OIL_LAMP || otmp.otyp == MAGIC_LAMP || otmp.otyp == BRASS_LANTERN) {
-        buf = sprintf(buf, "Rub this %s", simpleonames(otmp));
-        ia_addmenu(win, IA_RUB_OBJ, 82, buf);
+        buf = sprintf(buf, "Rub this %s", await simpleonames(otmp));
+        await ia_addmenu(win, IA_RUB_OBJ, 82, buf);
     } else if (otmp.oclass == GEM_CLASS && ((otmp).otyp == LUCKSTONE || (otmp).otyp == LOADSTONE || (otmp).otyp == FLINT || (otmp).otyp == TOUCHSTONE)) {
-        ia_addmenu(win, IA_RUB_OBJ, 82, "Rub something on this stone");
+        await ia_addmenu(win, IA_RUB_OBJ, 82, "Rub something on this stone");
     }
     if (!already_worn) {
         let shoot = (((otmp.oclass == WEAPON_CLASS || otmp.oclass == GEM_CLASS) && game.objects[otmp.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[otmp.otyp].oc_subtyp <= -P_BOW) && ((game.uwep) && game.objects[(otmp).otyp].oc_subtyp == -game.objects[(game.uwep).otyp].oc_subtyp));
         buf = sprintf(buf, "%s %s%s", shoot ? "Shoot" : "Throw", (otmp.quan == 1) ? "this item" : (otmp.otyp == GOLD_PIECE) ? "them" : "one of these", (otmp == game.uquiver && (otmp.otyp != GOLD_PIECE || otmp.quan == 1)) ? " (same as 'f')" : "");
-        ia_addmenu(win, IA_THROW_OBJ, 116, buf);
+        await ia_addmenu(win, IA_THROW_OBJ, 116, buf);
     }
     /* T: take off armor, tip carried container */
     if (otmp.owornmask & (1 | 2 | 4 | 8 | 16 | 32 | 64)) {
-        ia_addmenu(win, IA_TAKEOFF_OBJ, 84, "Take off this armor");
+        await ia_addmenu(win, IA_TAKEOFF_OBJ, 84, "Take off this armor");
     }
     if ((((otmp).otyp >= LARGE_BOX && (otmp).otyp <= BAG_OF_TRICKS) && (((otmp).cobj != null) || !otmp.cknown)) || (otmp.otyp == HORN_OF_PLENTY && (otmp.spe > 0 || !otmp.known))) {
-        ia_addmenu(win, IA_TIP_CONTAINER, 84, "Tip all the contents out of this container");
+        await ia_addmenu(win, IA_TIP_CONTAINER, 84, "Tip all the contents out of this container");
     }
     if ((otmp.otyp == FAKE_AMULET_OF_YENDOR && !otmp.known) || otmp.oartifact || game.objects[otmp.otyp].oc_unique || otmp.otyp == CRYSTAL_BALL) {
-        ia_addmenu(win, IA_INVOKE_OBJ, 86, "Try to invoke a unique power of this object");
+        await ia_addmenu(win, IA_INVOKE_OBJ, 86, "Try to invoke a unique power of this object");
     }
     if (otmp == game.uwep || ((((game.youmonst.data).mflags1 & 8192) != 0) || ((game.youmonst.data).msize < 1))) {
         ;
     } else if (otmp.oclass == WEAPON_CLASS || ((otmp).oclass == TOOL_CLASS && game.objects[(otmp).otyp].oc_subtyp != P_NONE) || ((otmp).otyp == TOWEL && (otmp).spe > 0) || otmp.otyp == HEAVY_IRON_BALL) {
         buf = sprintf(buf, "Wield this %s as your weapon", (otmp.quan > 1) ? "stack" : "item");
-        ia_addmenu(win, IA_WIELD_OBJ, 119, buf);
+        await ia_addmenu(win, IA_WIELD_OBJ, 119, buf);
     } else if (otmp.otyp == TIN_OPENER) {
-        /* non-artifact crystal balls don't have any unique power but
-           the #invoke command lists them as likely candidates */
-        /* w: wield, hold in hands, works on everything but with different
-       advice text; not mentioned for things that are already wielded */
-        /* either already wielded or can't wield anything; skip 'w' */
-        ia_addmenu(win, IA_WIELD_OBJ, 119, "Wield the tin opener to easily open tins");
+        await ia_addmenu(win, IA_WIELD_OBJ, 119, "Wield the tin opener to easily open tins");
     } else if (!already_worn) {
-        buf = sprintf(buf, "Wield this %s in your %s", (otmp.quan > 1) ? "stack" : "item", makeplural(body_part(HAND)));
-        ia_addmenu(win, IA_WIELD_OBJ, 119, buf);
+        buf = sprintf(buf, "Wield this %s in your %s", (otmp.quan > 1) ? "stack" : "item", await makeplural(await body_part(HAND)));
+        await ia_addmenu(win, IA_WIELD_OBJ, 119, buf);
     }
     if (!already_worn) {
         if (otmp.oclass == ARMOR_CLASS) {
@@ -522,45 +502,37 @@ export function itemactions(otmp) {
             if (!o) {
                 buf = strcpy(buf, "Wear this armor");
             } else {
-                buf = sprintf(buf, "[already wearing %s]", an(armor_simple_name(o)));
+                buf = sprintf(buf, "[already wearing %s]", await an(await armor_simple_name(o)));
             }
-            ia_addmenu(win, IA_WEAR_OBJ, 87, buf);
+            await ia_addmenu(win, IA_WEAR_OBJ, 87, buf);
         }
     }
     /* x: Swap main and readied weapon */
     if (otmp == game.uwep && game.uswapwep) {
-        ia_addmenu(win, IA_SWAPWEAPON, 120, "Swap this with your alternate weapon");
+        await ia_addmenu(win, IA_SWAPWEAPON, 120, "Swap this with your alternate weapon");
     } else if (otmp == game.uwep) {
-        ia_addmenu(win, IA_SWAPWEAPON, 120, "Ready this as an alternate weapon");
+        await ia_addmenu(win, IA_SWAPWEAPON, 120, "Ready this as an alternate weapon");
     } else if (otmp == game.uswapwep) {
-        ia_addmenu(win, IA_SWAPWEAPON, 120, "Swap this with your main weapon");
+        await ia_addmenu(win, IA_SWAPWEAPON, 120, "Swap this with your main weapon");
     }
     if ((otmp == game.uwep || otmp == game.uswapwep) && (game.u.twoweap || (((((game.youmonst.data).mattk[0].aatyp == 254) + ((game.youmonst.data).mattk[1].aatyp == 254) + ((game.youmonst.data).mattk[2].aatyp == 254)) > 1) && !game.uarms && game.uwep && ((((game.uwep).oclass == WEAPON_CLASS) ? !((game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_BOW && game.objects[game.uwep.otyp].oc_subtyp <= P_CROSSBOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == GEM_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[game.uwep.otyp].oc_subtyp <= -P_BOW) || ((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[game.uwep.otyp].oc_subtyp <= -P_DART)) : ((game.uwep).oclass == TOOL_CLASS && game.objects[(game.uwep).otyp].oc_subtyp != P_NONE)) && !((game.uwep.oclass == WEAPON_CLASS || game.uwep.oclass == TOOL_CLASS) && game.objects[game.uwep.otyp].oc_big)) && game.uswapwep && ((((game.uswapwep).oclass == WEAPON_CLASS) ? !((game.uswapwep.oclass == WEAPON_CLASS && game.objects[game.uswapwep.otyp].oc_subtyp >= P_BOW && game.objects[game.uswapwep.otyp].oc_subtyp <= P_CROSSBOW) || ((game.uswapwep.oclass == WEAPON_CLASS || game.uswapwep.oclass == GEM_CLASS) && game.objects[game.uswapwep.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[game.uswapwep.otyp].oc_subtyp <= -P_BOW) || ((game.uswapwep.oclass == WEAPON_CLASS || game.uswapwep.oclass == TOOL_CLASS) && game.objects[game.uswapwep.otyp].oc_subtyp >= -P_BOOMERANG && game.objects[game.uswapwep.otyp].oc_subtyp <= -P_DART)) : ((game.uswapwep).oclass == TOOL_CLASS && game.objects[(game.uswapwep).otyp].oc_subtyp != P_NONE)) && !((game.uswapwep.oclass == WEAPON_CLASS || game.uswapwep.oclass == TOOL_CLASS) && game.objects[game.uswapwep.otyp].oc_big))))) {
         buf = sprintf(buf, "Toggle two-weapon combat %s", game.u.twoweap ? "off" : "on");
-        /* this is based on TWOWEAPOK() in wield.c; we don't call can_two_weapon()
-       because it is very verbose; attempting to two-weapon might be rejected
-       but we screen out most reasons for rejection before offering it as a
-       choice */
-        /* X: Toggle two-weapon mode on or off */
-        /* if already two-weaponing, no special checks needed to toggle off */
-        /* but if not, try to filter most "you can't do that" here */
-        ia_addmenu(win, IA_TWOWEAPON, 88, buf);
+        await ia_addmenu(win, IA_TWOWEAPON, 88, buf);
     }
     if (otmp.oclass == WAND_CLASS) {
-        ia_addmenu(win, IA_ZAP_OBJ, 122, "Zap this wand to release its magic");
+        await ia_addmenu(win, IA_ZAP_OBJ, 122, "Zap this wand to release its magic");
     }
-    /* ?: Look up an item in the game's database */
-    if (ia_checkfile(otmp)) {
+    if (await ia_checkfile(otmp)) {
         buf = sprintf(buf, "Look up information about %s", (otmp.quan > 1) ? "these" : "this");
-        ia_addmenu(win, IA_WHATIS_OBJ, 47, buf);
+        await ia_addmenu(win, IA_WHATIS_OBJ, 47, buf);
     }
-    buf = sprintf(buf, "Do what with %s?", the(cxname(otmp)));
+    buf = sprintf(buf, "Do what with %s?", await the(await cxname(otmp)));
     (game.windowprocs.win_end_menu)(win, buf);
-    n = select_menu(win, 1, selected);
+    n = await select_menu(win, 1, selected);
     if (n > 0) {
         act = selected[0].item.a_int;
         free(selected);
-        itemactions_pushkeys(otmp, act);
+        await itemactions_pushkeys(otmp, act);
     }
     (game.windowprocs.win_destroy_nhwindow)(win);
     /* finish the 'i' command:  no time elapses and cancelling without
@@ -568,6 +540,8 @@ export function itemactions(otmp) {
     return 0;
 }
 /*iactions.c*/
+/* prefix known unique item with "the", make all other types plural */
+/* treats unID'd fake amulets as if real */
 /* "novel" or "paperback book" */
 /* #altdip instead of normal #dip - takes potion to dip into
            first (the inventory item instigating this) and item to
@@ -584,6 +558,32 @@ export function itemactions(otmp) {
            will be already chosen from inventory; suboptimal but
            possibly an acceptable tradeoff since combining item actions
            with use of traditional ggetobj() is an unlikely scenario */
+/* bag of tricks skips this unless discovered */
+/* bag of tricks gets here only if not yet discovered */
+/* FIXME? this should probably be moved to 'D' rather than be 'a' */
+/* 'c', 'C' - call an item or its type something */
+/* d: drop item, works on everything except worn items; those will
+       always have a takeoff/remove choice so we don't have to worry
+       about the menu maybe being empty when 'd' is suppressed */
+/* i: #adjust inventory letter; gold can't be adjusted unless there
+       is some in a slot other than '$' (which shouldn't be possible) */
+/* FIXME: see the multi-shot FIXME about "one of" for 't: throw' */
+/* FIXME: this doesn't match #offer's likely candidates, which don't
+           include corpses on Astral and don't include amulets off Astral */
+/* catchall -- can't happen */
+/* non-artifact crystal balls don't have any unique power but
+           the #invoke command lists them as likely candidates */
+/* w: wield, hold in hands, works on everything but with different
+       advice text; not mentioned for things that are already wielded */
+/* either already wielded or can't wield anything; skip 'w' */
+/* this is based on TWOWEAPOK() in wield.c; we don't call can_two_weapon()
+       because it is very verbose; attempting to two-weapon might be rejected
+       but we screen out most reasons for rejection before offering it as a
+       choice */
+/* X: Toggle two-weapon mode on or off */
+/* if already two-weaponing, no special checks needed to toggle off */
+/* but if not, try to filter most "you can't do that" here */
+/* ?: Look up an item in the game's database */
 /*
          * TODO: if uwep is ammo, tell player that to shoot instead of toss,
          *       the corresponding launcher must be wielded;

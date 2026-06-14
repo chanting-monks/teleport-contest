@@ -52,9 +52,13 @@ import {
     selection_not, selection_filter_percent, selection_filter_mapchar,
     selection_rndcoord, selection_do_grow, selection_floodfill,
     selection_iterate, selection_recalc_bounds,
-    selection_do_randline,
+    selection_do_randline, selection_from_mkroom,
+    selection_getbounds,
 } from '../translated/selvar.js';
 import { set_floodfillchk_match_under, get_location_coord } from '../translated/sp_lev.js';
+import { splev_chr2typ } from './lua.js';
+import { IS_STWALL } from '../const.js';
+import { MAX_TYPE, MATCH_WALL } from '../translated/nh-constants.js';
 
 // Direction tags Lua uses for selection:grow().
 const DIR_TAGS = {
@@ -92,24 +96,51 @@ export class Selection {
 
     static new() { return new Selection(selection_new()); }
 
-    static room() {
-        // Selection of the current room's interior, via the coder's
-        // croom field.  C ref selection.c l_selection_room.
-        const sv = selection_new();
+    static room(i) {
+        // C ref nhlsel.c l_selection_room + selvar.c
+        // selection_from_mkroom: cells must have roomno == the
+        // room's number and !edge — NOT the bounding rectangle.
+        // For irregular themed rooms (des.map + region irregular)
+        // the rectangle overcounts (seed0015 @357: rndcoord fired
+        // rn2(54) over the 9x6 box where C fires rn2(36) over the
+        // actual floor).  selection_from_mkroom(null) falls back to
+        // coder.croom, matching C's no-arg form.
         const game = globalThis.__nh_gameRef || globalThis.game;
-        const croom = game?.coder?.croom;
-        if (croom) {
-            for (let x = croom.lx; x <= croom.hx; x++) {
-                for (let y = croom.ly; y <= croom.hy; y++) {
-                    selection_setpoint(x, y, sv, 1);
-                }
-            }
-            selection_recalc_bounds(sv);
+        let croom = null;
+        if (typeof i === 'number') {
+            croom = (i >= 0 && Array.isArray(game?.rooms)
+                     && i < (game.nroom | 0)) ? game.rooms[i] : null;
         }
+        const sv = selection_from_mkroom(croom);
+        selection_recalc_bounds(sv);
         return new Selection(sv);
     }
 
     static rect(x1, y1, x2, y2) {
+        // C ref nhlsel.c l_selection_rect: the four EDGES only
+        // (outline).  The old implementation filled the whole box —
+        // that's C's `area`/fillrect, which the alias below
+        // accidentally inherited correctly while rect itself
+        // over-selected (bigrm border terrains painted the interior).
+        ([x1, y1] = __lcoord(x1, y1));
+        ([x2, y2] = __lcoord(x2, y2));
+        const sv = selection_new();
+        const ax = Math.min(x1, x2), bx = Math.max(x1, x2);
+        const ay = Math.min(y1, y2), by = Math.max(y1, y2);
+        for (let x = ax; x <= bx; x++) {
+            selection_setpoint(x, ay, sv, 1);
+            selection_setpoint(x, by, sv, 1);
+        }
+        for (let y = ay; y <= by; y++) {
+            selection_setpoint(ax, y, sv, 1);
+            selection_setpoint(bx, y, sv, 1);
+        }
+        selection_recalc_bounds(sv);
+        return new Selection(sv);
+    }
+    // C ref nhlsel.c: "area" registers l_selection_fillrect — the
+    // FILLED box.
+    static area(x1, y1, x2, y2) {
         ([x1, y1] = __lcoord(x1, y1));
         ([x2, y2] = __lcoord(x2, y2));
         const sv = selection_new();
@@ -121,8 +152,7 @@ export class Selection {
         selection_recalc_bounds(sv);
         return new Selection(sv);
     }
-    // Templatic-Lua-style alias.
-    static area(x1, y1, x2, y2) { return Selection.rect(x1, y1, x2, y2); }
+    static fillrect(x1, y1, x2, y2) { return Selection.area(x1, y1, x2, y2); }
 
     static line(x1, y1, x2, y2) {
         // Bresenham line drawn into a fresh selection.  C ref
@@ -172,19 +202,77 @@ export class Selection {
     }
 
     static match(pattern) {
-        // Pattern is a 3x3 (or any NxM) string with `w` meaning
-        // "wall", `.` meaning "any non-wall", etc.  Used for finding
-        // candidate-locations.  C ref selection.c selection_match.
-        // Real impl walks the map looking for cells whose neighbor
-        // pattern matches; non-trivial.  Stub returns empty until
-        // exercised by a session that needs it.
+        // C ref nhlsel.c l_selection_match + sp_lev.c mapfrag_fromstr
+        // / mapfrag_match / match_maptyps, re-expressed synchronously.
+        // (The translated mapfrag_* family is async-colored only
+        // because mapfrag_get can panic(); the generated dat code
+        // calls selection.match() WITHOUT await, so a sync mirror is
+        // required.)  Previously a return-empty stub: hellfill's
+        // mazegrid branch got full-map bounds and hell_tweaks' river
+        // walk had no floor to anchor on.
         const sv = selection_new();
-        void pattern;
+        // mapfrag_fromstr: stripdigits, then line-split.
+        const data = String(pattern ?? '').replace(/[0-9]/g, '');
+        const lines = data.split('\n');
+        const wid = Math.max(...lines.map((l) => l.length));
+        const hei = lines.length;
+        // mapfrag_canmatch: both dimensions must be odd (C raises a
+        // lua error otherwise; mirror as empty selection).
+        if (!(wid % 2) || !(hei % 2)) return new Selection(sv);
+        const g = globalThis.__nh_gameRef || globalThis.game;
+        const locs = g && g.level && g.level.locations;
+        if (!locs) return new Selection(sv);
+        const halfW = (wid / 2) | 0, halfH = (hei / 2) | 0;
+        // Pre-resolve fragment cell types (C mapfrag_get →
+        // splev_chr2typ; a missing char on a ragged short line reads
+        // as NUL → INVALID_TYPE → matches anything except 'w').
+        const fragTyp = [];
+        for (let fy = 0; fy < hei; fy++) {
+            const row = [];
+            for (let fx = 0; fx < wid; fx++) {
+                row.push(splev_chr2typ((lines[fy] || '')[fx] || ''));
+            }
+            fragTyp.push(row);
+        }
+        for (let y = 0; y <= sv.hei; y++) {
+            for (let x = 1; x < sv.wid; x++) {
+                let ok = true;
+                for (let rx = -halfW; ok && rx <= halfW; rx++) {
+                    for (let ry = -halfH; ok && ry <= halfH; ry++) {
+                        const mapc = fragTyp[ry + halfH][rx + halfW];
+                        const ax = x + rx, ay = y + ry;
+                        const inok = ax >= 1 && ax < sv.wid && ay >= 0 && ay < sv.hei;
+                        // C: isok() ? levl[ax][ay].typ : STONE
+                        const levc = inok ? ((locs[ax] && locs[ax][ay] && locs[ax][ay].typ) | 0) : 0;
+                        // match_maptyps
+                        if (mapc === MATCH_WALL && !IS_STWALL(levc)) { ok = false; break; }
+                        if (mapc < MAX_TYPE && mapc !== levc) { ok = false; break; }
+                    }
+                }
+                selection_setpoint(x, y, sv, ok ? 1 : 0);
+            }
+        }
+        selection_recalc_bounds(sv);
         return new Selection(sv);
     }
 
     static negate(s) {
-        const sv = selection_not((s && s.sv) || s);
+        // C ref nhlsel.c l_selection_not: the no-arg class form
+        // (`selection.negate()`) returns a NEW all-selected
+        // selection (selection_clear(sel, 1)); the with-arg form
+        // CLONES first and inverts the clone, leaving the original
+        // untouched.  The old wrapper passed undefined through to
+        // selection_not (crash: undefined.wid — hellfill's icey
+        // layer died as a detached rejection that killed the frozen
+        // scorer subprocess AFTER the session finished, the real
+        // cause of seed4500's P=0/0 row) and mutated in place.
+        if (s == null) {
+            const sv = selection_new();
+            selection_clear(sv, 1);
+            return new Selection(sv);
+        }
+        const sv = selection_clone((s && s.sv) || s);
+        selection_not(sv);
         return new Selection(sv);
     }
 
@@ -299,6 +387,17 @@ export class Selection {
 
     new() { return new Selection(selection_clone(this.sv)); }
     clone() { return new Selection(selection_clone(this.sv)); }
+    // C ref nhlsel.c l_selection_getbounds (`local rect = sel:bounds()`):
+    // returns a plain {lx, ly, hx, hy} table.  hellfill.lua's mazegrid
+    // branch calls it on selection.match's result; before this existed
+    // the call threw TypeError and killed the replay (the layer of the
+    // seed4500 loader-crash chain BEHIND the negate fix — fixing negate
+    // let execution reach this).
+    bounds() {
+        const rect = { lx: 0, ly: 0, hx: 0, hy: 0 };
+        selection_getbounds(this.sv, rect);
+        return rect;
+    }
     negate() { return Selection.negate(this); }
     grow(dir) { return Selection.grow(this, dir); }
     floodfill(x, y, diagonals) { return Selection.floodfill(this, x, y, diagonals); }
@@ -419,6 +518,7 @@ export const selection = {
     room: Selection.room,
     rect: Selection.rect,
     area: Selection.area,
+    fillrect: Selection.fillrect,
     line: Selection.line,
     randline: Selection.randline,
     match: Selection.match,

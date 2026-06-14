@@ -47,7 +47,7 @@ export function mon_in_room(mon, rmtyp) {
     return (0);
 }
 const __throne_mon_sound_throne_msg = ["the tones of courtly conversation.", "a sceptre pounded in judgment.", "Someone shouts \"Off with %s head!\"", "Queen Beruthiel's cats!"];
-export function throne_mon_sound(mtmp) {
+export async function throne_mon_sound(mtmp) {
     if ((mtmp.msleeping || (((mtmp.data).mflags2 & 1024) != 0) || (((mtmp.data).mflags2 & 2048) != 0)) && !(((mtmp.data).mflags1 & 262144) != 0) && mon_in_room(mtmp, COURT)) {
         let which = rn2(3) + ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? 1 : 0);
         if (which != 2) {
@@ -56,51 +56,51 @@ export function throne_mon_sound(mtmp) {
             } else if (which == 1) {
                 ;
             }
-            You_hear("%s", __throne_mon_sound_throne_msg[which]);
+            await You_hear("%s", __throne_mon_sound_throne_msg[which]);
         } else {
-            pline(__throne_mon_sound_throne_msg[2], (genders[game.flags.female ? 1 : 0].his));
+            await pline(__throne_mon_sound_throne_msg[2], (genders[game.flags.female ? 1 : 0].his));
         }
         return (1);
     }
     return (0);
 }
-export function beehive_mon_sound(mtmp) {
+export async function beehive_mon_sound(mtmp) {
     if ((mtmp.data.mlet == S_ANT && (((mtmp.data).mflags1 & 1) != 0)) && mon_in_room(mtmp, BEEHIVE)) {
         /* and don't produce silly effects when she's clearly visible */
         let hallu = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? 1 : 0;
         switch (rn2(2) + hallu) {
             case 0:
                 ;
-                You_hear("a low buzzing.");
+                await You_hear("a low buzzing.");
                 /* temple priest, roaming aligned priest (not mplayer) */
                 /* doppelganger, leocrotta, Aleax */
                 break;
             case 1:
                 ;
-                You_hear("an angry drone.");
+                await You_hear("an angry drone.");
                 break;
             case 2:
                 ;
-                You_hear("bees in your %sbonnet!", game.uarmh ? "" : "(nonexistent) ");
+                await You_hear("bees in your %sbonnet!", game.uarmh ? "" : "(nonexistent) ");
                 break;
         }
         return (1);
     }
     return (0);
 }
-export function morgue_mon_sound(mtmp) {
+export async function morgue_mon_sound(mtmp) {
     if (((((mtmp.data).mflags2 & 2) != 0) || ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER)) && mon_in_room(mtmp, MORGUE)) {
         let hallu = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? 1 : 0;
-        let hair = body_part(HAIR);
+        let hair = await body_part(HAIR);
         switch (rn2(2) + hallu) {
             case 0:
-                You("suddenly realize it is unnaturally quiet.");
+                await You("suddenly realize it is unnaturally quiet.");
                 break;
             case 1:
-                pline_The("%s on the back of your %s %s up.", hair, body_part(NECK), vtense(hair, "stand"));
+                await pline_The("%s on the back of your %s %s up.", hair, await body_part(NECK), await vtense(hair, "stand"));
                 break;
             case 2:
-                pline_The("%s on your %s %s to stand up.", hair, body_part(HEAD), vtense(hair, "seem"));
+                await pline_The("%s on your %s %s to stand up.", hair, await body_part(HEAD), await vtense(hair, "seem"));
                 break;
         }
         return (1);
@@ -108,17 +108,17 @@ export function morgue_mon_sound(mtmp) {
     return (0);
 }
 const __zoo_mon_sound_zoo_msg = ["a sound reminiscent of an elephant stepping on a peanut.", "a sound reminiscent of a seal barking.", "Doctor Dolittle!"];
-export function zoo_mon_sound(mtmp) {
+export async function zoo_mon_sound(mtmp) {
     if ((mtmp.msleeping || (((mtmp.data).mflags1 & 262144) != 0)) && mon_in_room(mtmp, ZOO)) {
         let hallu = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? 1 : 0;
         let selection = rn2(2) + hallu;
-        You_hear("%s", __zoo_mon_sound_zoo_msg[selection]);
+        await You_hear("%s", __zoo_mon_sound_zoo_msg[selection]);
         return (1);
     }
     return (0);
 }
 const __temple_priest_sound_temple_msg = ["*someone praising %s.", "*someone beseeching %s.", "#an animal carcass being offered in sacrifice.", "*a strident plea for donations."];
-export function temple_priest_sound(mtmp) {
+export async function temple_priest_sound(mtmp) {
     if (mtmp.ispriest && inhistemple(mtmp) && !((mtmp).msleeping || !(mtmp).mcanmove) && temple_occupied(game.u.urooms) != ((mtmp).mextra.epri).shroom) {
         /* hero must be outside this temple */
         /* Generic temple messages; no attempt to match topic or tone
@@ -150,9 +150,9 @@ export function temple_priest_sound(mtmp) {
             (msg = __nh_advance_str(msg, 1));
         }
         if (strchr(msg, 37)) {
-            You_hear(msg, halu_gname(((mtmp).mextra.epri).shralign));
+            await You_hear(msg, await halu_gname(((mtmp).mextra.epri).shralign));
         } else {
-            You_hear("%s", msg);
+            await You_hear("%s", msg);
         }
         return (1);
     }
@@ -160,13 +160,13 @@ export function temple_priest_sound(mtmp) {
 }
 /* AEsculapius at Epidaurus */
 const __oracle_sound_ora_msg = ["a strange wind.", "convulsive ravings.", "snoring snakes.", "someone say \"No more woodchucks!\"", "a loud ZOT!"];
-export function oracle_sound(mtmp) {
+export async function oracle_sound(mtmp) {
     if (mtmp.data != game.mons[PM_ORACLE]) {
         return (0);
     }
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) || !canseemon(mtmp)) {
         let hallu = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? 1 : 0;
-        You_hear("%s", __oracle_sound_ora_msg[rn2(3) + hallu * 2]);
+        await You_hear("%s", __oracle_sound_ora_msg[rn2(3) + hallu * 2]);
     }
     return (1);
 }
@@ -175,7 +175,7 @@ const __dosounds_sink_msg = ["a slow drip.", "a gurgling noise.", "dishes being 
 const __dosounds_swamp_msg = ["hear mosquitoes!", "smell marsh gas!", "hear Donald Duck!"];
 const __dosounds_barracks_msg = ["blades being honed.", "loud snoring.", "dice being thrown.", "General MacArthur!"];
 const __dosounds_shop_msg = ["someone cursing shoplifters.", "the chime of a cash register.", "Neiman and Marcus arguing!"];
-export function dosounds() {
+export async function dosounds() {
     let sroom = null;
     let hallu = 0;
     let vx = 0;
@@ -186,18 +186,18 @@ export function dosounds() {
     }
     hallu = (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? 1 : 0;
     if (game.level.flags.nfountains && !rn2(400)) {
-        You_hear("%s", __dosounds_fountain_msg[rn2(3) + hallu]);
+        await You_hear("%s", __dosounds_fountain_msg[rn2(3) + hallu]);
     }
     if (game.level.flags.nsinks && !rn2(300)) {
-        You_hear("%s", __dosounds_sink_msg[rn2(2) + hallu]);
+        await You_hear("%s", __dosounds_sink_msg[rn2(2) + hallu]);
     }
     if (game.level.flags.has_court && !rn2(200)) {
-        if (get_iter_mons(throne_mon_sound)) {
+        if (await get_iter_mons(throne_mon_sound)) {
             return;
         }
     }
     if (game.level.flags.has_swamp && !rn2(200)) {
-        You("%s", __dosounds_swamp_msg[rn2(2) + hallu]);
+        await You("%s", __dosounds_swamp_msg[rn2(2) + hallu]);
         return;
     }
     if (game.level.flags.has_vault && !rn2(200)) {
@@ -205,7 +205,7 @@ export function dosounds() {
             game.level.flags.has_vault = 0;
             return;
         }
-        if (gd_sound()) {
+        if (await gd_sound()) {
             switch (rn2(2) + hallu) {
                 case 1:
 {
@@ -219,10 +219,10 @@ export function dosounds() {
                         }
                         if (vault_occupied(game.u.urooms) != ((game.rooms.indexOf((sroom))) + 3)) {
                             if (gold_in_vault) {
-                                You_hear(!hallu ? "someone counting gold coins." : "the quarterback calling the play.");
+                                await You_hear(!hallu ? "someone counting gold coins." : "the quarterback calling the play.");
                             } else {
                                 ;
-                                You_hear("someone searching.");
+                                await You_hear("someone searching.");
                             }
                             break;
                         }
@@ -230,22 +230,22 @@ export function dosounds() {
                     ;
                 case 0:
                     ;
-                    You_hear("the footsteps of a guard on patrol.");
+                    await You_hear("the footsteps of a guard on patrol.");
                     break;
                 case 2:
-                    You_hear("Ebenezer Scrooge!");
+                    await You_hear("Ebenezer Scrooge!");
                     break;
             }
         }
         return;
     }
     if (game.level.flags.has_beehive && !rn2(200)) {
-        if (get_iter_mons(beehive_mon_sound)) {
+        if (await get_iter_mons(beehive_mon_sound)) {
             return;
         }
     }
     if (game.level.flags.has_morgue && !rn2(200)) {
-        if (get_iter_mons(morgue_mon_sound)) {
+        if (await get_iter_mons(morgue_mon_sound)) {
             return;
         }
     }
@@ -256,7 +256,7 @@ export function dosounds() {
                 continue;
             }
             if ((((mtmp.data).mflags2 & 512) != 0) && mon_in_room(mtmp, BARRACKS) && (mtmp.msleeping || ++count > 5)) {
-                You_hear("%s", __dosounds_barracks_msg[rn2(3) + hallu]);
+                await You_hear("%s", __dosounds_barracks_msg[rn2(3) + hallu]);
                 /* don't bother excluding these */
                 /* sleeping implies not-yet-disturbed (usually) */
                 return;
@@ -264,7 +264,7 @@ export function dosounds() {
         }
     }
     if (game.level.flags.has_zoo && !rn2(200)) {
-        if (get_iter_mons(zoo_mon_sound)) {
+        if (await get_iter_mons(zoo_mon_sound)) {
             return;
         }
     }
@@ -274,18 +274,18 @@ export function dosounds() {
             return;
         }
         if (tended_shop(sroom) && !strchr(game.u.ushops, ((game.rooms.indexOf((sroom))) + 3))) {
-            You_hear("%s", __dosounds_shop_msg[rn2(2) + hallu]);
-            noisy_shop(sroom);
+            await You_hear("%s", __dosounds_shop_msg[rn2(2) + hallu]);
+            await noisy_shop(sroom);
         }
         return;
     }
     if (game.level.flags.has_temple && !rn2(200) && !((((((game.dungeon_topology.d_astral_level)).dlevel || ((game.dungeon_topology.d_astral_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_astral_level)))) || (((((game.dungeon_topology.d_sanctum_level)).dlevel || ((game.dungeon_topology.d_sanctum_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_sanctum_level)))))) {
-        if (get_iter_mons(temple_priest_sound)) {
+        if (await get_iter_mons(temple_priest_sound)) {
             return;
         }
     }
     if ((((((game.dungeon_topology.d_oracle_level)).dlevel || ((game.dungeon_topology.d_oracle_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_oracle_level)))) && !rn2(400)) {
-        if (get_iter_mons(oracle_sound)) {
+        if (await get_iter_mons(oracle_sound)) {
             return;
         }
     }
@@ -342,7 +342,7 @@ export function growl_sound(mtmp) {
     return ret;
 }
 /* the sounds of a seriously abused pet, including player attacking it */
-export function growl(mtmp) {
+export async function growl(mtmp) {
     let growl_verb = null;
     if (((mtmp).msleeping || !(mtmp).mcanmove) || mtmp.data.msound == MS_SILENT) {
         return;
@@ -355,17 +355,17 @@ export function growl(mtmp) {
     }
     if (growl_verb) {
         if (canseemon(mtmp) || !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-            pline("%s %s!", Monnam(mtmp), vtense(null, growl_verb));
+            await pline("%s %s!", await Monnam(mtmp), await vtense(null, growl_verb));
             game.iflags.last_msg = PLNMSG_GROWL;
             if (game.context.run) {
                 nomul(0);
             }
         }
-        wake_nearto(mtmp.mx, mtmp.my, mtmp.data.mlevel * 18);
+        await wake_nearto(mtmp.mx, mtmp.my, mtmp.data.mlevel * 18);
     }
 }
 /* the sounds of mistreated pets */
-export function yelp(mtmp) {
+export async function yelp(mtmp) {
     let yelp_verb = null;
     let se = se_yelp;
     if (((mtmp).msleeping || !(mtmp).mcanmove) || !mtmp.data.msound) {
@@ -403,17 +403,16 @@ export function yelp(mtmp) {
     }
     if (yelp_verb) {
         ;
-        /* Soundeffect() handles Deaf or not Deaf */
-        pline("%s %s!", Monnam(mtmp), vtense(null, yelp_verb));
+        await pline("%s %s!", await Monnam(mtmp), await vtense(null, yelp_verb));
         if (game.context.run) {
             nomul(0);
         }
-        wake_nearto(mtmp.mx, mtmp.my, mtmp.data.mlevel * 12);
+        await wake_nearto(mtmp.mx, mtmp.my, mtmp.data.mlevel * 12);
     }
     ((se));
 }
 /* the sounds of distressed pets */
-export function whimper(mtmp) {
+export async function whimper(mtmp) {
     let whimper_verb = null;
     let se = se_canine_whine;
     if (((mtmp).msleeping || !(mtmp).mcanmove) || !mtmp.data.msound) {
@@ -440,30 +439,30 @@ export function whimper(mtmp) {
         if (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
             ;
         }
-        pline("%s %s.", Monnam(mtmp), vtense(null, whimper_verb));
+        await pline("%s %s.", await Monnam(mtmp), await vtense(null, whimper_verb));
         if (game.context.run) {
             nomul(0);
         }
-        wake_nearto(mtmp.mx, mtmp.my, mtmp.data.mlevel * 6);
+        await wake_nearto(mtmp.mx, mtmp.my, mtmp.data.mlevel * 6);
     }
     ((se));
 }
 /* pet makes "I'm hungry" noises */
-export function beg(mtmp) {
+export async function beg(mtmp) {
     if (((mtmp).msleeping || !(mtmp).mcanmove) || !((((mtmp.data).mflags1 & 536870912) != 0) || (((mtmp.data).mflags1 & 1073741824) != 0))) {
         return;
     }
     if (!((mtmp.data).msound == MS_SILENT) && mtmp.data.msound <= MS_ANIMAL) {
-        domonnoise(mtmp);
+        await domonnoise(mtmp);
     } else if (mtmp.data.msound >= MS_HUMANOID) {
         /* be sure to do this before talking; the monster might teleport away, in
      * which case we want to check its pre-teleport position
      */
         if (!(canseemon(mtmp) || sensemon(mtmp))) {
-            map_invisible(mtmp.mx, mtmp.my);
+            await map_invisible(mtmp.mx, mtmp.my);
         }
         ;
-        verbalize("I'm hungry.");
+        await verbalize("I'm hungry.");
     } else {
         /* this is pretty lame but is better than leaving out the block
            of speech types between animal and humanoid; this covers
@@ -474,7 +473,7 @@ export function beg(mtmp) {
         /* If it is unseen, the player can't tell the difference between
            not noticing him and just not existing, so skip the message. */
         if ((canseemon(mtmp) || sensemon(mtmp))) {
-            pline("%s seems famished.", Monnam(mtmp));
+            await pline("%s seems famished.", await Monnam(mtmp));
         }
     }
 }
@@ -607,7 +606,7 @@ const __domonnoise_laugh_msg = ["giggles.", "chuckles.", "snickers.", "laughs."]
 const __domonnoise_arrest_msg = ["Anything you say can be used against you.", "You're under arrest!", "Stop in the name of the Law!"];
 const __domonnoise_soldier_foe_msg = ["Resistance is useless!", "You're dog meat!", "Surrender!"];
 const __domonnoise_soldier_pax_msg = ["What lousy pay we're getting here!", "The food's not fit for Orcs!", "My feet hurt, I've been on them all day!"];
-export function domonnoise(mtmp) {
+export async function domonnoise(mtmp) {
     let verbuf = '';
     /* Monnam(mtmp) will be prepended */
     let pline_msg = null;
@@ -639,24 +638,24 @@ export function domonnoise(mtmp) {
         msound = MS_SELL;
     }
     if (!(canseemon(mtmp) || sensemon(mtmp))) {
-        map_invisible(mtmp.mx, mtmp.my);
+        await map_invisible(mtmp.mx, mtmp.my);
     }
     switch (msound) {
         case MS_ORACLE:
-            return doconsult(mtmp);
+            return await doconsult(mtmp);
         case MS_PRIEST:
-            priest_talk(mtmp);
+            await priest_talk(mtmp);
             break;
         case MS_LEADER:
         case MS_NEMESIS:
         case MS_GUARDIAN:
-            quest_chat(mtmp);
+            await quest_chat(mtmp);
             break;
         case MS_SELL:
             if (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) || ((ptr).msound == MS_SILENT) || (mtmp.isshk && !rn2(2))) {
-                shk_chat(mtmp);
+                await shk_chat(mtmp);
             } else {
-                verbuf = sprintf(verbuf, "15 minutes could save you 15 %s.", currency(15));
+                verbuf = sprintf(verbuf, "15 minutes could save you 15 %s.", await currency(15));
                 verbl_msg = verbuf;
             }
             break;
@@ -696,11 +695,11 @@ export function domonnoise(mtmp) {
                     } else {
                         vampindex = rn2((Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)));
                         if (vampindex == 0) {
-                            verbuf = sprintf(verbuf, __domonnoise_vampmsg[vampindex], body_part(BLOOD));
+                            verbuf = sprintf(verbuf, __domonnoise_vampmsg[vampindex], await body_part(BLOOD));
                             /* Silver dragons are silver in color, not made of silver */
                             verbl_msg = verbuf;
                         } else if (vampindex == 1) {
-                            verbuf = sprintf(verbuf, __domonnoise_vampmsg[vampindex], (game.u.umonnum != game.u.umonster) ? an(pmname(game.mons[game.u.umonnum], game.flags.female ? FEMALE : MALE)) : an(racenoun));
+                            verbuf = sprintf(verbuf, __domonnoise_vampmsg[vampindex], (game.u.umonnum != game.u.umonster) ? await an(pmname(game.mons[game.u.umonnum], game.flags.female ? FEMALE : MALE)) : await an(racenoun));
                             verbl_msg = verbuf;
                         } else {
                             verbl_msg = __domonnoise_vampmsg[vampindex];
@@ -711,9 +710,9 @@ export function domonnoise(mtmp) {
             }
         case MS_WERE:
             if (game.flags.moonphase == 4 && (night() ^ !rn2(13))) {
-                pline("%s throws back %s head and lets out a blood curdling %s!", Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his), (ptr == game.mons[PM_HUMAN_WERERAT]) ? "shriek" : "howl");
+                await pline("%s throws back %s head and lets out a blood curdling %s!", await Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his), (ptr == game.mons[PM_HUMAN_WERERAT]) ? "shriek" : "howl");
                 ;
-                wake_nearto(mtmp.mx, mtmp.my, 11 * 11);
+                await wake_nearto(mtmp.mx, mtmp.my, 11 * 11);
             } else {
                 pline_msg = "whispers inaudibly.  All you can make out is \"moon\".";
             }
@@ -835,20 +834,20 @@ export function domonnoise(mtmp) {
         case MS_TRUMPET:
             ;
             pline_msg = "trumpets!";
-            wake_nearto(mtmp.mx, mtmp.my, 11 * 11);
+            await wake_nearto(mtmp.mx, mtmp.my, 11 * 11);
             break;
         case MS_SHRIEK:
             ;
             pline_msg = "shrieks.";
-            aggravate();
+            await aggravate();
             break;
         case MS_IMITATE:
             pline_msg = "imitates you.";
             break;
         case MS_BONES:
             ;
-            pline("%s rattles noisily.", Monnam(mtmp));
-            You("freeze for a moment.");
+            await pline("%s rattles noisily.", await Monnam(mtmp));
+            await You("freeze for a moment.");
             nomul(-2);
             game.multi_reason = "scared by rattling";
             game.nomovemsg = null;
@@ -888,14 +887,14 @@ export function domonnoise(mtmp) {
             if (!mtmp.mpeaceful) {
                 switch (rn2(4)) {
                     case 0:
-                        pline("%s boasts about %s gem collection.", Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his));
+                        await pline("%s boasts about %s gem collection.", await Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his));
                         break;
                     case 1:
                         pline_msg = "complains about a diet of mutton.";
                         break;
                     default:
                         pline_msg = "shouts \"Fee Fie Foe Foo!\" and guffaws.";
-                        wake_nearto(mtmp.mx, mtmp.my, 7 * 7);
+                        await wake_nearto(mtmp.mx, mtmp.my, 7 * 7);
                         break;
                 }
                 break;
@@ -904,7 +903,7 @@ export function domonnoise(mtmp) {
         case MS_HUMANOID:
             if (!mtmp.mpeaceful) {
                 if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && (((ptr).pmidx >= PM_ARCHEOLOGIST) && ((ptr).pmidx <= PM_WIZARD))) {
-                    mplayer_talk(mtmp);
+                    await mplayer_talk(mtmp);
                 } else {
                     pline_msg = "threatens you.";
                 }
@@ -975,7 +974,7 @@ export function domonnoise(mtmp) {
                 let swval = 0;
                 if (game.sysopt.seduce) {
                     if (ptr.mlet != S_NYMPH && (could_seduce(mtmp, game.youmonst, null) == 1)) {
-                        doseduce(mtmp);
+                        await doseduce(mtmp);
                         break;
                     }
                     swval = ((poly_gender() != mtmp.female) ? rn2(3) : 0);
@@ -997,20 +996,20 @@ export function domonnoise(mtmp) {
         case MS_ARREST:
             if (mtmp.mpeaceful) {
                 ;
-                verbalize("Just the facts, %s.", game.flags.female ? "Ma'am" : "Sir");
+                await verbalize("Just the facts, %s.", game.flags.female ? "Ma'am" : "Sir");
             } else {
                 verbl_msg = __domonnoise_arrest_msg[rn2(3)];
             }
             break;
         case MS_BRIBE:
             if (mtmp.mpeaceful && !mtmp.mtame) {
-                demon_talk(mtmp);
+                await demon_talk(mtmp);
                 break;
             }
             ;
         case MS_CUSS:
             if (!mtmp.mpeaceful) {
-                cuss(mtmp);
+                await cuss(mtmp);
             } else if ((((((mtmp).data).mflags2 & 4096) != 0) && mon_aligntyp(mtmp) == 1)) {
                 verbl_msg = "It's not too late.";
             } else {
@@ -1071,91 +1070,74 @@ export function domonnoise(mtmp) {
             }
     }
     if (pline_msg) {
-        pline("%s %s", Monnam(mtmp), pline_msg);
+        await pline("%s %s", await Monnam(mtmp), pline_msg);
     } else if (mtmp.mcan && verbl_msg_mcan) {
         ;
-        verbalize("%s", verbl_msg_mcan);
+        await verbalize("%s", verbl_msg_mcan);
     } else if (verbl_msg) {
         if (ptr == game.mons[PM_DEATH]) {
             /* Death talks in CAPITAL LETTERS
                and without quotation marks */
             let tmpbuf = '';
-            pline("%s", ucase(strcpy(tmpbuf, verbl_msg)));
+            await pline("%s", ucase(strcpy(tmpbuf, verbl_msg)));
             ;
             sound_speak(tmpbuf);
         } else {
             ;
-            verbalize("%s", verbl_msg);
+            await verbalize("%s", verbl_msg);
         }
     }
     return 1;
 }
 /* #chat command */
-export function dotalk() {
+export async function dotalk() {
     let result = 0;
-    result = dochat();
+    result = await dochat();
     return result;
 }
 const __dochat_walltalk = ["gripes about its job.", "tells you a funny joke!", "insults your heritage!", "chuckles.", "guffaws merrily!", "deprecates your exploration efforts.", "suggests a stint of rehab...", "doesn't seem to be interested."];
-export function dochat() {
+export async function dochat() {
     let mtmp = null;
     let tx = 0;
     let ty = 0;
     let otmp = null;
     if (((game.youmonst.data).msound == MS_SILENT)) {
-        pline("As %s, you cannot speak.", an(pmname(game.youmonst.data, game.flags.female ? FEMALE : MALE)));
+        await pline("As %s, you cannot speak.", await an(pmname(game.youmonst.data, game.flags.female ? FEMALE : MALE)));
         return 0;
     }
     if (game.u.uprops[STRANGLED].intrinsic) {
-        You_cant("speak.  You're choking!");
+        await You_cant("speak.  You're choking!");
         return 0;
     }
     if (game.u.uswallow) {
-        pline("They won't hear you out there.");
+        await pline("They won't hear you out there.");
         return 0;
     }
     if ((game.u.uinwater)) {
-        Your("speech is unintelligible underwater.");
+        await Your("speech is unintelligible underwater.");
         return 0;
     }
-    if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && (otmp = shop_object(game.u.ux, game.u.uy)) != null) {
-        /* standing on something in a shop and chatting causes the shopkeeper
-           to describe the price(s).  This can inhibit other chatting inside
-           a shop, but that shouldn't matter much.  shop_object() returns an
-           object iff inside a shop and the shopkeeper is present and willing
-           (not angry) and able (not asleep) to speak and the position
-           contains any objects other than just gold.
-        */
-        price_quote(otmp);
+    if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && (otmp = await shop_object(game.u.ux, game.u.uy)) != null) {
+        await price_quote(otmp);
         return 1;
     }
-    if (!getdir("Talk to whom? (in what direction)")) {
+    if (!await getdir("Talk to whom? (in what direction)")) {
         return 2;
     }
     if (game.u.usteed && game.u.dz > 0) {
         if (((game.u.usteed).msleeping || !(game.u.usteed).mcanmove)) {
-            pline("%s seems not to notice you.", Monnam(game.u.usteed));
+            await pline("%s seems not to notice you.", await Monnam(game.u.usteed));
             return 1;
         } else {
-            return domonnoise(game.u.usteed);
+            return await domonnoise(game.u.usteed);
         }
     }
     if (game.u.dz) {
-        pline("They won't hear you %s there.", game.u.dz < 0 ? "up" : "down");
+        await pline("They won't hear you %s there.", game.u.dz < 0 ? "up" : "down");
         return 0;
     }
     if (game.u.dx == 0 && game.u.dy == 0) {
-        /*
-         * Let's not include this.
-         * It raises all sorts of questions: can you wear
-         * 2 helmets, 2 amulets, 3 pairs of gloves or 6 rings as a marilith,
-         * etc...  --KAA
-        if (u.umonnum == PM_ETTIN) {
-            You("discover that your other head makes boring conversation.");
-            return 1;
-        }
-         */
-        pline("Talking to yourself is a bad habit for a dungeoneer.");
+        await pline("Talking to yourself is a bad habit for a dungeoneer.");
         return 0;
     }
     tx = game.u.ux + game.u.dx;
@@ -1167,7 +1149,7 @@ export function dochat() {
     if (!mtmp || mtmp.mundetected) {
         if ((otmp = (game.level.objects[tx][ty])) != null && otmp.otyp == STATUE) {
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                pline_The("%s seems not to notice you.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? rndmonnam(null) : "statue");
+                await pline_The("%s seems not to notice you.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? await rndmonnam(null) : "statue");
             }
             return 0;
         }
@@ -1175,19 +1157,13 @@ export function dochat() {
             if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !((game.lastseentyp[tx][ty]) && (game.lastseentyp[tx][ty]) <= DBWALL)) {
                 ;
             } else if (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                /* if hallucinating, you can't tell it's a statue */
-                /* Talking to a wall; secret door remains hidden by behaving
-               like a wall; IS_WALL() test excludes solid rock even when
-               that serves as a wall bordering a corridor */
-                /* when blind, you can only talk to a wall if it has
-                   already been mapped as a wall */
-                pline("It's like talking to a wall.");
+                await pline("It's like talking to a wall.");
             } else {
                 let idx = rn2(10);
                 if (idx >= (Math.trunc(8 /* sizeof(const char *const [8]) */ / 1 /* sizeof(const char *const) */))) {
                     idx = (Math.trunc(8 /* sizeof(const char *const [8]) */ / 1 /* sizeof(const char *const) */)) - 1;
                 }
-                pline_The("wall %s", __dochat_walltalk[idx]);
+                await pline_The("wall %s", __dochat_walltalk[idx]);
             }
             return 0;
         }
@@ -1197,7 +1173,7 @@ export function dochat() {
     }
     if (((mtmp).msleeping || !(mtmp).mcanmove) && !mtmp.ispriest) {
         if ((canseemon(mtmp) || sensemon(mtmp))) {
-            pline("%s seems not to notice you.", Monnam(mtmp));
+            await pline("%s seems not to notice you.", await Monnam(mtmp));
         }
         return 0;
     }
@@ -1205,17 +1181,17 @@ export function dochat() {
     mtmp.mstrategy &= ~(268435456 | 536870912);
     if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && mtmp.mtame && mtmp.meating) {
         if (!(canseemon(mtmp) || sensemon(mtmp))) {
-            map_invisible(mtmp.mx, mtmp.my);
+            await map_invisible(mtmp.mx, mtmp.my);
         }
-        pline("%s is eating noisily.", Monnam(mtmp));
+        await pline("%s is eating noisily.", await Monnam(mtmp));
         return 0;
     }
     if ((game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
         let xresponse = (((game.youmonst.data).mflags1 & 131072) != 0) ? "falls on deaf ears" : "is inaudible";
-        pline("Any response%s%s %s.", (canseemon(mtmp) || sensemon(mtmp)) ? " from " : "", (canseemon(mtmp) || sensemon(mtmp)) ? mon_nam(mtmp) : "", xresponse);
+        await pline("Any response%s%s %s.", (canseemon(mtmp) || sensemon(mtmp)) ? " from " : "", (canseemon(mtmp) || sensemon(mtmp)) ? await mon_nam(mtmp) : "", xresponse);
         return 0;
     }
-    return domonnoise(mtmp);
+    return await domonnoise(mtmp);
 }
 /* is there a monster at <x,y> that can see the hero and react? */
 export function responsive_mon_at(x, y) {
@@ -1227,7 +1203,7 @@ export function responsive_mon_at(x, y) {
 }
 /* player chose 'uarmh' for #tip (pickup.c); visual #chat, sort of... */
 const __tiphat_reaction = ["curses", "gestures rudely", "gestures offensively"];
-export function tiphat() {
+export async function tiphat() {
     let mtmp = null;
     let otmp = null;
     let x = 0;
@@ -1243,34 +1219,28 @@ export function tiphat() {
         return 0;
     }
     res = game.uarmh.bknown ? 0 : 1;
-    /* "You can't.  It is cursed." */
-    if (cursed(game.uarmh)) {
+    if (await cursed(game.uarmh)) {
         return res;
     }
-    /* if learned of curse, use a move */
-    /* might choose a position, but dealing with direct lines is simpler */
-    if (!getdir("At whom? (in what direction)")) {
+    if (!await getdir("At whom? (in what direction)")) {
         return res;
     }
     /* iffy; now know it's not cursed for sure (since we got
                      * past prior test) but might have already known that */
     /* physical action is going to take place */
     res = 1;
-    /* most helmets have a short wear/take-off delay and we could set
-       'multi' to account for that, but we'll pretend that no extra time
-       beyond the current move is necessary */
-    You("briefly doff your %s.", helm_simple_name(game.uarmh));
+    await You("briefly doff your %s.", helm_simple_name(game.uarmh));
     if (!game.u.dx && !game.u.dy) {
         if (game.u.usteed && game.u.dz > 0) {
             if (((game.u.usteed).msleeping || !(game.u.usteed).mcanmove)) {
-                pline("%s doesn't notice.", Monnam(game.u.usteed));
+                await pline("%s doesn't notice.", await Monnam(game.u.usteed));
             } else {
-                domonnoise(game.u.usteed);
+                await domonnoise(game.u.usteed);
             }
         } else if (game.u.dz) {
-            pline("There's no one %s there.", (game.u.dz < 0) ? "up" : "down");
+            await pline("There's no one %s there.", (game.u.dz < 0) ? "up" : "down");
         } else {
-            pline_The("lout here doesn't acknowledge you...");
+            await pline_The("lout here doesn't acknowledge you...");
         }
         return res;
     }
@@ -1298,42 +1268,39 @@ export function tiphat() {
         }
     }
     if (unseen || (statue && (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)))) {
-        /* unseen adjacent monster will respond if able */
-        /* we check accessible() after m_at() in case there's a
-               visible monster phazing through a wall here */
-        pline("That %screature is ignoring you!", unseen ? "unseen " : "");
+        await pline("That %screature is ignoring you!", unseen ? "unseen " : "");
     } else if (!mtmp || !responsive_mon_at(x, y)) {
         if (vismon) {
-            pline("%s seems not to notice you.", Monnam(mtmp));
+            await pline("%s seems not to notice you.", await Monnam(mtmp));
         } else {
-            pline("%s", c_common_strings.c_nothing_happens);
+            await pline("%s", c_common_strings.c_nothing_happens);
         }
     } else {
         /* 'mtmp' is guaranteed to be non-Null if we get here */
         mtmp.mstrategy &= ~(268435456 | 536870912);
         if (vismon && (((mtmp.data).mflags1 & 131072) != 0) && mtmp.mpeaceful && !(game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic)) {
-            if ((otmp = which_armor(mtmp, 4)) == null) {
-                pline("%s waves.", Monnam(mtmp));
+            if ((otmp = await which_armor(mtmp, 4)) == null) {
+                await pline("%s waves.", await Monnam(mtmp));
             } else if (otmp.cursed) {
-                pline("%s grasps %s %s but can't remove it.", Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his), helm_simple_name(otmp));
+                await pline("%s grasps %s %s but can't remove it.", await Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his), helm_simple_name(otmp));
                 otmp.bknown = 1;
             } else {
-                pline("%s tips %s %s in response.", Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his), helm_simple_name(otmp));
+                await pline("%s tips %s %s in response.", await Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his), helm_simple_name(otmp));
             }
         } else if (vismon && (((mtmp.data).mflags1 & 131072) != 0)) {
             let which = !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) ? rn2(3) : (rn2(2) + (1));
             let twice = ((game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) || which > 0 || rn2(3)) ? 0 : (rn2(2) + (1));
-            pline("%s %s%s%s at you...", Monnam(mtmp), __tiphat_reaction[which], twice ? " and " : "", twice ? __tiphat_reaction[twice] : "");
-        } else if ((dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2) && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && domonnoise(mtmp)) {
+            await pline("%s %s%s%s at you...", await Monnam(mtmp), __tiphat_reaction[which], twice ? " and " : "", twice ? __tiphat_reaction[twice] : "");
+        } else if ((dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2) && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && await domonnoise(mtmp)) {
             if (!vismon) {
-                map_invisible(x, y);
+                await map_invisible(x, y);
             }
         } else if (vismon) {
-            pline("%s doesn't respond.", Monnam(mtmp));
+            await pline("%s doesn't respond.", await Monnam(mtmp));
         } else {
             nada: {
             }
-            pline("%s", c_common_strings.c_nothing_happens);
+            await pline("%s", c_common_strings.c_nothing_happens);
         }
     }
     return res;
@@ -1364,10 +1331,10 @@ game.nosound_procs = { soundname: "nosound", soundlib_id: (soundlib_nosound), so
 // struct sound_choices: { sndprocs }
 game.soundlib_choices = [{ sndprocs: game.nosound_procs }];
 /* default, built-in */
-export function activate_chosen_soundlib() {
+export async function activate_chosen_soundlib() {
     let idx = game.chosen_soundlib;
     if (!((idx) >= 0 && (idx) < (Math.trunc(1 /* sizeof(struct sound_choices [1]) */ / 1 /* sizeof(struct sound_choices) */)))) {
-        panic("activate_chosen_soundlib: invalid soundlib (%d)", idx);
+        await panic("activate_chosen_soundlib: invalid soundlib (%d)", idx);
     }
     if (game.active_soundlib != soundlib_nosound || idx != soundlib_nosound) {
         if (game.soundprocs.sound_exit_nhsound) {
@@ -1381,9 +1348,9 @@ export function activate_chosen_soundlib() {
     game.active_soundlib = game.soundprocs.soundlib_id;
     game.chosen_soundlib = game.active_soundlib;
 }
-export function assign_soundlib(idx) {
+export async function assign_soundlib(idx) {
     if (!((idx) >= 0 && (idx) < (Math.trunc(1 /* sizeof(struct sound_choices [1]) */ / 1 /* sizeof(struct sound_choices) */)))) {
-        panic("assign_soundlib: invalid soundlib (%d)", idx);
+        await panic("assign_soundlib: invalid soundlib (%d)", idx);
     }
     game.chosen_soundlib = game.soundlib_choices[idx].sndprocs.soundlib_id;
 }
@@ -1396,21 +1363,21 @@ export function assign_soundlib(idx) {
 /*, tmps = 0*/
 /* copy up to maxlen-1 characters; 'dest' must be able to hold maxlen;
    treat comma as alternate end of 'src' */
-export function get_soundlib_name(dest, maxlen) {
+export async function get_soundlib_name(dest, maxlen) {
     let __nh_dest_idx = 0;
     let count = 0;
     let idx = 0;
     let src = null;
     idx = game.active_soundlib;
     if (!((idx) >= 0 && (idx) < (Math.trunc(1 /* sizeof(struct sound_choices [1]) */ / 1 /* sizeof(struct sound_choices) */)))) {
-        panic("get_soundlib_name: invalid active_soundlib (%d)", idx);
+        await panic("get_soundlib_name: invalid active_soundlib (%d)", idx);
     }
     src = game.soundlib_choices[idx].sndprocs.soundname;
     for (count = 1; count < maxlen; count++) {
         if (__nh_char_at0(src) == 44 || __nh_char_at0(src) == 0) {
             break;
         }
-        dest[__nh_dest_idx++] = (src = __nh_advance_str(src, 1));
+        dest = dest.slice(0, __nh_dest_idx++) + String.fromCharCode((src = __nh_advance_str(src, 1)));
     }
     dest.value = 0;
 }
@@ -1496,6 +1463,7 @@ export function base_soundname_to_filename(basename, buf, bufsz, approach) {
 export function set_voice(mtmp, tone, volume, moreinfo) {}
 export function sound_speak(text) { /* cp1 -> 1st, cp2 -> last non-nul) */ }
 /*sounds.c*/
+/* Soundeffect() handles Deaf or not Deaf */
 /* ogres, trolls, gargoyles, one or two others */
 /* capable of speech but only do so if hero is similar type */
 /* lycanthrope in human form */
@@ -1509,4 +1477,36 @@ export function sound_speak(text) { /* cp1 -> 1st, cp2 -> last non-nul) */ }
                    hobbit's current hit points were at 10 below max or
                    less, but their max is normally less than 10 so it
                    would almost never occur */
+/* standing on something in a shop and chatting causes the shopkeeper
+           to describe the price(s).  This can inhibit other chatting inside
+           a shop, but that shouldn't matter much.  shop_object() returns an
+           object iff inside a shop and the shopkeeper is present and willing
+           (not angry) and able (not asleep) to speak and the position
+           contains any objects other than just gold.
+        */
+/*
+         * Let's not include this.
+         * It raises all sorts of questions: can you wear
+         * 2 helmets, 2 amulets, 3 pairs of gloves or 6 rings as a marilith,
+         * etc...  --KAA
+        if (u.umonnum == PM_ETTIN) {
+            You("discover that your other head makes boring conversation.");
+            return 1;
+        }
+         */
+/* if hallucinating, you can't tell it's a statue */
+/* Talking to a wall; secret door remains hidden by behaving
+               like a wall; IS_WALL() test excludes solid rock even when
+               that serves as a wall bordering a corridor */
+/* when blind, you can only talk to a wall if it has
+                   already been mapped as a wall */
+/* "You can't.  It is cursed." */
+/* if learned of curse, use a move */
+/* might choose a position, but dealing with direct lines is simpler */
+/* most helmets have a short wear/take-off delay and we could set
+       'multi' to account for that, but we'll pretend that no extra time
+       beyond the current move is necessary */
+/* unseen adjacent monster will respond if able */
+/* we check accessible() after m_at() in case there's a
+               visible monster phazing through a wall here */
 /* 'vismon' is only True when 'mtmp' is non-Null */

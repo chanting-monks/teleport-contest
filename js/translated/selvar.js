@@ -23,15 +23,8 @@ export function selection_new() {
     tmps.bounds.lx = 80;
     tmps.bounds.ly = 21;
     tmps.bounds.hx = tmps.bounds.hy = 0;
-    /* Hand-port: C allocs a byte buffer and memsets it to 1
-       (map bytes store value+1; 1 = unset).  The emit's alloc()
-       object never received the fill, so UNSET points read
-       char_at0(undefined)-1 = -1 -- TRUTHY -- and every selection
-       built point-by-point behaved as all-1680-points-set
-       (seed0373's ogre band rndcoord fired rn2(1680) where C fires
-       rn2(72); Q9 iter 50).  Build the canonical string map
-       directly. */
-    tmps.map = String.fromCharCode(1).repeat(80 * 21);
+    tmps.map = String.fromCharCode(1).repeat(80 * 21); /* C: alloc+memset(1) byte buffer */
+    tmps.map = __nh_char_write(tmps.map, (80 * 21), 0);
     return tmps;
 }
 export function selection_free(sel, freesel) {
@@ -65,10 +58,7 @@ export function selection_clear(sel, val) {
 export function selection_clone(sel) {
     let tmps = alloc(1 /* sizeof(struct selectionvar) */);
     Object.assign(tmps, sel);
-    /* Hand-port: Object.assign aliases the bounds STRUCT -- the
-       clone's recalc was mutating the original's bounds.  C copies
-       the struct by value. */
-    tmps.bounds = { ...sel.bounds };
+    tmps.bounds = { ...sel.bounds }; /* Object.assign aliased the bounds struct */
     tmps.map = dupstr(sel.map);
     return tmps;
 }
@@ -147,7 +137,7 @@ export function selection_recalc_bounds(sel) {
                 break;
             }
         }
-        sel.bounds = r;
+        Object.assign(sel.bounds, r);
     }
     sel.bounds_dirty = (0);
 }
@@ -337,7 +327,7 @@ export function sel_flood_havepoint(x, y, xs, ys, n) {
     return (0);
 }
 const __selection_floodfill_floodfill_stack_overrun = "floodfill stack overrun";
-export function selection_floodfill(ov, x, y, diagonals) {
+export async function selection_floodfill(ov, x, y, diagonals) {
     let tmp = selection_new();
     let idx = 0;
     let dx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -352,7 +342,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
             dy[idx] = (y);
             idx++;
         } else {
-            panic(__selection_floodfill_floodfill_stack_overrun);
+            await panic(__selection_floodfill_floodfill_stack_overrun);
         }
     } while (0);
     do {
@@ -371,7 +361,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                         dy[idx] = ((y));
                         idx++;
                     } else {
-                        panic(__selection_floodfill_floodfill_stack_overrun);
+                        await panic(__selection_floodfill_floodfill_stack_overrun);
                     }
                 } while (0);
             }
@@ -384,7 +374,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                         dy[idx] = ((y));
                         idx++;
                     } else {
-                        panic(__selection_floodfill_floodfill_stack_overrun);
+                        await panic(__selection_floodfill_floodfill_stack_overrun);
                     }
                 } while (0);
             }
@@ -397,7 +387,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                         dy[idx] = (((y + 1)));
                         idx++;
                     } else {
-                        panic(__selection_floodfill_floodfill_stack_overrun);
+                        await panic(__selection_floodfill_floodfill_stack_overrun);
                     }
                 } while (0);
             }
@@ -410,7 +400,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                         dy[idx] = (((y - 1)));
                         idx++;
                     } else {
-                        panic(__selection_floodfill_floodfill_stack_overrun);
+                        await panic(__selection_floodfill_floodfill_stack_overrun);
                     }
                 } while (0);
             }
@@ -424,7 +414,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                             dy[idx] = (((y + 1)));
                             idx++;
                         } else {
-                            panic(__selection_floodfill_floodfill_stack_overrun);
+                            await panic(__selection_floodfill_floodfill_stack_overrun);
                         }
                     } while (0);
                 }
@@ -437,7 +427,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                             dy[idx] = (((y - 1)));
                             idx++;
                         } else {
-                            panic(__selection_floodfill_floodfill_stack_overrun);
+                            await panic(__selection_floodfill_floodfill_stack_overrun);
                         }
                     } while (0);
                 }
@@ -450,7 +440,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                             dy[idx] = (((y + 1)));
                             idx++;
                         } else {
-                            panic(__selection_floodfill_floodfill_stack_overrun);
+                            await panic(__selection_floodfill_floodfill_stack_overrun);
                         }
                     } while (0);
                 }
@@ -463,7 +453,7 @@ export function selection_floodfill(ov, x, y, diagonals) {
                             dy[idx] = (((y - 1)));
                             idx++;
                         } else {
-                            panic(__selection_floodfill_floodfill_stack_overrun);
+                            await panic(__selection_floodfill_floodfill_stack_overrun);
                         }
                     } while (0);
                 }
@@ -588,7 +578,7 @@ export function line_dist_coord(x1, y1, x2, y2, x3, y3) {
     return distsq;
 }
 /* guts of l_selection_gradient */
-export function selection_do_gradient(ov, x, y, x2, y2, gtyp, mind, maxd) {
+export async function selection_do_gradient(ov, x, y, x2, y2, gtyp, mind, maxd) {
     let dx = 0;
     let dy = 0;
     let dofs = 0;
@@ -603,7 +593,7 @@ export function selection_do_gradient(ov, x, y, x2, y2, gtyp, mind, maxd) {
     }
     switch (gtyp) {
         default:
-            impossible("Unrecognized gradient type! Defaulting to radial...");
+            await impossible("Unrecognized gradient type! Defaulting to radial...");
             ;
         case 0:
 {
@@ -787,13 +777,13 @@ export function selection_from_mkroom(croom) {
     }
     return sel;
 }
-export function selection_force_newsyms(sel) {
+export async function selection_force_newsyms(sel) {
     let x = 0;
     let y = 0;
     for (x = 1; x < sel.wid; x++) {
         for (y = 0; y < sel.hei; y++) {
             if (selection_getpoint(x, y, sel)) {
-                newsym_force(x, y);
+                await newsym_force(x, y);
             }
         }
     }

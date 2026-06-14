@@ -7,7 +7,8 @@ import { game } from '../gstate.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, pline, raw_printf } from '../c2js-runtime/pline.js';
-import { qsort } from '../c2js-runtime/qsort.js';
+import { qsort , qsort_async } from '../c2js-runtime/qsort.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmpi, strrchr, strstri } from '../c2js-runtime/string.js';
 import { disp_artifact_discoveries, dump_artifact_info } from './artifact.js';
@@ -38,7 +39,7 @@ import { add_menu, add_menu_heading, add_menu_str, select_menu } from './windows
  * another routine.
  */
 /* TILES_IN_GLYPHMAP */
-export function setgemprobs(dlev) {
+export async function setgemprobs(dlev) {
     let j = 0;
     let first = 0;
     let lev = 0;
@@ -54,7 +55,7 @@ export function setgemprobs(dlev) {
     }
     first += j;
     if (first > LAST_REAL_GEM || game.objects[first].oc_class != GEM_CLASS || (game.obj_descr[(game.objects[first]).oc_name_idx].oc_name) == null) {
-        raw_printf("Not enough gems? - first=%d j=%d LAST_GEM=%d", first, j, LAST_REAL_GEM);
+        await raw_printf("Not enough gems? - first=%d j=%d LAST_GEM=%d", first, j, LAST_REAL_GEM);
         (game.windowprocs.win_wait_synch)();
     }
     for (j = first; j <= LAST_REAL_GEM; j++) {
@@ -131,7 +132,7 @@ export function shuffle(o_low, o_high, domaterial) {
         }
     }
 }
-export function init_objects() {
+export async function init_objects() {
     fnEnter("init_objects", "o_init.c", 0);
     let i = 0;
     /* entire classes; obj_shuffle_range() handles their exceptions */
@@ -143,7 +144,7 @@ export function init_objects() {
     for (i = 0; i <= MAXOCLASSES; i++) {
         game.bases[i] = 0;
         if (i > 0 && i < MAXOCLASSES && game.objects[i].oc_class != i) {
-            panic("init_objects: class for generic object #%d doesn't match (%d)", i, game.objects[i].oc_class);
+            await panic("init_objects: class for generic object #%d doesn't match (%d)", i, game.objects[i].oc_class);
         }
     }
     /* initialize object descriptions */
@@ -156,15 +157,8 @@ export function init_objects() {
     prevoclass = -1;
     while (first < NUM_OBJECTS) {
         oclass = game.objects[first].oc_class;
-        /*
-         * objects[] sanity check:  must be in ascending oc_class order to
-         * be able to use bases[class+1]-1 for the end of a class's range.
-         * Also catches a non-contiguous class because reverting to any
-         * earlier class would involve switching back to a lower class
-         * number after having moved on to one or more other classes.
-         */
         if (oclass < prevoclass) {
-            panic("objects[%d] class #%d not in order!", first, oclass);
+            await panic("objects[%d] class #%d not in order!", first, oclass);
         }
         last = first + 1;
         while (last < NUM_OBJECTS && game.objects[last].oc_class == oclass) {
@@ -172,7 +166,7 @@ export function init_objects() {
         }
         game.bases[oclass] = first;
         if (oclass == GEM_CLASS) {
-            setgemprobs(null);
+            await setgemprobs(null);
             randomize_gem_colors();
         }
         first = last;
@@ -200,20 +194,19 @@ export function init_objects() {
         let nmkn = game.objects[i].oc_name_known != 0;
         if (!(game.obj_descr[(game.objects[i]).oc_descr_idx].oc_descr) ^ nmkn) {
             if (game.iflags.sanity_check) {
-                impossible("obj #%d (%s) name is %s despite%s alternate description", i, (game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), nmkn ? "pre-known" : "not known", nmkn ? "" : " no");
+                await impossible("obj #%d (%s) name is %s despite%s alternate description", i, (game.obj_descr[(game.objects[i]).oc_name_idx].oc_name), nmkn ? "pre-known" : "not known", nmkn ? "" : " no");
             }
             /* repair the mistake and keep going */
             game.objects[i].oc_name_known = nmkn ? 0 : 1;
         }
     }
-    /* compute oclass_prob_totals */
-    init_oclass_probs();
+    await init_oclass_probs();
     shuffle_all();
     game.objects[WAN_NOTHING].oc_dir = rn2(2) ? 1 : 2;
 }
 /* Compute the total probability of each object class.
  * Assumes svb.bases[] has already been set. */
-export function init_oclass_probs() {
+export async function init_oclass_probs() {
     let i = 0;
     let sum = 0;
     let oclass = 0;
@@ -226,7 +219,7 @@ export function init_oclass_probs() {
             sum += game.objects[i].oc_prob;
         }
         if (sum <= 0 && oclass != ILLOBJ_CLASS && game.bases[oclass] != game.bases[oclass + 1]) {
-            impossible("%s (%d) probability total for oclass %d", !sum ? "zero" : "negative", sum, oclass);
+            await impossible("%s (%d) probability total for oclass %d", !sum ? "zero" : "negative", sum, oclass);
             for (i = game.bases[oclass]; i < game.bases[oclass + 1]; ++i) {
                 /* gracefully fail by setting all members of this class to 1 */
                 game.objects[i].oc_prob = 1;
@@ -287,14 +280,16 @@ export function obj_shuffle_range(otyp, lo_p, hi_p) {
 }
 /* randomize object descriptions */
 let __shuffle_all_shuffle_classes = [AMULET_CLASS, POTION_CLASS, RING_CLASS, SCROLL_CLASS, SPBOOK_CLASS, WAND_CLASS, VENOM_CLASS];
+__nh_register_static(() => { __shuffle_all_shuffle_classes = [AMULET_CLASS, POTION_CLASS, RING_CLASS, SCROLL_CLASS, SPBOOK_CLASS, WAND_CLASS, VENOM_CLASS]; });
 let __shuffle_all_shuffle_types = [HELMET, LEATHER_GLOVES, CLOAK_OF_PROTECTION, SPEED_BOOTS];
+__nh_register_static(() => { __shuffle_all_shuffle_types = [HELMET, LEATHER_GLOVES, CLOAK_OF_PROTECTION, SPEED_BOOTS]; });
 export function shuffle_all() {
     let first = 0;
     let last = 0;
     let idx = 0;
     for (idx = 0; idx < (Math.trunc(7 /* sizeof(char [7]) */ / 1 /* sizeof(char) */)); idx++) {
         /* do whole classes (amulets, &c) */
-        obj_shuffle_range(game.bases[__nh_char_at0(__nh_advance_str(__shuffle_all_shuffle_classes, idx))], { get value() { return first; }, set value(_v) { first = _v; } }, { get value() { return last; }, set value(_v) { last = _v; } });
+        obj_shuffle_range(game.bases[__shuffle_all_shuffle_classes[idx]], { get value() { return first; }, set value(_v) { first = _v; } }, { get value() { return last; }, set value(_v) { last = _v; } });
         shuffle(first, last, (1));
     }
     for (idx = 0; idx < (Math.trunc(8 /* sizeof(short [4]) */ / 2 /* sizeof(short) */)); idx++) {
@@ -306,10 +301,10 @@ export function shuffle_all() {
 }
 /* Return TRUE if the provided string matches the unidentified description of
  * the provided object. */
-export function objdescr_is(obj, descr) {
+export async function objdescr_is(obj, descr) {
     let objdescr = null;
     if (!obj) {
-        impossible("objdescr_is: null obj");
+        await impossible("objdescr_is: null obj");
         return (0);
     }
     objdescr = (game.obj_descr[(game.objects[obj.otyp]).oc_descr_idx].oc_descr);
@@ -320,10 +315,10 @@ export function objdescr_is(obj, descr) {
     return !strcmp(objdescr, descr);
 }
 /* level dependent initialization */
-export function oinit() {
-    setgemprobs(game.u.uz);
+export async function oinit() {
+    await setgemprobs(game.u.uz);
 }
-export function savenames(nhfp) {
+export async function savenames(nhfp) {
     let i = 0;
     let len = 0;
     if (((nhfp).mode & (1 | 2))) {
@@ -340,10 +335,7 @@ export function savenames(nhfp) {
     for (i = 0; i < NUM_OBJECTS; i++) {
         if (game.objects[i].oc_uname) {
             if (((nhfp).mode & (1 | 2))) {
-                /* as long as we use only one version of Hack we
-       need not save oc_name and oc_descr, but we must save
-       oc_uname for all objects */
-                len = Strlen_(game.objects[i].oc_uname, "savenames", 397) + 1;
+                len = await Strlen_(game.objects[i].oc_uname, "savenames", 397) + 1;
                 sfo_unsigned(nhfp, { get value() { return len; }, set value(_v) { len = _v; } }, "names-len");
                 sfo_char(nhfp, game.objects[i].oc_uname, "names-oc_uname", len);
             }
@@ -378,19 +370,19 @@ export function restnames(nhfp) {
     }
 }
 /* make the object dknown and mark it as encountered */
-export function observe_object(obj) {
+export async function observe_object(obj) {
     let oindx = obj.otyp;
     if (oindx >= FIRST_OBJECT && !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
         /* skip for generic objects and for STRANGE_OBJECT */
         obj.dknown = 1;
-        discover_object(oindx, (0), (1), (0));
+        await discover_object(oindx, (0), (1), (0));
     }
 }
 /* type of object */
 /* discover the type */
 /* mark the type as having been seen/felt */
 /* exercise wisdom */
-export function discover_object(oindx, mark_as_known, mark_as_encountered, credit_hero) {
+export async function discover_object(oindx, mark_as_known, mark_as_encountered, credit_hero) {
     /* don't discover generic objects */
     if (oindx < FIRST_OBJECT) {
         return;
@@ -413,13 +405,13 @@ export function discover_object(oindx, mark_as_known, mark_as_encountered, credi
         if (!game.objects[oindx].oc_name_known && mark_as_known) {
             game.objects[oindx].oc_name_known = 1;
             if (credit_hero) {
-                exercise(A_WIS, (1));
+                await exercise(A_WIS, (1));
             }
             if (game.program_state.in_moveloop && !game.program_state.gameover) {
                 /* !in_moveloop => initial inventory,
                gameover => final disclosure */
                 if (game.objects[oindx].oc_class == GEM_CLASS) {
-                    gem_learned(oindx);
+                    await gem_learned(oindx);
                 }
                 /* could affect price of unpaid gems */
                 update_inventory();
@@ -428,7 +420,7 @@ export function discover_object(oindx, mark_as_known, mark_as_encountered, credi
     }
 }
 /* if a class name has been cleared, we may need to purge it from disco[] */
-export function undiscover_object(oindx) {
+export async function undiscover_object(oindx) {
     if (!game.objects[oindx].oc_name_known && !game.objects[oindx].oc_encountered) {
         let dindx = 0;
         let acls = game.objects[oindx].oc_class;
@@ -444,10 +436,10 @@ export function undiscover_object(oindx) {
         if (found) {
             game.disco[dindx - 1] = 0;
         } else {
-            impossible("named object not in disco");
+            await impossible("named object not in disco");
         }
         if (game.objects[oindx].oc_class == GEM_CLASS) {
-            gem_learned(oindx);
+            await gem_learned(oindx);
         }
     }
 }
@@ -476,7 +468,7 @@ export function discovered_cmp(v1, v2) {
     }
     return res;
 }
-export function sortloot_descr(otyp, outbuf) {
+export async function sortloot_descr(otyp, outbuf) {
     let sl_cookie = { obj: null, str: null, indx: 0, orderclass: 0, subclass: 0, disco: 0, inuse: 0 };
     let o = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
     Object.assign(o, cg.zeroobj);
@@ -494,7 +486,7 @@ export function sortloot_descr(otyp, outbuf) {
     memset(sl_cookie, 0, 1 /* sizeof(Loot) */);
     sl_cookie.obj = null;
     sl_cookie.str = null;
-    loot_classify(sl_cookie, o);
+    await loot_classify(sl_cookie, o);
     outbuf = sprintf(outbuf, "%02d%02d%1d ", sl_cookie.orderclass, sl_cookie.subclass, sl_cookie.disco);
     return outbuf;
 }
@@ -507,32 +499,29 @@ export function sortloot_descr(otyp, outbuf) {
 const disco_order_let = "osca";
 const disco_orders_descr = ["by order of discovery within each class", "sortloot order (by class with some sub-class groupings)", "alphabetical within each class", "alphabetical across all classes", null];
 /* 0 => 'O' cmd, 1 => full discoveries; 2 => class disco */
-export function choose_disco_sort(mode) {
+export async function choose_disco_sort(mode) {
     let tmpwin = 0;
     let selected = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let n = 0;
     let choice = 0;
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; disco_orders_descr[i]; ++i) {
         any.a_int = __nh_char_at0(__nh_advance_str(disco_order_let, i));
-        add_menu(tmpwin, nul_glyphinfo, any, any.a_int, 0, 0, clr, disco_orders_descr[i], (__nh_char_at0(__nh_advance_str(disco_order_let, i)) == game.flags.discosort) ? 1 : 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, any.a_int, 0, 0, clr, disco_orders_descr[i], (__nh_char_at0(__nh_advance_str(disco_order_let, i)) == game.flags.discosort) ? 1 : 0);
     }
     if (mode == 2) {
-        /* called via 'm `' where full alphabetize doesn't make sense
-           (only showing one class so can't span all classes) but the
-           chosen sort will stick and also apply to '\' usage */
-        add_menu_str(tmpwin, "");
-        add_menu_str(tmpwin, "Note: full alphabetical and alphabetical within class");
-        add_menu_str(tmpwin, "      are equivalent for single class discovery, but");
-        add_menu_str(tmpwin, "      will matter for future use of total discoveries.");
+        await add_menu_str(tmpwin, "");
+        await add_menu_str(tmpwin, "Note: full alphabetical and alphabetical within class");
+        await add_menu_str(tmpwin, "      are equivalent for single class discovery, but");
+        await add_menu_str(tmpwin, "      will matter for future use of total discoveries.");
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Ordering of discoveries");
-    n = select_menu(tmpwin, 1, selected);
+    n = await select_menu(tmpwin, 1, selected);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (n > 0) {
         choice = selected[0].item.a_int;
@@ -546,8 +535,8 @@ export function choose_disco_sort(mode) {
     return n;
 }
 /* augment obj_typename() with explanation of Japanese item names */
-export function disco_typename(otyp) {
-    let result = obj_typename(otyp);
+export async function disco_typename(otyp) {
+    let result = await obj_typename(otyp);
     if ((game.urole.mnum == (PM_SAMURAI)) && Japanese_item_name(otyp, null)) {
         let buf = '';
         let actualn = (((otyp != MAGIC_HARP && otyp != WOODEN_HARP) || game.objects[otyp].oc_name_known) ? (game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name) : "harp");
@@ -572,10 +561,10 @@ export function disco_typename(otyp) {
 }
 /* append typename(dis) to buf[], possibly truncating in the process;
    also append price quote information if it fits */
-export function disco_append_typename(buf, dis) {
+export async function disco_append_typename(buf, dis) {
     let len = strlen(buf);
     let p = null;
-    let typnm = disco_typename(dis);
+    let typnm = await disco_typename(dis);
     let typnm_len = strlen(typnm);
     let eos = null;
     if (len + typnm_len < 256) {
@@ -610,10 +599,10 @@ export function disco_fmt_uniq(uidx, outbuf) {
     }
 }
 /* sort and output sorted_lines to window and free the lines */
-export function disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort) {
+export async function disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort) {
     let p = null;
     let j = 0;
-    qsort(sorted_lines, sorted_ct, 8 /* sizeof(char *) */, discovered_cmp);
+    await qsort_async(sorted_lines, sorted_ct, 8 /* sizeof(char *) */, discovered_cmp);
     for (j = 0; j < sorted_ct; ++j) {
         p = sorted_lines[j];
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
@@ -627,7 +616,7 @@ export function disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort) {
 }
 /* the #known command - show discovered object types */
 /* free after Robert Viduya */
-export function dodiscovered() {
+export async function dodiscovered() {
     let tmpwin = 0;
     let __nh_s_idx = 0;
     let oclass = 0;
@@ -652,7 +641,7 @@ export function dodiscovered() {
         game.flags.discosort = 111;
     }
     if (game.iflags.menu_requested) {
-        if (choose_disco_sort(1) < 0) {
+        if (await choose_disco_sort(1) < 0) {
             return 0;
         }
     }
@@ -691,8 +680,7 @@ export function dodiscovered() {
             (game.windowprocs.win_putstr)(tmpwin, 0, buf);
         }
     }
-    /* display any known artifacts as another pseudo-class */
-    arti_ct = disp_artifact_discoveries(tmpwin);
+    arti_ct = await disp_artifact_discoveries(tmpwin);
     classes = strcpy(classes, game.flags.inv_order);
     /* several classes are omitted from packorder; one is of interest here */
     if (!strchr(classes, VENOM_CLASS)) {
@@ -700,7 +688,8 @@ export function dodiscovered() {
     }
     ct = uniq_ct + arti_ct;
     sorted_ct = 0;
-    for (let __ci = 0; __ci < classes.length && classes.charCodeAt(__ci); __ci++) { oclass = classes.charCodeAt(__ci);
+    for (__nh_s_idx = 0; __nh_char_at0(__nh_advance_str(classes, __nh_s_idx)); __nh_s_idx++) {
+        oclass = __nh_char_at0(__nh_advance_str(classes, __nh_s_idx));
         /* forced different from oclass */
         prev_class = oclass + 1;
         for (i = game.bases[oclass]; i < NUM_OBJECTS && game.objects[i].oc_class == oclass; i++) {
@@ -708,20 +697,20 @@ export function dodiscovered() {
                 ct++;
                 if (oclass != prev_class) {
                     if ((alphabyclass || lootsort) && sorted_ct) {
-                        disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort);
+                        await disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort);
                         /* skip iflags.menu_headings */
                         sorted_ct = 0;
                     }
                     if (!alphabetized || alphabyclass) {
-                        (game.windowprocs.win_putstr)(tmpwin, game.iflags.menu_headings.attr, let_to_name(oclass, (0), (0)));
+                        (game.windowprocs.win_putstr)(tmpwin, game.iflags.menu_headings.attr, await let_to_name(oclass, (0), (0)));
                         prev_class = oclass;
                     }
                 }
                 buf = strcpy(buf, game.objects[dis].oc_encountered ? "  " : "* ");
                 if (lootsort) {
-                    sortloot_descr(dis, __nh_char_at0(__nh_advance_str(buf, 2)));
+                    await sortloot_descr(dis, __nh_char_at0(__nh_advance_str(buf, 2)));
                 }
-                buf = disco_append_typename(buf, dis);
+                buf = await disco_append_typename(buf, dis);
                 if (!alphabetized && !lootsort) {
                     (game.windowprocs.win_putstr)(tmpwin, 0, buf);
                 } else {
@@ -731,7 +720,7 @@ export function dodiscovered() {
         }
     }
     if (ct == 0) {
-        You("haven't discovered anything yet...");
+        await You("haven't discovered anything yet...");
     } else {
         if (sorted_ct) {
             /* if we're alphabetizing by class, we've already shown the
@@ -741,18 +730,18 @@ export function dodiscovered() {
             if ((uniq_ct || arti_ct) && alphabetized && !alphabyclass) {
                 (game.windowprocs.win_putstr)(tmpwin, game.iflags.menu_headings.attr, "Discovered items");
             }
-            disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort);
+            await disco_output_sorted(tmpwin, sorted_lines, sorted_ct, lootsort);
         }
-        (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
+        await (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
     }
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     return 0;
 }
 /* lower case let_to_name() output, which differs from def_oc_syms[].name */
-export function oclass_to_name(oclass, buf) {
+export async function oclass_to_name(oclass, buf) {
     let __nh_s_idx = 0;
-    buf = strcpy(buf, let_to_name(oclass, (0), (0)));
-    for (__nh_s_idx = 0; buf[__nh_s_idx]; ++__nh_s_idx) {
+    buf = strcpy(buf, await let_to_name(oclass, (0), (0)));
+    for (__nh_s_idx = 0; __nh_char_at0(__nh_advance_str(buf, __nh_s_idx)); ++__nh_s_idx) {
         s = (() => { const __s = s; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toLowerCase() + __t.slice(1) : __s; })();
     }
     return buf;
@@ -764,10 +753,10 @@ const __doclassdisco_prompt = "View discoveries for which sort of objects?";
 const __doclassdisco_havent_discovered_any = "haven't discovered any %s yet.";
 const __doclassdisco_unique_items = "unique items or relics";
 const __doclassdisco_artifact_items = "artifacts";
-export function doclassdisco() {
+export async function doclassdisco() {
     let tmpwin = (-1);
     let pick_list = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let s = null;
     let c = 0;
     let oclass = 0;
@@ -791,7 +780,7 @@ export function doclassdisco() {
         game.flags.discosort = 111;
     }
     if (game.iflags.menu_requested) {
-        if (choose_disco_sort(2) < 0) {
+        if (await choose_disco_sort(2) < 0) {
             return 0;
         }
     }
@@ -803,7 +792,7 @@ export function doclassdisco() {
         tmpwin = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(tmpwin, 0);
     }
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     menulet = 97;
     for (i = 0; i < (Math.trunc(8 /* sizeof(const short [4]) */ / 2 /* sizeof(const short) */)); i++) {
         uidx = uniq_objs[i];
@@ -811,20 +800,17 @@ export function doclassdisco() {
             discosyms = strcat(discosyms, "u");
             if (!traditional) {
                 any.a_int = 117;
-                /* FIXME: having 'r' as an accelerator to provide an unseen
-                   synonym works but doesn't make much sense since the main
-                   selector is 'a' (implicit lootabc) rather than 'u' */
-                add_menu(tmpwin, nul_glyphinfo, any, menulet++, 114, 0, clr, __doclassdisco_unique_items, 0);
+                await add_menu(tmpwin, nul_glyphinfo, any, menulet++, 114, 0, clr, __doclassdisco_unique_items, 0);
             }
             break;
         }
     }
-    if (disp_artifact_discoveries((-1)) > 0) {
+    if (await disp_artifact_discoveries((-1)) > 0) {
         discosyms = strcat(discosyms, "a");
         if (!traditional) {
             /* check whether we've discovered any artifacts */
             any.a_int = 97;
-            add_menu(tmpwin, nul_glyphinfo, any, menulet++, 0, 0, clr, __doclassdisco_artifact_items, 0);
+            await add_menu(tmpwin, nul_glyphinfo, any, menulet++, 0, 0, clr, __doclassdisco_artifact_items, 0);
         }
     }
     allclasses = strcpy(allclasses, game.flags.inv_order);
@@ -849,15 +835,14 @@ export function doclassdisco() {
                     discosyms = strkitten(discosyms, c);
                     if (!traditional) {
                         any.a_int = c;
-                        add_menu(tmpwin, nul_glyphinfo, any, menulet++, c, 0, clr, oclass_to_name(oclass, buf), 0);
+                        await add_menu(tmpwin, nul_glyphinfo, any, menulet++, c, 0, clr, await oclass_to_name(oclass, buf), 0);
                     }
                 }
             }
         }
     }
     if (!__nh_char_at0(discosyms)) {
-        /* there might not be anything for us to do... */
-        You(__doclassdisco_havent_discovered_any, "items");
+        await You(__doclassdisco_havent_discovered_any, "items");
         if (tmpwin != (-1)) {
             (game.windowprocs.win_destroy_nhwindow)(tmpwin);
         }
@@ -880,8 +865,7 @@ export function doclassdisco() {
                 discosyms = strkitten(discosyms, c);
             }
         }
-        /* get the class (via its symbol character) */
-        c = yn_function(__doclassdisco_prompt, discosyms, 0, (1));
+        c = await yn_function(__doclassdisco_prompt, discosyms, 0, (1));
         if (!c) {
             (game.windowprocs.win_clear_nhwindow)(game.WIN_MESSAGE);
         }
@@ -893,9 +877,7 @@ export function doclassdisco() {
             c = __nh_char_at0(discosyms);
         } else {
             (game.windowprocs.win_end_menu)(tmpwin, __doclassdisco_prompt);
-            /* more than one choice, or menustyle:full which normally has
-               an intermediate class selection menu before the final menu */
-            i = select_menu(tmpwin, 1, pick_list);
+            i = await select_menu(tmpwin, 1, pick_list);
             if (i > 0) {
                 c = pick_list[0].item.a_int;
                 free(pick_list);
@@ -921,11 +903,11 @@ export function doclassdisco() {
                 }
             }
             if (!ct) {
-                You(__doclassdisco_havent_discovered_any, __doclassdisco_unique_items);
+                await You(__doclassdisco_havent_discovered_any, __doclassdisco_unique_items);
             }
             break;
         case 97:
-            if (game.flags.debug && yn_function("Dump information about all artifacts?", ynchars, 110, (1)) == 121) {
+            if (game.flags.debug && await yn_function("Dump information about all artifacts?", ynchars, 110, (1)) == 121) {
                 /* note: this will work all the time for menustyle traditional
            but requires at least one artifact discovery for other styles
            [could fix that by forcing the 'a' choice into the pick-class
@@ -935,19 +917,17 @@ export function doclassdisco() {
                 ct = NROFARTIFACTS;
                 break;
             }
-            /* disp_artifact_discoveries() includes a header */
-            ct = disp_artifact_discoveries(tmpwin);
+            ct = await disp_artifact_discoveries(tmpwin);
             if (!ct) {
-                You(__doclassdisco_havent_discovered_any, __doclassdisco_artifact_items);
+                await You(__doclassdisco_havent_discovered_any, __doclassdisco_artifact_items);
             }
             break;
         default:
             oclass = def_char_to_objclass(c);
-            /* this should never happen but has been observed via the fuzzer */
             if (oclass == MAXOCLASSES) {
-                impossible("doclassdisco: invalid object class '%s'", visctrl(c));
+                await impossible("doclassdisco: invalid object class '%s'", visctrl(c));
             }
-            buf = sprintf(buf, "Discovered %s in %s", let_to_name(oclass, (0), (0)), (game.flags.discosort == 111) ? "order of discovery" : (game.flags.discosort == 115) ? "'sortloot' order" : "alphabetical order");
+            buf = sprintf(buf, "Discovered %s in %s", await let_to_name(oclass, (0), (0)), (game.flags.discosort == 111) ? "order of discovery" : (game.flags.discosort == 115) ? "'sortloot' order" : "alphabetical order");
             (game.windowprocs.win_putstr)(tmpwin, 0, buf);
             sorted_ct = 0;
             for (i = game.bases[oclass]; i <= game.bases[oclass + 1] - 1; ++i) {
@@ -955,9 +935,9 @@ export function doclassdisco() {
                     ++ct;
                     buf = strcpy(buf, game.objects[dis].oc_encountered ? "  " : "* ");
                     if (lootsort) {
-                        sortloot_descr(dis, __nh_char_at0(__nh_advance_str(buf, 2)));
+                        await sortloot_descr(dis, __nh_char_at0(__nh_advance_str(buf, 2)));
                     }
-                    buf = disco_append_typename(buf, dis);
+                    buf = await disco_append_typename(buf, dis);
                     if (!alphabetized && !lootsort) {
                         (game.windowprocs.win_putstr)(tmpwin, 0, buf);
                     } else {
@@ -966,9 +946,9 @@ export function doclassdisco() {
                 }
             }
             if (!ct) {
-                You(__doclassdisco_havent_discovered_any, oclass_to_name(oclass, buf));
+                await You(__doclassdisco_havent_discovered_any, await oclass_to_name(oclass, buf));
             } else if (sorted_ct) {
-                qsort(sorted_lines, sorted_ct, 8 /* sizeof(char *) */, discovered_cmp);
+                await qsort_async(sorted_lines, sorted_ct, 8 /* sizeof(char *) */, discovered_cmp);
                 for (i = 0; i < sorted_ct; ++i) {
                     let sl = null;
                     sl = sorted_lines[i];
@@ -983,13 +963,13 @@ export function doclassdisco() {
             break;
     }
     if (ct) {
-        (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
+        await (game.windowprocs.win_display_nhwindow)(tmpwin, (1));
     }
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     return 0;
 }
 /* put up nameable subset of discoveries list as a menu */
-export function rename_disco() {
+export async function rename_disco() {
     let i = 0;
     let dis = 0;
     let ct = 0;
@@ -999,11 +979,11 @@ export function rename_disco() {
     let oclass = 0;
     let prev_class = 0;
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let selected = null;
     let clr = 8;
     let buf = '';
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     for (s = game.flags.inv_order; __nh_char_at0(s); (s = __nh_advance_str(s, 1))) {
@@ -1021,23 +1001,23 @@ export function rename_disco() {
             mn++;
             if (oclass != prev_class) {
                 any.a_int = 0;
-                add_menu_heading(tmpwin, let_to_name(oclass, (0), (0)));
+                await add_menu_heading(tmpwin, await let_to_name(oclass, (0), (0)));
                 prev_class = oclass;
             }
             any.a_int = dis;
             buf = '';
-            buf = disco_append_typename(buf, dis);
-            add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+            buf = await disco_append_typename(buf, dis);
+            await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
     }
     if (ct == 0) {
-        You("haven't discovered anything yet...");
+        await You("haven't discovered anything yet...");
     } else if (mn == 0) {
-        pline("None of your discoveries can be assigned names...");
+        await pline("None of your discoveries can be assigned names...");
     } else {
         (game.windowprocs.win_end_menu)(tmpwin, "Pick an object type to name");
         dis = STRANGE_OBJECT;
-        sl = select_menu(tmpwin, 1, selected);
+        sl = await select_menu(tmpwin, 1, selected);
         if (sl > 0) {
             dis = selected[0].item.a_int;
             free(selected);
@@ -1051,7 +1031,7 @@ export function rename_disco() {
             odummy.known = !game.objects[dis].oc_uses_known;
             /* not observe_object: it isn't real */
             odummy.dknown = 1;
-            docall(odummy);
+            await docall(odummy);
         }
     }
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
@@ -1070,6 +1050,30 @@ export function get_sortdisco(opts, cnf) {
     }
 }
 /*o_init.c*/
+/*
+         * objects[] sanity check:  must be in ascending oc_class order to
+         * be able to use bases[class+1]-1 for the end of a class's range.
+         * Also catches a non-contiguous class because reverting to any
+         * earlier class would involve switching back to a lower class
+         * number after having moved on to one or more other classes.
+         */
+/* compute oclass_prob_totals */
 /* potion of water has the only fixed description */
 /* exclude non-magic types and also unique ones */
+/* as long as we use only one version of Hack we
+       need not save oc_name and oc_descr, but we must save
+       oc_uname for all objects */
 /* ok, it's actually been unlearned */
+/* called via 'm `' where full alphabetize doesn't make sense
+           (only showing one class so can't span all classes) but the
+           chosen sort will stick and also apply to '\' usage */
+/* display any known artifacts as another pseudo-class */
+/* FIXME: having 'r' as an accelerator to provide an unseen
+                   synonym works but doesn't make much sense since the main
+                   selector is 'a' (implicit lootabc) rather than 'u' */
+/* there might not be anything for us to do... */
+/* get the class (via its symbol character) */
+/* more than one choice, or menustyle:full which normally has
+               an intermediate class selection menu before the final menu */
+/* disp_artifact_discoveries() includes a header */
+/* this should never happen but has been observed via the fuzzer */

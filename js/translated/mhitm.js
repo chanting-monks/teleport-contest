@@ -41,20 +41,18 @@ import { find_mac, which_armor } from './worn.js';
 import { drain_item, resist } from './zap.js';
 
 const brief_feeling = "have a %s feeling for a moment, then it passes.";
-export function noises(magr, mattk) {
+export async function noises(magr, mattk) {
     let farq = (dist2(((magr).mx), ((magr).my), game.u.ux, game.u.uy) > 15);
     if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && (farq != game.far_noise || game.moves - game.noisetime > 10)) {
         game.far_noise = farq;
         game.noisetime = game.moves;
-        You_hear("%s%s.", (mattk.aatyp == 13) ? "an explosion" : "some noises", farq ? " in the distance" : "");
+        await You_hear("%s%s.", (mattk.aatyp == 13) ? "an explosion" : "some noises", farq ? " in the distance" : "");
     }
 }
-export function pre_mm_attack(magr, mdef) {
+export async function pre_mm_attack(magr, mdef) {
     let showit = (0);
     if (((mdef).m_ap_type & 7)) {
-        /* unhiding or unmimicking happens even if hero can't see it
-       because the formerly concealed monster is now in action */
-        seemimic(mdef);
+        await seemimic(mdef);
         showit |= game.vis;
     } else if (mdef.mundetected) {
         /* mundetected monsters become un-hidden if they are attacked */
@@ -62,7 +60,7 @@ export function pre_mm_attack(magr, mdef) {
         showit |= game.vis;
     }
     if (((magr).m_ap_type & 7)) {
-        seemimic(magr);
+        await seemimic(magr);
         showit |= game.vis;
     } else if (magr.mundetected) {
         magr.mundetected = 0;
@@ -70,14 +68,14 @@ export function pre_mm_attack(magr, mdef) {
     }
     if (game.vis) {
         if (!(canseemon(magr) || sensemon(magr))) {
-            map_invisible(magr.mx, magr.my);
+            await map_invisible(magr.mx, magr.my);
         } else if (showit) {
-            newsym(magr.mx, magr.my);
+            await newsym(magr.mx, magr.my);
         }
         if (!(canseemon(mdef) || sensemon(mdef))) {
-            map_invisible(mdef.mx, mdef.my);
+            await map_invisible(mdef.mx, mdef.my);
         } else if (showit) {
-            newsym(mdef.mx, mdef.my);
+            await newsym(mdef.mx, mdef.my);
         }
     }
 }
@@ -85,12 +83,12 @@ export function pre_mm_attack(magr, mdef) {
 /* attacker */
 /* defender */
 /* attack and damage types */
-export function missmm(magr, mdef, mattk) {
-    pre_mm_attack(magr, mdef);
+export async function missmm(magr, mdef, mattk) {
+    await pre_mm_attack(magr, mdef);
     if (game.vis) {
-        pline("%s %s %s.", Monnam(magr), (magr.mcan || !could_seduce(magr, mdef, mattk)) ? "misses" : "pretends to be friendly to", mon_nam_too(mdef, magr));
+        await pline("%s %s %s.", await Monnam(magr), (magr.mcan || !could_seduce(magr, mdef, mattk)) ? "misses" : "pretends to be friendly to", await mon_nam_too(mdef, magr));
     } else {
-        noises(magr, mattk);
+        await noises(magr, mattk);
     }
 }
 /*
@@ -105,7 +103,7 @@ export function missmm(magr, mdef, mattk) {
  *  digest the hero.
  */
 /* have monsters fight each other */
-export function fightm(mtmp) {
+export async function fightm(mtmp) {
     let mon = null;
     let nmon = null;
     let result = 0;
@@ -115,8 +113,7 @@ export function fightm(mtmp) {
         return 0;
     }
     if (game.u.ustuck == mtmp) {
-        /* perhaps we're holding it... */
-        if (itsstuck(mtmp)) {
+        if (await itsstuck(mtmp)) {
             return 0;
         }
     }
@@ -130,13 +127,8 @@ export function fightm(mtmp) {
             if (monnear(mtmp, mon.mx, mon.my)) {
                 if (!game.u.uswallow && (mtmp == game.u.ustuck)) {
                     if (!rn2(4)) {
-                        /* Be careful to ignore monsters that are already dead, since we
-         * might be calling this before we've cleaned them up.  This can
-         * happen if the monster attacked a cockatrice bare-handedly, for
-         * instance.
-         */
-                        set_ustuck(null);
-                        pline("%s releases you!", Monnam(mtmp));
+                        await set_ustuck(null);
+                        await pline("%s releases you!", await Monnam(mtmp));
                     } else {
                         /* special case; no defense needed */
                         /* caller needs to check for weapon */
@@ -146,7 +138,7 @@ export function fightm(mtmp) {
                 }
                 game.bhitpos.x = mon.mx , game.bhitpos.y = mon.my;
                 game.notonhead = (0);
-                result = mattackm(mtmp, mon);
+                result = await mattackm(mtmp, mon);
                 if (result & 4) {
                     /* no damage during the polymorph */
                     return 1;
@@ -168,7 +160,7 @@ export function fightm(mtmp) {
                     }
                     game.bhitpos.x = mtmp.mx , game.bhitpos.y = mtmp.my;
                     game.notonhead = (0);
-                    mattackm(mon, mtmp);
+                    await mattackm(mon, mtmp);
                 }
                 return (result & 1) ? 1 : 0;
             }
@@ -180,7 +172,7 @@ export function fightm(mtmp) {
  * mdisplacem() -- attacker moves defender out of the way;
  *                 returns same results as mattackm().
  */
-export function mdisplacem(magr, mdef, quietly) {
+export async function mdisplacem(magr, mdef, quietly) {
     let pa = null;
     let pd = null;
     let tx = 0;
@@ -213,60 +205,58 @@ export function mdisplacem(magr, mdef, quietly) {
         mdef.mundetected = 0;
     }
     if (((mdef).m_ap_type & 7) && ((mdef).m_ap_type & 7) != M_AP_MONSTER) {
-        seemimic(mdef);
+        await seemimic(mdef);
     }
     /* wake up the displaced defender */
     mdef.msleeping = 0;
     mdef.mstrategy &= ~(268435456 | 536870912);
-    finish_meating(mdef);
+    await finish_meating(mdef);
     /*
      * Set up the visibility of action.
      * You can observe monster displacement if you can see both of
      * the monsters involved.
      */
     game.vis = ((canseemon(magr) || sensemon(magr)) && (canseemon(mdef) || sensemon(mdef)));
-    if (((pd) == game.mons[PM_COCKATRICE] || (pd) == game.mons[PM_CHICKATRICE]) && !Resists_Elem(magr, STONE_RES)) {
-        if (!which_armor(magr, 16)) {
+    if (((pd) == game.mons[PM_COCKATRICE] || (pd) == game.mons[PM_CHICKATRICE]) && !await Resists_Elem(magr, STONE_RES)) {
+        if (!await which_armor(magr, 16)) {
             if (poly_when_stoned(pa)) {
-                mon_to_stone(magr);
+                await mon_to_stone(magr);
                 return 1;
             }
             if (!quietly && (canseemon(magr) || sensemon(magr))) {
                 if (game.vis) {
-                    pline("%s tries to move %s out of %s way.", Monnam(magr), mon_nam(mdef), ((pa) == game.mons[PM_DEATH] || (pa) == game.mons[PM_FAMINE] || (pa) == game.mons[PM_PESTILENCE]) ? "the" : (genders[pronoun_gender(magr, 2)].his));
+                    await pline("%s tries to move %s out of %s way.", await Monnam(magr), await mon_nam(mdef), ((pa) == game.mons[PM_DEATH] || (pa) == game.mons[PM_FAMINE] || (pa) == game.mons[PM_PESTILENCE]) ? "the" : (genders[pronoun_gender(magr, 2)].his));
                 }
-                pline_mon(magr, "%s turns to stone!", Monnam(magr));
+                await pline_mon(magr, "%s turns to stone!", await Monnam(magr));
             }
-            monstone(magr);
+            await monstone(magr);
             if (!((magr).mhp < 1)) {
                 return 1;
             } else if (magr.mtame && !game.vis) {
-                You(brief_feeling, "peculiarly sad");
+                await You(brief_feeling, "peculiarly sad");
             }
             return 4;
         }
     }
     game.level.monsters[fx][fy] = null;
-    /* pick up from orig position */
     if (mdef.wormno) {
-        remove_worm(mdef);
+        await remove_worm(mdef);
     } else {
         game.level.monsters[tx][ty] = null;
     }
-    place_monster(magr, tx, ty);
-    place_monster(mdef, fx, fy);
+    await place_monster(magr, tx, ty);
+    await place_monster(mdef, fx, fy);
     if (mdef.wormno) {
-        place_worm_tail_randomly(mdef, fx, fy);
+        await place_worm_tail_randomly(mdef, fx, fy);
     }
-    /* either creature might move into or out of a poison gas cloud */
-    update_monster_region(magr);
-    update_monster_region(mdef);
+    await update_monster_region(magr);
+    await update_monster_region(mdef);
     if (game.vis && !quietly) {
-        pline("%s moves %s out of %s way!", Monnam(magr), mon_nam(mdef), ((pa) == game.mons[PM_DEATH] || (pa) == game.mons[PM_FAMINE] || (pa) == game.mons[PM_PESTILENCE]) ? "the" : (genders[pronoun_gender(magr, 2)].his));
+        await pline("%s moves %s out of %s way!", await Monnam(magr), await mon_nam(mdef), ((pa) == game.mons[PM_DEATH] || (pa) == game.mons[PM_FAMINE] || (pa) == game.mons[PM_PESTILENCE]) ? "the" : (genders[pronoun_gender(magr, 2)].his));
     }
-    newsym(fx, fy);
-    newsym(tx, ty);
-    flush_screen(0);
+    await newsym(fx, fy);
+    await newsym(tx, ty);
+    await flush_screen(0);
     return 1;
 }
 /*
@@ -292,7 +282,7 @@ export function mdisplacem(magr, mdef, quietly) {
  *
  * In the case of exploding monsters, the monster dies as well.
  */
-export function mattackm(magr, mdef) {
+export async function mattackm(magr, mdef) {
     let i = 0;
     let tmp = 0;
     let strike = 0;
@@ -325,23 +315,23 @@ export function mattackm(magr, mdef) {
     }
     if (mdef.mundetected) {
         mdef.mundetected = 0;
-        newsym(mdef.mx, mdef.my);
+        await newsym(mdef.mx, mdef.my);
         if (canseemon(mdef) && !sensemon(mdef)) {
             if ((game.multi < 0 && (unconscious() || is_fainted()))) {
                 let justone = (mdef.data.geno & 4096) != 0;
                 let montype = null;
-                montype = noname_monnam(mdef, justone ? 1 : 0);
+                montype = await noname_monnam(mdef, justone ? 1 : 0);
                 if (!justone) {
-                    montype = makeplural(montype);
+                    montype = await makeplural(montype);
                 }
-                You("dream of %s.", montype);
+                await You("dream of %s.", montype);
             } else {
                 if (game.iflags.last_msg == PLNMSG_HIDE_UNDER && mdef.m_id == game.last_hider) {
-                    pline_mon(mdef, "%s emerges from hiding.", Monnam(mdef));
+                    await pline_mon(mdef, "%s emerges from hiding.", await Monnam(mdef));
                 } else if (mdef.m_id == game.last_hider) {
-                    You("notice %s.", mon_nam(mdef));
+                    await You("notice %s.", await mon_nam(mdef));
                 } else {
-                    pline("Suddenly, you notice %s.", a_monnam(mdef));
+                    await pline("Suddenly, you notice %s.", await a_monnam(mdef));
                 }
             }
         }
@@ -369,7 +359,7 @@ export function mattackm(magr, mdef) {
         if (i > 0 && ((game.level.monsters[game.bhitpos.x][game.bhitpos.y]) != mdef || ((magr).mhp < 1) || ((mdef).mhp < 1))) {
             continue;
         }
-        mattk = getmattk(magr, mdef, i, res, alt_attk);
+        mattk = await getmattk(magr, mdef, i, res, alt_attk);
         /* reduce verbosity for mind flayer attacking creature without a
            head (or worm's tail); this is similar to monster with multiple
            attacks after a wildmiss against displaced or invisible hero */
@@ -383,8 +373,7 @@ export function mattackm(magr, mdef) {
                 /* Nymph that teleported away on first attack? */
                 /* D: Prevent engulf from a distance */
                 if (distmin(magr.mx, magr.my, mdef.mx, mdef.my) > 1) {
-                    /* D: Do a ranged attack here! */
-                    strike = (thrwmm(magr, mdef) == 0) ? 0 : 1;
+                    strike = (await thrwmm(magr, mdef) == 0) ? 0 : 1;
                     /* We don't really know if we hit or not; pretend we did. */
                     if (strike) {
                         res[i] |= 1;
@@ -400,16 +389,16 @@ export function mattackm(magr, mdef) {
                 }
                 if (magr.weapon_check == NEED_WEAPON || !((magr).mw)) {
                     magr.weapon_check = NEED_HTH_WEAPON;
-                    if (mon_wield_item(magr) != 0) {
+                    if (await mon_wield_item(magr) != 0) {
                         return 0;
                     }
                 }
-                possibly_unwield(magr, (0));
+                await possibly_unwield(magr, (0));
                 if ((mwep = ((magr).mw)) != null) {
                     if (game.vis) {
-                        mswingsm(magr, mdef, mwep);
+                        await mswingsm(magr, mdef, mwep);
                     }
-                    tmp += hitval(mwep, mdef);
+                    tmp += await hitval(mwep, mdef);
                 }
                 ;
             case 1:
@@ -438,12 +427,11 @@ export function mattackm(magr, mdef) {
                 }
                 dieroll = rnd(20 + i);
                 strike = (tmp > dieroll);
-                /* KMH -- don't accumulate to-hit bonuses */
                 if (mwep) {
-                    tmp -= hitval(mwep, mdef);
+                    tmp -= await hitval(mwep, mdef);
                 }
                 if (strike) {
-                    if ((((mdef.data).mflags1 & 1048576) != 0) && failed_grab(magr, mdef, mattk)) {
+                    if ((((mdef.data).mflags1 & 1048576) != 0) && await failed_grab(magr, mdef, mattk)) {
                         /* for eel AT_TUCH+AD_WRAP attack: can't grab an unsolid
                    target; the unsolid test is redundant since failed_grab
                    checks it too, but is cheap and avoids calling failed_grab
@@ -451,48 +439,43 @@ export function mattackm(magr, mdef) {
                         strike = 0;
                         break;
                     }
-                    res[i] = hitmm(magr, mdef, mattk, mwep, dieroll);
+                    res[i] = await hitmm(magr, mdef, mattk, mwep, dieroll);
                     if ((mdef.data == game.mons[PM_BLACK_PUDDING] || mdef.data == game.mons[PM_BROWN_PUDDING]) && (mwep && (game.objects[mwep.otyp].oc_material == IRON || game.objects[mwep.otyp].oc_material == METAL)) && mdef.mhp > 1 && !mdef.mcan) {
                         let mclone = null;
-                        if ((mclone = clone_mon(mdef, 0, 0)) != null) {
+                        if ((mclone = await clone_mon(mdef, 0, 0)) != null) {
                             if (game.vis && (canseemon(mdef) || sensemon(mdef))) {
-                                pline("%s divides as %s hits it!", Monnam(mdef), mon_nam(magr));
+                                await pline("%s divides as %s hits it!", await Monnam(mdef), await mon_nam(magr));
                             }
-                            mintrap(mclone, 0);
+                            await mintrap(mclone, 0);
                             if (((magr).mhp < 1)) {
                                 res[i] |= 4;
                             }
                         }
                     }
                 } else {
-                    missmm(magr, mdef, mattk);
+                    await missmm(magr, mdef, mattk);
                 }
                 break;
             /* automatic if prev two attacks succeed */
             case 7:
                 strike = (i >= 2 && res[i - 1] == 1 && res[i - 2] == 1);
                 if (strike) {
-                    if (failed_grab(magr, mdef, mattk)) {
+                    if (await failed_grab(magr, mdef, mattk)) {
                         strike = 0;
-                    /* note: monsters with hug attacks don't wear cloaks or gloves
-                   so this doesn't need a special case for hugging a shade
-                   while covered by blessed armor (which does damage but does
-                   not achieve a successful hold); likewise, rope golems can't
-                   wield weapons so ability to choke isn't affected by such */
                     } else {
-                        res[i] = hitmm(magr, mdef, mattk, null, 0);
+                        res[i] = await hitmm(magr, mdef, mattk, null, 0);
                     }
                 }
                 break;
             case 15:
                 strike = 0;
-                res[i] = gazemm(magr, mdef, mattk);
+                res[i] = await gazemm(magr, mdef, mattk);
                 break;
             case 13:
                 if (distmin(magr.mx, magr.my, mdef.mx, mdef.my) > 1) {
                     continue;
                 }
-                res[i] = explmm(magr, mdef, mattk);
+                res[i] = await explmm(magr, mdef, mattk);
                 if (res[i] == 0) {
                     strike = 0;
                     attk = 0;
@@ -503,7 +486,7 @@ export function mattackm(magr, mdef) {
             case 11:
                 if (mdef.data == game.mons[PM_SHADE]) {
                     if (game.vis) {
-                        pline("%s attempt to engulf %s is futile.", s_suffix(Monnam(magr)), mon_nam(mdef));
+                        await pline("%s attempt to engulf %s is futile.", s_suffix(await Monnam(magr)), await mon_nam(mdef));
                     }
                     strike = 0;
                     break;
@@ -518,27 +501,19 @@ export function mattackm(magr, mdef) {
                 if ((game.u.uswallow && (game.u.ustuck == (magr)))) {
                     strike = 0;
                 } else if ((strike = (tmp > rnd(20 + i))) != 0) {
-                    if (failed_grab(magr, mdef, mattk)) {
+                    if (await failed_grab(magr, mdef, mattk)) {
                         strike = 0;
-                    /* purple worm can't swallow unsolid mons */
                     } else {
-                        res[i] = gulpmm(magr, mdef, mattk);
+                        res[i] = await gulpmm(magr, mdef, mattk);
                     }
                 } else {
-                    missmm(magr, mdef, mattk);
+                    await missmm(magr, mdef, mattk);
                 }
                 break;
             case 12:
             case 10:
                 if (!monnear(magr, mdef.mx, mdef.my)) {
-                    /*
-             * Ranged attacks aren't allowed at point blank range.
-             *
-             * That impacts pet use of ranged attacks.  It's rather arbitrary
-             * but various parts of the code assume it to be the case, not to
-             * mention a part of player tactics when fighting dragons.
-             */
-                    let mmtmp = ((mattk.aatyp == 12) ? breamm(magr, mattk, mdef) : spitmm(magr, mattk, mdef));
+                    let mmtmp = ((mattk.aatyp == 12) ? await breamm(magr, mattk, mdef) : await spitmm(magr, mattk, mdef));
                     strike = (mmtmp == 0) ? 0 : 1;
                     if (strike) {
                         res[i] |= 1;
@@ -560,7 +535,7 @@ export function mattackm(magr, mdef) {
                 break;
         }
         if (attk && !(res[i] & 4) && distmin(magr.mx, magr.my, mdef.mx, mdef.my) <= 1) {
-            res[i] = passivemm(magr, mdef, strike, (res[i] & 2), mwep);
+            res[i] = await passivemm(magr, mdef, strike, (res[i] & 2), mwep);
         }
         if (res[i] & 2) {
             return res[i];
@@ -584,7 +559,7 @@ export function mattackm(magr, mdef) {
 }
 /* can't hold an unsolid target (ghosts, lights, vortices, most elementals)
    or a long worm tail */
-export function failed_grab(magr, mdef, mattk) {
+export async function failed_grab(magr, mdef, mattk) {
     if (((((mdef.data).mflags1 & 1048576) != 0) || game.notonhead) && (mattk.aatyp == 7 || mattk.adtyp == 28 || mattk.adtyp == 19 || mattk.adtyp == 26)) {
         if ((game.vis && (canseemon(mdef) || sensemon(mdef))) || magr == game.youmonst || mdef == game.youmonst) {
             /* hug attack: most holders (owlbear, python, pit fiend, &c);
@@ -595,39 +570,35 @@ export function failed_grab(magr, mdef, mattk) {
             let mdefnam = '';
             let tailmiss = game.notonhead;
             let verb = (mattk.adtyp == 26) ? "gulp" : (mattk.adtyp == 19) ? "adhere" : "grab";
-            magrnam = strcpy(magrnam, (magr == game.youmonst) ? "Your" : s_suffix(Monnam(magr)));
+            magrnam = strcpy(magrnam, (magr == game.youmonst) ? "Your" : s_suffix(await Monnam(magr)));
             if (!tailmiss) {
-                mdefnam = strcpy(mdefnam, (mdef == game.youmonst) ? "you" : mon_nam(mdef));
+                mdefnam = strcpy(mdefnam, (mdef == game.youmonst) ? "you" : await mon_nam(mdef));
             } else {
-                /* hero poly'd into long worm can't grow tail
-                   so no 'youmonst' handling is needed here */
-                mdefnam = sprintf(mdefnam, "%s tail", s_suffix(some_mon_nam(mdef)));
+                mdefnam = sprintf(mdefnam, "%s tail", s_suffix(await some_mon_nam(mdef)));
             }
-            /* unsolid grab misses are actually somewhat iffy--how come
-               ordinary attacks don't also pass right through? */
-            pline("%.99s %s attempt %s %.99s!", magrnam, verb, !tailmiss ? "passes right through" : "fails to hold", mdefnam);
+            await pline("%.99s %s attempt %s %.99s!", magrnam, verb, !tailmiss ? "passes right through" : "fails to hold", mdefnam);
         }
         return (1);
     }
     return (0);
 }
 /* Returns the result of mdamagem(). */
-export function hitmm(magr, mdef, mattk, mwep, dieroll) {
+export async function hitmm(magr, mdef, mattk, mwep, dieroll) {
     let compat = 0;
     let weaponhit = (mattk.aatyp == 254 || (mattk.aatyp == 1 && mwep));
     let silverhit = (weaponhit && mwep && game.objects[mwep.otyp].oc_material == SILVER);
-    pre_mm_attack(magr, mdef);
+    await pre_mm_attack(magr, mdef);
     compat = !magr.mcan ? could_seduce(magr, mdef, mattk) : 0;
-    if (!compat && shade_miss(magr, mdef, mwep, (0), game.vis)) {
+    if (!compat && await shade_miss(magr, mdef, mwep, (0), game.vis)) {
         return 0;
     }
     if (game.vis) {
         let buf = '';
         let magr_name = '';
-        magr_name = strcpy(magr_name, Monnam(magr));
+        magr_name = strcpy(magr_name, await Monnam(magr));
         if (compat) {
             buf = nh_snprintf("hitmm", 669, buf, 256 /* sizeof(char [256]) */, "%s %s", magr_name, mdef.mcansee ? "smiles at" : "talks to");
-            pline("%s %s %s.", buf, mon_nam(mdef), (compat == 2) ? "engagingly" : "seductively");
+            await pline("%s %s %s.", buf, await mon_nam(mdef), (compat == 2) ? "engagingly" : "seductively");
         } else {
             buf = '';
             switch (mattk.aatyp) {
@@ -659,10 +630,10 @@ export function hitmm(magr, mdef, mattk, mwep, dieroll) {
                     break;
             }
             if (buf) {
-                pline("%s %s.", buf, mon_nam_too(mdef, magr));
+                await pline("%s %s.", buf, await mon_nam_too(mdef, magr));
             }
             if (mon_hates_silver(mdef) && silverhit) {
-                let mdef_name = mon_nam_too(mdef, magr);
+                let mdef_name = await mon_nam_too(mdef, magr);
                 magr_name = strcpy(magr_name, s_suffix(magr_name));
                 if (!((mdef.data).mlet == S_GHOST) && !(((mdef.data).mflags1 & 4) != 0)) {
                     if (mdef != magr) {
@@ -677,16 +648,16 @@ export function hitmm(magr, mdef, mattk, mwep, dieroll) {
                     }
                     mdef_name = strcat(mdef_name, " flesh");
                 }
-                pline("%s %s sears %s!", magr_name, simpleonames(mwep), mdef_name);
+                await pline("%s %s sears %s!", magr_name, await simpleonames(mwep), mdef_name);
             }
         }
     } else {
-        noises(magr, mattk);
+        await noises(magr, mattk);
     }
-    return mdamagem(magr, mdef, mattk, mwep, dieroll);
+    return await mdamagem(magr, mdef, mattk, mwep, dieroll);
 }
 /* Returns the same values as mdamagem(). */
-export function gazemm(magr, mdef, mattk) {
+export async function gazemm(magr, mdef, mattk) {
     let buf = '';
     /* an Archon's gaze affects target even if Archon itself is blinded */
     let archon = (magr.data == game.mons[PM_ARCHON] && mattk.adtyp == 11);
@@ -694,48 +665,47 @@ export function gazemm(magr, mdef, mattk) {
     /* bring target out of hiding even if hero doesn't see it happen (this
        is already done in pre_mm_attack() and shouldn't be needed here) */
     if (mdef.data.mlet == S_MIMIC && ((mdef).m_ap_type & 7) != M_AP_NOTHING) {
-        seemimic(mdef);
+        await seemimic(mdef);
     }
     mdef.mundetected = 0;
     if (game.vis) {
-        buf = sprintf(buf, "%s gazes %s", altmesg ? Adjmonnam(magr, "blinded") : Monnam(magr), altmesg ? "toward" : "at");
-        pline("%s %s...", buf, (canseemon(mdef) || sensemon(mdef)) ? mon_nam(mdef) : "something");
+        buf = sprintf(buf, "%s gazes %s", altmesg ? await Adjmonnam(magr, "blinded") : await Monnam(magr), altmesg ? "toward" : "at");
+        await pline("%s %s...", buf, (canseemon(mdef) || sensemon(mdef)) ? await mon_nam(mdef) : "something");
     }
-    if (magr.mcan || !mdef.mcansee || (archon ? resists_blnd(mdef) : !magr.mcansee) || (magr.minvis && !(((mdef.data).mflags1 & 16777216) != 0)) || mdef.msleeping) {
+    if (magr.mcan || !mdef.mcansee || (archon ? await resists_blnd(mdef) : !magr.mcansee) || (magr.minvis && !(((mdef.data).mflags1 & 16777216) != 0)) || mdef.msleeping) {
         if (game.vis && (canseemon(mdef) || sensemon(mdef))) {
-            pline("but nothing happens.");
+            await pline("but nothing happens.");
         }
         return 0;
     }
-    if (magr.data == game.mons[PM_MEDUSA] && mon_reflects(mdef, null)) {
-        /* call mon_reflects 2x, first test, then, if visible, print message */
+    if (magr.data == game.mons[PM_MEDUSA] && await mon_reflects(mdef, null)) {
         if (canseemon(mdef)) {
-            mon_reflects(mdef, "The gaze is reflected away by %s %s.");
+            await mon_reflects(mdef, "The gaze is reflected away by %s %s.");
         }
         if (mdef.mcansee) {
-            if (mon_reflects(magr, null)) {
+            if (await mon_reflects(magr, null)) {
                 if (canseemon(magr)) {
-                    mon_reflects(magr, "The gaze is reflected away by %s %s.");
+                    await mon_reflects(magr, "The gaze is reflected away by %s %s.");
                 }
                 return 0;
             }
             if (mdef.minvis && !(((magr.data).mflags1 & 16777216) != 0)) {
                 if (canseemon(magr)) {
-                    pline("%s doesn't seem to notice that %s gaze was reflected.", Monnam(magr), (genders[pronoun_gender(magr, 2)].his));
+                    await pline("%s doesn't seem to notice that %s gaze was reflected.", await Monnam(magr), (genders[pronoun_gender(magr, 2)].his));
                 }
                 return 0;
             }
             if (canseemon(magr)) {
-                pline_mon(magr, "%s is turned to stone!", Monnam(magr));
+                await pline_mon(magr, "%s is turned to stone!", await Monnam(magr));
             }
-            monstone(magr);
+            await monstone(magr);
             if (!((magr).mhp < 1)) {
                 return 0;
             }
             return 4;
         }
     } else if (archon) {
-        mhitm_ad_blnd(magr, mattk, mdef, null);
+        await mhitm_ad_blnd(magr, mattk, mdef, null);
         /* an Archon's blinding radiance also stuns;
            this is different from the way the hero gets stunned because
            a stunned monster recovers randomly instead of via countdown;
@@ -745,7 +715,7 @@ export function gazemm(magr, mdef, mattk) {
             mdef.mstun = 1;
         }
     }
-    return mdamagem(magr, mdef, mattk, null, 0);
+    return await mdamagem(magr, mdef, mattk, null, 0);
 }
 /* return True if magr is allowed to swallow mdef, False otherwise */
 export function engulf_target(magr, mdef) {
@@ -785,7 +755,7 @@ export function engulf_target(magr, mdef) {
     return (1);
 }
 /* Returns the same values as mattackm(). */
-export function gulpmm(magr, mdef, mattk) {
+export async function gulpmm(magr, mdef, mattk) {
     let ax = 0;
     let ay = 0;
     let dx = 0;
@@ -796,20 +766,18 @@ export function gulpmm(magr, mdef, mattk) {
         return 0;
     }
     if (game.vis) {
-        pline("%s %s %s.", Monnam(magr), (dmgtype_fromattack((magr.data), 26, 11) != null) ? "swallows" : (dmgtype_fromattack((magr.data), 28, 11) != null) ? "encloses" : "engulfs", mon_nam(mdef));
+        await pline("%s %s %s.", await Monnam(magr), (dmgtype_fromattack((magr.data), 26, 11) != null) ? "swallows" : (dmgtype_fromattack((magr.data), 28, 11) != null) ? "encloses" : "engulfs", await mon_nam(mdef));
     }
     if (!((magr.data) == game.mons[PM_FIRE_VORTEX] || (magr.data) == game.mons[PM_FLAMING_SPHERE] || (magr.data) == game.mons[PM_FIRE_ELEMENTAL] || (magr.data) == game.mons[PM_SALAMANDER])) {
         for (obj = mdef.minvent; obj; obj = obj.nobj) {
-            snuff_lit(obj);
+            await snuff_lit(obj);
         }
     }
-    if (((mdef).cham == PM_VAMPIRE || (mdef).cham == PM_VAMPIRE_LEADER || (mdef).cham == PM_VLAD_THE_IMPALER) && newcham(mdef, game.mons[mdef.cham], 0)) {
+    if (((mdef).cham == PM_VAMPIRE || (mdef).cham == PM_VAMPIRE_LEADER || (mdef).cham == PM_VLAD_THE_IMPALER) && await newcham(mdef, game.mons[mdef.cham], 0)) {
         if (game.vis) {
-            /* 'it' -- previous form is no longer available and
-               using that would be excessively verbose */
-            pline("%s expels %s.", Monnam(magr), (canseemon(mdef) || sensemon(mdef)) ? "it" : c_common_strings.c_something);
+            await pline("%s expels %s.", await Monnam(magr), (canseemon(mdef) || sensemon(mdef)) ? "it" : c_common_strings.c_something);
             if ((canseemon(mdef) || sensemon(mdef))) {
-                pline("It turns into %s.", x_monnam(mdef, 2, null, (32 | 1 | 2), (0)));
+                await pline("It turns into %s.", await x_monnam(mdef, 2, null, (32 | 1 | 2), (0)));
             }
         }
         return 1;
@@ -824,17 +792,12 @@ export function gulpmm(magr, mdef, mattk) {
     dy = mdef.my;
     game.level.monsters[dx][dy] = null;
     game.level.monsters[ax][ay] = null;
-    /*
-     *  Leave the defender in the monster chain at its current position,
-     *  but don't leave it on the screen.  Move the aggressor to the
-     *  defender's position.
-     */
-    place_monster(magr, dx, dy);
-    newsym(ax, ay);
-    newsym(dx, dy);
+    await place_monster(magr, dx, dy);
+    await newsym(ax, ay);
+    await newsym(dx, dy);
     /* corpse_chance() wants this */
     game.mswallower = magr;
-    status = mdamagem(magr, mdef, mattk, null, 0);
+    status = await mdamagem(magr, mdef, mattk, null, 0);
     game.mswallower = null;
     if ((status & (4 | 2)) == (4 | 2)) {
         ;
@@ -842,93 +805,71 @@ export function gulpmm(magr, mdef, mattk) {
         if (!goodpos(dx, dy, magr, 8)) {
             if ((game.level.monsters[dx][dy]) == magr) {
                 game.level.monsters[dx][dy] = null;
-                /* both died -- do nothing  */
-                /*
-         *  Note: mdamagem() -> monkilled() -> mondead() -> m_detach()
-         *  -> relmon() used to call remove_monster() for the dead
-         *  monster even when it wasn't the one on the map, so we
-         *  needed to put magr back after mdef was killed and removed
-         *  from their shared spot.  But now [5.0] relmon() calls
-         *  mon_leaving_level() and that checks whether the monster at
-         *  dying monster's coordinates is that dying monster and only
-         *  removes it when they match.  So magr is still at mdef's
-         *  former spot these days.
-         *
-         *  We still potentially do one fixup:  if the gulp targeted
-         *  an inhospitable location, magr will return to its previous
-         *  spot instead of staying.
-         */
-                newsym(dx, dy);
+                await newsym(dx, dy);
             }
             /* magr's spot at start of the attack */
             dx = ax , dy = ay;
         }
         if ((game.level.monsters[dx][dy]) != magr) {
-            place_monster(magr, dx, dy);
-            newsym(dx, dy);
+            await place_monster(magr, dx, dy);
+            await newsym(dx, dy);
         }
-        /* aggressor moves to <dx,dy> and might encounter trouble there */
-        if (minliquid(magr) || (t_at(dx, dy) && mintrap(magr, 0) == Trap_Killed_Mon)) {
+        if (await minliquid(magr) || (t_at(dx, dy) && await mintrap(magr, 0) == Trap_Killed_Mon)) {
             status |= 4;
         }
     } else if (status & 4) {
-        place_monster(mdef, dx, dy);
-        newsym(dx, dy);
+        await place_monster(mdef, dx, dy);
+        await newsym(dx, dy);
     } else {
         if (((game.viz_array[dy][dx] & 2) != 0)) {
-            /* both alive, put them back */
-            pline("%s is %s!", Monnam(mdef), (dmgtype_fromattack((magr.data), 26, 11) != null) ? "regurgitated" : (dmgtype_fromattack((magr.data), 28, 11) != null) ? "released" : "expelled");
+            await pline("%s is %s!", await Monnam(mdef), (dmgtype_fromattack((magr.data), 26, 11) != null) ? "regurgitated" : (dmgtype_fromattack((magr.data), 28, 11) != null) ? "released" : "expelled");
         }
         game.level.monsters[dx][dy] = null;
-        place_monster(magr, ax, ay);
-        place_monster(mdef, dx, dy);
-        newsym(ax, ay);
-        newsym(dx, dy);
+        await place_monster(magr, ax, ay);
+        await place_monster(mdef, dx, dy);
+        await newsym(ax, ay);
+        await newsym(dx, dy);
     }
     return status;
 }
-export function explmm(magr, mdef, mattk) {
+export async function explmm(magr, mdef, mattk) {
     let result = 0;
     if (magr.mcan) {
         return 0;
     }
     if (((game.viz_array[magr.my][magr.mx] & 2) != 0)) {
-        pline_mon(magr, "%s explodes!", Monnam(magr));
+        await pline_mon(magr, "%s explodes!", await Monnam(magr));
     } else {
-        noises(magr, mattk);
+        await noises(magr, mattk);
     }
     if (mattk.adtyp == 2 || mattk.adtyp == 3 || mattk.adtyp == 6) {
-        /* monster explosion types which actually create an explosion */
-        mon_explodes(magr, mattk);
+        await mon_explodes(magr, mattk);
         /* unconditionally set AGR_DIED here; lifesaving is accounted below */
         result = 4 | (((mdef).mhp < 1) ? 2 : 0);
     } else {
-        result = mdamagem(magr, mdef, mattk, null, 0);
+        result = await mdamagem(magr, mdef, mattk, null, 0);
     }
     if (!(result & 4)) {
         /* Kill off aggressor if it didn't die. */
         let was_leashed = (magr.mleashed != 0);
-        mondead(magr);
+        await mondead(magr);
         if (!((magr).mhp < 1)) {
             return result;
         }
         result |= 4;
-        /* mondead() -> m_detach() -> m_unleash() always suppresses
-           the m_unleash() slack message, so deliver it here instead */
         if (was_leashed) {
-            Your("leash falls slack.");
+            await Your("leash falls slack.");
         }
     }
-    /* give this one even if it was visible */
     if (magr.mtame) {
-        You(brief_feeling, "melancholy");
+        await You(brief_feeling, "melancholy");
     }
     return result;
 }
 /*
  *  See comment at top of mattackm(), for return values.
  */
-export function mdamagem(magr, mdef, mattk, mwep, dieroll) {
+export async function mdamagem(magr, mdef, mattk, mwep, dieroll) {
     let pa = magr.data;
     let pd = mdef.data;
     let mhm = { damage: 0, hitflags: 0, done: 0, permdmg: 0, specialdmg: 0, dieroll: 0 };
@@ -938,7 +879,7 @@ export function mdamagem(magr, mdef, mattk, mwep, dieroll) {
     mhm.specialdmg = 0;
     mhm.dieroll = dieroll;
     mhm.done = (0);
-    if ((((pd) == game.mons[PM_COCKATRICE] || (pd) == game.mons[PM_CHICKATRICE]) || (mattk.adtyp == 26 && pd == game.mons[PM_MEDUSA])) && !Resists_Elem(magr, STONE_RES)) {
+    if ((((pd) == game.mons[PM_COCKATRICE] || (pd) == game.mons[PM_CHICKATRICE]) || (mattk.adtyp == 26 && pd == game.mons[PM_MEDUSA])) && !await Resists_Elem(magr, STONE_RES)) {
         let protector = attk_protection(mattk.aatyp);
         let wornitems = magr.misc_worn_check;
         /* wielded weapon gives same protection as gloves here */
@@ -947,23 +888,23 @@ export function mdamagem(magr, mdef, mattk, mwep, dieroll) {
         }
         if (protector == 0 || (protector != ~0 && (wornitems & protector) != protector)) {
             if (poly_when_stoned(pa)) {
-                mon_to_stone(magr);
+                await mon_to_stone(magr);
                 return 1;
             }
             if (game.vis && (canseemon(magr) || sensemon(magr))) {
-                pline_mon(magr, "%s turns to stone!", Monnam(magr));
+                await pline_mon(magr, "%s turns to stone!", await Monnam(magr));
             }
-            monstone(magr);
+            await monstone(magr);
             if (!((magr).mhp < 1)) {
                 return 1;
             } else if (magr.mtame && !game.vis) {
-                You(brief_feeling, "peculiarly sad");
+                await You(brief_feeling, "peculiarly sad");
             }
             return 4;
         }
     }
-    mhitm_adtyping(magr, mattk, mdef, mhm);
-    if (mhitm_knockback(magr, mdef, mattk, { get value() { return mhm.hitflags; }, set value(_v) { mhm.hitflags = _v; } }, (((magr).mw) != null)) && ((mhm.hitflags & (2 | 1)) != 0 || ((mdef).mstate != 0))) {
+    await mhitm_adtyping(magr, mattk, mdef, mhm);
+    if (await mhitm_knockback(magr, mdef, mattk, { get value() { return mhm.hitflags; }, set value(_v) { mhm.hitflags = _v; } }, (((magr).mw) != null)) && ((mhm.hitflags & (2 | 1)) != 0 || ((mdef).mstate != 0))) {
         return mhm.hitflags;
     }
     if (mhm.done) {
@@ -978,14 +919,14 @@ export function mdamagem(magr, mdef, mattk, mwep, dieroll) {
             game.level.monsters[mdef.mx][mdef.my] = null;
             /* otherwise place_monster will complain */
             mdef.mhp = 1;
-            place_monster(mdef, mdef.mx, mdef.my);
+            await place_monster(mdef, mdef.mx, mdef.my);
             mdef.mhp = 0;
         }
         if (mattk.aatyp == 254 || mattk.aatyp == 1) {
             game.mkcorpstat_norevive = ((mdef).data.mlet == S_TROLL && (mwep) && (mwep).oartifact == ART_TROLLSBANE) ? (1) : (0);
         }
         game.zombify = (!mwep && zombie_maker(magr) && (mattk.aatyp == 5 || mattk.aatyp == 1 || mattk.aatyp == 2) && zombie_form(mdef.data) != NON_PM);
-        monkilled(mdef, "", mattk.adtyp);
+        await monkilled(mdef, "", mattk.adtyp);
         game.zombify = (0);
         game.mkcorpstat_norevive = (0);
         if (!((mdef).mhp < 1)) {
@@ -995,94 +936,86 @@ export function mdamagem(magr, mdef, mattk, mwep, dieroll) {
         }
         if (mattk.adtyp == 26) {
             if (((mdef.cham) >= LOW_PM && (mdef.cham) < NUMMONS)) {
-                /* various checks similar to dog_eat and meatobj.
-             * after monkilled() to provide better message ordering */
-                newcham(magr, null, 1);
+                await newcham(magr, null, 1);
             } else if (pd == game.mons[PM_GREEN_SLIME] && !((pa) == game.mons[PM_GREEN_SLIME] || ((pa) == game.mons[PM_FIRE_VORTEX] || (pa) == game.mons[PM_FLAMING_SPHERE] || (pa) == game.mons[PM_FIRE_ELEMENTAL] || (pa) == game.mons[PM_SALAMANDER]) || ((pa).mlet == S_GHOST))) {
-                newcham(magr, game.mons[PM_GREEN_SLIME], 1);
+                await newcham(magr, game.mons[PM_GREEN_SLIME], 1);
             } else if (pd == game.mons[PM_WRAITH]) {
-                grow_up(magr, null);
+                await grow_up(magr, null);
                 return (2 | (!((magr).mhp < 1) ? 0 : 4));
             } else if (pd == game.mons[PM_NURSE]) {
-                healmon(magr, magr.mhpmax, 0);
+                await healmon(magr, magr.mhpmax, 0);
             }
-            mon_givit(magr, pd);
+            await mon_givit(magr, pd);
         }
-        /* caveat: above digestion handling doesn't keep `pa' up to date */
-        return (2 | (grow_up(magr, mdef) ? 0 : 4));
+        return (2 | (await grow_up(magr, mdef) ? 0 : 4));
     }
     return (mhm.hitflags == 4) ? 4 : 1;
 }
 const __mon_poly_freaky = " undergoes a freakish metamorphosis";
-export function mon_poly(magr, mdef, dmg) {
+export async function mon_poly(magr, mdef, dmg) {
     let oldform = mdef.data;
     if (mdef == game.youmonst) {
         if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-            shieldeff(game.u.ux, game.u.uy);
+            await shieldeff(game.u.ux, game.u.uy);
         } else if ((game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic)) {
             ;
         } else {
             if (game.u.ulycn == NON_PM) {
-                /* just take a little damage */
-                /* system shock might take place in polyself() */
-                You("are subjected to a freakish metamorphosis.");
-                polyself(POLY_NOFLAGS);
+                await You("are subjected to a freakish metamorphosis.");
+                await polyself(POLY_NOFLAGS);
             } else if (game.u.umonnum != game.u.ulycn) {
-                You_feel("an unnatural urge coming on.");
-                you_were();
+                await You_feel("an unnatural urge coming on.");
+                await you_were();
             } else {
-                You_feel("a natural urge coming on.");
-                you_unwere((0));
+                await You_feel("a natural urge coming on.");
+                await you_unwere((0));
             }
             dmg = 0;
         }
     } else {
         let Before = '';
-        Before = strcpy(Before, Monnam(mdef));
+        Before = strcpy(Before, await Monnam(mdef));
         if (resists_magm(mdef)) {
             if (game.vis) {
-                shieldeff_mon(mdef);
+                await shieldeff_mon(mdef);
             }
-        } else if (resist(mdef, WAND_CLASS, 0, 1)) {
+        } else if (await resist(mdef, WAND_CLASS, 0, 1)) {
             ;
         } else if (!rn2(25) && mdef.cham == NON_PM && (mdef.mcan || pm_to_cham(((mdef.data).pmidx)) != NON_PM)) {
-            /* general resistance to magic... */
-            /* system shock; this variation takes away half of mon's HP
-               rather than kill outright */
             if (game.vis) {
-                pline("%s shudders!", Before);
+                await pline("%s shudders!", Before);
             }
             dmg += Math.trunc((mdef.mhpmax + 1) / 2);
             mdef.mhp -= dmg;
             dmg = 0;
             if (((mdef).mhp < 1)) {
                 if (magr == game.youmonst) {
-                    xkilled(mdef, 0 | 2);
+                    await xkilled(mdef, 0 | 2);
                 } else {
-                    monkilled(mdef, "", 242);
+                    await monkilled(mdef, "", 242);
                 }
             }
-        } else if (newcham(mdef, null, 0)) {
+        } else if (await newcham(mdef, null, 0)) {
             if (game.vis) {
                 let was_seen = !!strncmpi(("It"), (Before), -1);
                 let verbosely = game.flags.verbose || !was_seen;
                 if ((canseemon(mdef) || sensemon(mdef))) {
-                    pline("%s%s%s turns into %s.", Before, verbosely ? __mon_poly_freaky : "", verbosely ? " and" : "", x_monnam(mdef, 2, null, (32 | 1 | 2), (0)));
+                    await pline("%s%s%s turns into %s.", Before, verbosely ? __mon_poly_freaky : "", verbosely ? " and" : "", await x_monnam(mdef, 2, null, (32 | 1 | 2), (0)));
                 } else if (was_seen || magr == game.youmonst) {
-                    pline("%s%s%s.", Before, __mon_poly_freaky, !was_seen ? "" : " and disappears");
+                    await pline("%s%s%s.", Before, __mon_poly_freaky, !was_seen ? "" : " and disappears");
                 }
             }
             dmg = 0;
             if ((((magr.data).mflags1 & 33554432) != 0)) {
                 if (magr == game.youmonst) {
-                    tele();
-                } else if (!tele_restrict(magr)) {
-                    rloc(magr, 2);
+                    await tele();
+                } else if (!await tele_restrict(magr)) {
+                    await rloc(magr, 2);
                 }
             }
         } else {
             if (game.vis && game.flags.verbose) {
-                pline("%s", c_common_strings.c_nothing_happens);
+                await pline("%s", c_common_strings.c_nothing_happens);
             }
         }
     }
@@ -1104,15 +1037,15 @@ export function paralyze_monst(mon, amt) {
     mon.mstrategy &= ~536870912;
 }
 /* `mon' is hit by a sleep attack; return 1 if it's affected, 0 otherwise */
-export function sleep_monst(mon, amt, how) {
+export async function sleep_monst(mon, amt, how) {
     /* reveal mimic unless already asleep or paralyzed (won't be 'busy') */
     if (how >= 0 && !mon.msleeping && !mon.mfrozen && mon.data.mlet == S_MIMIC && (((mon).m_ap_type & 7) == M_AP_FURNITURE || ((mon).m_ap_type & 7) == M_AP_OBJECT)) {
-        seemimic(mon);
+        await seemimic(mon);
     }
-    if (Resists_Elem(mon, SLEEP_RES) || defended(mon, 4) || (how >= 0 && resist(mon, how, 0, 0))) {
-        shieldeff(mon.mx, mon.my);
+    if (await Resists_Elem(mon, SLEEP_RES) || await defended(mon, 4) || (how >= 0 && await resist(mon, how, 0, 0))) {
+        await shieldeff(mon.mx, mon.my);
     } else if (mon.mcanmove) {
-        finish_meating(mon);
+        await finish_meating(mon);
         amt += mon.mfrozen;
         if (amt > 0) {
             mon.mcanmove = 0;
@@ -1125,13 +1058,13 @@ export function sleep_monst(mon, amt, how) {
     return 0;
 }
 /* sleeping grabber releases, engulfer doesn't; don't use for paralysis! */
-export function slept_monst(mon) {
+export async function slept_monst(mon) {
     if (((mon).msleeping || !(mon).mcanmove) && mon == game.u.ustuck && !sticks(game.youmonst.data) && !game.u.uswallow) {
-        pline_mon(mon, "%s grip relaxes.", s_suffix(Monnam(mon)));
-        unstuck(mon);
+        await pline_mon(mon, "%s grip relaxes.", s_suffix(await Monnam(mon)));
+        await unstuck(mon);
     }
 }
-export function rustm(mdef, obj) {
+export async function rustm(mdef, obj) {
     let dmgtyp = -1;
     let chance = 1;
     if (!mdef || !obj) {
@@ -1148,23 +1081,23 @@ export function rustm(mdef, obj) {
         chance = 6;
     }
     if (dmgtyp != -1 && !rn2(chance)) {
-        erode_obj(obj, null, dmgtyp, 1 | 4);
+        await erode_obj(obj, null, dmgtyp, 1 | 4);
     }
 }
 /* attacker */
 /* defender */
 /* attacker's weapon */
-export function mswingsm(magr, mdef, otemp) {
+export async function mswingsm(magr, mdef, otemp) {
     if (game.flags.verbose && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && mon_visible(magr)) {
         let bash = (((otemp.oclass == WEAPON_CLASS || otemp.oclass == TOOL_CLASS) && (game.objects[otemp.otyp].oc_subtyp == P_POLEARMS || game.objects[otemp.otyp].oc_subtyp == P_LANCE || is_art(otemp, ART_SNICKERSNEE))) && !is_art(otemp, ART_SNICKERSNEE) && (dist2(magr.mx, magr.my, mdef.mx, mdef.my) <= 2));
-        pline("%s %s %s%s %s at %s.", Monnam(magr), mswings_verb(otemp, bash), (otemp.quan > 1) ? "one of " : "", (genders[pronoun_gender(magr, 2)].his), xname(otemp), mon_nam(mdef));
+        await pline("%s %s %s%s %s at %s.", await Monnam(magr), mswings_verb(otemp, bash), (otemp.quan > 1) ? "one of " : "", (genders[pronoun_gender(magr, 2)].his), await xname(otemp), await mon_nam(mdef));
     }
 }
 /*
  * Passive responses by defenders.  Does not replicate responses already
  * handled above.  Returns same values as mattackm.
  */
-export function passivemm(magr, mdef, mhitb, mdead, mwep) {
+export async function passivemm(magr, mdef, mhitb, mdead, mwep) {
     let mddat = null;
     let madat = null;
     let buf = '';
@@ -1193,14 +1126,13 @@ export function passivemm(magr, mdef, mhitb, mdead, mwep) {
         switch (mddat.mattk[i].adtyp) {
             case 8:
                 if (mhitb && !rn2(2)) {
-                    buf = strcpy(buf, Monnam(magr));
-                    /* These affect the enemy even if defender killed */
+                    buf = strcpy(buf, await Monnam(magr));
                     if (canseemon(magr)) {
-                        pline("%s is splashed by %s %s!", buf, s_suffix(mon_nam(mdef)), hliquid("acid"));
+                        await pline("%s is splashed by %s %s!", buf, s_suffix(await mon_nam(mdef)), hliquid("acid"));
                     }
-                    if (Resists_Elem(magr, ACID_RES)) {
+                    if (await Resists_Elem(magr, ACID_RES)) {
                         if (canseemon(magr)) {
-                            pline("%s is not affected.", Monnam(magr));
+                            await pline("%s is not affected.", await Monnam(magr));
                         }
                         tmp = 0;
                     }
@@ -1208,16 +1140,15 @@ export function passivemm(magr, mdef, mhitb, mdead, mwep) {
                     tmp = 0;
                 }
                 if (!rn2(30)) {
-                    erode_armor(magr, 3);
+                    await erode_armor(magr, 3);
                 }
                 if (!rn2(6)) {
-                    acid_damage(((magr).mw));
+                    await acid_damage(((magr).mw));
                 }
                 break assess_dmg;
             case 41:
                 if (mhitb && !mdef.mcan && mwep) {
-                    /* KMH -- remove enchantment (disenchanter) */
-                    drain_item(mwep, (0));
+                    await drain_item(mwep, (0));
                 }
                 break;
             default:
@@ -1238,79 +1169,79 @@ export function passivemm(magr, mdef, mhitb, mdead, mwep) {
                             tmp = 127;
                         }
                         if (magr.mcansee && (((madat).mflags1 & 4096) == 0) && mdef.mcansee && ((((madat).mflags1 & 16777216) != 0) || !mdef.minvis)) {
-                            buf = strcpy(buf, s_suffix(Monnam(mdef)));
+                            buf = strcpy(buf, s_suffix(await Monnam(mdef)));
                             /* construct format string; guard against '%' in Monnam */
                             strNsubst(buf, "%", "%%", 0);
                             buf = strcat(buf, " gaze is reflected by %s %s.");
-                            if (mon_reflects(magr, canseemon(magr) ? buf : null)) {
+                            if (await mon_reflects(magr, canseemon(magr) ? buf : null)) {
                                 return (mdead | mhit);
                             }
-                            buf = strcpy(buf, Monnam(magr));
+                            buf = strcpy(buf, await Monnam(magr));
                             if (canseemon(magr)) {
-                                pline("%s is frozen by %s gaze!", buf, s_suffix(mon_nam(mdef)));
+                                await pline("%s is frozen by %s gaze!", buf, s_suffix(await mon_nam(mdef)));
                             }
                             paralyze_monst(magr, tmp);
                             return (mdead | mhit);
                         }
                     } else {
-                        buf = strcpy(buf, Monnam(magr));
+                        buf = strcpy(buf, await Monnam(magr));
                         if (canseemon(magr)) {
-                            pline("%s is frozen by %s.", buf, mon_nam(mdef));
+                            await pline("%s is frozen by %s.", buf, await mon_nam(mdef));
                         }
                         paralyze_monst(magr, tmp);
                         return (mdead | mhit);
                     }
                     return 1;
                 case 3:
-                    if (Resists_Elem(magr, COLD_RES)) {
+                    if (await Resists_Elem(magr, COLD_RES)) {
                         if (canseemon(magr)) {
-                            pline_mon(magr, "%s is mildly chilly.", Monnam(magr));
-                            golemeffects(magr, 3, tmp);
+                            await pline_mon(magr, "%s is mildly chilly.", await Monnam(magr));
+                            await golemeffects(magr, 3, tmp);
                         }
                         tmp = 0;
                         break;
                     }
                     if (canseemon(magr)) {
-                        pline_mon(magr, "%s is suddenly very cold!", Monnam(magr));
+                        await pline_mon(magr, "%s is suddenly very cold!", await Monnam(magr));
                     }
-                    healmon(mdef, Math.trunc(tmp / 2), Math.trunc(tmp / 2));
+                    await healmon(mdef, Math.trunc(tmp / 2), Math.trunc(tmp / 2));
                     if (mdef.mhpmax > ((mdef.m_lev + 1) * 8)) {
-                        split_mon(mdef, magr);
+                        await split_mon(mdef, magr);
                     }
                     break;
                 case 12:
                     if (!magr.mstun) {
                         magr.mstun = 1;
                         if (canseemon(magr)) {
-                            pline_mon(magr, "%s %s...", Monnam(magr), makeplural(stagger(magr.data, "stagger")));
+                            await pline_mon(magr, "%s %s...", await Monnam(magr), await makeplural(stagger(magr.data, "stagger")));
                         }
                     }
                     tmp = 0;
                     break;
                 case 2:
-                    if (Resists_Elem(magr, FIRE_RES)) {
+                    if (await Resists_Elem(magr, FIRE_RES)) {
                         if (canseemon(magr)) {
-                            pline_mon(magr, "%s is mildly warmed.", Monnam(magr));
-                            golemeffects(magr, 2, tmp);
+                            await pline_mon(magr, "%s is mildly warmed.", await Monnam(magr));
+                            await golemeffects(magr, 2, tmp);
                         }
                         tmp = 0;
                         break;
                     }
                     if (canseemon(magr)) {
-                        pline_mon(magr, "%s is suddenly very hot!", Monnam(magr));
+                        await pline_mon(magr, "%s is suddenly very hot!", await Monnam(magr));
                     }
                     break;
                 case 6:
-                    if (Resists_Elem(magr, SHOCK_RES)) {
+                    if (await Resists_Elem(magr, SHOCK_RES)) {
                         if (canseemon(magr)) {
-                            pline_mon(magr, "%s is mildly tingled.", Monnam(magr));
-                            golemeffects(magr, 6, tmp);
+                            await pline_mon(magr, "%s is mildly tingled.", await Monnam(magr));
+                            await golemeffects(magr, 6, tmp);
                         }
                         tmp = 0;
                         break;
                     }
                     if (canseemon(magr)) {
-                        pline_mon(magr, "%s is jolted with electricity!", Monnam(magr));
+                        await pline_mon(magr, "%s is jolted with electricity!", await Monnam(magr));
                     }
                     break;
                 default:
@@ -1322,17 +1253,17 @@ export function passivemm(magr, mdef, mhitb, mdead, mwep) {
         }
     }
     if ((magr.mhp -= tmp) <= 0) {
-        monkilled(magr, "", mddat.mattk[i].adtyp);
+        await monkilled(magr, "", mddat.mattk[i].adtyp);
         return (mdead | mhit | 4);
     }
     return (mdead | mhit);
 }
 /* hero or monster has successfully hit target mon with drain energy attack */
-export function xdrainenergym(mon, givemsg) {
+export async function xdrainenergym(mon, givemsg) {
     if (mon.mspec_used < 20 && (attacktype(mon.data, 255) || attacktype(mon.data, 12))) {
         mon.mspec_used += d(2, 2);
         if (givemsg) {
-            pline_mon(mon, "%s seems lethargic.", Monnam(mon));
+            await pline_mon(mon, "%s seems lethargic.", await Monnam(mon));
         }
     }
 }
@@ -1375,7 +1306,76 @@ export function attk_protection(aatyp) {
     return w_mask;
 }
 /*mhitm.c*/
+/* unhiding or unmimicking happens even if hero can't see it
+       because the formerly concealed monster is now in action */
+/* perhaps we're holding it... */
+/* Be careful to ignore monsters that are already dead, since we
+         * might be calling this before we've cleaned them up.  This can
+         * happen if the monster attacked a cockatrice bare-handedly, for
+         * instance.
+         */
+/* pick up from orig position */
+/* either creature might move into or out of a poison gas cloud */
+/* D: Do a ranged attack here! */
+/* KMH -- don't accumulate to-hit bonuses */
+/* note: monsters with hug attacks don't wear cloaks or gloves
+                   so this doesn't need a special case for hugging a shade
+                   while covered by blessed armor (which does damage but does
+                   not achieve a successful hold); likewise, rope golems can't
+                   wield weapons so ability to choke isn't affected by such */
+/* purple worm can't swallow unsolid mons */
+/*
+             * Ranged attacks aren't allowed at point blank range.
+             *
+             * That impacts pet use of ranged attacks.  It's rather arbitrary
+             * but various parts of the code assume it to be the case, not to
+             * mention a part of player tactics when fighting dragons.
+             */
+/* hero poly'd into long worm can't grow tail
+                   so no 'youmonst' handling is needed here */
+/* unsolid grab misses are actually somewhat iffy--how come
+               ordinary attacks don't also pass right through? */
 /* beware of "Foo's grab passes through Bar's ghost";
                mon_nam(x_monnam) calls s_suffix() for named ghosts and
                s_suffix() uses a single static buffer; make copies of both
                names to overcome that [note: comment predates 'tailmiss'] */
+/* call mon_reflects 2x, first test, then, if visible, print message */
+/* 'it' -- previous form is no longer available and
+               using that would be excessively verbose */
+/*
+     *  Leave the defender in the monster chain at its current position,
+     *  but don't leave it on the screen.  Move the aggressor to the
+     *  defender's position.
+     */
+/* both died -- do nothing  */
+/*
+         *  Note: mdamagem() -> monkilled() -> mondead() -> m_detach()
+         *  -> relmon() used to call remove_monster() for the dead
+         *  monster even when it wasn't the one on the map, so we
+         *  needed to put magr back after mdef was killed and removed
+         *  from their shared spot.  But now [5.0] relmon() calls
+         *  mon_leaving_level() and that checks whether the monster at
+         *  dying monster's coordinates is that dying monster and only
+         *  removes it when they match.  So magr is still at mdef's
+         *  former spot these days.
+         *
+         *  We still potentially do one fixup:  if the gulp targeted
+         *  an inhospitable location, magr will return to its previous
+         *  spot instead of staying.
+         */
+/* aggressor moves to <dx,dy> and might encounter trouble there */
+/* both alive, put them back */
+/* monster explosion types which actually create an explosion */
+/* mondead() -> m_detach() -> m_unleash() always suppresses
+           the m_unleash() slack message, so deliver it here instead */
+/* give this one even if it was visible */
+/* various checks similar to dog_eat and meatobj.
+             * after monkilled() to provide better message ordering */
+/* caveat: above digestion handling doesn't keep `pa' up to date */
+/* just take a little damage */
+/* system shock might take place in polyself() */
+/* general resistance to magic... */
+/* system shock; this variation takes away half of mon's HP
+               rather than kill outright */
+/* These affect the enemy even if defender killed */
+/* KMH -- remove enchantment (disenchanter) */

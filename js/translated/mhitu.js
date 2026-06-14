@@ -65,16 +65,14 @@ import { destroy_items, drain_item } from './zap.js';
 
 game.mon_currwep = null;
 /* monster hits hero (most callers have been moved to uthim.c) */
-export function hitmsg(mtmp, mattk) {
+export async function hitmsg(mtmp, mattk) {
     let compat = 0;
     let verb = null;
     let again = null;
     let punct = "!";
-    let Monst_name = Monnam(mtmp);
+    let Monst_name = await Monnam(mtmp);
     if ((compat = could_seduce(mtmp, game.youmonst, mattk)) != 0 && !mtmp.mcan && !mtmp.mspec_used) {
-        /* Note: if opposite gender, "seductively";
-       if same gender, "engagingly" for nymph, normal msg for others. */
-        pline_mon(mtmp, "%s %s you %s.", Monst_name, !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "smiles at" : !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) ? "talks to" : "touches", (compat == 2) ? "engagingly" : "seductively");
+        await pline_mon(mtmp, "%s %s you %s.", Monst_name, !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "smiles at" : !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) ? "talks to" : "touches", (compat == 2) ? "engagingly" : "seductively");
     } else {
         switch (mattk.aatyp) {
             case 2:
@@ -111,24 +109,24 @@ export function hitmsg(mtmp, mattk) {
         }
         /* if a monster hits more than once with similar attack, say so */
         again = (mtmp.m_id == game.hitmsg_mid && game.hitmsg_prev != (null) && mattk == game.hitmsg_prev + 1 && mattk.aatyp == game.hitmsg_prev.aatyp) ? " again" : "";
-        pline_mon(mtmp, "%s %s%s%s", Monst_name, verb, again, punct);
+        await pline_mon(mtmp, "%s %s%s%s", Monst_name, verb, again, punct);
     }
     game.hitmsg_mid = mtmp.m_id;
     game.hitmsg_prev = mattk;
 }
 /* monster missed you */
-export function missmu(mtmp, nearmiss, mattk) {
+export async function missmu(mtmp, nearmiss, mattk) {
     game.hitmsg_mid = 0;
     game.hitmsg_prev = null;
     if (!(canseemon(mtmp) || sensemon(mtmp))) {
-        map_invisible(mtmp.mx, mtmp.my);
+        await map_invisible(mtmp.mx, mtmp.my);
     }
     if (could_seduce(mtmp, game.youmonst, mattk) && !mtmp.mcan) {
-        pline_mon(mtmp, "%s pretends to be friendly.", Monnam(mtmp));
+        await pline_mon(mtmp, "%s pretends to be friendly.", await Monnam(mtmp));
     } else {
-        pline_mon(mtmp, "%s %smisses!", Monnam(mtmp), (nearmiss && game.flags.verbose) ? "just " : "");
+        await pline_mon(mtmp, "%s %smisses!", await Monnam(mtmp), (nearmiss && game.flags.verbose) ? "just " : "");
     }
-    stop_occupation();
+    await stop_occupation();
 }
 /* strike types P|S|B: Pierce (pointed: stab) => "thrusts",
    Slash (edged: slice) or whack (blunt: Bash) => "swings" */
@@ -149,9 +147,9 @@ export function mswings_verb(mwep, bash) {
 /* attacker */
 /* attacker's weapon */
 /* True: polearm used at too close range */
-export function mswings(mtmp, otemp, bash) {
+export async function mswings(mtmp, otemp, bash) {
     if (game.flags.verbose && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && mon_visible(mtmp)) {
-        pline_mon(mtmp, "%s %s %s%s %s.", Monnam(mtmp), mswings_verb(otemp, bash), (otemp.quan > 1) ? "one of " : "", (genders[pronoun_gender(mtmp, 2)].his), xname(otemp));
+        await pline_mon(mtmp, "%s %s %s%s %s.", await Monnam(mtmp), mswings_verb(otemp, bash), (otemp.quan > 1) ? "one of " : "", (genders[pronoun_gender(mtmp, 2)].his), await xname(otemp));
     }
 }
 /* return how a poison attack was delivered */
@@ -166,18 +164,18 @@ export function mpoisons_subj(mtmp, mattk) {
     }
 }
 /* called when your intrinsic speed is taken away */
-export function u_slow_down() {
+export async function u_slow_down() {
     game.u.uprops[FAST].intrinsic = 0;
     if (!(game.u.uprops[FAST].intrinsic || game.u.uprops[FAST].extrinsic)) {
-        You("slow down.");
+        await You("slow down.");
     } else {
-        Your("quickness feels less natural.");
+        await Your("quickness feels less natural.");
     }
-    exercise(A_DEX, (0));
+    await exercise(A_DEX, (0));
 }
 /* monster attacked wrong location due to monster blindness, hero
    invisibility, hero displacement, or hero being underwater */
-export function wildmiss(mtmp, mattk) {
+export async function wildmiss(mtmp, mattk) {
     let compat = 0;
     /* Monnam(), deferred until after early returns */
     let Monst_name = null;
@@ -186,10 +184,7 @@ export function wildmiss(mtmp, mattk) {
     let unotthere = ((game.u.uprops[DISPLACED].intrinsic || game.u.uprops[DISPLACED].extrinsic) != 0);
     let usubmerged = ((game.u.uinwater) != 0);
     if (!unotseen && !unotthere && !usubmerged) {
-        /* the reasons for wildmiss end up getting checked twice so that the
-       impossible can be given, if warranted, before the early returns */
-        /* this used to be the 'else' case below */
-        impossible("%s attacks you without knowing your location?", Some_Monnam(mtmp));
+        await impossible("%s attacks you without knowing your location?", await Some_Monnam(mtmp));
         /* no such thing as a demon were creature, so we're done */
         return;
     }
@@ -203,65 +198,59 @@ export function wildmiss(mtmp, mattk) {
     }
     /* maybe it's attacking an image around the corner? */
     compat = ((mattk.adtyp == 22 || mattk.adtyp == 35) ? could_seduce(mtmp, game.youmonst, mattk) : 0);
-    Monst_name = Monnam(mtmp);
+    Monst_name = await Monnam(mtmp);
     set_msg_xy(mtmp.mx, mtmp.my);
     if (unotseen) {
         /* !mtmp->cansee || (Invis && !perceives(mtmp->data)) */
         let swings = (mattk.aatyp == 2) ? "snaps" : (mattk.aatyp == 3) ? "kicks" : (mattk.aatyp == 6 || mattk.aatyp == 4 || (((mtmp.data).mflags1 & 24576) == 24576)) ? "lunges" : "swings";
         if (compat) {
-            pline("%s tries to touch you and misses!", Monst_name);
+            await pline("%s tries to touch you and misses!", Monst_name);
         } else {
             switch (rn2(3)) {
                 case 0:
-                    pline("%s %s wildly and misses!", Monst_name, swings);
+                    await pline("%s %s wildly and misses!", Monst_name, swings);
                     break;
                 case 1:
-                    pline("%s attacks a spot beside you.", Monst_name);
+                    await pline("%s attacks a spot beside you.", Monst_name);
                     break;
                 case 2:
-                    pline("%s strikes at %s!", Monst_name, is_waterwall(mtmp.mux, mtmp.muy) ? "empty water" : "thin air");
+                    await pline("%s strikes at %s!", Monst_name, is_waterwall(mtmp.mux, mtmp.muy) ? "empty water" : "thin air");
                     break;
                 default:
-                    pline("%s %s wildly!", Monst_name, swings);
+                    await pline("%s %s wildly!", Monst_name, swings);
                     break;
             }
         }
     } else if (unotthere) {
-        /* give 'displaced' message even if hero is Blind */
         if (compat) {
-            pline("%s smiles %s at your %sdisplaced image...", Monst_name, (compat == 2) ? "engagingly" : "seductively", ((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) ? "invisible " : "");
+            await pline("%s smiles %s at your %sdisplaced image...", Monst_name, (compat == 2) ? "engagingly" : "seductively", ((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) ? "invisible " : "");
         } else {
-            pline("%s strikes at your %sdisplaced image and misses you!", Monst_name, ((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) ? "invisible " : "");
+            await pline("%s strikes at your %sdisplaced image and misses you!", Monst_name, ((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) ? "invisible " : "");
         }
     } else if (usubmerged) {
         if (compat) {
-            pline("%s reaches towards your distorted image.", Monst_name);
-        /* Note:  if you're both invisible and displaced, only
-                   * monsters which see invisible will attack your displaced
-                   * image, since the displaced image is also invisible. */
-        /* monsters may miss especially on water level where
-           bubbles shake the player here and there */
+            await pline("%s reaches towards your distorted image.", Monst_name);
         } else {
-            pline("%s is fooled by water reflections and misses!", Monst_name);
+            await pline("%s is fooled by water reflections and misses!", Monst_name);
         }
     } else {
         ;
     }
 }
 /* if mtmp is polymorphed, mdat != mtmp->data */
-export function expels(mtmp, mdat, message) {
+export async function expels(mtmp, mdat, message) {
     game.disp.botl = (1);
     if (message) {
         if ((dmgtype_fromattack((mdat), 26, 11) != null)) {
-            You("get regurgitated!");
+            await You("get regurgitated!");
         } else if ((dmgtype_fromattack((mdat), 28, 11) != null)) {
-            pline_mon(mtmp, "%s unfolds and you are released!", Monnam(mtmp));
+            await pline_mon(mtmp, "%s unfolds and you are released!", await Monnam(mtmp));
         } else {
             let blast = '';
             let attk = attacktype_fordmg(mdat, 11, (-1));
             blast = '';
             if (!attk) {
-                impossible("Swallower has no engulfing attack?");
+                await impossible("Swallower has no engulfing attack?");
             } else {
                 if (((mdat).mlet == S_VORTEX || (mdat) == game.mons[PM_AIR_ELEMENTAL])) {
                     switch (attk.adtyp) {
@@ -275,22 +264,20 @@ export function expels(mtmp, mdat, message) {
                 } else {
                     blast = strcpy(blast, " with a squelch");
                 }
-                You("get expelled from %s%s!", mon_nam(mtmp), blast);
+                await You("get expelled from %s%s!", await mon_nam(mtmp), blast);
             }
         }
     }
-    /* ball&chain returned in unstuck() */
-    unstuck(mtmp);
-    mnexto(mtmp, 4);
-    newsym(game.u.ux, game.u.uy);
-    /* to cover for a case where mtmp is not in a next square */
+    await unstuck(mtmp);
+    await mnexto(mtmp, 4);
+    await newsym(game.u.ux, game.u.uy);
     if (um_dist(mtmp.mx, mtmp.my, 1)) {
-        pline("Brrooaa...  You land hard at some distance.");
+        await pline("Brrooaa...  You land hard at some distance.");
     }
-    spoteffects((1));
+    await spoteffects((1));
 }
 /* select a monster's next attack, possibly substituting for its usual one */
-export function getmattk(magr, mdef, indx, prev_result, alt_attk_buf) {
+export async function getmattk(magr, mdef, indx, prev_result, alt_attk_buf) {
     let mptr = magr.data;
     let attk = mptr.mattk[indx];
     let weap = (magr == game.youmonst) ? game.uwep : ((magr).mw);
@@ -373,7 +360,7 @@ export function getmattk(magr, mdef, indx, prev_result, alt_attk_buf) {
         Object.assign(alt_attk_buf, attk);
         attk = alt_attk_buf;
         attk.adtyp = 0;
-    } else if (indx == 0 && attk.aatyp == 5 && attk.adtyp == 3 && (udefend ? (game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic) : Resists_Elem(mdef, COLD_RES)) && mdef.data != game.mons[PM_SHADE]) {
+    } else if (indx == 0 && attk.aatyp == 5 && attk.adtyp == 3 && (udefend ? (game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic) : await Resists_Elem(mdef, COLD_RES)) && mdef.data != game.mons[PM_SHADE]) {
         Object.assign(alt_attk_buf, attk);
         attk = alt_attk_buf;
         attk.adtyp = 0;
@@ -430,7 +417,7 @@ export function mtrapped_in_pit(mtmp) {
  *              monster which it attacks by mistake, the caller had better
  *              take care of it...
  */
-export function mattacku(mtmp) {
+export async function mattacku(mtmp) {
     let mattk = null;
     let alt_attk = { aatyp: 0, adtyp: 0, damn: 0, damd: 0 };
     let i = 0;
@@ -483,11 +470,7 @@ export function mattacku(mtmp) {
             return 0;
         }
         if (!rn2((((mtmp.data).mflags2 & 128) != 0) ? 2 : 4) && (dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) <= 2)) {
-            /* Your steed won't attack you */
-            /* Orcs like to steal and eat horses and the like */
-            /* attack your steed instead; 'bhitpos' and 'notonhead' are
-               already set from targeting hero */
-            i = mattackm(mtmp, game.u.usteed);
+            i = await mattackm(mtmp, game.u.usteed);
             if ((i & 4) != 0) {
                 return 1;
             }
@@ -498,71 +481,59 @@ export function mattacku(mtmp) {
             /* Let your steed retaliate */
             game.bhitpos.x = mtmp.mx , game.bhitpos.y = mtmp.my;
             game.notonhead = (0);
-            return !!(mattackm(game.u.usteed, mtmp) & 2);
+            return !!(await mattackm(game.u.usteed, mtmp) & 2);
         }
     }
     if (game.u.uundetected && !range2 && foundyou && !game.u.uswallow) {
         /* non-mimic hero might be mimicking an object after eating m corpse */
         if (!(canseemon(mtmp) || sensemon(mtmp))) {
-            map_invisible(mtmp.mx, mtmp.my);
+            await map_invisible(mtmp.mx, mtmp.my);
         }
         game.u.uundetected = 0;
         if ((((game.youmonst.data).mflags1 & 256) != 0) && game.u.umonnum != PM_TRAPPER) {
             /* maybe we need a unexto() function? */
             let cc = { x: 0, y: 0 };
             let obj = null;
-            You("fall from the %s!", ceiling(game.u.ux, game.u.uy));
+            await You("fall from the %s!", ceiling(game.u.ux, game.u.uy));
             game.level.monsters[mtmp.mx][mtmp.my] = null;
-            if (!enexto(cc, game.u.ux, game.u.uy, game.youmonst.data) || (mtmp.data.mlet == S_EEL && is_pool(mtmp.mx, mtmp.my) && !is_pool(game.u.ux, game.u.uy))) {
-                /* take monster off map now so that its location
-               is eligible for placing hero; we assume that a
-               removed monster remembers its old spot <mx,my> */
-                /* a fish won't voluntarily swap positions
-                   when it's in water and hero is over land */
-                /* couldn't find any spot for hero; this used to
-                   kill off attacker, but now we just give a "miss"
-                   message and keep both mtmp and hero at their
-                   original positions; hero has become unconcealed
-                   so mtmp's next move will be a regular attack */
-                place_monster(mtmp, mtmp.mx, mtmp.my);
-                /* u.uundetected was toggled */
-                newsym(game.u.ux, game.u.uy);
-                pline_mon(mtmp, "%s draws back as you drop!", Monnam(mtmp));
+            if (!await enexto(cc, game.u.ux, game.u.uy, game.youmonst.data) || (mtmp.data.mlet == S_EEL && is_pool(mtmp.mx, mtmp.my) && !is_pool(game.u.ux, game.u.uy))) {
+                await place_monster(mtmp, mtmp.mx, mtmp.my);
+                await newsym(game.u.ux, game.u.uy);
+                await pline_mon(mtmp, "%s draws back as you drop!", await Monnam(mtmp));
                 return 0;
             }
-            /* put mtmp at hero's spot and move hero to <cc.x,.y> */
-            newsym(mtmp.mx, mtmp.my);
-            place_monster(mtmp, game.u.ux, game.u.uy);
+            await newsym(mtmp.mx, mtmp.my);
+            await place_monster(mtmp, game.u.ux, game.u.uy);
             if (mtmp.wormno) {
-                worm_move(mtmp);
+                await worm_move(mtmp);
                 /* tail hasn't grown, so if it now occupies <cc.x,.y>
                    then one of its original spots must be free */
                 if ((game.level.monsters[cc.x][cc.y])) {
-                    enexto(cc, game.u.ux, game.u.uy, game.youmonst.data);
+                    await enexto(cc, game.u.ux, game.u.uy, game.youmonst.data);
                 }
             }
-            teleds(cc.x, cc.y, 1);
+            await teleds(cc.x, cc.y, 1);
             set_apparxy(mtmp);
-            newsym(game.u.ux, game.u.uy);
+            await newsym(game.u.ux, game.u.uy);
             if (game.youmonst.data.mlet != S_PIERCER) {
                 return 0;
             }
-            obj = which_armor(mtmp, 4);
+            obj = await which_armor(mtmp, 4);
             if (hard_helmet(obj)) {
-                Your("blow glances off %s %s.", s_suffix(mon_nam(mtmp)), helm_simple_name(obj));
+                await Your("blow glances off %s %s.", s_suffix(await mon_nam(mtmp)), helm_simple_name(obj));
             } else {
                 if (3 + find_mac(mtmp) <= rnd(20)) {
-                    pline("%s is hit by a falling piercer (you)!", Monnam(mtmp));
+                    await pline("%s is hit by a falling piercer (you)!", await Monnam(mtmp));
                     if ((mtmp.mhp -= d(3, 6)) < 1) {
-                        killed(mtmp);
+                        await killed(mtmp);
                     }
                 } else {
-                    pline("%s is almost hit by a falling piercer (you)!", Monnam(mtmp));
+                    await pline("%s is almost hit by a falling piercer (you)!", await Monnam(mtmp));
                 }
             }
         } else {
             if (!youseeit) {
-                pline("It tries to move where you are hiding.");
+                await pline("It tries to move where you are hiding.");
             } else {
                 /* Ugly kludge for eggs.  The message is phrased so as
                  * to be directed at the monster, not the player,
@@ -582,18 +553,18 @@ export function mattacku(mtmp) {
                     /* note that m_monnam() overrides hallucination, which is
                        what we want when message is from mtmp's perspective */
                     if (game.youmonst.data.mlet == S_EEL || game.u.umonnum == PM_TRAPPER) {
-                        pline("Wait, %s!  There's a hidden %s named %s there!", m_monnam(mtmp), pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname);
+                        await pline("Wait, %s!  There's a hidden %s named %s there!", await m_monnam(mtmp), pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname);
                     } else {
-                        pline("Wait, %s!  There's a %s named %s hiding under %s!", m_monnam(mtmp), pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname, doname(game.level.objects[game.u.ux][game.u.uy]));
+                        await pline("Wait, %s!  There's a %s named %s hiding under %s!", await m_monnam(mtmp), pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname, await doname(game.level.objects[game.u.ux][game.u.uy]));
                     }
                     if (obj) {
                         obj.spe = save_spe;
                     }
                 } else {
-                    impossible("hiding under nothing?");
+                    await impossible("hiding under nothing?");
                 }
             }
-            newsym(game.u.ux, game.u.uy);
+            await newsym(game.u.ux, game.u.uy);
         }
         return 0;
     }
@@ -601,38 +572,36 @@ export function mattacku(mtmp) {
         /* hero might be a mimic, concealed via #monster */
         let sticky = sticks(game.youmonst.data);
         if (!(canseemon(mtmp) || sensemon(mtmp))) {
-            map_invisible(mtmp.mx, mtmp.my);
+            await map_invisible(mtmp.mx, mtmp.my);
         }
         if (sticky && !youseeit) {
-            pline("It gets stuck on you.");
-        /* see note about m_monnam() above */
+            await pline("It gets stuck on you.");
         } else {
-            pline("Wait, %s!  That's a %s named %s!", m_monnam(mtmp), pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname);
+            await pline("Wait, %s!  That's a %s named %s!", await m_monnam(mtmp), pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0)), game.plname);
         }
         if (sticky) {
-            set_ustuck(mtmp);
+            await set_ustuck(mtmp);
         }
         game.youmonst.m_ap_type = M_AP_NOTHING;
         game.youmonst.mappearance = 0;
-        newsym(game.u.ux, game.u.uy);
+        await newsym(game.u.ux, game.u.uy);
         return 0;
     }
     if ((game.youmonst.m_ap_type & 7) == M_AP_OBJECT && !range2 && foundyou && !game.u.uswallow) {
         if (!(canseemon(mtmp) || sensemon(mtmp))) {
-            map_invisible(mtmp.mx, mtmp.my);
+            await map_invisible(mtmp.mx, mtmp.my);
         }
         if (!youseeit) {
-            pline("%s %s!", c_common_strings.c_Something, ((((mtmp.data).mflags2 & 268435456) != 0) && game.youmonst.mappearance == GOLD_PIECE) ? "tries to pick you up" : "disturbs you");
+            await pline("%s %s!", c_common_strings.c_Something, ((((mtmp.data).mflags2 & 268435456) != 0) && game.youmonst.mappearance == GOLD_PIECE) ? "tries to pick you up" : "disturbs you");
         } else {
-            pline("Wait, %s!  That %s is really %s named %s!", m_monnam(mtmp), mimic_obj_name(game.youmonst), an(pmname(game.mons[game.u.umonnum], (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0))), game.plname);
+            await pline("Wait, %s!  That %s is really %s named %s!", await m_monnam(mtmp), await mimic_obj_name(game.youmonst), await an(pmname(game.mons[game.u.umonnum], (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0))), game.plname);
         }
         if (game.multi < 0) {
             /* this should always be the case */
             /* 5.0: dismount for all engulfers, not just for purple worms */
             let buf = '';
-            buf = sprintf(buf, "You appear to be %s again.", (game.u.umonnum != game.u.umonster) ? an(pmname(game.youmonst.data, game.flags.female)) : "yourself");
-            /* immediately stop mimicking */
-            unmul(buf);
+            buf = sprintf(buf, "You appear to be %s again.", (game.u.umonnum != game.u.umonster) ? await an(pmname(game.youmonst.data, game.flags.female)) : "yourself");
+            await unmul(buf);
         }
         return 0;
     }
@@ -654,14 +623,14 @@ export function mattacku(mtmp) {
     if (mdat.mlet == S_EEL && mtmp.minvis && ((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
         /* make eels visible the moment they hit/miss us */
         mtmp.minvis = 0;
-        newsym(mtmp.mx, mtmp.my);
+        await newsym(mtmp.mx, mtmp.my);
     }
     if (mtmp.cham == NON_PM && !mtmp.mcan && !range2 && ((((mdat).mflags2 & 256) != 0) || (((mdat).mflags2 & 4) != 0))) {
         /* when not cancelled and not in current form due to shapechange, many
        demons can summon more demons and were creatures can summon critters;
        also, were creature might change from human to animal or vice versa */
         let already_fleeing = mtmp.mflee != 0;
-        summonmu(mtmp, youseeit);
+        await summonmu(mtmp, youseeit);
         /* were-creature might have changed to beast form; if that has
            caused it to become afraid (due to non-human reacting to scroll
            of scare monster or engraved "Elbereth" which was being ignored
@@ -675,21 +644,18 @@ export function mattacku(mtmp) {
     }
     if (game.u.uinvulnerable) {
         if (mtmp == game.u.ustuck) {
-            /* in the midst of successful prayer */
-            /* monsters won't attack you */
-            pline_mon(mtmp, "%s loosens its grip slightly.", Monnam(mtmp));
+            await pline_mon(mtmp, "%s loosens its grip slightly.", await Monnam(mtmp));
         } else if (!range2) {
             if (youseeit || sensemon(mtmp)) {
-                pline("%s starts to attack you, but pulls back.", Monnam(mtmp));
+                await pline("%s starts to attack you, but pulls back.", await Monnam(mtmp));
             } else {
-                You_feel("%s move nearby.", c_common_strings.c_something);
+                await You_feel("%s move nearby.", c_common_strings.c_something);
             }
         }
         return 0;
     }
-    if (find_offensive(mtmp)) {
-        /* Unlike defensive stuff, don't let them use item _and_ attack. */
-        let offended = use_offensive(mtmp);
+    if (await find_offensive(mtmp)) {
+        let offended = await use_offensive(mtmp);
         if (offended != 0) {
             return (offended == 1);
         }
@@ -718,7 +684,7 @@ export function mattacku(mtmp) {
             }
         }
         game.mon_currwep = null;
-        mattk = getmattk(mtmp, game.youmonst, i, sum, alt_attk);
+        mattk = await getmattk(mtmp, game.youmonst, i, sum, alt_attk);
         if ((game.u.uswallow && mattk.aatyp != 11) || (skipnonmagc && mattk.aatyp != 255) || (game.skipdrin && mattk.aatyp == 16 && mattk.adtyp == 32)) {
             continue;
         }
@@ -736,17 +702,17 @@ export function mattacku(mtmp) {
                 if (!range2 && (!((mtmp).mw) || mtmp.mconf || (game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic) || !((game.youmonst.data) == game.mons[PM_COCKATRICE] || (game.youmonst.data) == game.mons[PM_CHICKATRICE]))) {
                     if (foundyou) {
                         if (tmp > (j = rnd(20 + i))) {
-                            if ((((game.youmonst.data).mflags1 & 1048576) != 0) && failed_grab(mtmp, game.youmonst, mattk)) {
+                            if ((((game.youmonst.data).mflags1 & 1048576) != 0) && await failed_grab(mtmp, game.youmonst, mattk)) {
                                 continue;
                             }
                             if (mattk.aatyp != 3 || !(((game.youmonst.data).mflags1 & 2097152) != 0)) {
-                                sum[i] = hitmu(mtmp, mattk);
+                                sum[i] = await hitmu(mtmp, mattk);
                             }
                         } else {
-                            missmu(mtmp, (tmp == j), mattk);
+                            await missmu(mtmp, (tmp == j), mattk);
                         }
                     } else {
-                        wildmiss(mtmp, mattk);
+                        await wildmiss(mtmp, mattk);
                         /* skip any remaining non-spell attacks */
                         skipnonmagc = (1);
                     }
@@ -754,65 +720,59 @@ export function mattacku(mtmp) {
                 break;
             case 7:
                 if ((!range2 && i >= 2 && sum[i - 1] && sum[i - 2]) || mtmp == game.u.ustuck) {
-                    /* automatic if prev two attacks succeed */
-                    /* Note: if displaced, prev attacks never succeeded */
-                    if (!failed_grab(mtmp, game.youmonst, mattk)) {
-                        sum[i] = hitmu(mtmp, mattk);
+                    if (!await failed_grab(mtmp, game.youmonst, mattk)) {
+                        sum[i] = await hitmu(mtmp, mattk);
                     }
                 }
                 break;
             /* can affect you either ranged or not */
             case 15:
                 if (mdat != game.mons[PM_MEDUSA]) {
-                    sum[i] = gazemu(mtmp, mattk);
+                    sum[i] = await gazemu(mtmp, mattk);
                 }
                 break;
             case 13:
                 if (!range2) {
-                    sum[i] = explmu(mtmp, mattk, foundyou);
+                    sum[i] = await explmu(mtmp, mattk, foundyou);
                 }
                 break;
             case 11:
                 if (!range2) {
                     if (foundyou) {
                         if (game.u.uswallow || (!mtmp.mspec_used && tmp > (j = rnd(20 + i)))) {
-                            /* Medusa gaze already operated through m_respond in
-               dochug(); don't gaze more than once per round. */
-                            /* force swallowing monster to be displayed
-                           even when hero is moving away */
-                            flush_screen(1);
-                            sum[i] = gulpmu(mtmp, mattk);
+                            await flush_screen(1);
+                            sum[i] = await gulpmu(mtmp, mattk);
                         } else {
-                            missmu(mtmp, (tmp == j), mattk);
+                            await missmu(mtmp, (tmp == j), mattk);
                         }
                     } else if ((dmgtype_fromattack((mtmp.data), 26, 11) != null)) {
-                        pline_mon(mtmp, "%s gulps some air!", Monnam(mtmp));
+                        await pline_mon(mtmp, "%s gulps some air!", await Monnam(mtmp));
                     } else {
                         if (youseeit) {
-                            pline_mon(mtmp, "%s lunges forward and recoils!", Monnam(mtmp));
+                            await pline_mon(mtmp, "%s lunges forward and recoils!", await Monnam(mtmp));
                         } else {
                             if (((mtmp.data).mlet == S_VORTEX || (mtmp.data) == game.mons[PM_AIR_ELEMENTAL])) {
                                 ;
                             }
-                            You_hear("a %s nearby.", ((mtmp.data).mlet == S_VORTEX || (mtmp.data) == game.mons[PM_AIR_ELEMENTAL]) ? "rushing noise" : "splat");
+                            await You_hear("a %s nearby.", ((mtmp.data).mlet == S_VORTEX || (mtmp.data) == game.mons[PM_AIR_ELEMENTAL]) ? "rushing noise" : "splat");
                         }
                     }
                 }
                 break;
             case 12:
                 if (range2) {
-                    sum[i] = breamu(mtmp, mattk);
+                    sum[i] = await breamu(mtmp, mattk);
                 }
                 break;
             case 10:
                 if (range2) {
-                    sum[i] = spitmu(mtmp, mattk);
+                    sum[i] = await spitmu(mtmp, mattk);
                 }
                 break;
             case 254:
                 if (range2) {
                     if (!(((((game.dungeon_topology.d_rogue_level)).dlevel || ((game.dungeon_topology.d_rogue_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_rogue_level))))) {
-                        thrwmu(mtmp);
+                        await thrwmu(mtmp);
                     }
                 } else {
                     let hittmp = 0;
@@ -822,8 +782,7 @@ export function mattacku(mtmp) {
                  * teleported or whatever....
                  */
                         mtmp.weapon_check = NEED_HTH_WEAPON;
-                        /* mon_wield_item resets weapon_check as appropriate */
-                        if (mon_wield_item(mtmp) != 0) {
+                        if (await mon_wield_item(mtmp) != 0) {
                             break;
                         }
                     }
@@ -831,37 +790,37 @@ export function mattacku(mtmp) {
                         game.mon_currwep = ((mtmp).mw);
                         if (game.mon_currwep) {
                             let bash = (((game.mon_currwep.oclass == WEAPON_CLASS || game.mon_currwep.oclass == TOOL_CLASS) && (game.objects[game.mon_currwep.otyp].oc_subtyp == P_POLEARMS || game.objects[game.mon_currwep.otyp].oc_subtyp == P_LANCE || is_art(game.mon_currwep, ART_SNICKERSNEE))) && !is_art(game.mon_currwep, ART_SNICKERSNEE) && (dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) <= 2));
-                            hittmp = hitval(game.mon_currwep, game.youmonst);
+                            hittmp = await hitval(game.mon_currwep, game.youmonst);
                             tmp += hittmp;
-                            mswings(mtmp, game.mon_currwep, bash);
+                            await mswings(mtmp, game.mon_currwep, bash);
                         }
                         if (tmp > (j = game.mhitu_dieroll = rnd(20 + i))) {
-                            sum[i] = hitmu(mtmp, mattk);
+                            sum[i] = await hitmu(mtmp, mattk);
                         } else {
-                            missmu(mtmp, (tmp == j), mattk);
+                            await missmu(mtmp, (tmp == j), mattk);
                         }
                         /* KMH -- Don't accumulate to-hit bonuses */
                         if (game.mon_currwep) {
                             tmp -= hittmp;
                         }
                     } else {
-                        wildmiss(mtmp, mattk);
+                        await wildmiss(mtmp, mattk);
                         skipnonmagc = (1);
                     }
                 }
                 break;
             case 255:
                 if (range2) {
-                    sum[i] = buzzmu(mtmp, mattk);
+                    sum[i] = await buzzmu(mtmp, mattk);
                 } else {
-                    sum[i] = castmu(mtmp, mattk, (1), foundyou);
+                    sum[i] = await castmu(mtmp, mattk, (1), foundyou);
                 }
                 break;
             default:
                 break;
         }
         if (game.disp.botl) {
-            bot();
+            await bot();
         }
         if (sum[i] == 1) {
             if (game.u.usleep && game.u.usleep < game.moves && !rn2(10)) {
@@ -881,7 +840,7 @@ export function mattacku(mtmp) {
     return 0;
 }
 /* monster summons help for its fight against hero */
-export function summonmu(mtmp, youseeit) {
+export async function summonmu(mtmp, youseeit) {
     let mdat = mtmp.data;
     if ((((mdat).mflags2 & 256) != 0)) {
         if (mdat != game.mons[PM_BALROG] && mdat != game.mons[PM_AMOROUS_DEMON]) {
@@ -891,7 +850,7 @@ export function summonmu(mtmp, youseeit) {
      * and isn't a shapechanger.
      */
             if (!rn2(In_hell(game.u.uz) ? 10 : 16)) {
-                msummon(mtmp);
+                await msummon(mtmp);
             }
         }
         return;
@@ -903,12 +862,12 @@ export function summonmu(mtmp, youseeit) {
            we repeat the criteria here for clarity */
             /* maybe switch to animal form */
             if (!(game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic) && !rn2(5 - (night() * 2))) {
-                new_were(mtmp);
+                await new_were(mtmp);
             }
         } else {
             /* maybe switch to back human form */
             if ((game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic) || !rn2(30)) {
-                new_were(mtmp);
+                await new_were(mtmp);
             }
         }
         mdat = mtmp.data;
@@ -921,35 +880,35 @@ export function summonmu(mtmp, youseeit) {
             let genericwere = '';
             genericwere = strcpy(genericwere, "creature");
             if (youseeit) {
-                pline_mon(mtmp, "%s summons help!", Monnam(mtmp));
+                await pline_mon(mtmp, "%s summons help!", await Monnam(mtmp));
             }
-            numhelp = were_summon(mdat, (0), { get value() { return numseen; }, set value(_v) { numseen = _v; } }, genericwere);
+            numhelp = await were_summon(mdat, (0), { get value() { return numseen; }, set value(_v) { numseen = _v; } }, genericwere);
             if (youseeit) {
                 if (numhelp > 0) {
                     if (numseen == 0) {
-                        You_feel("hemmed in.");
+                        await You_feel("hemmed in.");
                     }
                 } else {
-                    pline("But none comes.");
+                    await pline("But none comes.");
                 }
             } else {
                 let from_nowhere = null;
                 if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                    pline("%s %s!", c_common_strings.c_Something, makeplural(growl_sound(mtmp)));
+                    await pline("%s %s!", c_common_strings.c_Something, await makeplural(growl_sound(mtmp)));
                     from_nowhere = "";
                 } else {
                     from_nowhere = " from nowhere";
                 }
                 if (numhelp > 0) {
                     if (numseen < 1) {
-                        You_feel("hemmed in.");
+                        await You_feel("hemmed in.");
                     } else {
                         if (numseen == 1) {
-                            buf = sprintf(buf, "%s appears", an(genericwere));
+                            buf = sprintf(buf, "%s appears", await an(genericwere));
                         } else {
-                            buf = sprintf(buf, "%s appear", makeplural(genericwere));
+                            buf = sprintf(buf, "%s appear", await makeplural(genericwere));
                         }
-                        pline("%s%s!", upstart(buf), from_nowhere);
+                        await pline("%s%s!", upstart(buf), from_nowhere);
                     }
                 }
             }
@@ -957,17 +916,17 @@ export function summonmu(mtmp, youseeit) {
         return;
     }
 }
-export function diseasemu(mdat) {
-    if ((game.u.uprops[SICK_RES].intrinsic || game.u.uprops[SICK_RES].extrinsic || defended(game.youmonst, 33))) {
-        You_feel("a slight illness.");
+export async function diseasemu(mdat) {
+    if ((game.u.uprops[SICK_RES].intrinsic || game.u.uprops[SICK_RES].extrinsic || await defended(game.youmonst, 33))) {
+        await You_feel("a slight illness.");
         return (0);
     } else {
-        make_sick(game.u.uprops[SICK].intrinsic ? Math.trunc(game.u.uprops[SICK].intrinsic / 3) + 1 : (rn2((acurr(A_CON))) + (20)), mdat.pmnames[NEUTRAL], (1), 2);
+        await make_sick(game.u.uprops[SICK].intrinsic ? Math.trunc(game.u.uprops[SICK].intrinsic / 3) + 1 : (rn2((acurr(A_CON))) + (20)), mdat.pmnames[NEUTRAL], (1), 2);
         return (1);
     }
 }
 /* check whether slippery clothing protects from hug or wrap attack */
-export function u_slip_free(mtmp, mattk) {
+export async function u_slip_free(mtmp, mattk) {
     let obj = null;
     /* greased armor does not protect against AT_ENGL+AD_WRAP */
     if (mattk.aatyp == 11) {
@@ -981,13 +940,9 @@ export function u_slip_free(mtmp, mattk) {
         obj = game.uarmh;
     }
     if (obj && (obj.greased || obj.otyp == OILSKIN_CLOAK) && (!obj.cursed || rn2(3))) {
-        /* if your cloak/armor is greased, monster slips off; this
-       protection might fail (33% chance) when the armor is cursed */
-        pline_mon(mtmp, "%s %s your %s %s!", Monnam(mtmp), (mattk.adtyp == 28) ? "slips off of" : "grabs you, but cannot hold onto", obj.greased ? "greased" : "slippery", (obj.greased || game.objects[obj.otyp].oc_name_known) ? xname(obj) : cloak_simple_name(obj));
+        await pline_mon(mtmp, "%s %s your %s %s!", await Monnam(mtmp), (mattk.adtyp == 28) ? "slips off of" : "grabs you, but cannot hold onto", obj.greased ? "greased" : "slippery", (obj.greased || game.objects[obj.otyp].oc_name_known) ? await xname(obj) : cloak_simple_name(obj));
         if (obj.greased && !rn2(2)) {
-            /* avoid "slippery slippery cloak"
-                 for undiscovered oilskin cloak */
-            pline_The("grease wears off.");
+            await pline_The("grease wears off.");
             obj.greased = 0;
             update_inventory();
         }
@@ -1048,7 +1003,7 @@ export function magic_negation(mon) {
  * hitmu: monster hits you
  * returns MM_ flags
 */
-export function hitmu(mtmp, mattk) {
+export async function hitmu(mtmp, mattk) {
     let mdat = mtmp.data;
     let olduasmon = game.youmonst.data;
     let res = 0;
@@ -1058,7 +1013,7 @@ export function hitmu(mtmp, mattk) {
     mhm.specialdmg = 0;
     mhm.done = (0);
     if (!(canseemon(mtmp) || sensemon(mtmp))) {
-        map_invisible(mtmp.mx, mtmp.my);
+        await map_invisible(mtmp.mx, mtmp.my);
     }
     if (mtmp.mundetected && ((((mdat).mflags1 & 128) != 0) || mdat.mlet == S_EEL)) {
         /*  If the monster is undetected & hits you, you should know where
@@ -1075,16 +1030,16 @@ export function hitmu(mtmp, mattk) {
                 } else if (is_pool(mtmp.mx, mtmp.my) && !(game.u.uinwater)) {
                     what = "the water";
                 } else {
-                    what = doname(obj);
+                    what = await doname(obj);
                 }
-                Amonbuf = strcpy(Amonbuf, Amonnam(mtmp));
+                Amonbuf = strcpy(Amonbuf, await Amonnam(mtmp));
                 /* mtmp might be invisible with hero unable to see same */
                 if (!strcmp(Amonbuf, "It")) {
                     Amonbuf = strcpy(Amonbuf, c_common_strings.c_Something);
                 }
-                pline("%s was hidden under %s!", Amonbuf, what);
+                await pline("%s was hidden under %s!", Amonbuf, what);
             }
-            newsym(mtmp.mx, mtmp.my);
+            await newsym(mtmp.mx, mtmp.my);
         }
     }
     /*  First determine the base damage done */
@@ -1092,14 +1047,13 @@ export function hitmu(mtmp, mattk) {
     if (((((mdat).mflags2 & 2) != 0) || ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER)) && midnight()) {
         mhm.damage += d(mattk.damn, mattk.damd);
     }
-    mhitm_adtyping(mtmp, mattk, game.youmonst, mhm);
-    mhitm_knockback(mtmp, game.youmonst, mattk, { get value() { return mhm.hitflags; }, set value(_v) { mhm.hitflags = _v; } }, (((mtmp).mw) != null));
+    await mhitm_adtyping(mtmp, mattk, game.youmonst, mhm);
+    await mhitm_knockback(mtmp, game.youmonst, mattk, { get value() { return mhm.hitflags; }, set value(_v) { mhm.hitflags = _v; } }, (((mtmp).mw) != null));
     if (mhm.done) {
         return mhm.hitflags;
     }
     if (((game.u.umonnum != game.u.umonster) ? game.u.mh : game.u.uhp) < 1) {
-        /* already dead? call rehumanize() or done_in_by() as appropriate */
-        mdamageu(mtmp, 1);
+        await mdamageu(mtmp, 1);
         mhm.damage = 0;
     }
     if (mhm.damage && game.u.uac < 0) {
@@ -1155,31 +1109,31 @@ export function hitmu(mtmp, mattk) {
              * already at or below minimum threshold, do nothing to hpmax */
             game.disp.botl = (1);
         }
-        mdamageu(mtmp, mhm.damage);
+        await mdamageu(mtmp, mhm.damage);
     }
     if (mhm.damage) {
-        res = passiveum(olduasmon, mtmp, mattk);
+        res = await passiveum(olduasmon, mtmp, mattk);
     } else {
         res = 1;
     }
-    stop_occupation();
+    await stop_occupation();
     return res;
 }
 /* An interface for use when taking a blindfold off, for example,
  * to see if an engulfing attack should immediately take affect, like
  * a passive attack. TRUE if engulfing blindness occurred */
-export function gulp_blnd_check() {
+export async function gulp_blnd_check() {
     let mattk = null;
-    if (!(game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked) && game.u.uswallow && (mattk = attacktype_fordmg(game.u.ustuck.data, 11, 11)) && can_blnd(game.u.ustuck, game.youmonst, mattk.aatyp, null)) {
+    if (!(game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked) && game.u.uswallow && (mattk = attacktype_fordmg(game.u.ustuck.data, 11, 11)) && await can_blnd(game.u.ustuck, game.youmonst, mattk.aatyp, null)) {
         /* compensate for gulpmu change */
         ++game.u.uswldtim;
-        gulpmu(game.u.ustuck, mattk);
+        await gulpmu(game.u.ustuck, mattk);
         return (1);
     }
     return (0);
 }
 /* monster swallows you, or damage if already swallowed (u.uswallow != 0) */
-export function gulpmu(mtmp, mattk) {
+export async function gulpmu(mtmp, mattk) {
     let t = t_at(game.u.ux, game.u.uy);
     let tmp = d(mattk.damn, mattk.damd);
     let tim_tmp = 0;
@@ -1196,60 +1150,50 @@ export function gulpmu(mtmp, mattk) {
         if ((t && ((t.ttyp) == PIT || (t.ttyp) == SPIKED_PIT)) && sobj_at(BOULDER, game.u.ux, game.u.uy)) {
             return 0;
         }
-        if (failed_grab(mtmp, game.youmonst, mattk)) {
+        if (await failed_grab(mtmp, game.youmonst, mattk)) {
             return 0;
         }
         if ((game.uball != null)) {
-            unplacebc();
+            await unplacebc();
         }
         game.level.monsters[omx][omy] = null;
         mtmp.mtrapped = 0;
-        place_monster(mtmp, game.u.ux, game.u.uy);
-        set_ustuck(mtmp);
-        newsym(mtmp.mx, mtmp.my);
+        await place_monster(mtmp, game.u.ux, game.u.uy);
+        await set_ustuck(mtmp);
+        await newsym(mtmp.mx, mtmp.my);
         if (game.u.usteed) {
             let buf = '';
-            buf = strcpy(buf, mon_nam(game.u.usteed));
-            urgent_pline("%s %s forward and plucks you off %s!", Some_Monnam(mtmp), (((mtmp.data).mflags1 & 262144) != 0) ? "lunges" : ((mtmp.data).mlet == S_VORTEX || (mtmp.data) == game.mons[PM_AIR_ELEMENTAL]) ? "whirls" : (((mtmp.data).mflags1 & 1048576) != 0) ? "flows" : (((mtmp.data).mflags1 & 4) != 0) ? "oozes" : "surges", buf);
-            dismount_steed(DISMOUNT_ENGULFED);
+            buf = strcpy(buf, await mon_nam(game.u.usteed));
+            await urgent_pline("%s %s forward and plucks you off %s!", await Some_Monnam(mtmp), (((mtmp.data).mflags1 & 262144) != 0) ? "lunges" : ((mtmp.data).mlet == S_VORTEX || (mtmp.data) == game.mons[PM_AIR_ELEMENTAL]) ? "whirls" : (((mtmp.data).mflags1 & 1048576) != 0) ? "flows" : (((mtmp.data).mflags1 & 4) != 0) ? "oozes" : "surges", buf);
+            await dismount_steed(DISMOUNT_ENGULFED);
         } else {
-            urgent_pline("%s %s!", Monnam(mtmp), (dmgtype_fromattack((mtmp.data), 26, 11) != null) ? "swallows you whole" : (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "folds itself around you" : "engulfs you");
+            await urgent_pline("%s %s!", await Monnam(mtmp), (dmgtype_fromattack((mtmp.data), 26, 11) != null) ? "swallows you whole" : (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "folds itself around you" : "engulfs you");
         }
-        stop_occupation();
+        await stop_occupation();
         /* behave as if you had moved */
         reset_occupations();
         if (game.u.utrap) {
-            /* none (some 'v', already whirling) */
-            /* none (all AT_ENGL are already covered) */
-            You("are released from the %s!", (game.u.utraptype == TT_WEB) ? "web" : "trap");
-            reset_utrap((0));
+            await You("are released from the %s!", (game.u.utraptype == TT_WEB) ? "web" : "trap");
+            await reset_utrap((0));
         }
         i = number_leashed();
         if (i > 0) {
             let s = (i > 1) ? "leashes" : "leash";
-            pline_The("%s %s loose.", s, vtense(s, "snap"));
+            await pline_The("%s %s loose.", s, await vtense(s, "snap"));
             unleash_all();
         }
-        if (((game.youmonst.data) == game.mons[PM_COCKATRICE] || (game.youmonst.data) == game.mons[PM_CHICKATRICE]) && !Resists_Elem(mtmp, STONE_RES)) {
+        if (((game.youmonst.data) == game.mons[PM_COCKATRICE] || (game.youmonst.data) == game.mons[PM_CHICKATRICE]) && !await Resists_Elem(mtmp, STONE_RES)) {
             game.level.monsters[mtmp.mx][mtmp.my] = null;
-            /* put the attacker back where it started;
-               the resulting statue will end up there
-               [note: if poly'd hero could ride or non-poly'd hero could
-               acquire touch_petrifies() capability somehow, this code
-               would need to deal with possibility of steed having taken
-               engulfer's previous spot when hero was forcibly dismounted] */
-            place_monster(mtmp, omx, omy);
-            minstapetrify(mtmp, (1));
-            /* normally unstuck() would do this, but we're not
-               fully swallowed yet so that won't work here */
+            await place_monster(mtmp, omx, omy);
+            await minstapetrify(mtmp, (1));
             if ((game.uball != null)) {
-                placebc();
+                await placebc();
             }
-            set_ustuck(null);
+            await set_ustuck(null);
             return (!((mtmp).mhp < 1)) ? 0 : 4;
         }
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
-        vision_recalc(2);
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+        await vision_recalc(2);
         game.u.uswallow = 1;
         if (mattk.adtyp == 26) {
             /* for digestion, shorter time is more dangerous;
@@ -1270,12 +1214,11 @@ export function gulpmu(mtmp, mattk) {
         }
         /* u.uswldtim always set > 1 */
         game.u.uswldtim = ((tim_tmp < 2) ? 2 : tim_tmp);
-        /* update the map display, shows hero swallowed */
-        swallowed(1);
+        await swallowed(1);
         if (!((mtmp.data) == game.mons[PM_FIRE_VORTEX] || (mtmp.data) == game.mons[PM_FLAMING_SPHERE] || (mtmp.data) == game.mons[PM_FIRE_ELEMENTAL] || (mtmp.data) == game.mons[PM_SALAMANDER])) {
             for (otmp2 = game.invent; otmp2; otmp2 = nextobj) {
                 nextobj = otmp2.nobj;
-                snuff_lit(otmp2);
+                await snuff_lit(otmp2);
             }
         }
     }
@@ -1303,55 +1246,55 @@ export function gulpmu(mtmp, mattk) {
                 game.u.uswldtim = 0;
                 tmp = 0;
             } else if (game.u.uswldtim == 0) {
-                pline("%s totally digests you!", Monnam(mtmp));
+                await pline("%s totally digests you!", await Monnam(mtmp));
                 tmp = game.u.uhp;
                 if ((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) {
                     tmp *= 2;
                 }
             } else {
-                pline("%s%s digests you!", Monnam(mtmp), (game.u.uswldtim == 2) ? " thoroughly" : (game.u.uswldtim == 1) ? " utterly" : "");
-                exercise(A_STR, (0));
+                await pline("%s%s digests you!", await Monnam(mtmp), (game.u.uswldtim == 2) ? " thoroughly" : (game.u.uswldtim == 1) ? " utterly" : "");
+                await exercise(A_STR, (0));
             }
             break;
         case 0:
             physical_damage = (1);
             if (mtmp.data == game.mons[PM_FOG_CLOUD]) {
-                You("are laden with moisture and %s", ((game.youmonst.data) == game.mons[PM_FIRE_VORTEX] || (game.youmonst.data) == game.mons[PM_FLAMING_SPHERE] || (game.youmonst.data) == game.mons[PM_FIRE_ELEMENTAL] || (game.youmonst.data) == game.mons[PM_SALAMANDER]) ? "are smoldering out!" : (game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 1024) != 0)) ? "find it mildly uncomfortable." : (((game.youmonst.data).mflags1 & 512) != 0) ? "feel comforted." : "can barely breathe!");
+                await You("are laden with moisture and %s", ((game.youmonst.data) == game.mons[PM_FIRE_VORTEX] || (game.youmonst.data) == game.mons[PM_FLAMING_SPHERE] || (game.youmonst.data) == game.mons[PM_FIRE_ELEMENTAL] || (game.youmonst.data) == game.mons[PM_SALAMANDER]) ? "are smoldering out!" : (game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 1024) != 0)) ? "find it mildly uncomfortable." : (((game.youmonst.data).mflags1 & 512) != 0) ? "feel comforted." : "can barely breathe!");
                 if (((game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 512) != 0)) || (game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 1024) != 0))) && !((game.youmonst.data) == game.mons[PM_FIRE_VORTEX] || (game.youmonst.data) == game.mons[PM_FLAMING_SPHERE] || (game.youmonst.data) == game.mons[PM_FIRE_ELEMENTAL] || (game.youmonst.data) == game.mons[PM_SALAMANDER])) {
                     tmp = 0;
                 }
             } else {
-                You("are %s!", (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "being squashed" : "pummeled with debris");
-                exercise(A_STR, (0));
+                await You("are %s!", (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "being squashed" : "pummeled with debris");
+                await exercise(A_STR, (0));
             }
             break;
         case 8:
             if ((game.u.uprops[ACID_RES].intrinsic || game.u.uprops[ACID_RES].extrinsic)) {
-                You("are covered with a seemingly harmless goo.");
+                await You("are covered with a seemingly harmless goo.");
                 /* NB: the monst[un]seesu calls in gulpmu are no-ops since the
                hero must be currently swallowed for the attack to hit... */
                 monstseesu(M_SEEN_ACID);
                 tmp = 0;
             } else {
                 if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                    pline("Ouch!  You've been slimed!");
+                    await pline("Ouch!  You've been slimed!");
                 } else {
-                    You("are covered in slime!  It burns!");
+                    await You("are covered in slime!  It burns!");
                 }
-                exercise(A_STR, (0));
+                await exercise(A_STR, (0));
                 monstunseesu(M_SEEN_ACID);
             }
             break;
         case 11:
-            if (can_blnd(mtmp, game.youmonst, mattk.aatyp, null)) {
+            if (await can_blnd(mtmp, game.youmonst, mattk.aatyp, null)) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                     let was_blinded = (game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked);
                     if (!(game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked)) {
-                        You_cant("see in here!");
+                        await You_cant("see in here!");
                     }
-                    make_blinded(tmp, (0));
+                    await make_blinded(tmp, (0));
                     if (!was_blinded && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        Your("%s", c_common_strings.c_vision_clears);
+                        await Your("%s", c_common_strings.c_vision_clears);
                     }
                 /* keep him blind until disgorged */
                 } else {
@@ -1362,12 +1305,12 @@ export function gulpmu(mtmp, mattk) {
             break;
         case 6:
             if (!mtmp.mcan && rn2(2)) {
-                pline_The("air around you crackles with electricity.");
+                await pline_The("air around you crackles with electricity.");
                 if ((game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic)) {
-                    shieldeff(game.u.ux, game.u.uy);
-                    You("seem unhurt.");
+                    await shieldeff(game.u.ux, game.u.uy);
+                    await You("seem unhurt.");
                     monstseesu(M_SEEN_ELEC);
-                    ugolemeffects(6, tmp);
+                    await ugolemeffects(6, tmp);
                     tmp = 0;
                 } else {
                     monstunseesu(M_SEEN_ELEC);
@@ -1379,13 +1322,13 @@ export function gulpmu(mtmp, mattk) {
         case 3:
             if (!mtmp.mcan && rn2(2)) {
                 if ((game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic)) {
-                    shieldeff(game.u.ux, game.u.uy);
-                    You_feel("mildly chilly.");
+                    await shieldeff(game.u.ux, game.u.uy);
+                    await You_feel("mildly chilly.");
                     monstseesu(M_SEEN_COLD);
-                    ugolemeffects(3, tmp);
+                    await ugolemeffects(3, tmp);
                     tmp = 0;
                 } else {
-                    You("are freezing to death!");
+                    await You("are freezing to death!");
                     monstunseesu(M_SEEN_COLD);
                 }
             } else {
@@ -1395,28 +1338,28 @@ export function gulpmu(mtmp, mattk) {
         case 2:
             if (!mtmp.mcan && rn2(2)) {
                 if ((game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic)) {
-                    shieldeff(game.u.ux, game.u.uy);
-                    You_feel("mildly hot.");
+                    await shieldeff(game.u.ux, game.u.uy);
+                    await You_feel("mildly hot.");
                     monstseesu(M_SEEN_FIRE);
-                    ugolemeffects(2, tmp);
+                    await ugolemeffects(2, tmp);
                     tmp = 0;
                 } else {
-                    You("are burning to a crisp!");
+                    await You("are burning to a crisp!");
                     monstunseesu(M_SEEN_FIRE);
                 }
-                burn_away_slime();
+                await burn_away_slime();
             } else {
                 tmp = 0;
             }
             break;
         case 33:
-            if (!diseasemu(mtmp.data)) {
+            if (!await diseasemu(mtmp.data)) {
                 tmp = 0;
             }
             break;
         case 16:
             if (!mtmp.mcan && rn2(4)) {
-                drain_en(tmp, (0));
+                await drain_en(tmp, (0));
             }
             tmp = 0;
             break;
@@ -1436,32 +1379,27 @@ export function gulpmu(mtmp, mattk) {
         tmp = (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((tmp) + 1) / 2)) : (tmp));
     }
     game.mswallower = mtmp;
-    mdamageu(mtmp, tmp);
+    await mdamageu(mtmp, tmp);
     game.mswallower = null;
     if (tmp) {
-        stop_occupation();
+        await stop_occupation();
     }
     if (!game.u.uswallow) {
         ;
-    } else if (((game.youmonst.data) == game.mons[PM_COCKATRICE] || (game.youmonst.data) == game.mons[PM_CHICKATRICE]) && !Resists_Elem(mtmp, STONE_RES)) {
-        /* life-saving has already expelled swallowed hero */
-        pline("%s very hurriedly %s you!", Monnam(mtmp), (dmgtype_fromattack((mtmp.data), 26, 11) != null) ? "regurgitates" : (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "releases" : "expels");
-        expels(mtmp, mtmp.data, (0));
+    } else if (((game.youmonst.data) == game.mons[PM_COCKATRICE] || (game.youmonst.data) == game.mons[PM_CHICKATRICE]) && !await Resists_Elem(mtmp, STONE_RES)) {
+        await pline("%s very hurriedly %s you!", await Monnam(mtmp), (dmgtype_fromattack((mtmp.data), 26, 11) != null) ? "regurgitates" : (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "releases" : "expels");
+        await expels(mtmp, mtmp.data, (0));
     } else if (!game.u.uswldtim || game.youmonst.data.msize >= 4) {
-        /* As of 3.6.2: u.uswldtim used to be set to 0 by life-saving but it
-           expels now so the !u.uswldtim case is no longer possible;
-           however, polymorphing into a huge form while already
-           swallowed is still possible */
-        You("get %s!", (dmgtype_fromattack((mtmp.data), 26, 11) != null) ? "regurgitated" : (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "released" : "expelled");
+        await You("get %s!", (dmgtype_fromattack((mtmp.data), 26, 11) != null) ? "regurgitated" : (dmgtype_fromattack((mtmp.data), 28, 11) != null) ? "released" : "expelled");
         if (game.flags.verbose && ((dmgtype_fromattack((mtmp.data), 26, 11) != null) && (game.u.uprops[SLOW_DIGESTION].intrinsic || game.u.uprops[SLOW_DIGESTION].extrinsic))) {
-            pline("Obviously %s doesn't like your taste.", mon_nam(mtmp));
+            await pline("Obviously %s doesn't like your taste.", await mon_nam(mtmp));
         }
-        expels(mtmp, mtmp.data, (0));
+        await expels(mtmp, mtmp.data, (0));
     }
     return 1;
 }
 /* monster explodes in your face */
-export function explmu(mtmp, mattk, ufound) {
+export async function explmu(mtmp, mattk, ufound) {
     let kill_agr = (1);
     let not_affected = 0;
     let tmp = 0;
@@ -1469,37 +1407,36 @@ export function explmu(mtmp, mattk, ufound) {
         return 0;
     }
     tmp = d(mattk.damn, mattk.damd);
-    not_affected = defended(mtmp, mattk.adtyp);
+    not_affected = await defended(mtmp, mattk.adtyp);
     if (!ufound) {
-        pline("%s explodes at a spot in %s!", canseemon(mtmp) ? Monnam(mtmp) : "It", is_waterwall(mtmp.mux, mtmp.muy) ? "empty water" : "thin air");
+        await pline("%s explodes at a spot in %s!", canseemon(mtmp) ? await Monnam(mtmp) : "It", is_waterwall(mtmp.mux, mtmp.muy) ? "empty water" : "thin air");
     } else {
-        hitmsg(mtmp, mattk);
+        await hitmsg(mtmp, mattk);
     }
     switch (mattk.adtyp) {
         case 3:
         case 2:
         case 6:
-            mon_explodes(mtmp, mattk);
+            await mon_explodes(mtmp, mattk);
             if (!((mtmp).mhp < 1)) {
                 /* already killed (maybe lifesaved) */
                 kill_agr = (0);
             }
             break;
         case 11:
-            not_affected = resists_blnd(game.youmonst);
+            not_affected = await resists_blnd(game.youmonst);
             if (ufound && !not_affected) {
                 if (mon_visible(mtmp) || (rnd(tmp = Math.trunc(tmp / 2)) > game.u.ulevel)) {
-                    /* sometimes you're affected even if it's invisible */
-                    You("are blinded by a blast of light!");
-                    make_blinded(tmp, (0));
+                    await You("are blinded by a blast of light!");
+                    await make_blinded(tmp, (0));
                     /* not blind at this point implies you're wearing
                    the Eyes of the Overworld; make them block this
                    particular stun attack too */
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        Your("%s", c_common_strings.c_vision_clears);
+                        await Your("%s", c_common_strings.c_vision_clears);
                     }
                 } else if (game.flags.verbose) {
-                    You("get the impression it was not terribly bright.");
+                    await You("get the impression it was not terribly bright.");
                 }
             }
             break;
@@ -1508,32 +1445,31 @@ export function explmu(mtmp, mattk, ufound) {
             if (ufound && !not_affected) {
                 let chg = 0;
                 if (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                    You("are caught in a blast of kaleidoscopic light!");
+                    await You("are caught in a blast of kaleidoscopic light!");
                 }
-                /* avoid hallucinating the black light as it dies */
-                mondead(mtmp);
+                await mondead(mtmp);
                 kill_agr = (0);
-                chg = make_hallucinated(game.u.uprops[HALLUC].intrinsic + tmp, (0), 0);
-                You("%s.", chg ? "are freaked out" : "seem unaffected");
+                chg = await make_hallucinated(game.u.uprops[HALLUC].intrinsic + tmp, (0), 0);
+                await You("%s.", chg ? "are freaked out" : "seem unaffected");
             }
             break;
         default:
-            impossible("unknown exploder damage type %d", mattk.adtyp);
+            await impossible("unknown exploder damage type %d", mattk.adtyp);
             break;
     }
     if (not_affected) {
-        You("seem unaffected by it.");
-        ugolemeffects(mattk.adtyp, tmp);
+        await You("seem unaffected by it.");
+        await ugolemeffects(mattk.adtyp, tmp);
     }
     if (kill_agr && !((mtmp).mhp < 1)) {
-        mondead(mtmp);
+        await mondead(mtmp);
     }
-    wake_nearto(mtmp.mx, mtmp.my, 7 * 7);
+    await wake_nearto(mtmp.mx, mtmp.my, 7 * 7);
     return (!((mtmp).mhp < 1)) ? 0 : 4;
 }
 /* monster gazes at you */
 const __gazemu_reactions = ["confused", "stunned", "puzzled", "dazzled", "irritated", "inflamed", "tired", "dulled"];
-export function gazemu(mtmp, mattk) {
+export async function gazemu(mtmp, mattk) {
     let react = -1;
     let is_medusa = 0;
     let reflectable = 0;
@@ -1571,9 +1507,9 @@ export function gazemu(mtmp, mattk) {
                     break;
                 }
                 if (is_medusa && (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !rn2(3)) {
-                    pline("Someone seems overdue for a serpent cut.");
+                    await pline("Someone seems overdue for a serpent cut.");
                 } else {
-                    pline_mon(mtmp, "%s %s.", Monnam(mtmp), (is_medusa && mtmp.mcan && !react) ? "doesn't look all that ugly" : "gazes ineffectually");
+                    await pline_mon(mtmp, "%s %s.", await Monnam(mtmp), (is_medusa && mtmp.mcan && !react) ? "doesn't look all that ugly" : "gazes ineffectually");
                 }
                 break;
             }
@@ -1581,38 +1517,37 @@ export function gazemu(mtmp, mattk) {
                 /* hero has line of sight to Medusa and she's not blind */
                 let useeit = canseemon(mtmp);
                 if (useeit) {
-                    ureflects("%s gaze is reflected by your %s.", s_suffix(Monnam(mtmp)));
+                    await ureflects("%s gaze is reflected by your %s.", s_suffix(await Monnam(mtmp)));
                 }
-                if (mon_reflects(mtmp, !useeit ? null : "The gaze is reflected away by %s %s!")) {
+                if (await mon_reflects(mtmp, !useeit ? null : "The gaze is reflected away by %s %s!")) {
                     break;
                 }
                 if (!((!((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) || ((((mtmp).data).mflags1 & 16777216) != 0)) && !(game.u.uinwater) && ((game.viz_array[(mtmp).my][(mtmp).mx] & 1) != 0))) {
-                    /* probably you're invisible */
                     if (useeit) {
-                        pline("%s doesn't seem to notice that %s gaze was reflected.", Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his));
+                        await pline("%s doesn't seem to notice that %s gaze was reflected.", await Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his));
                     }
                     break;
                 }
                 if (useeit) {
-                    pline_mon(mtmp, "%s is turned to stone!", Monnam(mtmp));
+                    await pline_mon(mtmp, "%s is turned to stone!", await Monnam(mtmp));
                 }
                 game.stoned = (1);
-                killed(mtmp);
+                await killed(mtmp);
                 if (!((mtmp).mhp < 1)) {
                     break;
                 }
                 return 4;
             }
             if (canseemon(mtmp) && ((game.viz_array[mtmp.my][mtmp.mx] & 1) != 0) && !(game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) && !(game.multi < 0 && (unconscious() || is_fainted()))) {
-                You("meet %s gaze.", s_suffix(mon_nam(mtmp)));
-                stop_occupation();
-                if (poly_when_stoned(game.youmonst.data) && polymon(PM_STONE_GOLEM)) {
+                await You("meet %s gaze.", s_suffix(await mon_nam(mtmp)));
+                await stop_occupation();
+                if (poly_when_stoned(game.youmonst.data) && await polymon(PM_STONE_GOLEM)) {
                     break;
                 }
-                urgent_pline("You turn to stone...");
+                await urgent_pline("You turn to stone...");
                 game.killer.format = 1;
                 game.killer.name = strcpy(game.killer.name, pmname(mtmp.data, Mgender(mtmp)));
-                done(STONING);
+                await done(STONING);
             }
             break;
         case 25:
@@ -1624,12 +1559,12 @@ export function gazemu(mtmp, mattk) {
                     let conf = d(3, 4);
                     mtmp.mspec_used = mtmp.mspec_used + (conf + rn2(6));
                     if (!game.u.uprops[CONFUSION].intrinsic) {
-                        pline_mon(mtmp, "%s gaze confuses you!", s_suffix(Monnam(mtmp)));
+                        await pline_mon(mtmp, "%s gaze confuses you!", s_suffix(await Monnam(mtmp)));
                     } else {
-                        You("are getting more and more confused.");
+                        await You("are getting more and more confused.");
                     }
-                    make_confused(game.u.uprops[CONFUSION].intrinsic + conf, (0));
-                    stop_occupation();
+                    await make_confused(game.u.uprops[CONFUSION].intrinsic + conf, (0));
+                    await stop_occupation();
                 }
             }
             break;
@@ -1641,14 +1576,14 @@ export function gazemu(mtmp, mattk) {
                 } else {
                     let stun = d(2, 6);
                     mtmp.mspec_used = mtmp.mspec_used + (stun + rn2(6));
-                    pline_mon(mtmp, "%s stares piercingly at you!", Monnam(mtmp));
-                    make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + stun, (1));
-                    stop_occupation();
+                    await pline_mon(mtmp, "%s stares piercingly at you!", await Monnam(mtmp));
+                    await make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + stun, (1));
+                    await stop_occupation();
                 }
             }
             break;
         case 11:
-            if (canseemon(mtmp) && !resists_blnd(game.youmonst) && dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) <= 8 * 8) {
+            if (canseemon(mtmp) && !await resists_blnd(game.youmonst) && dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) <= 8 * 8) {
                 if (cancelled) {
                     react = (rn2(2) + (2));
                     already = (mtmp.mcansee == 0);
@@ -1659,17 +1594,15 @@ export function gazemu(mtmp, mattk) {
                     }
                 } else {
                     let blnd = d(mattk.damn, mattk.damd);
-                    You("are blinded by %s radiance!", s_suffix(mon_nam(mtmp)));
-                    make_blinded(blnd, (0));
-                    stop_occupation();
+                    await You("are blinded by %s radiance!", s_suffix(await mon_nam(mtmp)));
+                    await make_blinded(blnd, (0));
+                    await stop_occupation();
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        Your("%s", c_common_strings.c_vision_clears);
+                        await Your("%s", c_common_strings.c_vision_clears);
                     } else {
                         let oldstun = (game.u.uprops[STUNNED].intrinsic & 16777215);
                         let newstun = rnd(3);
-                        /* we don't want to increment stun duration every time
-                       or sighted hero will become incapacitated */
-                        make_stunned(((oldstun) > (newstun) ? (oldstun) : (newstun)), (1));
+                        await make_stunned(((oldstun) > (newstun) ? (oldstun) : (newstun)), (1));
                     }
                 }
             }
@@ -1683,71 +1616,69 @@ export function gazemu(mtmp, mattk) {
                     let dmg = d(2, 6);
                     let orig_dmg = dmg;
                     let lev = mtmp.m_lev;
-                    pline_mon(mtmp, "%s attacks you with a fiery gaze!", Monnam(mtmp));
-                    stop_occupation();
+                    await pline_mon(mtmp, "%s attacks you with a fiery gaze!", await Monnam(mtmp));
+                    await stop_occupation();
                     if ((game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic)) {
-                        shieldeff(game.u.ux, game.u.uy);
-                        pline_The("fire doesn't feel hot!");
+                        await shieldeff(game.u.ux, game.u.uy);
+                        await pline_The("fire doesn't feel hot!");
                         monstseesu(M_SEEN_FIRE);
-                        ugolemeffects(2, d(12, 6));
+                        await ugolemeffects(2, d(12, 6));
                         dmg = 0;
                     } else {
                         monstunseesu(M_SEEN_FIRE);
                     }
-                    burn_away_slime();
+                    await burn_away_slime();
                     if (lev > rn2(20)) {
-                        burnarmor(game.youmonst);
+                        await burnarmor(game.youmonst);
                     }
                     if (lev > rn2(20)) {
-                        destroy_items(game.youmonst, 2, orig_dmg);
-                        ignite_items(game.invent);
+                        await destroy_items(game.youmonst, 2, orig_dmg);
+                        await ignite_items(game.invent);
                     }
                     if (dmg) {
-                        mdamageu(mtmp, dmg);
+                        await mdamageu(mtmp, dmg);
                     }
                 }
             }
             break;
         default:
-            impossible("Gaze attack %d?", mattk.adtyp);
+            await impossible("Gaze attack %d?", mattk.adtyp);
             break;
     }
     if (react >= 0) {
         if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && rn2(3)) {
             react = rn2((Math.trunc(8 /* sizeof(const char *const [8]) */ / 1 /* sizeof(const char *const) */)));
         }
-        /* cancelled/hallucinatory feedback; monster might look "confused",
-           "stunned",&c but we don't actually set corresponding attribute */
-        pline_mon(mtmp, "%s looks %s%s.", Monnam(mtmp), !rn2(3) ? "" : already ? "quite " : (!rn2(2) ? "a bit " : "somewhat "), __gazemu_reactions[react]);
+        await pline_mon(mtmp, "%s looks %s%s.", await Monnam(mtmp), !rn2(3) ? "" : already ? "quite " : (!rn2(2) ? "a bit " : "somewhat "), __gazemu_reactions[react]);
     }
     return 0;
 }
 /* mtmp hits you for n points damage */
-export function mdamageu(mtmp, n) {
+export async function mdamageu(mtmp, n) {
     if (n < 0) {
-        impossible("mdamageu for negative damage? (%d)", n);
+        await impossible("mdamageu for negative damage? (%d)", n);
         n = 0;
     }
     game.disp.botl = (1);
     if ((game.u.umonnum != game.u.umonster)) {
         game.u.mh -= n;
-        showdamage(n);
+        await showdamage(n);
         /* caller might have reduced mhmax before calling mdamageu() */
         if (game.u.mh > game.u.mhmax) {
             game.u.mh = game.u.mhmax;
         }
         if (game.u.mh < 1) {
-            rehumanize();
+            await rehumanize();
         }
     } else {
         game.u.uhp -= n;
-        showdamage(n);
+        await showdamage(n);
         /* caller might have reduced uhpmax before calling mdamageu() */
         if (game.u.uhp > game.u.uhpmax) {
             game.u.uhp = game.u.uhpmax;
         }
         if (game.u.uhp < 1) {
-            done_in_by(mtmp, DIED);
+            await done_in_by(mtmp, DIED);
         }
     }
 }
@@ -1799,7 +1730,7 @@ export function could_seduce(magr, mdef, mattk) {
     return (genagr == 1 - gendef) ? 1 : (pagr.mlet == S_NYMPH) ? 2 : 0;
 }
 /* returns 1 if monster teleported (or hero leaves monster's vicinity) */
-export function doseduce(mon) {
+export async function doseduce(mon) {
     let ring = null;
     let nring = null;
     let fem = (mon.data == game.mons[PM_AMOROUS_DEMON] && Mgender(mon) == FEMALE);
@@ -1810,24 +1741,21 @@ export function doseduce(mon) {
     let qbuf = '';
     let Who = '';
     if (mon.mcan || mon.mspec_used) {
-        pline_mon(mon, "%s acts as though %s has got a %sheadache.", Monnam(mon), (genders[pronoun_gender(mon, 2)].he), mon.mcan ? "severe " : "");
+        await pline_mon(mon, "%s acts as though %s has got a %sheadache.", await Monnam(mon), (genders[pronoun_gender(mon, 2)].he), mon.mcan ? "severe " : "");
         return 0;
     }
     if (unresponsive()) {
-        pline_mon(mon, "%s seems dismayed at your lack of response.", Monnam(mon));
+        await pline_mon(mon, "%s seems dismayed at your lack of response.", await Monnam(mon));
         return 0;
     }
     seewho = canseemon(mon);
     if (!seewho) {
-        pline("Someone caresses you...");
+        await pline("Someone caresses you...");
     } else {
-        You_feel("very attracted to %s.", mon_nam(mon));
+        await You_feel("very attracted to %s.", await mon_nam(mon));
     }
-    Who = strcpy(Who, (!seewho ? (fem ? "She" : "He") : Monnam(mon)));
-    /* cache the seducer's name in a local buffer */
-    /* if in the process of putting armor on or taking armor off,
-       interrupt that activity now */
-    stop_donning(null);
+    Who = strcpy(Who, (!seewho ? (fem ? "She" : "He") : await Monnam(mon)));
+    await stop_donning(null);
     /* don't try to take off gloves if cursed weapon blocks them */
     if (welded(game.uwep)) {
         tried_gloves = 1;
@@ -1839,34 +1767,29 @@ export function doseduce(mon) {
         }
         if (fem) {
             if (ring.owornmask && game.uarmg) {
-                /* don't take off worn ring if gloves are in the way */
-                /* don't put on ring if gloves are in the way */
                 if (!tried_gloves++) {
-                    mayberem(mon, Who, game.uarmg, "gloves");
+                    await mayberem(mon, Who, game.uarmg, "gloves");
                 }
                 if (game.uarmg) {
                     continue;
                 }
             }
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && rn2(20) < (acurr(A_CHA))) {
-                /* next ring might not be worn */
-                /* confirmation prompt when charisma is high bypassed if deaf */
-                safe_qbuf(qbuf, "\"That ", " looks pretty.  May I have it?\"", ring, xname, simpleonames, "ring");
-                discover_object((RIN_ADORNMENT), (1), (1), (1));
+                await safe_qbuf(qbuf, "\"That ", " looks pretty.  May I have it?\"", ring, xname, simpleonames, "ring");
+                await discover_object((RIN_ADORNMENT), (1), (1), (1));
                 ;
-                if (yn_function(qbuf, ynchars, 110, (1)) == 110) {
+                if (await yn_function(qbuf, ynchars, 110, (1)) == 110) {
                     continue;
                 }
             } else {
-                pline("%s decides she'd like %s, and takes it.", Who, yname(ring));
+                await pline("%s decides she'd like %s, and takes it.", Who, await yname(ring));
             }
-            discover_object((RIN_ADORNMENT), (1), (1), (1));
-            /* might be in left or right ring slot or weapon/alt-wep/quiver */
+            await discover_object((RIN_ADORNMENT), (1), (1), (1));
             if (ring.owornmask) {
-                remove_worn_item(ring, (0));
+                await remove_worn_item(ring, (0));
             }
-            freeinv(ring);
-            mpickobj(mon, ring);
+            await freeinv(ring);
+            await mpickobj(mon, ring);
         } else {
             if (game.uleft && game.uright && game.uleft.otyp == RIN_ADORNMENT && game.uright.otyp == RIN_ADORNMENT) {
                 break;
@@ -1876,38 +1799,33 @@ export function doseduce(mon) {
             }
             if (game.uarmg) {
                 if (!tried_gloves++) {
-                    mayberem(mon, Who, game.uarmg, "gloves");
+                    await mayberem(mon, Who, game.uarmg, "gloves");
                 }
                 if (game.uarmg) {
                     break;
                 }
             }
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && rn2(20) < (acurr(A_CHA))) {
-                /* no point trying further rings */
-                safe_qbuf(qbuf, "\"That ", " looks pretty.  Would you wear it for me?\"", ring, xname, simpleonames, "ring");
-                discover_object((RIN_ADORNMENT), (1), (1), (1));
+                await safe_qbuf(qbuf, "\"That ", " looks pretty.  Would you wear it for me?\"", ring, xname, simpleonames, "ring");
+                await discover_object((RIN_ADORNMENT), (1), (1), (1));
                 ;
-                if (yn_function(qbuf, ynchars, 110, (1)) == 110) {
+                if (await yn_function(qbuf, ynchars, 110, (1)) == 110) {
                     continue;
                 }
             } else {
-                pline("%s decides you'd look prettier wearing %s,", Who, yname(ring));
-                pline("and puts it on your finger.");
+                await pline("%s decides you'd look prettier wearing %s,", Who, await yname(ring));
+                await pline("and puts it on your finger.");
             }
-            discover_object((RIN_ADORNMENT), (1), (1), (1));
+            await discover_object((RIN_ADORNMENT), (1), (1), (1));
             if (!game.uright) {
-                pline("%s puts %s on your right %s.", Who, the(xname(ring)), body_part(HAND));
-                setworn(ring, 262144);
+                await pline("%s puts %s on your right %s.", Who, await the(await xname(ring)), await body_part(HAND));
+                await setworn(ring, 262144);
             } else if (!game.uleft) {
-                pline("%s puts %s on your left %s.", Who, the(xname(ring)), body_part(HAND));
-                setworn(ring, 131072);
+                await pline("%s puts %s on your left %s.", Who, await the(await xname(ring)), await body_part(HAND));
+                await setworn(ring, 131072);
             } else if (game.uright && game.uright.otyp != RIN_ADORNMENT) {
-                /* note: the "replaces" message might be inaccurate if
-                   hero's location changes and the process gets interrupted,
-                   but trying to figure that out in advance in order to use
-                   alternate wording is not worth the effort */
-                pline("%s replaces %s with %s.", Who, yname(game.uright), yname(ring));
-                Ring_gone(game.uright);
+                await pline("%s replaces %s with %s.", Who, await yname(game.uright), await yname(ring));
+                await Ring_gone(game.uright);
                 /* ring removal might cause loss of levitation which could
                    drop hero onto trap that transports hero somewhere else */
                 /* removing armor (levitation boots, or levitation ring to make
@@ -1921,36 +1839,35 @@ export function doseduce(mon) {
                 if (game.u.utotype || !(dist2(((mon).mx), ((mon).my), game.u.ux, game.u.uy) <= 2)) {
                     return 1;
                 }
-                setworn(ring, 262144);
+                await setworn(ring, 262144);
             } else if (game.uleft && game.uleft.otyp != RIN_ADORNMENT) {
-                /* see "replaces" note above */
-                pline("%s replaces %s with %s.", Who, yname(game.uleft), yname(ring));
-                Ring_gone(game.uleft);
+                await pline("%s replaces %s with %s.", Who, await yname(game.uleft), await yname(ring));
+                await Ring_gone(game.uleft);
                 if (game.u.utotype || !(dist2(((mon).mx), ((mon).my), game.u.ux, game.u.uy) <= 2)) {
                     return 1;
                 }
-                setworn(ring, 131072);
+                await setworn(ring, 131072);
             } else {
-                impossible("ring replacement");
+                await impossible("ring replacement");
             }
-            Ring_on(ring);
-            prinv(null, ring, 0);
+            await Ring_on(ring);
+            await prinv(null, ring, 0);
         }
     }
     naked = (!game.uarmc && !game.uarmf && !game.uarmg && !game.uarms && !game.uarmh && !game.uarmu);
-    urgent_pline("%s %s%s.", Who, (game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) ? "seems to murmur into your ear" : naked ? "murmurs sweet nothings into your ear" : "murmurs in your ear", naked ? "" : ", while helping you undress");
-    mayberem(mon, Who, game.uarmc, cloak_simple_name(game.uarmc));
+    await urgent_pline("%s %s%s.", Who, (game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) ? "seems to murmur into your ear" : naked ? "murmurs sweet nothings into your ear" : "murmurs in your ear", naked ? "" : ", while helping you undress");
+    await mayberem(mon, Who, game.uarmc, cloak_simple_name(game.uarmc));
     if (!game.uarmc) {
-        mayberem(mon, Who, game.uarm, suit_simple_name(game.uarm));
+        await mayberem(mon, Who, game.uarm, suit_simple_name(game.uarm));
     }
-    mayberem(mon, Who, game.uarmf, "boots");
+    await mayberem(mon, Who, game.uarmf, "boots");
     if (!tried_gloves) {
-        mayberem(mon, Who, game.uarmg, "gloves");
+        await mayberem(mon, Who, game.uarmg, "gloves");
     }
-    mayberem(mon, Who, game.uarms, "shield");
-    mayberem(mon, Who, game.uarmh, helm_simple_name(game.uarmh));
+    await mayberem(mon, Who, game.uarms, "shield");
+    await mayberem(mon, Who, game.uarmh, helm_simple_name(game.uarmh));
     if (!game.uarmc && !game.uarm) {
-        mayberem(mon, Who, game.uarmu, "shirt");
+        await mayberem(mon, Who, game.uarmu, "shirt");
     }
     if (game.u.utotype || !(dist2(((mon).mx), ((mon).my), game.u.ux, game.u.uy) <= 2)) {
         return 1;
@@ -1959,117 +1876,112 @@ export function doseduce(mon) {
         if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
             if (!(((yyyymmdd(0) - (getyear() * 10000)) == 229) && mon.female)) {
                 ;
-                verbalize("You're such a %s; I wish...", game.flags.female ? "sweet lady" : "nice guy");
+                await verbalize("You're such a %s; I wish...", game.flags.female ? "sweet lady" : "nice guy");
             } else {
                 let yourgloves = u_carried_gloves();
-                /* have her call your gloves by their correct
-                   name, possibly revealing them to you */
                 if (yourgloves) {
-                    observe_object(yourgloves);
+                    await observe_object(yourgloves);
                 }
-                verbalize("Well, then you owe me %s%s!", yourgloves ? yname(yourgloves) : "twelve pairs of gloves", yourgloves ? " and eleven more pairs of gloves" : "");
+                await verbalize("Well, then you owe me %s%s!", yourgloves ? await yname(yourgloves) : "twelve pairs of gloves", yourgloves ? " and eleven more pairs of gloves" : "");
             }
         } else if (seewho) {
-            pline_mon(mon, "%s appears to sigh.", Monnam(mon));
+            await pline_mon(mon, "%s appears to sigh.", await Monnam(mon));
         }
-        /* else no regret message if can't see or hear seducer */
-        if (!tele_restrict(mon)) {
-            rloc(mon, 2);
+        if (!await tele_restrict(mon)) {
+            await rloc(mon, 2);
         }
         return 1;
     }
     if (game.u.ualign.type == (-1)) {
         adjalign(1);
     }
-    /* by this point you have discovered mon's identity, blind or not... */
-    urgent_pline("Time stands still while you and %s lie in each other's arms...", noit_mon_nam(mon));
+    await urgent_pline("Time stands still while you and %s lie in each other's arms...", await noit_mon_nam(mon));
     /* 3.6.1: a combined total for charisma plus intelligence of 35-1
        used to guarantee successful outcome; now total maxes out at 32
        as far as deciding what will happen; chance for bad outcome when
        Cha+Int is 32 or more is 2/35, a bit over 5.7% */
     attr_tot = (acurr(A_CHA)) + (acurr(A_INT));
     if (rn2(35) > ((attr_tot) < (32) ? (attr_tot) : (32))) {
-        /* Don't bother with mspec_used here... it didn't get tired! */
-        pline("%s seems to have enjoyed it more than you...", noit_Monnam(mon));
+        await pline("%s seems to have enjoyed it more than you...", await noit_Monnam(mon));
         switch (rn2(5)) {
             case 0:
-                You_feel("drained of energy.");
+                await You_feel("drained of energy.");
                 game.u.uen = 0;
                 game.u.uenmax -= rnd((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic) ? 5 : 10);
-                exercise(A_CON, (0));
+                await exercise(A_CON, (0));
                 if (game.u.uenmax < 0) {
                     game.u.uenmax = 0;
                 }
                 break;
             case 1:
-                You("are down in the dumps.");
-                adjattrib(A_CON, -1, (1));
-                exercise(A_CON, (0));
+                await You("are down in the dumps.");
+                await adjattrib(A_CON, -1, (1));
+                await exercise(A_CON, (0));
                 game.disp.botl = (1);
                 break;
             case 2:
-                Your("senses are dulled.");
-                adjattrib(A_WIS, -1, (1));
-                exercise(A_WIS, (0));
+                await Your("senses are dulled.");
+                await adjattrib(A_WIS, -1, (1));
+                await exercise(A_WIS, (0));
                 game.disp.botl = (1);
                 break;
             case 3:
-                if (!resists_drli(game.youmonst)) {
-                    You_feel("out of shape.");
-                    losexp("overexertion");
+                if (!await resists_drli(game.youmonst)) {
+                    await You_feel("out of shape.");
+                    await losexp("overexertion");
                 } else {
-                    You("have a curious feeling...");
+                    await You("have a curious feeling...");
                 }
-                exercise(A_CON, (0));
-                exercise(A_DEX, (0));
-                exercise(A_WIS, (0));
+                await exercise(A_CON, (0));
+                await exercise(A_DEX, (0));
+                await exercise(A_WIS, (0));
                 break;
             case 4:
 {
                     let tmp = 0;
-                    You_feel("exhausted.");
-                    exercise(A_STR, (0));
+                    await You_feel("exhausted.");
+                    await exercise(A_STR, (0));
                     tmp = (rn2(10) + (6));
-                    losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((tmp) + 1) / 2)) : (tmp)), "exhaustion", 1);
+                    await losehp((((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((tmp) + 1) / 2)) : (tmp)), "exhaustion", 1);
                     break;
                 }
         }
     } else {
         mon.mspec_used = rnd(100);
-        You("seem to have enjoyed it more than %s...", noit_mon_nam(mon));
+        await You("seem to have enjoyed it more than %s...", await noit_mon_nam(mon));
         switch (rn2(5)) {
             case 0:
-                You_feel("raised to your full potential.");
-                exercise(A_CON, (1));
+                await You_feel("raised to your full potential.");
+                await exercise(A_CON, (1));
                 game.u.uen = (game.u.uenmax += rnd(5));
                 if (game.u.uenmax > game.u.uenpeak) {
                     game.u.uenpeak = game.u.uenmax;
                 }
                 break;
             case 1:
-                You_feel("good enough to do it again.");
-                adjattrib(A_CON, 1, (1));
-                exercise(A_CON, (1));
+                await You_feel("good enough to do it again.");
+                await adjattrib(A_CON, 1, (1));
+                await exercise(A_CON, (1));
                 game.disp.botl = (1);
                 break;
             case 2:
-                You("will always remember %s...", noit_mon_nam(mon));
-                adjattrib(A_WIS, 1, (1));
-                exercise(A_WIS, (1));
+                await You("will always remember %s...", await noit_mon_nam(mon));
+                await adjattrib(A_WIS, 1, (1));
+                await exercise(A_WIS, (1));
                 game.disp.botl = (1);
                 break;
             case 3:
-                pline("That was a very educational experience.");
-                pluslvl((0));
-                exercise(A_WIS, (1));
+                await pline("That was a very educational experience.");
+                await pluslvl((0));
+                await exercise(A_WIS, (1));
                 break;
             case 4:
-                You_feel("restored to health!");
+                await You_feel("restored to health!");
                 game.u.uhp = game.u.uhpmax;
                 if ((game.u.umonnum != game.u.umonster)) {
                     game.u.mh = game.u.mhmax;
                 }
-                exercise(A_STR, (1));
+                await exercise(A_STR, (1));
                 game.disp.botl = (1);
                 break;
         }
@@ -2077,9 +1989,9 @@ export function doseduce(mon) {
     if (mon.mtame) {
         ;
     } else if (rn2(20) < (acurr(A_CHA))) {
-        pline("%s demands that you pay %s, but you refuse...", noit_Monnam(mon), (genders[pronoun_gender(mon, (1 | 2))].him));
+        await pline("%s demands that you pay %s, but you refuse...", await noit_Monnam(mon), (genders[pronoun_gender(mon, (1 | 2))].him));
     } else if (game.u.umonnum == PM_LEPRECHAUN) {
-        pline_mon(mon, "%s tries to take your gold, but fails...", noit_Monnam(mon));
+        await pline_mon(mon, "%s tries to take your gold, but fails...", await noit_Monnam(mon));
     } else {
         let cost = 0;
         let umoney = money_cnt(game.invent);
@@ -2100,27 +2012,27 @@ export function doseduce(mon) {
         if (!cost) {
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
                 ;
-                verbalize("It's on the house!");
+                await verbalize("It's on the house!");
             } else {
-                pline("No charge.");
+                await pline("No charge.");
             }
         } else {
-            pline_mon(mon, "%s takes %ld %s for services rendered!", noit_Monnam(mon), cost, currency(cost));
-            money2mon(mon, cost);
+            await pline_mon(mon, "%s takes %ld %s for services rendered!", await noit_Monnam(mon), cost, await currency(cost));
+            await money2mon(mon, cost);
             game.disp.botl = (1);
         }
     }
     if (!rn2(25)) {
         mon.mcan = 1;
     }
-    if (!tele_restrict(mon)) {
-        rloc(mon, 2);
+    if (!await tele_restrict(mon)) {
+        await rloc(mon, 2);
     }
     return 1;
 }
 /* 'mon' tries to remove a piece of hero's armor */
 /* only used for alternate message */
-export function mayberem(mon, seducer, obj, str) {
+export async function mayberem(mon, seducer, obj, str) {
     let qbuf = '';
     if (!obj || !obj.owornmask) {
         return;
@@ -2129,26 +2041,25 @@ export function mayberem(mon, seducer, obj, str) {
         return;
     }
     if ((game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-        /* being deaf overrides confirmation prompt for high charisma */
-        pline("%s takes off your %s.", seducer, str);
+        await pline("%s takes off your %s.", seducer, str);
     } else if (rn2(20) < (acurr(A_CHA))) {
         ;
         qbuf = sprintf(qbuf, "\"Shall I remove your %s, %s?\"", str, (!rn2(2) ? "lover" : !rn2(2) ? "dear" : "sweetheart"));
-        if (yn_function(qbuf, ynchars, 110, (1)) == 110) {
+        if (await yn_function(qbuf, ynchars, 110, (1)) == 110) {
             return;
         }
     } else {
         let hairbuf = '';
-        hairbuf = sprintf(hairbuf, "let me run my fingers through your %s", body_part(HAIR));
+        hairbuf = sprintf(hairbuf, "let me run my fingers through your %s", await body_part(HAIR));
         ;
-        verbalize("Take off your %s; %s.", str, (obj == game.uarm) ? "let's get a little closer" : (obj == game.uarmc || obj == game.uarms) ? "it's in the way" : (obj == game.uarmf) ? "let me rub your feet" : (obj == game.uarmg) ? "they're too clumsy" : (obj == game.uarmu) ? "let me massage you" : hairbuf);
+        await verbalize("Take off your %s; %s.", str, (obj == game.uarm) ? "let's get a little closer" : (obj == game.uarmc || obj == game.uarms) ? "it's in the way" : (obj == game.uarmf) ? "let me rub your feet" : (obj == game.uarmg) ? "they're too clumsy" : (obj == game.uarmu) ? "let me massage you" : hairbuf);
     }
-    remove_worn_item(obj, (1));
+    await remove_worn_item(obj, (1));
 }
-export function assess_dmg(mtmp, tmp) {
+export async function assess_dmg(mtmp, tmp) {
     if ((mtmp.mhp -= tmp) <= 0) {
-        pline_mon(mtmp, "%s dies!", Monnam(mtmp));
-        xkilled(mtmp, 1);
+        await pline_mon(mtmp, "%s dies!", await Monnam(mtmp));
+        await xkilled(mtmp, 1);
         if (!((mtmp).mhp < 1)) {
             return 1;
         }
@@ -2193,7 +2104,7 @@ export function ranged_attk_available(mtmp) {
  *  to know whether hero reverted in order to decide whether passive
  *  damage applies.
  */
-export function passiveum(olduasmon, mtmp, mattk) {
+export async function passiveum(olduasmon, mtmp, mattk) {
     let i = 0;
     let tmp = 0;
     let oldu_mattk = null;
@@ -2220,25 +2131,21 @@ export function passiveum(olduasmon, mtmp, mattk) {
     switch (oldu_mattk.adtyp) {
         case 8:
             if (!rn2(2)) {
-                /* These affect the enemy even if you were "killed" (rehumanized) */
-                pline_mon(mtmp, "%s is splashed by %s%s!", Monnam(mtmp), !(game.u.umonnum != game.u.umonster) ? "" : "your ", hliquid("acid"));
-                if (Resists_Elem(mtmp, ACID_RES)) {
-                    /* temporary? hack for sequencing issue:  "your acid"
-                     looks strange coming immediately after player has
-                     been told that hero has reverted to normal form */
-                    pline_mon(mtmp, "%s is not affected.", Monnam(mtmp));
+                await pline_mon(mtmp, "%s is splashed by %s%s!", await Monnam(mtmp), !(game.u.umonnum != game.u.umonster) ? "" : "your ", hliquid("acid"));
+                if (await Resists_Elem(mtmp, ACID_RES)) {
+                    await pline_mon(mtmp, "%s is not affected.", await Monnam(mtmp));
                     tmp = 0;
                 }
             } else {
                 tmp = 0;
             }
             if (!rn2(30)) {
-                erode_armor(mtmp, 3);
+                await erode_armor(mtmp, 3);
             }
             if (!rn2(6)) {
-                acid_damage(((mtmp).mw));
+                await acid_damage(((mtmp).mw));
             }
-            return assess_dmg(mtmp, tmp);
+            return await assess_dmg(mtmp, tmp);
         case 18:
 {
                 let protector = attk_protection(mattk.aatyp);
@@ -2247,14 +2154,14 @@ export function passiveum(olduasmon, mtmp, mattk) {
                 if (((mtmp).mw) != null) {
                     wornitems |= 16;
                 }
-                if (!Resists_Elem(mtmp, STONE_RES) && (protector == 0 || (protector != ~0 && (wornitems & protector) != protector))) {
+                if (!await Resists_Elem(mtmp, STONE_RES) && (protector == 0 || (protector != ~0 && (wornitems & protector) != protector))) {
                     if (poly_when_stoned(mtmp.data)) {
-                        mon_to_stone(mtmp);
+                        await mon_to_stone(mtmp);
                         return 1;
                     }
-                    pline_mon(mtmp, "%s turns to stone!", Monnam(mtmp));
+                    await pline_mon(mtmp, "%s turns to stone!", await Monnam(mtmp));
                     game.stoned = 1;
-                    xkilled(mtmp, 1);
+                    await xkilled(mtmp, 1);
                     if (!((mtmp).mhp < 1)) {
                         return 1;
                     }
@@ -2264,10 +2171,7 @@ export function passiveum(olduasmon, mtmp, mattk) {
             }
         case 41:
             if (game.mon_currwep) {
-                /* KMH -- remove enchantment (disenchanter) */
-                /* by_you==True: passive counterattack to hero's action
-               is hero's fault */
-                drain_item(game.mon_currwep, (1));
+                await drain_item(game.mon_currwep, (1));
             }
             return 1;
         default:
@@ -2280,11 +2184,9 @@ export function passiveum(olduasmon, mtmp, mattk) {
         switch (oldu_mattk.adtyp) {
             case 0:
                 if (oldu_mattk.aatyp == 14) {
-                    /* These affect the enemy only if you are still a monster */
-                    You("explode!");
-                    /* KMH, balance patch -- this is okay with unchanging */
-                    rehumanize();
-                    return assess_dmg(mtmp, tmp);
+                    await You("explode!");
+                    await rehumanize();
+                    return await assess_dmg(mtmp, tmp);
                 }
                 break;
             case 14:
@@ -2297,66 +2199,65 @@ export function passiveum(olduasmon, mtmp, mattk) {
                     }
                     if (mtmp.mcansee && (((mtmp.data).mflags1 & 4096) == 0) && rn2(3) && ((((mtmp.data).mflags1 & 16777216) != 0) || !((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked))) {
                         if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                            pline("As a blind %s, you cannot defend yourself.", pmname(game.youmonst.data, game.flags.female ? FEMALE : MALE));
+                            await pline("As a blind %s, you cannot defend yourself.", pmname(game.youmonst.data, game.flags.female ? FEMALE : MALE));
                         } else {
-                            if (mon_reflects(mtmp, "Your gaze is reflected by %s %s.")) {
+                            if (await mon_reflects(mtmp, "Your gaze is reflected by %s %s.")) {
                                 return 1;
                             }
-                            pline_mon(mtmp, "%s is frozen by your gaze!", Monnam(mtmp));
+                            await pline_mon(mtmp, "%s is frozen by your gaze!", await Monnam(mtmp));
                             paralyze_monst(mtmp, tmp);
                             return 8;
                         }
                     }
                 } else {
-                    pline_mon(mtmp, "%s is frozen by you.", Monnam(mtmp));
+                    await pline_mon(mtmp, "%s is frozen by you.", await Monnam(mtmp));
                     paralyze_monst(mtmp, tmp);
                     return 8;
                 }
                 return 1;
             case 3:
-                if (Resists_Elem(mtmp, COLD_RES)) {
-                    /* Brown mold or blue jelly */
-                    shieldeff(mtmp.mx, mtmp.my);
-                    pline_mon(mtmp, "%s is mildly chilly.", Monnam(mtmp));
-                    golemeffects(mtmp, 3, tmp);
+                if (await Resists_Elem(mtmp, COLD_RES)) {
+                    await shieldeff(mtmp.mx, mtmp.my);
+                    await pline_mon(mtmp, "%s is mildly chilly.", await Monnam(mtmp));
+                    await golemeffects(mtmp, 3, tmp);
                     tmp = 0;
                     break;
                 }
-                pline_mon(mtmp, "%s is suddenly very cold!", Monnam(mtmp));
+                await pline_mon(mtmp, "%s is suddenly very cold!", await Monnam(mtmp));
                 game.u.mh += Math.trunc((tmp + rn2(2)) / 2);
                 if (game.u.mhmax < game.u.mh) {
                     game.u.mhmax = game.u.mh;
                 }
                 if (game.u.mhmax > ((game.youmonst.data.mlevel + 1) * 8)) {
-                    split_mon(game.youmonst, mtmp);
+                    await split_mon(game.youmonst, mtmp);
                 }
                 break;
             case 12:
                 if (!mtmp.mstun) {
                     mtmp.mstun = 1;
-                    pline_mon(mtmp, "%s %s.", Monnam(mtmp), makeplural(stagger(mtmp.data, "stagger")));
+                    await pline_mon(mtmp, "%s %s.", await Monnam(mtmp), await makeplural(stagger(mtmp.data, "stagger")));
                 }
                 tmp = 0;
                 break;
             case 2:
-                if (Resists_Elem(mtmp, FIRE_RES)) {
-                    shieldeff(mtmp.mx, mtmp.my);
-                    pline_mon(mtmp, "%s is mildly warm.", Monnam(mtmp));
-                    golemeffects(mtmp, 2, tmp);
+                if (await Resists_Elem(mtmp, FIRE_RES)) {
+                    await shieldeff(mtmp.mx, mtmp.my);
+                    await pline_mon(mtmp, "%s is mildly warm.", await Monnam(mtmp));
+                    await golemeffects(mtmp, 2, tmp);
                     tmp = 0;
                     break;
                 }
-                pline_mon(mtmp, "%s is suddenly very hot!", Monnam(mtmp));
+                await pline_mon(mtmp, "%s is suddenly very hot!", await Monnam(mtmp));
                 break;
             case 6:
-                if (Resists_Elem(mtmp, SHOCK_RES)) {
-                    shieldeff(mtmp.mx, mtmp.my);
-                    pline_mon(mtmp, "%s is slightly tingled.", Monnam(mtmp));
-                    golemeffects(mtmp, 6, tmp);
+                if (await Resists_Elem(mtmp, SHOCK_RES)) {
+                    await shieldeff(mtmp.mx, mtmp.my);
+                    await pline_mon(mtmp, "%s is slightly tingled.", await Monnam(mtmp));
+                    await golemeffects(mtmp, 6, tmp);
                     tmp = 0;
                     break;
                 }
-                pline_mon(mtmp, "%s is jolted with your electricity!", Monnam(mtmp));
+                await pline_mon(mtmp, "%s is jolted with your electricity!", await Monnam(mtmp));
                 break;
             default:
                 tmp = 0;
@@ -2365,9 +2266,9 @@ export function passiveum(olduasmon, mtmp, mattk) {
     } else {
         tmp = 0;
     }
-    return assess_dmg(mtmp, tmp);
+    return await assess_dmg(mtmp, tmp);
 }
-export function cloneu() {
+export async function cloneu() {
     let mon = null;
     let mndx = ((game.youmonst.data).pmidx);
     if (game.u.mh <= 1) {
@@ -2376,13 +2277,13 @@ export function cloneu() {
     if (game.mvitals[mndx].mvflags & 1) {
         return null;
     }
-    mon = makemon(game.youmonst.data, game.u.ux, game.u.uy, 1 | 2048 | 131072);
+    mon = await makemon(game.youmonst.data, game.u.ux, game.u.uy, 1 | 2048 | 131072);
     if (!mon) {
         return null;
     }
     mon.mcloned = 1;
     mon = christen_monst(mon, game.plname);
-    initedog(mon, (1));
+    await initedog(mon, (1));
     mon.m_lev = game.youmonst.data.mlevel;
     mon.mhpmax = game.u.mhmax;
     mon.mhp = Math.trunc(game.u.mh / 2);
@@ -2391,11 +2292,110 @@ export function cloneu() {
     return mon;
 }
 /*mhitu.c*/
+/* Note: if opposite gender, "seductively";
+       if same gender, "engagingly" for nymph, normal msg for others. */
 /* (monsters don't actually wield towels, wet or otherwise) */
 /* some weapons can have more than one strike type; for those,
            give a mix of thrust and swing (caller doesn't care either way) */
+/* the reasons for wildmiss end up getting checked twice so that the
+       impossible can be given, if warranted, before the early returns */
+/* this used to be the 'else' case below */
+/* give 'displaced' message even if hero is Blind */
+/* Note:  if you're both invisible and displaced, only
+                   * monsters which see invisible will attack your displaced
+                   * image, since the displaced image is also invisible. */
+/* monsters may miss especially on water level where
+           bubbles shake the player here and there */
+/* ball&chain returned in unstuck() */
+/* to cover for a case where mtmp is not in a next square */
+/* Your steed won't attack you */
+/* Orcs like to steal and eat horses and the like */
+/* attack your steed instead; 'bhitpos' and 'notonhead' are
+               already set from targeting hero */
+/* take monster off map now so that its location
+               is eligible for placing hero; we assume that a
+               removed monster remembers its old spot <mx,my> */
+/* a fish won't voluntarily swap positions
+                   when it's in water and hero is over land */
+/* couldn't find any spot for hero; this used to
+                   kill off attacker, but now we just give a "miss"
+                   message and keep both mtmp and hero at their
+                   original positions; hero has become unconcealed
+                   so mtmp's next move will be a regular attack */
+/* u.uundetected was toggled */
+/* put mtmp at hero's spot and move hero to <cc.x,.y> */
+/* see note about m_monnam() above */
+/* immediately stop mimicking */
+/* in the midst of successful prayer */
+/* monsters won't attack you */
+/* Unlike defensive stuff, don't let them use item _and_ attack. */
+/* automatic if prev two attacks succeed */
+/* Note: if displaced, prev attacks never succeeded */
+/* Medusa gaze already operated through m_respond in
+               dochug(); don't gaze more than once per round. */
+/* force swallowing monster to be displayed
+                           even when hero is moving away */
+/* mon_wield_item resets weapon_check as appropriate */
 /* attacker teleported, no more attacks */
 /* else no help came; but you didn't know it tried */
+/* if your cloak/armor is greased, monster slips off; this
+       protection might fail (33% chance) when the armor is cursed */
+/* avoid "slippery slippery cloak"
+                 for undiscovered oilskin cloak */
 /* aligned priests and angels have innate intrinsic Protection */
+/* already dead? call rehumanize() or done_in_by() as appropriate */
+/* none (some 'v', already whirling) */
+/* none (all AT_ENGL are already covered) */
+/* put the attacker back where it started;
+               the resulting statue will end up there
+               [note: if poly'd hero could ride or non-poly'd hero could
+               acquire touch_petrifies() capability somehow, this code
+               would need to deal with possibility of steed having taken
+               engulfer's previous spot when hero was forcibly dismounted] */
+/* normally unstuck() would do this, but we're not
+               fully swallowed yet so that won't work here */
+/* update the map display, shows hero swallowed */
 /* AC magic cancellation doesn't help when engulfed */
+/* life-saving has already expelled swallowed hero */
+/* As of 3.6.2: u.uswldtim used to be set to 0 by life-saving but it
+           expels now so the !u.uswldtim case is no longer possible;
+           however, polymorphing into a huge form while already
+           swallowed is still possible */
+/* sometimes you're affected even if it's invisible */
+/* avoid hallucinating the black light as it dies */
+/* probably you're invisible */
+/* we don't want to increment stun duration every time
+                       or sighted hero will become incapacitated */
+/* cancelled/hallucinatory feedback; monster might look "confused",
+           "stunned",&c but we don't actually set corresponding attribute */
+/* cache the seducer's name in a local buffer */
+/* if in the process of putting armor on or taking armor off,
+       interrupt that activity now */
+/* don't take off worn ring if gloves are in the way */
+/* next ring might not be worn */
+/* confirmation prompt when charisma is high bypassed if deaf */
+/* might be in left or right ring slot or weapon/alt-wep/quiver */
+/* don't put on ring if gloves are in the way */
+/* no point trying further rings */
+/* note: the "replaces" message might be inaccurate if
+                   hero's location changes and the process gets interrupted,
+                   but trying to figure that out in advance in order to use
+                   alternate wording is not worth the effort */
+/* see "replaces" note above */
+/* have her call your gloves by their correct
+                   name, possibly revealing them to you */
+/* else no regret message if can't see or hear seducer */
+/* by this point you have discovered mon's identity, blind or not... */
+/* Don't bother with mspec_used here... it didn't get tired! */
+/* being deaf overrides confirmation prompt for high charisma */
 /* y_n aka yn_function is set up for this */
+/* These affect the enemy even if you were "killed" (rehumanized) */
+/* temporary? hack for sequencing issue:  "your acid"
+                     looks strange coming immediately after player has
+                     been told that hero has reverted to normal form */
+/* KMH -- remove enchantment (disenchanter) */
+/* by_you==True: passive counterattack to hero's action
+               is hero's fault */
+/* These affect the enemy only if you are still a monster */
+/* KMH, balance patch -- this is okay with unchanging */
+/* Brown mold or blue jelly */

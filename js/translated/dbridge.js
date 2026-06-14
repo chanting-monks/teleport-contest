@@ -18,6 +18,7 @@
 import { game } from '../gstate.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_hear, You_see, pline, pline_The } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_char_at0, strcat, strcpy } from '../c2js-runtime/string.js';
 import { isok } from './cmd.js';
 import { canseemon, newsym, sensemon } from './display.js';
@@ -206,7 +207,7 @@ export function get_wall_for_db(x, y) {
  *     dir is the direction.
  *     flag must be put to TRUE if we want the drawbridge to be opened.
  */
-export function create_drawbridge(x, y, dir, flag) {
+export async function create_drawbridge(x, y, dir, flag) {
     let x2 = 0;
     let y2 = 0;
     let horiz = 0;
@@ -227,7 +228,7 @@ export function create_drawbridge(x, y, dir, flag) {
             x2++;
             break;
         default:
-            impossible("bad direction in create_drawbridge");
+            await impossible("bad direction in create_drawbridge");
             ;
         case 3:
             horiz = (0);
@@ -255,7 +256,7 @@ export function create_drawbridge(x, y, dir, flag) {
     }
     return (1);
 }
-export function e_at(x, y) {
+export async function e_at(x, y) {
     let entitycnt = 0;
     for (entitycnt = 0; entitycnt < 2; entitycnt++) {
         if (game.occupants[entitycnt].edata && game.occupants[entitycnt].ex == x && game.occupants[entitycnt].ey == y) {
@@ -265,7 +266,7 @@ export function e_at(x, y) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("entitycnt = %d", entitycnt);
+            await pline("entitycnt = %d", entitycnt);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -307,16 +308,17 @@ export function set_entity(x, y, etmp) {
  * the specialized routines below suffice for all current purposes.
  */
 /* #define e_strg(etmp, func) (is_u(etmp) ? (char *) 0 : func(etmp->emon)) */
-export function e_nam(etmp) {
-    return (etmp.emon == game.youmonst) ? "you" : mon_nam(etmp.emon);
+export async function e_nam(etmp) {
+    return (etmp.emon == game.youmonst) ? "you" : await mon_nam(etmp.emon);
 }
 /*
  * Generates capitalized entity name, makes 2nd -> 3rd person conversion on
  * verb, where necessary.
  */
 let __E_phrase_wholebuf = '';
-export function E_phrase(etmp, verb) {
-    __E_phrase_wholebuf = strcpy(__E_phrase_wholebuf, (etmp.emon == game.youmonst) ? "You" : Monnam(etmp.emon));
+__nh_register_static(() => { __E_phrase_wholebuf = ''; });
+export async function E_phrase(etmp, verb) {
+    __E_phrase_wholebuf = strcpy(__E_phrase_wholebuf, (etmp.emon == game.youmonst) ? "You" : await Monnam(etmp.emon));
     if (!verb || !__nh_char_at0(verb)) {
         return __E_phrase_wholebuf;
     }
@@ -324,7 +326,7 @@ export function E_phrase(etmp, verb) {
     if ((etmp.emon == game.youmonst)) {
         __E_phrase_wholebuf = strcat(__E_phrase_wholebuf, verb);
     } else {
-        __E_phrase_wholebuf = strcat(__E_phrase_wholebuf, vtense(null, verb));
+        __E_phrase_wholebuf = strcat(__E_phrase_wholebuf, await vtense(null, verb));
     }
     return __E_phrase_wholebuf;
 }
@@ -347,16 +349,16 @@ export function e_survives_at(etmp, x, y) {
     }
     return (1);
 }
-export function e_died(etmp, xkill_flags, how) {
+export async function e_died(etmp, xkill_flags, how) {
     if ((etmp.emon == game.youmonst)) {
         if (how == DROWNING) {
             /* drown() sets its own killer */
             /* lava_effects() sets own killer */
-            game.killer.name[0] = 0;
-            drown();
+            game.killer.name = '';
+            await drown();
         } else if (how == BURNING) {
-            game.killer.name[0] = 0;
-            lava_effects();
+            game.killer.name = '';
+            await lava_effects();
         } else {
             let xy = { x: 0, y: 0 };
             if (!game.killer.name[0]) {
@@ -364,14 +366,11 @@ export function e_died(etmp, xkill_flags, how) {
                 game.killer.format = 0;
                 game.killer.name = strcpy(game.killer.name, "falling drawbridge");
             }
-            done(how);
+            await done(how);
             if (!e_survives_at(etmp, etmp.ex, etmp.ey)) {
-                /* otherwise on top of the drawbridge is the
-                 * only viable spot in the dungeon, so stay there
-                 */
-                if (enexto(xy, etmp.ex, etmp.ey, etmp.edata)) {
-                    pline("A %s force teleports you away...", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "normal" : "strange");
-                    teleds(xy.x, xy.y, 0);
+                if (await enexto(xy, etmp.ex, etmp.ey, etmp.edata)) {
+                    await pline("A %s force teleports you away...", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "normal" : "strange");
+                    await teleds(xy.x, xy.y, 0);
                 }
             }
         }
@@ -379,13 +378,11 @@ export function e_died(etmp, xkill_flags, how) {
         etmp.ex = game.u.ux , etmp.ey = game.u.uy;
     } else {
         let entitycnt = 0;
-        game.killer.name[0] = 0;
-        /* fake "digested to death" damage-type suppresses corpse */
-        /* if monsters are moving, one of them caused the destruction */
+        game.killer.name = '';
         if (game.context.mon_moving) {
-            monkilled(etmp.emon, (((xkill_flags & 1) != 0) ? null : ""), (((xkill_flags & 2) != 0) ? 26 : 0));
+            await monkilled(etmp.emon, (((xkill_flags & 1) != 0) ? null : ""), (((xkill_flags & 2) != 0) ? 26 : 0));
         } else {
-            xkilled(etmp.emon, xkill_flags);
+            await xkilled(etmp.emon, xkill_flags);
         }
         if (!((etmp.emon).mhp < 1)) {
             /* if etmp gets life-saved, kill it again; otherwise we might end up
@@ -393,13 +390,13 @@ export function e_died(etmp, xkill_flags, how) {
             let seeit = (canseemon(etmp.emon) || sensemon(etmp.emon));
             xkill_flags |= 1 | 4;
             if (game.context.mon_moving) {
-                monkilled(etmp.emon, "", (((xkill_flags & 2) != 0) ? 26 : 0));
+                await monkilled(etmp.emon, "", (((xkill_flags & 2) != 0) ? 26 : 0));
             } else {
-                xkilled(etmp.emon, xkill_flags);
+                await xkilled(etmp.emon, xkill_flags);
             }
             if (((etmp.emon).mhp < 1)) {
                 if (seeit) {
-                    pline("Unfortunately for %s, %s is still crushed.", mon_nam(etmp.emon), (genders[pronoun_gender(etmp.emon, 2)].he));
+                    await pline("Unfortunately for %s, %s is still crushed.", await mon_nam(etmp.emon), (genders[pronoun_gender(etmp.emon, 2)].he));
                 }
             } else {
                 ;
@@ -422,13 +419,13 @@ export function automiss(etmp) {
 /*
  * Does falling drawbridge or portcullis miss etmp?
  */
-export function e_missed(etmp, chunks) {
+export async function e_missed(etmp, chunks) {
     let misses = 0;
     if (chunks) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("Do chunks miss?");
+                await pline("Do chunks miss?");
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -453,7 +450,7 @@ export function e_missed(etmp, chunks) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("Miss chance = %d (out of 8)", misses);
+            await pline("Miss chance = %d (out of 8)", misses);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -462,7 +459,7 @@ export function e_missed(etmp, chunks) {
 /*
  * Can etmp jump from death?
  */
-export function e_jumps(etmp) {
+export async function e_jumps(etmp) {
     let tmp = 4;
     if ((etmp.emon == game.youmonst) ? ((game.multi < 0 && (unconscious() || is_fainted())) || (game.u.uprops[FUMBLING].intrinsic || game.u.uprops[FUMBLING].extrinsic)) : (((etmp.emon).msleeping || !(etmp.emon).mcanmove) || !etmp.edata.mmove || etmp.emon.wormno)) {
         return (0);
@@ -479,13 +476,13 @@ export function e_jumps(etmp) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("%s to jump (%d chances in 10)", E_phrase(etmp, "try"), tmp);
+            await pline("%s to jump (%d chances in 10)", await E_phrase(etmp, "try"), tmp);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
     return (tmp >= rnd(10)) ? (1) : (0);
 }
-export function do_entity(etmp) {
+export async function do_entity(etmp) {
     let newx = 0;
     let newy = 0;
     let oldx = 0;
@@ -505,21 +502,21 @@ export function do_entity(etmp) {
     crm = game.level.locations[oldx][oldy];
     if (automiss(etmp) && e_survives_at(etmp, oldx, oldy)) {
         if (e_inview && (at_portcullis || ((crm.typ) == DRAWBRIDGE_UP || (crm.typ) == DRAWBRIDGE_DOWN))) {
-            pline_The("%s passes through %s!", at_portcullis ? "portcullis" : "drawbridge", e_nam(etmp));
+            await pline_The("%s passes through %s!", at_portcullis ? "portcullis" : "drawbridge", await e_nam(etmp));
         }
         if ((etmp.emon == game.youmonst)) {
-            spoteffects((0));
+            await spoteffects((0));
         }
         return;
     }
-    if (e_missed(etmp, (0))) {
+    if (await e_missed(etmp, (0))) {
         if (at_portcullis) {
-            pline_The("portcullis misses %s!", e_nam(etmp));
+            await pline_The("portcullis misses %s!", await e_nam(etmp));
         } else {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("The drawbridge misses %s!", e_nam(etmp));
+                    await pline("The drawbridge misses %s!", await e_nam(etmp));
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -531,7 +528,7 @@ export function do_entity(etmp) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("Mon can't survive here");
+                    await pline("Mon can't survive here");
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -550,40 +547,39 @@ export function do_entity(etmp) {
                 game.killer.format = 2;
                 game.killer.name = strcpy(game.killer.name, "crushed to death underneath a drawbridge");
             }
-            pline("%s crushed underneath the drawbridge.", E_phrase(etmp, "are"));
-            e_died(etmp, 2 | (e_inview ? 0 : 1), CRUSHING);
+            await pline("%s crushed underneath the drawbridge.", await E_phrase(etmp, "are"));
+            await e_died(etmp, 2 | (e_inview ? 0 : 1), CRUSHING);
             return;
         }
         must_jump = (1);
     }
     if (must_jump) {
         if (at_portcullis) {
-            if (e_jumps(etmp)) {
+            if (await e_jumps(etmp)) {
                 relocates = (1);
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("Jump succeeds!");
+                        await pline("Jump succeeds!");
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
             } else {
                 if (e_inview) {
-                    pline("%s crushed by the falling portcullis!", E_phrase(etmp, "are"));
+                    await pline("%s crushed by the falling portcullis!", await E_phrase(etmp, "are"));
                 } else if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
                     ;
-                    You_hear("a crushing sound.");
+                    await You_hear("a crushing sound.");
                 }
-                e_died(etmp, 2 | (e_inview ? 0 : 1), CRUSHING);
+                await e_died(etmp, 2 | (e_inview ? 0 : 1), CRUSHING);
                 return;
             }
         } else {
-            /* tries to jump off bridge to original square */
-            relocates = !e_jumps(etmp);
+            relocates = !await e_jumps(etmp);
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("Jump %s!", (relocates) ? "fails" : "succeeds");
+                    await pline("Jump %s!", (relocates) ? "fails" : "succeeds");
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -592,7 +588,7 @@ export function do_entity(etmp) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("Doing relocation.");
+            await pline("Doing relocation.");
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -612,11 +608,11 @@ export function do_entity(etmp) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("Checking new square for occupancy.");
+            await pline("Checking new square for occupancy.");
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
-    if (relocates && (e_at(newx, newy))) {
+    if (relocates && (await e_at(newx, newy))) {
         /*
          * Standoff problem: one or both entities must die, and/or
          * both switch places.  Avoid infinite recursion by checking
@@ -624,11 +620,11 @@ export function do_entity(etmp) {
          * we happen to move/die in recursion.
          */
         let other = null;
-        other = e_at(newx, newy);
+        other = await e_at(newx, newy);
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("New square is occupied by %s", e_nam(other));
+                await pline("New square is occupied by %s", await e_nam(other));
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -637,7 +633,7 @@ export function do_entity(etmp) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("%s suicide.", E_phrase(etmp, "commit"));
+                    await pline("%s suicide.", await E_phrase(etmp, "commit"));
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
@@ -645,25 +641,25 @@ export function do_entity(etmp) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("Handling %s", e_nam(other));
+                    await pline("Handling %s", await e_nam(other));
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
-            while ((e_at(newx, newy) != null) && (e_at(newx, newy) != etmp)) {
-                do_entity(other);
+            while ((await e_at(newx, newy) != null) && (await e_at(newx, newy) != etmp)) {
+                await do_entity(other);
             }
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("Checking existence of %s", e_nam(etmp));
+                    await pline("Checking existence of %s", await e_nam(etmp));
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
-            if (e_at(oldx, oldy) != etmp) {
+            if (await e_at(oldx, oldy) != etmp) {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("%s moved or died in recursion somewhere", E_phrase(etmp, "have"));
+                        await pline("%s moved or died in recursion somewhere", await E_phrase(etmp, "have"));
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
@@ -671,19 +667,18 @@ export function do_entity(etmp) {
             }
         }
     }
-    if (relocates && !e_at(newx, newy)) {
+    if (relocates && !await e_at(newx, newy)) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("Moving %s", e_nam(etmp));
+                await pline("Moving %s", await e_nam(etmp));
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
         if (!(etmp.emon == game.youmonst)) {
             game.level.monsters[etmp.ex][etmp.ey] = null;
-            /* if e_at() entity = worm tail */
-            place_monster(etmp.emon, newx, newy);
-            update_monster_region(etmp.emon);
+            await place_monster(etmp.emon, newx, newy);
+            await update_monster_region(etmp.emon);
         } else {
             game.u.ux = newx;
             game.u.uy = newy;
@@ -695,7 +690,7 @@ export function do_entity(etmp) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("Final disposition of %s", e_nam(etmp));
+            await pline("Final disposition of %s", await e_nam(etmp));
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -703,32 +698,32 @@ export function do_entity(etmp) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("%s in portcullis chamber", E_phrase(etmp, "are"));
+                await pline("%s in portcullis chamber", await E_phrase(etmp, "are"));
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
         if (e_inview) {
             if ((etmp.emon == game.youmonst)) {
-                You("tumble towards the closed portcullis!");
+                await You("tumble towards the closed portcullis!");
                 if (automiss(etmp)) {
-                    You("pass through it!");
+                    await You("pass through it!");
                 } else {
-                    pline_The("drawbridge closes in...");
+                    await pline_The("drawbridge closes in...");
                 }
             } else {
-                pline("%s behind the drawbridge.", E_phrase(etmp, "disappear"));
+                await pline("%s behind the drawbridge.", await E_phrase(etmp, "disappear"));
             }
         }
         if (!e_survives_at(etmp, etmp.ex, etmp.ey)) {
             game.killer.format = 0;
             game.killer.name = strcpy(game.killer.name, "closing drawbridge");
-            e_died(etmp, 1, CRUSHING);
+            await e_died(etmp, 1, CRUSHING);
             return;
         }
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("%s in here", E_phrase(etmp, "survive"));
+                await pline("%s in here", await E_phrase(etmp, "survive"));
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -736,26 +731,26 @@ export function do_entity(etmp) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("%s on drawbridge square", E_phrase(etmp, "are"));
+                await pline("%s on drawbridge square", await E_phrase(etmp, "are"));
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
         if (is_pool(etmp.ex, etmp.ey) && !e_inview) {
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
                 ;
-                You_hear("a splash.");
+                await You_hear("a splash.");
             }
         }
         if (e_survives_at(etmp, etmp.ex, etmp.ey)) {
             if (e_inview && !(((etmp.edata).mflags1 & 1) != 0) && !((etmp.edata).mlet == S_EYE || (etmp.edata).mlet == S_LIGHT)) {
-                pline("%s from the bridge.", E_phrase(etmp, "fall"));
+                await pline("%s from the bridge.", await E_phrase(etmp, "fall"));
             }
             return;
         }
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("%s cannot survive on the drawbridge square", E_phrase(etmp, null));
+                await pline("%s cannot survive on the drawbridge square", await E_phrase(etmp, null));
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -764,21 +759,21 @@ export function do_entity(etmp) {
                 /* drown() will supply msgs if nec. */
                 let lava = is_lava(etmp.ex, etmp.ey);
                 if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                    pline("%s the %s and disappears.", E_phrase(etmp, "drink"), lava ? "lava" : "moat");
+                    await pline("%s the %s and disappears.", await E_phrase(etmp, "drink"), lava ? "lava" : "moat");
                 } else {
-                    pline("%s into the %s.", E_phrase(etmp, "fall"), lava ? hliquid("lava") : "moat");
+                    await pline("%s into the %s.", await E_phrase(etmp, "fall"), lava ? hliquid("lava") : "moat");
                 }
             }
         }
         game.killer.format = 2;
         game.killer.name = strcpy(game.killer.name, "fell from a drawbridge");
-        e_died(etmp, 2 | (e_inview ? 0 : 1), is_pool(etmp.ex, etmp.ey) ? DROWNING : is_lava(etmp.ex, etmp.ey) ? BURNING : CRUSHING);
+        await e_died(etmp, 2 | (e_inview ? 0 : 1), is_pool(etmp.ex, etmp.ey) ? DROWNING : is_lava(etmp.ex, etmp.ey) ? BURNING : CRUSHING);
         return;
     }
 }
 /* clear stale reason for death and both 'entities' before returning */
 export function nokiller() {
-    game.killer.name[0] = 0;
+    game.killer.name = '';
     game.killer.format = 0;
     m_to_e(null, 0, 0, game.occupants[0]);
     m_to_e(null, 0, 0, game.occupants[1]);
@@ -786,7 +781,7 @@ export function nokiller() {
 /*
  * Close the drawbridge located at x,y
  */
-export function close_drawbridge(x, y) {
+export async function close_drawbridge(x, y) {
     let lev1 = null;
     let lev2 = null;
     let t = null;
@@ -800,11 +795,10 @@ export function close_drawbridge(x, y) {
     y2 = y;
     get_wall_for_db({ get value() { return x2; }, set value(_v) { x2 = _v; } }, { get value() { return y2; }, set value(_v) { y2 = _v; } });
     if (((game.viz_array[y][x] & 2) != 0) || ((game.viz_array[y2][x2] & 2) != 0)) {
-        You_see("a drawbridge %s up!", (((game.u.ux == x || game.u.uy == y) && !(game.u.uinwater)) || dist2((x2), (y2), game.u.ux, game.u.uy) < dist2((x), (y), game.u.ux, game.u.uy)) ? "coming" : "going");
+        await You_see("a drawbridge %s up!", (((game.u.ux == x || game.u.uy == y) && !(game.u.uinwater)) || dist2((x2), (y2), game.u.ux, game.u.uy) < dist2((x), (y), game.u.ux, game.u.uy)) ? "coming" : "going");
     } else {
         ;
-        /* "5 gears turn" for castle drawbridge tune */
-        You_hear("chains rattling and gears turning.");
+        await You_hear("chains rattling and gears turning.");
     }
     lev1.typ = DRAWBRIDGE_UP;
     lev2 = game.level.locations[x2][y2];
@@ -823,36 +817,34 @@ export function close_drawbridge(x, y) {
     set_entity(x, y, (game.occupants[0]));
     /* do_entity for worm tails */
     set_entity(x2, y2, (game.occupants[1]));
-    /* Do set_entity after first */
-    /* do set_entity after first */
-    do_entity((game.occupants[0]));
+    await do_entity((game.occupants[0]));
     set_entity(x2, y2, (game.occupants[1]));
-    do_entity((game.occupants[1]));
+    await do_entity((game.occupants[1]));
     if ((game.level.objects[x][y] != null) && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
         ;
-        You_hear("smashing and crushing.");
+        await You_hear("smashing and crushing.");
     }
-    revive_nasty(x, y, null);
-    revive_nasty(x2, y2, null);
-    delallobj(x, y);
-    delallobj(x2, y2);
+    await revive_nasty(x, y, null);
+    await revive_nasty(x2, y2, null);
+    await delallobj(x, y);
+    await delallobj(x2, y2);
     if ((t = t_at(x, y)) != null) {
-        deltrap(t);
+        await deltrap(t);
     }
     if ((t = t_at(x2, y2)) != null) {
-        deltrap(t);
+        await deltrap(t);
     }
-    del_engr_at(x, y);
-    del_engr_at(x2, y2);
-    newsym(x, y);
-    newsym(x2, y2);
+    await del_engr_at(x, y);
+    await del_engr_at(x2, y2);
+    await newsym(x, y);
+    await newsym(x2, y2);
     block_point(x2, y2);
     nokiller();
 }
 /*
  * Open the drawbridge located at x,y
  */
-export function open_drawbridge(x, y) {
+export async function open_drawbridge(x, y) {
     let lev1 = null;
     let lev2 = null;
     let t = null;
@@ -866,10 +858,10 @@ export function open_drawbridge(x, y) {
     y2 = y;
     get_wall_for_db({ get value() { return x2; }, set value(_v) { x2 = _v; } }, { get value() { return y2; }, set value(_v) { y2 = _v; } });
     if (((game.viz_array[y][x] & 2) != 0) || ((game.viz_array[y2][x2] & 2) != 0)) {
-        You_see("a drawbridge %s down!", (dist2((x2), (y2), game.u.ux, game.u.uy) < dist2((x), (y), game.u.ux, game.u.uy)) ? "going" : "coming");
+        await You_see("a drawbridge %s down!", (dist2((x2), (y2), game.u.ux, game.u.uy) < dist2((x), (y), game.u.ux, game.u.uy)) ? "going" : "coming");
     } else {
         ;
-        You_hear("gears turning and chains rattling.");
+        await You_hear("gears turning and chains rattling.");
     }
     lev1.typ = DRAWBRIDGE_DOWN;
     lev2 = game.level.locations[x2][y2];
@@ -877,21 +869,21 @@ export function open_drawbridge(x, y) {
     lev2.flags = 0;
     set_entity(x, y, (game.occupants[0]));
     set_entity(x2, y2, (game.occupants[1]));
-    do_entity((game.occupants[0]));
+    await do_entity((game.occupants[0]));
     set_entity(x2, y2, (game.occupants[1]));
-    do_entity((game.occupants[1]));
-    revive_nasty(x, y, null);
-    delallobj(x, y);
+    await do_entity((game.occupants[1]));
+    await revive_nasty(x, y, null);
+    await delallobj(x, y);
     if ((t = t_at(x, y)) != null) {
-        deltrap(t);
+        await deltrap(t);
     }
     if ((t = t_at(x2, y2)) != null) {
-        deltrap(t);
+        await deltrap(t);
     }
-    del_engr_at(x, y);
-    del_engr_at(x2, y2);
-    newsym(x, y);
-    newsym(x2, y2);
+    await del_engr_at(x, y);
+    await del_engr_at(x2, y2);
+    await newsym(x, y);
+    await newsym(x2, y2);
     unblock_point(x2, y2);
     if ((((((game.dungeon_topology.d_stronghold_level)).dlevel || ((game.dungeon_topology.d_stronghold_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_stronghold_level))))) {
         game.u.uevent.uopened_dbridge = (1);
@@ -901,7 +893,7 @@ export function open_drawbridge(x, y) {
 /*
  * Let's destroy the drawbridge located at x,y
  */
-export function destroy_drawbridge(x, y) {
+export async function destroy_drawbridge(x, y) {
     let lev1 = null;
     let lev2 = null;
     let t = null;
@@ -926,59 +918,54 @@ export function destroy_drawbridge(x, y) {
         ;
         if (lev1.typ == DRAWBRIDGE_UP) {
             if (((game.viz_array[y2][x2] & 2) != 0) || ((x2) == game.u.ux && (y2) == game.u.uy)) {
-                pline_The("portcullis of the drawbridge falls into the %s!", lava ? hliquid("lava") : "moat");
+                await pline_The("portcullis of the drawbridge falls into the %s!", lava ? hliquid("lava") : "moat");
             } else {
-                You_hear("a loud *SPLASH*!");
+                await You_hear("a loud *SPLASH*!");
             }
         } else {
             if (((game.viz_array[y][x] & 2) != 0) || ((x) == game.u.ux && (y) == game.u.uy)) {
-                pline_The("drawbridge collapses into the %s!", lava ? hliquid("lava") : "moat");
+                await pline_The("drawbridge collapses into the %s!", lava ? hliquid("lava") : "moat");
             } else {
-                You_hear("a loud *SPLASH*!");
+                await You_hear("a loud *SPLASH*!");
             }
         }
         lev1.typ = lava ? LAVAPOOL : MOAT;
         lev1.flags = 0;
         if ((otmp2 = sobj_at(BOULDER, x, y)) != null) {
-            obj_extract_self(otmp2);
-            flooreffects(otmp2, x, y, "fall");
+            await obj_extract_self(otmp2);
+            await flooreffects(otmp2, x, y, "fall");
         }
     } else {
         ;
         if (((game.viz_array[y][x] & 2) != 0) || ((x) == game.u.ux && (y) == game.u.uy)) {
-            pline_The("drawbridge disintegrates!");
+            await pline_The("drawbridge disintegrates!");
         } else {
-            You_hear("a loud *CRASH*!");
+            await You_hear("a loud *CRASH*!");
         }
         lev1.typ = ((lev1.flags & 8) ? ICE : ROOM);
         lev1.flags = ((lev1.flags & 8) ? 16 : 0);
     }
-    wake_nearto(x, y, 500);
+    await wake_nearto(x, y, 500);
     lev2.typ = DOOR;
     lev2.flags = 0;
     if ((t = t_at(x, y)) != null) {
-        deltrap(t);
+        await deltrap(t);
     }
     if ((t = t_at(x2, y2)) != null) {
-        deltrap(t);
+        await deltrap(t);
     }
-    del_engr_at(x, y);
-    del_engr_at(x2, y2);
+    await del_engr_at(x, y);
+    await del_engr_at(x2, y2);
     for (i = rn2(6); i > 0; --i) {
-        /* doesn't matter if we happen to pick <x,y2> or <x2,y>;
-           since drawbridges are never placed diagonally, those
-           pairings will always match one of <x,y> or <x2,y2> */
-        otmp = mksobj_at(IRON_CHAIN, rn2(2) ? x : x2, rn2(2) ? y : y2, (1), (0));
-        /* a force of 5 here would yield a radius of 2 for
-           iron chain; anything less produces a radius of 1 */
-        scatter(otmp.ox, otmp.oy, 1, (2 | 4), otmp);
+        otmp = await mksobj_at(IRON_CHAIN, rn2(2) ? x : x2, rn2(2) ? y : y2, (1), (0));
+        await scatter(otmp.ox, otmp.oy, 1, (2 | 4), otmp);
     }
-    newsym(x, y);
-    newsym(x2, y2);
+    await newsym(x, y);
+    await newsym(x2, y2);
     if (!does_block(x2, y2, lev2)) {
         unblock_point(x2, y2);
     }
-    vision_recalc(0);
+    await vision_recalc(0);
     if ((((((game.dungeon_topology.d_stronghold_level)).dlevel || ((game.dungeon_topology.d_stronghold_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_stronghold_level))))) {
         game.u.uevent.uopened_dbridge = (1);
     }
@@ -988,47 +975,46 @@ export function destroy_drawbridge(x, y) {
         e_inview = ((etmp2.emon == game.youmonst) || canseemon(etmp2.emon));
         if (!automiss(etmp2)) {
             if (e_inview) {
-                pline("%s blown apart by flying debris.", E_phrase(etmp2, "are"));
+                await pline("%s blown apart by flying debris.", await E_phrase(etmp2, "are"));
             }
             game.killer.format = 0;
             game.killer.name = strcpy(game.killer.name, "exploding drawbridge");
-            e_died(etmp2, 2 | (e_inview ? 0 : 1), CRUSHING);
+            await e_died(etmp2, 2 | (e_inview ? 0 : 1), CRUSHING);
         }
     }
     set_entity(x, y, etmp1);
     if (etmp1.edata) {
         /* nothing which is vulnerable can survive this */
         e_inview = ((etmp1.emon == game.youmonst) || canseemon(etmp1.emon));
-        if (e_missed(etmp1, (1))) {
+        if (await e_missed(etmp1, (1))) {
             do {
                 if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                     let save_plnmsg = game.iflags.last_msg;
-                    pline("%s spared!", E_phrase(etmp1, "are"));
+                    await pline("%s spared!", await E_phrase(etmp1, "are"));
                     game.iflags.last_msg = save_plnmsg;
                 }
             } while (0);
             if ((etmp1.emon == game.youmonst)) {
-                spoteffects((0));
-            /* if there is water or lava here, fall in now */
+                await spoteffects((0));
             } else {
-                minliquid(etmp1.emon);
+                await minliquid(etmp1.emon);
             }
         } else {
             if (e_inview) {
                 if (!(etmp1.emon == game.youmonst) && (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                    pline("%s into some heavy metal!", E_phrase(etmp1, "get"));
+                    await pline("%s into some heavy metal!", await E_phrase(etmp1, "get"));
                 } else {
-                    pline("%s hit by a huge chunk of metal!", E_phrase(etmp1, "are"));
+                    await pline("%s hit by a huge chunk of metal!", await E_phrase(etmp1, "are"));
                 }
             } else {
                 if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !(etmp1.emon == game.youmonst) && !is_pool(x, y)) {
                     ;
-                    You_hear("a crushing sound.");
+                    await You_hear("a crushing sound.");
                 } else {
                     do {
                         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/dbridge.c", (1))) {
                             let save_plnmsg = game.iflags.last_msg;
-                            pline("%s from shrapnel", E_phrase(etmp1, "die"));
+                            await pline("%s from shrapnel", await E_phrase(etmp1, "die"));
                             game.iflags.last_msg = save_plnmsg;
                         }
                     } while (0);
@@ -1036,9 +1022,9 @@ export function destroy_drawbridge(x, y) {
             }
             game.killer.format = 0;
             game.killer.name = strcpy(game.killer.name, "collapsing drawbridge");
-            e_died(etmp1, 2 | (e_inview ? 0 : 1), CRUSHING);
+            await e_died(etmp1, 2 | (e_inview ? 0 : 1), CRUSHING);
             if (game.level.locations[etmp1.ex][etmp1.ey].typ == MOAT) {
-                do_entity(etmp1);
+                await do_entity(etmp1);
             }
         }
     }
@@ -1048,5 +1034,21 @@ export function destroy_drawbridge(x, y) {
     }
 }
 /*dbridge.c*/
+/* otherwise on top of the drawbridge is the
+                 * only viable spot in the dungeon, so stay there
+                 */
+/* fake "digested to death" damage-type suppresses corpse */
+/* if monsters are moving, one of them caused the destruction */
 /* FIXME: still not dead?  What should we do now? */
+/* tries to jump off bridge to original square */
+/* if e_at() entity = worm tail */
+/* "5 gears turn" for castle drawbridge tune */
+/* Do set_entity after first */
+/* do set_entity after first */
+/* doesn't matter if we happen to pick <x,y2> or <x2,y>;
+           since drawbridges are never placed diagonally, those
+           pairings will always match one of <x,y> or <x2,y2> */
+/* a force of 5 here would yield a radius of 2 for
+           iron chain; anything less produces a radius of 1 */
+/* if there is water or lava here, fall in now */
 /* bridge is gone so tune is now useless */

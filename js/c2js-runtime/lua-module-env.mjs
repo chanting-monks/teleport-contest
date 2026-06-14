@@ -77,11 +77,19 @@ export function buildLuaModuleEnv(L, lspoTable, helpers = {}) {
     // sensible defaults so the surrounding logic doesn't throw.
     // TODO: route obj.new through a real factory backed by mksobj
     // when we wire its companions.
+    // C ref nhlobj.c l_obj_new_readobjnam: string form parses via
+    // readobjnam (the wish parser) and wraps the created object in
+    // the shared Lua obj API (lua.js wrapLuaObj: timers, totable,
+    // class, addcontent).  Async — the transpiled call site gets its
+    // await from the DAT_PATCHES layer (assignment-position awaits
+    // aren't emitted by lua-templatic; see build-dat-bundle.mjs).
     const obj = {
-        new: (name) => ({
-            class: () => ({}),
-            totable: () => ({}),
-        }),
+        new: async (name) => {
+            const { readobjnam } = await import('../translated/objnam.js');
+            const { wrapLuaObj } = await import('./lua.js');
+            const otmp = await readobjnam(String(name), null);
+            return wrapLuaObj({ state: 0, obj: (otmp && otmp.otyp) ? otmp : null });
+        },
     };
     // monster / feature namespaces: not exercised by current
     // transpiled snippets (no monster.X / feature.X calls — those

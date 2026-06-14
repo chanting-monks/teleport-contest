@@ -3,7 +3,7 @@
 /* NetHack may be freely redistributed.  See license for details. */
 /*  quest-specific pager routines. */
 import { game } from '../gstate.js';
-import { get_table_option, get_table_str_opt, lua_getfield, lua_getglobal, lua_gettable, lua_istable, lua_len, lua_pop, lua_pushinteger, lua_settop, lua_tointeger, nhl_done, nhl_init, nhl_loadlua } from '../c2js-runtime/lua.js';
+import { get_table_option, get_table_str_opt, luaL_checkstring, lua_getfield, lua_getglobal, lua_gettable, lua_istable, lua_len, lua_pop, lua_pushinteger, lua_settop, lua_tointeger, nhl_done, nhl_init, nhl_loadlua } from '../c2js-runtime/lua.js';
 import { free } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
@@ -265,8 +265,8 @@ export async function convert_line(in_line, out_line) {
                 return;
             case 37:
                 if (__nh_char_at0((__nh_advance_str(c, 1)))) {
-                    await convert_arg(((c = __nh_advance_str(c, 1))));
-                    switch (((c = __nh_advance_str(c, 1)))) {
+                    await convert_arg(__nh_char_at0(((c = __nh_advance_str(c, 1)))));
+                    switch (__nh_char_at0(((c = __nh_advance_str(c, 1))))) {
                         case 65:
                             cc = strcat(cc, await An(game.cvt_buf));
                             cc = __nh_advance_str(cc, strlen(cc));
@@ -357,7 +357,7 @@ export async function deliver_by_window(msg, how) {
         await convert_line(in_line, out_line);
         (game.windowprocs.win_putstr)(datawin, 0, out_line);
     }
-    (game.windowprocs.win_display_nhwindow)(datawin, 1);
+    await (game.windowprocs.win_display_nhwindow)(datawin, 1);
     (game.windowprocs.win_destroy_nhwindow)(datawin);
 }
 export function skip_pager(common) {
@@ -515,26 +515,20 @@ export async function qt_pager(msgid) {
         await com_pager_core("common", msgid, 1, null);
     }
 }
-/* SYNC: every callee (rn2, mkclass) is sync, and the one caller --
-   makemon.js rndmonst_adj -- is sync.  An earlier async coloring made
-   this return a Promise into rndmonst_adj's `(ptr = qt_montype())`,
-   so rndmonnum() yielded Promise.pmidx === undefined and the egg/tin
-   corpse-type loops died on mons[undefined] (silently absorbed;
-   Q9 iter 54, seed0373 judged 6814). */
-export function qt_montype() {
+export async function qt_montype() {
     let qpm = 0;
     if (rn2(5)) {
         qpm = game.urole.enemy1num;
         if (qpm != NON_PM && rn2(5) && !(game.mvitals[qpm].mvflags & 2)) {
             return game.mons[qpm];
         }
-        return mkclass(game.urole.enemy1sym, 0);
+        return await mkclass(game.urole.enemy1sym, 0);
     }
     qpm = game.urole.enemy2num;
     if (qpm != NON_PM && rn2(5) && !(game.mvitals[qpm].mvflags & 2)) {
         return game.mons[qpm];
     }
-    return mkclass(game.urole.enemy2sym, 0);
+    return await mkclass(game.urole.enemy2sym, 0);
 }
 /* special levels can include a custom arrival message; display it */
 export async function deliver_splev_message() {

@@ -157,16 +157,24 @@ fix). Treat the menu as a living queue, not a static checklist.
 ## scores
 
 ```
-last_run_commit:    5764859
-last_run_time:      2026-05-07T23:18Z
-last_aggregate:     p:(20/4202) 54640/792885    s:(0/44) 619/11284    e:-    m:-
-best_aggregate:     p:(20/4202) 54640/792885    s:(0/44) 619/11284    e:-    m:-
-best_commit:        5764859 (mklev fill_special_room VAULT, +825 PRNG)
+last_run_commit:    adopt monk fork 616baa5
+last_run_time:      2026-06-13T01:05Z
+last_aggregate:     p:(488/4200) 160532/792838   s:(9/44) 1052/11405   e:-    m:-
+prev_aggregate:     p:(?/4202) 196212/792885     s:(6/44) 866/11284    e:-    m:-   @ 8d4290a
+best_aggregate:     p:(488/4200) 160532/792838   s:(9/44) 1052/11405   e:-    m:-   (PASS/screens; raw-P peaked 196212 @ 8d4290a)
+best_commit:        adopt monk fork 616baa5 (async-flip era: PASS 6->9, S +186)
 
-PRNG progression this session:  53815 → 54640 (+825 calls aligned).
-- 1bec484 (compute_newhp/newpw):     -9   (C-faithful per AGENTS.md)
-- 6738030 (mklev create_vault):       +579
-- 5764859 (fill_special_room VAULT):  +246
+NOTE 2026-06-13: scores block was a month stale (frozen at 5764859 / May 7)
+while the agent's "adopt monk fork" commits advanced the tree to 8d4290a
+(391b110, P 24.75%) without refreshing it. Refreshed here on adopting monk
+616baa5. This adoption is the **async-flip tradeoff** David directed for
+monk ("async flip OVER parity"): the full async/await re-emit changed PRNG
+call timing, so raw-P regresses (196212 -> 160532, 24.75% -> 20.25%) BUT
+gameplay fidelity rises — full-session PASS 6 -> 9, screen cells 866 ->
+1052. KNOWN ISSUE: seed5002/5006/0030/0013-friday13 collapse near call 0
+in-suite; monk's own run of this identical js scores seed5002 at 2808, so
+the in-suite collapse looks like single-process full-suite resource
+exhaustion, not a real divergence — investigate before trusting the −36k.
 
 NOTE 2026-05-07: Pivoting away from session-keyed lookup tables.
   User flagged that the leaderboard scores held-out sessions, and

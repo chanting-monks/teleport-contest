@@ -7,7 +7,8 @@ import { sgn } from '../c2js-runtime/math.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
-import { qsort } from '../c2js-runtime/qsort.js';
+import { qsort , qsort_async } from '../c2js-runtime/qsort.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, atol, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
 import { acurr } from './attrib.js';
@@ -36,6 +37,7 @@ import { add_menu, add_menu_heading, add_menu_str, encglyph, getlin, select_menu
 /* also used in insight.c */
 export const enc_stat = ["", "Burdened", "Stressed", "Strained", "Overtaxed", "Overloaded"];
 let __get_strength_str_buf = '';
+__nh_register_static(() => { __get_strength_str_buf = ''; });
 export function get_strength_str() {
     let st = (acurr(A_STR));
     if (st > 18) {
@@ -56,6 +58,7 @@ export function check_gold_symbol() {
     game.iflags.invis_goldsym = (goldch <= 32);
 }
 let __do_statusline1_newbot1 = '';
+__nh_register_static(() => { __do_statusline1_newbot1 = ''; });
 export function do_statusline1() {
     let nb = null;
     let i = 0;
@@ -95,16 +98,23 @@ export function do_statusline1() {
     return __do_statusline1_newbot1;
 }
 let __do_statusline2_newbot2 = '';
+__nh_register_static(() => { __do_statusline2_newbot2 = ''; });
 /* dungeon location (and gold), hero health (HP, PW, AC),
             experience (HD if poly'd, else Exp level and maybe Exp points),
             time (in moves), varying number of status conditions */
 let __do_statusline2_dloc = '';
+__nh_register_static(() => { __do_statusline2_dloc = ''; });
 let __do_statusline2_hlth = '';
+__nh_register_static(() => { __do_statusline2_hlth = ''; });
 let __do_statusline2_expr = '';
+__nh_register_static(() => { __do_statusline2_expr = ''; });
 let __do_statusline2_tmmv = '';
+__nh_register_static(() => { __do_statusline2_tmmv = ''; });
 let __do_statusline2_cond = '';
+__nh_register_static(() => { __do_statusline2_cond = ''; });
 let __do_statusline2_vers = '';
-export function do_statusline2() {
+__nh_register_static(() => { __do_statusline2_vers = ''; });
+export async function do_statusline2() {
     let nb = null;
     let dln = 0;
     let dx = 0;
@@ -232,19 +242,7 @@ export function do_statusline2() {
         __do_statusline2_newbot2 = nh_snprintf("do_statusline2", 229, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_expr, __do_statusline2_tmmv, __do_statusline2_cond, __do_statusline2_vers);
     } else {
         if (dln + 1 + hln + 1 + xln + 1 + tln + 1 + cln + vrn > 200) {
-            /*
-     * Put the pieces together.  If they all fit, keep the traditional
-     * sequence.  Otherwise, move least important parts to the end in
-     * case the interface side of things has to truncate.  Note that
-     * dloc[] contains '$' encoded in ten character sequence \GXXXXNNNN
-     * so we want to test its display length rather than buffer length.
-     *
-     * We don't have an actual display limit here, so have to go by the
-     * width of the map.  Since we're reordering rather than truncating,
-     * wider displays can still show wider status than the map if the
-     * interface supports that.
-     */
-            panic("bot2: second status line exceeds MAXCO (%u > %d)", (dln + 1 + hln + 1 + xln + 1 + tln + 1 + cln + vrn), 200);
+            await panic("bot2: second status line exceeds MAXCO (%u > %d)", (dln + 1 + hln + 1 + xln + 1 + tln + 1 + cln + vrn), 200);
         } else if ((dln - dx) + 1 + hln + 1 + xln + 1 + cln <= 80) {
             __do_statusline2_newbot2 = nh_snprintf("do_statusline2", 238, __do_statusline2_newbot2, 256 /* sizeof(char [256]) */, "%s %s %s %s %s%s", __do_statusline2_dloc, __do_statusline2_hlth, __do_statusline2_expr, __do_statusline2_cond, __do_statusline2_tmmv, __do_statusline2_vers);
         } else if ((dln - dx) + 1 + hln + 1 + cln <= 80) {
@@ -257,41 +255,32 @@ export function do_statusline2() {
     }
     return __do_statusline2_newbot2;
 }
-export function bot() {
+export async function bot() {
     if (game.bot_disabled) {
         return;
     }
     if (game.u.uhp != -1 && game.youmonst.data && game.iflags.status_updates && !suppress_map_output()) {
         if (((game.windowprocs.wincap2 & (8 | 128)) != 0)) {
-            /* dosave() flags completion by setting u.uhp to -1; suppress_map_output()
-       covers program_state.restoring and is used for status as well as map */
-            bot_via_windowport();
+            await bot_via_windowport();
         } else {
             (game.windowprocs.win_curs)(game.WIN_STATUS, 1, 0);
             (game.windowprocs.win_putstr)(game.WIN_STATUS, 0, do_statusline1());
             (game.windowprocs.win_curs)(game.WIN_STATUS, 1, 1);
-            (game.windowprocs.win_putmixed)(game.WIN_STATUS, 0, do_statusline2());
+            (game.windowprocs.win_putmixed)(game.WIN_STATUS, 0, await do_statusline2());
         }
     }
     game.disp.botl = game.disp.botlx = game.disp.time_botl = (0);
 }
 /* special purpose status update: move counter ('time' status) only */
-export function timebot() {
+export async function timebot() {
     if (game.bot_disabled) {
         return;
     }
     if (game.flags.time && game.iflags.status_updates && !suppress_map_output()) {
         if (((game.windowprocs.wincap2 & (8 | 128)) != 0)) {
-            /* we're called when disp.time_botl is set and general disp.botl
-       is clear; disp.time_botl gets set whenever svm.moves changes value
-       so there's no benefit in tracking previous value to decide whether
-       to skip update; suppress_map_output() handles program_state.restoring
-       and program_state.done_hup (tty hangup => no further output at all)
-       and we use it for maybe skipping status as well as for the map */
-            stat_update_time();
+            await stat_update_time();
         } else {
-            /* old status display updates everything */
-            bot();
+            await bot();
         }
     }
     game.disp.time_botl = (0);
@@ -354,7 +343,7 @@ export function rank_of(lev, monnum, female) {
 export function rank() {
     return rank_of(game.u.ulevel, (game.urole.mnum), game.flags.female);
 }
-export function title_to_mon(str, rank_indx, title_length) {
+export async function title_to_mon(str, rank_indx, title_length) {
     let i = 0;
     let j = 0;
     for (i = 0; roles[i].name.m; i++) {
@@ -366,7 +355,7 @@ export function title_to_mon(str, rank_indx, title_length) {
                     rank_indx.value = j;
                 }
                 if (title_length) {
-                    title_length.value = Strlen_(roles[i].rank[j].m, "title_to_mon", 383);
+                    title_length.value = await Strlen_(roles[i].rank[j].m, "title_to_mon", 383);
                 }
                 return roles[i].mnum;
             }
@@ -375,7 +364,7 @@ export function title_to_mon(str, rank_indx, title_length) {
                     rank_indx.value = j;
                 }
                 if (title_length) {
-                    title_length.value = Strlen_(roles[i].rank[j].f, "title_to_mon", 391);
+                    title_length.value = await Strlen_(roles[i].rank[j].f, "title_to_mon", 391);
                 }
                 return roles[i].mnum;
             }
@@ -447,7 +436,7 @@ export function describe_level(buf, dflgs) {
 }
 /* weapon description for status lines; started as a terser version of
    what ^X shows but has diverged to some extent */
-export function weapon_status(outbuf) {
+export async function weapon_status(outbuf) {
     let res = null;
     outbuf.value = 0;
     if (!game.uwep) {
@@ -498,7 +487,7 @@ export function weapon_status(outbuf) {
                     res = "unihorn";
                     break;
                 default:
-                    res = weapon_descr(game.uwep);
+                    res = await weapon_descr(game.uwep);
                     /* [should this be moved into weapon_descr()?] */
                     if (!strncmpi((res), ("food"), -1) && game.uwep.otyp == CREAM_PIE) {
                         res = "pie";
@@ -534,28 +523,28 @@ export function armor_status(armbuf) {
            cloak next since it tends to provide the most protection
            aside from raw AC */
         if (game.uarmg) {
-            armbuf[__nh_p_idx++] = 71;
+            armbuf = armbuf.slice(0, __nh_p_idx++) + String.fromCharCode(71);
         }
         if (game.uarmc) {
-            armbuf[__nh_p_idx++] = 67;
+            armbuf = armbuf.slice(0, __nh_p_idx++) + String.fromCharCode(67);
         }
         if (game.uarm) {
-            armbuf[__nh_p_idx++] = 65;
+            armbuf = armbuf.slice(0, __nh_p_idx++) + String.fromCharCode(65);
         }
         /* suit but 's' is for shield */
         if (game.uarmu) {
-            armbuf[__nh_p_idx++] = 85;
+            armbuf = armbuf.slice(0, __nh_p_idx++) + String.fromCharCode(85);
         }
         if (game.uarmh) {
-            armbuf[__nh_p_idx++] = 72;
+            armbuf = armbuf.slice(0, __nh_p_idx++) + String.fromCharCode(72);
         }
         if (game.uarmf) {
-            armbuf[__nh_p_idx++] = 66;
+            armbuf = armbuf.slice(0, __nh_p_idx++) + String.fromCharCode(66);
         }
         if (game.uarms) {
-            armbuf[__nh_p_idx++] = 83;
+            armbuf = armbuf.slice(0, __nh_p_idx++) + String.fromCharCode(83);
         }
-        armbuf[__nh_p_idx] = 0;
+        armbuf = armbuf.slice(0, __nh_p_idx);
     }
     /*
      * Add a hint about MC by appending a plus sign if that's augmented.
@@ -588,7 +577,7 @@ export function armor_status(armbuf) {
  * even though the actual values will be much smaller.  The gold field
  * is even bigger due to its encoded dollar sign prefix.
  */
-game.initblstats = [{ fldname: "title", fldfmt: "%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: [null], rawval: [null], val: null, valwidth: 80, idxmax: -1, fld: BL_TITLE, hilite_rule: null, thresholds: null }, { fldname: "strength", fldfmt: " St:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_STR, hilite_rule: null, thresholds: null }, { fldname: "dexterity", fldfmt: " Dx:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_DX, hilite_rule: null, thresholds: null }, { fldname: "constitution", fldfmt: " Co:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_CO, hilite_rule: null, thresholds: null }, { fldname: "intelligence", fldfmt: " In:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_IN, hilite_rule: null, thresholds: null }, { fldname: "wisdom", fldfmt: " Wi:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_WI, hilite_rule: null, thresholds: null }, { fldname: "charisma", fldfmt: " Ch:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_CH, hilite_rule: null, thresholds: null }, { fldname: "alignment", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: [null], rawval: [null], val: null, valwidth: 20, idxmax: -1, fld: BL_ALIGN, hilite_rule: null, thresholds: null }, { fldname: "score", fldfmt: " S:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_LONG, a: [null], rawval: [null], val: null, valwidth: 30, idxmax: -1, fld: BL_SCORE, hilite_rule: null, thresholds: null }, { fldname: "carrying-capacity", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 20, idxmax: -1, fld: BL_CAP, hilite_rule: null, thresholds: null }, { fldname: "gold", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_LONG, a: [null], rawval: [null], val: null, valwidth: 40, idxmax: -1, fld: BL_GOLD, hilite_rule: null, thresholds: null }, { fldname: "power", fldfmt: " Pw:%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: BL_ENEMAX, fld: BL_ENE, hilite_rule: null, thresholds: null }, { fldname: "power-max", fldfmt: "(%s)", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_ENEMAX, hilite_rule: null, thresholds: null }, { fldname: "experience-level", fldfmt: " Xp:%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: BL_EXP, fld: BL_XP, hilite_rule: null, thresholds: null }, { fldname: "armor-class", fldfmt: " AC:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_AC, hilite_rule: null, thresholds: null }, { fldname: "HD", fldfmt: " HD:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_HD, hilite_rule: null, thresholds: null }, { fldname: "time", fldfmt: " T:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_LONG, a: [null], rawval: [null], val: null, valwidth: 30, idxmax: -1, fld: BL_TIME, hilite_rule: null, thresholds: null }, { fldname: "hunger", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 20, idxmax: -1, fld: BL_HUNGER, hilite_rule: null, thresholds: null }, { fldname: "hitpoints", fldfmt: " HP:%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: BL_HPMAX, fld: BL_HP, hilite_rule: null, thresholds: null }, { fldname: "hitpoints-max", fldfmt: "(%s)", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: [null], rawval: [null], val: null, valwidth: 10, idxmax: -1, fld: BL_HPMAX, hilite_rule: null, thresholds: null }, { fldname: "dungeon-level", fldfmt: "%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: [null], rawval: [null], val: null, valwidth: 80, idxmax: -1, fld: BL_LEVELDESC, hilite_rule: null, thresholds: null }, { fldname: "experience", fldfmt: "/%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_LONG, a: [null], rawval: [null], val: null, valwidth: 30, idxmax: BL_EXP, fld: BL_EXP, hilite_rule: null, thresholds: null }, { fldname: "condition", fldfmt: "%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_MASK32, a: [null], rawval: [null], val: null, valwidth: 0, idxmax: -1, fld: BL_CONDITION, hilite_rule: null, thresholds: null }, { fldname: "version", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: [null], rawval: [null], val: null, valwidth: 80, idxmax: -1, fld: BL_VERS, hilite_rule: null, thresholds: null }, { fldname: "weapon", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: [null], rawval: [null], val: null, valwidth: 20, idxmax: -1, fld: BL_WEAPON, hilite_rule: null, thresholds: null }, { fldname: "armor", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: [null], rawval: [null], val: null, valwidth: 20, idxmax: -1, fld: BL_ARMOR, hilite_rule: null, thresholds: null }, { fldname: "terrain", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: [null], rawval: [null], val: null, valwidth: 20, idxmax: -1, fld: BL_TERRAIN, hilite_rule: null, thresholds: null }];
+game.initblstats = [{ fldname: "title", fldfmt: "%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 80, idxmax: -1, fld: BL_TITLE, hilite_rule: null, thresholds: null }, { fldname: "strength", fldfmt: " St:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_STR, hilite_rule: null, thresholds: null }, { fldname: "dexterity", fldfmt: " Dx:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_DX, hilite_rule: null, thresholds: null }, { fldname: "constitution", fldfmt: " Co:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_CO, hilite_rule: null, thresholds: null }, { fldname: "intelligence", fldfmt: " In:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_IN, hilite_rule: null, thresholds: null }, { fldname: "wisdom", fldfmt: " Wi:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_WI, hilite_rule: null, thresholds: null }, { fldname: "charisma", fldfmt: " Ch:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_CH, hilite_rule: null, thresholds: null }, { fldname: "alignment", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 20, idxmax: -1, fld: BL_ALIGN, hilite_rule: null, thresholds: null }, { fldname: "score", fldfmt: " S:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_LONG, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 30, idxmax: -1, fld: BL_SCORE, hilite_rule: null, thresholds: null }, { fldname: "carrying-capacity", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 20, idxmax: -1, fld: BL_CAP, hilite_rule: null, thresholds: null }, { fldname: "gold", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_LONG, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 40, idxmax: -1, fld: BL_GOLD, hilite_rule: null, thresholds: null }, { fldname: "power", fldfmt: " Pw:%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: BL_ENEMAX, fld: BL_ENE, hilite_rule: null, thresholds: null }, { fldname: "power-max", fldfmt: "(%s)", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_ENEMAX, hilite_rule: null, thresholds: null }, { fldname: "experience-level", fldfmt: " Xp:%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: BL_EXP, fld: BL_XP, hilite_rule: null, thresholds: null }, { fldname: "armor-class", fldfmt: " AC:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_AC, hilite_rule: null, thresholds: null }, { fldname: "HD", fldfmt: " HD:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_HD, hilite_rule: null, thresholds: null }, { fldname: "time", fldfmt: " T:%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_LONG, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 30, idxmax: -1, fld: BL_TIME, hilite_rule: null, thresholds: null }, { fldname: "hunger", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 20, idxmax: -1, fld: BL_HUNGER, hilite_rule: null, thresholds: null }, { fldname: "hitpoints", fldfmt: " HP:%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: BL_HPMAX, fld: BL_HP, hilite_rule: null, thresholds: null }, { fldname: "hitpoints-max", fldfmt: "(%s)", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_INT, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 10, idxmax: -1, fld: BL_HPMAX, hilite_rule: null, thresholds: null }, { fldname: "dungeon-level", fldfmt: "%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 80, idxmax: -1, fld: BL_LEVELDESC, hilite_rule: null, thresholds: null }, { fldname: "experience", fldfmt: "/%s", time: 0, chg: (0), percent_matters: (1), percent_value: 0, anytype: ANY_LONG, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 30, idxmax: BL_EXP, fld: BL_EXP, hilite_rule: null, thresholds: null }, { fldname: "condition", fldfmt: "%s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_MASK32, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 0, idxmax: -1, fld: BL_CONDITION, hilite_rule: null, thresholds: null }, { fldname: "version", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 80, idxmax: -1, fld: BL_VERS, hilite_rule: null, thresholds: null }, { fldname: "weapon", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 20, idxmax: -1, fld: BL_WEAPON, hilite_rule: null, thresholds: null }, { fldname: "armor", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 20, idxmax: -1, fld: BL_ARMOR, hilite_rule: null, thresholds: null }, { fldname: "terrain", fldfmt: " %s", time: 0, chg: (0), percent_matters: (0), percent_value: 0, anytype: ANY_STR, a: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: null, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 20, idxmax: -1, fld: BL_TERRAIN, hilite_rule: null, thresholds: null }];
 /* hunger used to be 'ANY_UINT'; see note below in bot_via_windowport() */
 /* optional; once set it doesn't change unless 'showvers' option is
        toggled or player modifies the 'versinfo' option;
@@ -684,7 +673,7 @@ const cache_multi_reason = null;
  * the final argument of status_update, with or
  * without STATUS_HILITES.
  */
-export function bot_via_windowport() {
+export async function bot_via_windowport() {
     let buf = '';
     let titl = null;
     let nb = null;
@@ -693,7 +682,7 @@ export function bot_via_windowport() {
     let cap = 0;
     let money = 0;
     if (!game.blinit) {
-        panic("bot before init.");
+        await panic("bot before init.");
     }
     /* toggle from previous iteration */
     idx = 1 - game.now_or_before_idx;
@@ -940,7 +929,7 @@ export function bot_via_windowport() {
         }
     }
     if (game.flags.weaponstatus) {
-        weapon_status(game.blstats[idx][BL_WEAPON].val);
+        await weapon_status(game.blstats[idx][BL_WEAPON].val);
     /*
      * Optionally displayed weapon(s), armor, and terrain.
      */
@@ -967,22 +956,22 @@ export function bot_via_windowport() {
         game.blstats[idx][BL_TERRAIN].a.a_int = MAX_TYPE;
     }
     game.valset[BL_TERRAIN] = (1);
-    evaluate_and_notify_windowport(game.valset, idx);
+    await evaluate_and_notify_windowport(game.valset, idx);
 }
 /* update just the status lines' 'time' field */
-export function stat_update_time() {
+export async function stat_update_time() {
     let idx = game.now_or_before_idx;
     let fld = BL_TIME;
     game.blstats[idx][fld].a.a_long = game.moves;
     game.valset[fld] = (0);
-    eval_notify_windowport_field(fld, game.valset, idx);
+    await eval_notify_windowport_field(fld, game.valset, idx);
     if ((game.windowprocs.wincap2 & 128) != 0) {
         (game.windowprocs.win_status_update)(BL_FLUSH, null, 0, 0, 8, null);
     }
     return;
 }
 /* deal with player's choice to change processing of a condition */
-export function condopt(idx, addr, negated) {
+export async function condopt(idx, addr, negated) {
     let i = 0;
     if ((idx < 0 || idx >= CONDITION_COUNT) || (addr && addr != game.condtests[idx].choice)) {
         return;
@@ -995,7 +984,7 @@ export function condopt(idx, addr, negated) {
             game.cond_idx[i] = i;
             game.condtests[i].choice = game.condtests[i].enabled;
         }
-        qsort(game.cond_idx, CONDITION_COUNT, 4 /* sizeof(int) */, cond_cmp);
+        await qsort_async(game.cond_idx, CONDITION_COUNT, 4 /* sizeof(int) */, cond_cmp);
     } else {
         /* (addr == &condtests[idx].choice) */
         game.condtests[idx].enabled = negated ? (0) : (1);
@@ -1022,7 +1011,7 @@ export function menualpha_cmp(vptr1, vptr2) {
     let indx2 = vptr2;
     return strncmpi((game.condtests[indx1].useroption), (game.condtests[indx2].useroption), -1);
 }
-export function parse_cond_option(negated, opts) {
+export async function parse_cond_option(negated, opts) {
     let i = 0;
     let sl = 0;
     let compareto = null;
@@ -1034,9 +1023,9 @@ export function parse_cond_option(negated, opts) {
     uniqpart = __nh_advance_str(opts, (6 /* sizeof(const char [6]) */ - 1));
     for (i = 0; i < CONDITION_COUNT; ++i) {
         compareto = game.condtests[i].useroption;
-        sl = Strlen_(compareto, "parse_cond_option", 1364);
+        sl = await Strlen_(compareto, "parse_cond_option", 1364);
         if (match_optname(uniqpart, compareto, (sl >= 4) ? 4 : sl, (0))) {
-            condopt(i, { get value() { return game.condtests[i].choice; }, set value(_v) { game.condtests[i].choice = _v; } }, negated);
+            await condopt(i, { get value() { return game.condtests[i].choice; }, set value(_v) { game.condtests[i].choice = _v; } }, negated);
             return 0;
         }
     }
@@ -1045,13 +1034,13 @@ export function parse_cond_option(negated, opts) {
 /* display a menu of all available status condition options and let player
    toggled them on or off; returns True iff any changes are made */
 const __cond_menu_menutitle = ["alphabetically", "by ranking"];
-export function cond_menu() {
+export async function cond_menu() {
     let i = 0;
     let res = 0;
     let idx = 0;
     let sequence = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let picks = null;
     let mbuf = '';
     let showmenu = (1);
@@ -1061,28 +1050,28 @@ export function cond_menu() {
         for (i = 0; i < CONDITION_COUNT; ++i) {
             sequence[i] = i;
         }
-        qsort(sequence, CONDITION_COUNT, 4 /* sizeof(int) */, (game.condmenu_sortorder) ? cond_cmp : menualpha_cmp);
+        await qsort_async(sequence, CONDITION_COUNT, 4 /* sizeof(int) */, (game.condmenu_sortorder) ? cond_cmp : menualpha_cmp);
         tmpwin = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(tmpwin, 0);
         /*... set to Null between Satiated and Hungry     */
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = 1;
         mbuf = sprintf(mbuf, "change sort order from \"%s\" to \"%s\"", __cond_menu_menutitle[game.condmenu_sortorder], __cond_menu_menutitle[1 - game.condmenu_sortorder]);
-        add_menu(tmpwin, nul_glyphinfo, any, 83, 0, 0, clr, mbuf, 2);
-        any = cg.zeroany;
+        await add_menu(tmpwin, nul_glyphinfo, any, 83, 0, 0, clr, mbuf, 2);
+        Object.assign(any, cg.zeroany);
         mbuf = sprintf(mbuf, "sorted %s", __cond_menu_menutitle[game.condmenu_sortorder]);
-        add_menu_heading(tmpwin, mbuf);
+        await add_menu_heading(tmpwin, mbuf);
         for (i = 0; i < (Math.trunc(30 /* sizeof(struct condtests_t [30]) */ / 1 /* sizeof(struct condtests_t) */)); i++) {
             idx = sequence[i];
             mbuf = sprintf(mbuf, "cond_%-14s", game.condtests[idx].useroption);
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             /* avoid zero and the sort change pick */
             any.a_int = idx + 2;
             game.condtests[idx].choice = (0);
-            add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, mbuf, game.condtests[idx].enabled ? 1 : 0);
+            await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, mbuf, game.condtests[idx].enabled ? 1 : 0);
         }
         (game.windowprocs.win_end_menu)(tmpwin, "Choose status conditions to toggle");
-        res = select_menu(tmpwin, 2, picks);
+        res = await select_menu(tmpwin, 2, picks);
         (game.windowprocs.win_destroy_nhwindow)(tmpwin);
         showmenu = (0);
         if (res > 0) {
@@ -1142,8 +1131,10 @@ export function opt_next_cond(indx, outbuf) {
     return (1);
 }
 let __eval_notify_windowport_field_oldrndencode = 0;
+__nh_register_static(() => { __eval_notify_windowport_field_oldrndencode = 0; });
 let __eval_notify_windowport_field_oldgoldsym = 0;
-export function eval_notify_windowport_field(fld, valsetlist, idx) {
+__nh_register_static(() => { __eval_notify_windowport_field_oldgoldsym = 0; });
+export async function eval_notify_windowport_field(fld, valsetlist, idx) {
     let pc = 0;
     let chg = 0;
     let color = 8;
@@ -1160,7 +1151,7 @@ export function eval_notify_windowport_field(fld, valsetlist, idx) {
     curr = game.blstats[idx][fld];
     prev = game.blstats[1 - idx][fld];
     color = 8;
-    chg = game.update_all ? 0 : compare_blstats(prev, curr);
+    chg = game.update_all ? 0 : await compare_blstats(prev, curr);
     if (((chg || game.update_all || fld == BL_XP) && curr.percent_matters && curr.thresholds) || (fld == BL_HP && game.iflags.wc2_hitpointbar)) {
         /*
      * TODO:
@@ -1175,7 +1166,7 @@ export function eval_notify_windowport_field(fld, valsetlist, idx) {
            has changed when HP hasn't, where we ordinarily wouldn't
            update HP so would miss an update of the hitpoint bar) */
         fldmax = curr.idxmax;
-        pc = (fldmax == BL_EXP) ? exp_percentage() : (fldmax >= 0 && fldmax < MAXBLSTATS) ? percentage(curr, game.blstats[idx][fldmax]) : 0;
+        pc = (fldmax == BL_EXP) ? await exp_percentage() : (fldmax >= 0 && fldmax < MAXBLSTATS) ? await percentage(curr, game.blstats[idx][fldmax]) : 0;
         /* bullet proofing; can't get here */
         if (pc != prev.percent_value) {
             chg = (pc < prev.percent_value) ? -1 : 1;
@@ -1223,11 +1214,8 @@ export function eval_notify_windowport_field(fld, valsetlist, idx) {
         }
         if (anytype != ANY_MASK32) {
             if (chg || __nh_char_at0(curr.val)) {
-                /* if Xp percentage changed, we set 'chg' to 1 above;
-                   reset that if the Xp value hasn't actually changed
-                   or possibly went down rather than up (level loss) */
                 if (chg == 1 && fld == BL_XP) {
-                    chg = compare_blstats(prev, curr);
+                    chg = await compare_blstats(prev, curr);
                 }
                 curr.hilite_rule = get_hilite(idx, fld, curr.a, chg, pc, { get value() { return color; }, set value(_v) { color = _v; } });
                 prev.hilite_rule = curr.hilite_rule;
@@ -1245,7 +1233,7 @@ export function eval_notify_windowport_field(fld, valsetlist, idx) {
     }
     return updated;
 }
-export function evaluate_and_notify_windowport(valsetlist, idx) {
+export async function evaluate_and_notify_windowport(valsetlist, idx) {
     let i = 0;
     let fld = 0;
     let updated = 0;
@@ -1254,7 +1242,7 @@ export function evaluate_and_notify_windowport(valsetlist, idx) {
         if (((fld == BL_SCORE) && !game.flags.showscore) || ((fld == BL_EXP) && !game.flags.showexp) || ((fld == BL_TIME) && !game.flags.time) || ((fld == BL_HD) && !(game.u.umonnum != game.u.umonster)) || ((fld == BL_XP || fld == BL_EXP) && (game.u.umonnum != game.u.umonster)) || ((fld == BL_VERS) && !game.flags.showvers) || ((fld == BL_TERRAIN) && !game.flags.terrainstatus) || ((fld == BL_WEAPON) && !game.flags.weaponstatus) || ((fld == BL_ARMOR) && !game.flags.armorstatus)) {
             continue;
         }
-        if (eval_notify_windowport_field(fld, valsetlist, idx)) {
+        if (await eval_notify_windowport_field(fld, valsetlist, idx)) {
             updated++;
         }
     }
@@ -1290,7 +1278,7 @@ export function evaluate_and_notify_windowport(valsetlist, idx) {
     game.update_all = (0);
 }
 /* True: just recheck fields without other init */
-export function status_initialize(reassessment) {
+export async function status_initialize(reassessment) {
     let fld = 0;
     let fldenabl = 0;
     let i = 0;
@@ -1298,13 +1286,13 @@ export function status_initialize(reassessment) {
     let fieldname = null;
     if (!reassessment) {
         if (game.blinit) {
-            impossible("2nd status_initialize with full init.");
+            await impossible("2nd status_initialize with full init.");
         }
-        init_blstats();
+        await init_blstats();
         (game.windowprocs.win_status_init)();
         game.blinit = (1);
     } else if (!game.blinit) {
-        panic("status 'reassess' before init");
+        await panic("status 'reassess' before init");
     }
     for (i = 0; i < MAXBLSTATS; ++i) {
         fld = game.initblstats[i].fld;
@@ -1346,18 +1334,19 @@ export function status_finish() {
     }
 }
 let __init_blstats_initalready = (0);
-export function init_blstats() {
+__nh_register_static(() => { __init_blstats_initalready = (0); });
+export async function init_blstats() {
     let i = 0;
     let j = 0;
     if (__init_blstats_initalready) {
-        impossible("init_blstats called more than once.");
+        await impossible("init_blstats called more than once.");
         return;
     }
     for (i = 0; i <= 1; ++i) {
         for (j = 0; j < MAXBLSTATS; ++j) {
             let keep_hilite_chain = game.blstats[i][j].thresholds;
             Object.assign(game.blstats[i][j], game.initblstats[j]);
-            game.blstats[i][j].a = cg.zeroany;
+            Object.assign(game.blstats[i][j].a, cg.zeroany);
             if (game.blstats[i][j].valwidth) {
                 game.blstats[i][j].val = alloc(game.blstats[i][j].valwidth);
                 game.blstats[i][j].val = __nh_char_write(game.blstats[i][j].val, 0, 0);
@@ -1387,7 +1376,7 @@ export function init_blstats() {
  *     - for strings,  0 = stayed the same, 1 = changed
  *
  */
-export function compare_blstats(bl1, bl2) {
+export async function compare_blstats(bl1, bl2) {
     let a1 = null;
     let a2 = null;
     let use_rawval = 0;
@@ -1395,11 +1384,11 @@ export function compare_blstats(bl1, bl2) {
     let fld = 0;
     let result = 0;
     if (!bl1 || !bl2) {
-        panic("compare_blstat: bad istat pointer %s, %s", fmt_ptr(bl1), fmt_ptr(bl2));
+        await panic("compare_blstat: bad istat pointer %s, %s", fmt_ptr(bl1), fmt_ptr(bl2));
     }
     anytype = bl1.anytype;
     if ((!bl1.a.a_void || !bl2.a.a_void) && (anytype == ANY_IPTR || anytype == ANY_UPTR || anytype == ANY_LPTR || anytype == ANY_ULPTR)) {
-        panic("compare_blstat: invalid pointer %s, %s", fmt_ptr(bl1.a.a_void), fmt_ptr(bl2.a.a_void));
+        await panic("compare_blstat: invalid pointer %s, %s", fmt_ptr(bl1.a.a_void), fmt_ptr(bl2.a.a_void));
     }
     /* cheat; terrain is highlighted as a string but we have a handy int
        reflecting its value to use when checking for changes */
@@ -1534,7 +1523,7 @@ export function s_to_anything(a, buf, anytype) {
 }
 /* STATUS_HILITES */
 /* integer percentage is 100 * bl->a / maxbl->a */
-export function percentage(bl, maxbl) {
+export async function percentage(bl, maxbl) {
     let result = 0;
     let anytype = 0;
     let ival = 0;
@@ -1545,7 +1534,7 @@ export function percentage(bl, maxbl) {
     let fld = 0;
     let use_rawval = 0;
     if (!bl || !maxbl) {
-        impossible("percentage: bad istat pointer %s, %s", fmt_ptr(bl), fmt_ptr(maxbl));
+        await impossible("percentage: bad istat pointer %s, %s", fmt_ptr(bl), fmt_ptr(maxbl));
         return 0;
     }
     fld = bl.fld;
@@ -1600,7 +1589,7 @@ export function percentage(bl, maxbl) {
 }
 /* percentage for both xp (level) and exp (points) is the percentage for
    (curr_exp - this_level_start) in (next_level_start - this_level_start) */
-export function exp_percentage() {
+export async function exp_percentage() {
     let res = 0;
     if (game.u.ulevel < 30) {
         let exp_val = 0;
@@ -1619,26 +1608,24 @@ export function exp_percentage() {
              */
             res = 100;
         } else {
-            let curval = { fldname: null, fldfmt: null, time: 0, chg: 0, percent_matters: 0, percent_value: 0, anytype: 0, a: 0, rawval: 0, val: null, valwidth: 0, idxmax: 0, fld: 0, hilite_rule: null, thresholds: null };
-            let maxval = { fldname: null, fldfmt: null, time: 0, chg: 0, percent_matters: 0, percent_value: 0, anytype: 0, a: 0, rawval: 0, val: null, valwidth: 0, idxmax: 0, fld: 0, hilite_rule: null, thresholds: null };
+            let curval = { fldname: null, fldfmt: null, time: 0, chg: 0, percent_matters: 0, percent_value: 0, anytype: 0, a: { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 0, idxmax: 0, fld: 0, hilite_rule: null, thresholds: null };
+            let maxval = { fldname: null, fldfmt: null, time: 0, chg: 0, percent_matters: 0, percent_value: 0, anytype: 0, a: { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, rawval: { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, val: null, valwidth: 0, idxmax: 0, fld: 0, hilite_rule: null, thresholds: null };
             curval.anytype = maxval.anytype = ANY_LONG;
-            curval.a = maxval.a = cg.zeroany;
+            Object.assign(curval.a, Object.assign(maxval.a, cg.zeroany));
             curval.a.a_long = exp_val;
             maxval.a.a_long = nxt_exp_val;
             /* (neither BL_HP nor BL_ENE) */
             curval.fld = maxval.fld = BL_EXP;
-            /* maximum delta between levels is 10000000; calculation of
-               100 * (10000000 - N) / 10000000 fits within 32-bit long */
-            res = percentage(curval, maxval);
+            res = await percentage(curval, maxval);
         }
     }
     return res;
 }
 /* experience points have changed but experience level hasn't; decide whether
    botl update is needed for a different percentage highlight rule for Xp */
-export function exp_percent_changing() {
+export async function exp_percent_changing() {
     let pc = 0;
-    let a = 0;
+    let a = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let color_dummy = 0;
     let rule = null;
     let curr = null;
@@ -1649,10 +1636,10 @@ export function exp_percent_changing() {
          * percentage results in a different highlighting rule being selected.
          */
         curr = game.blstats[game.now_or_before_idx][BL_XP];
-        if (curr.percent_matters && curr.thresholds && (pc = exp_percentage()) != curr.percent_value) {
+        if (curr.percent_matters && curr.thresholds && (pc = await exp_percentage()) != curr.percent_value) {
             /* TODO: [see eval_notify_windowport_field() about percent_matters
            and the check against 'thresholds'] */
-            a = cg.zeroany;
+            Object.assign(a, cg.zeroany);
             a.a_int = game.u.ulevel;
             rule = get_hilite(game.now_or_before_idx, BL_XP, a, 0, pc, { get value() { return color_dummy; }, set value(_v) { color_dummy = _v; } });
             /* caller should set 'disp.botl' to True */
@@ -2094,31 +2081,31 @@ export function parse_status_hl1(op, from_configfile) {
 /* is str in the format of "[<>]?=?[-+]?[0-9]+%?" regex */
 export function is_ltgt_percentnumber(str) {
     let __nh_s_idx = 0;
-    if (str[__nh_s_idx] == 60 || str[__nh_s_idx] == 62) {
+    if (__nh_char_at0(__nh_advance_str(str, __nh_s_idx)) == 60 || __nh_char_at0(__nh_advance_str(str, __nh_s_idx)) == 62) {
         __nh_s_idx++;
     }
-    if (str[__nh_s_idx] == 61) {
+    if (__nh_char_at0(__nh_advance_str(str, __nh_s_idx)) == 61) {
         __nh_s_idx++;
     }
-    if (str[__nh_s_idx] == 45 || str[__nh_s_idx] == 43) {
+    if (__nh_char_at0(__nh_advance_str(str, __nh_s_idx)) == 45 || __nh_char_at0(__nh_advance_str(str, __nh_s_idx)) == 43) {
         __nh_s_idx++;
     }
-    if (!digit(str[__nh_s_idx])) {
+    if (!digit(__nh_char_at0(__nh_advance_str(str, __nh_s_idx)))) {
         return (0);
     }
-    while (digit(str[__nh_s_idx])) {
+    while (digit(__nh_char_at0(__nh_advance_str(str, __nh_s_idx)))) {
         __nh_s_idx++;
     }
-    if (str[__nh_s_idx] == 37) {
+    if (__nh_char_at0(__nh_advance_str(str, __nh_s_idx)) == 37) {
         __nh_s_idx++;
     }
-    return (str[__nh_s_idx] == 0);
+    return (__nh_char_at0(__nh_advance_str(str, __nh_s_idx)) == 0);
 }
 /* does str only contain "<>=-+0-9%" chars */
 export function has_ltgt_percentnumber(str) {
     let __nh_s_idx = 0;
-    while (str[__nh_s_idx]) {
-        if (!strchr("<>=-+0123456789%", str[__nh_s_idx])) {
+    while (__nh_char_at0(__nh_advance_str(str, __nh_s_idx))) {
+        if (!strchr("<>=-+0123456789%", __nh_char_at0(__nh_advance_str(str, __nh_s_idx)))) {
             return (0);
         }
         __nh_s_idx++;
@@ -2128,6 +2115,7 @@ export function has_ltgt_percentnumber(str) {
 /* splitsubfields(): splits str in place into '+' or '&' separated strings.
    returns number of strings, or -1 if more than maxsf or MAX_SUBFIELDS */
 let __splitsubfields_subfields = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
+__nh_register_static(() => { __splitsubfields_subfields = [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]; });
 export function splitsubfields(str, sfarr, maxsf) {
     let __nh_sfarr_idx = 0;
     let st = null;
@@ -2175,12 +2163,12 @@ export function is_fld_arrayvalues(str, arr, arrmin, arrmax, retidx) {
     }
     return (0);
 }
-export function query_arrayvalue(querystr, arr, arrmin, arrmax) {
+export async function query_arrayvalue(querystr, arr, arrmin, arrmax) {
     let i = 0;
     let res = 0;
     let ret = arrmin - 1;
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let picks = null;
     let adj = (arrmin > 0) ? 1 : arrmax;
     let clr = 8;
@@ -2191,12 +2179,12 @@ export function query_arrayvalue(querystr, arr, arrmin, arrmax) {
         if (!arr[i]) {
             continue;
         }
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = i + adj;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, arr[i], 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, arr[i], 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, querystr);
-    res = select_menu(tmpwin, 1, picks);
+    res = await select_menu(tmpwin, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (res > 0) {
         ret = picks.item.a_int - adj;
@@ -2256,7 +2244,7 @@ export function parse_status_hl2(s, from_configfile) {
     let criticalhp = 0;
     let txt = null;
     let fld = BL_FLUSH;
-    let hilite = { fld: 0, set: 0, anytype: 0, value: 0, behavior: 0, textmatch: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], rel: 0, coloridx: 0, next: null };
+    let hilite = { fld: 0, set: 0, anytype: 0, value: { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, behavior: 0, textmatch: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], rel: 0, coloridx: 0, next: null };
     let tmpbuf = '';
     /* Examples:
         3.6.1:
@@ -2515,23 +2503,23 @@ export function parse_status_hl2(s, from_configfile) {
     }
     return (successes > 0);
 }
-export function query_conditions() {
+export async function query_conditions() {
     let i = 0;
     let res = 0;
     let ret = 0;
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let picks = null;
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     for (i = 0; i < (Math.trunc(30 /* sizeof(const struct conditions_t [30]) */ / 1 /* sizeof(const struct conditions_t) */)); i++) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_ulong = conditions[i].mask;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, conditions[i].text[0], 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, conditions[i].text[0], 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Choose status conditions");
-    res = select_menu(tmpwin, 2, picks);
+    res = await select_menu(tmpwin, 2, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (res > 0) {
         for (i = 0; i < res; i++) {
@@ -2542,6 +2530,7 @@ export function query_conditions() {
     return ret;
 }
 let __conditionbitmask2str_buf = '';
+__nh_register_static(() => { __conditionbitmask2str_buf = ''; });
 export function conditionbitmask2str(ul) {
     let i = 0;
     let first = (1);
@@ -2788,9 +2777,9 @@ export function status_hilite_linestr_countfield(fld) {
     return count;
 }
 /* used by options handling, doset(options.c) */
-export function count_status_hilites() {
+export async function count_status_hilites() {
     let count = 0;
-    status_hilite_linestr_gather();
+    await status_hilite_linestr_gather();
     count = status_hilite_linestr_countfield(BL_FLUSH);
     status_hilite_linestr_done();
     return count;
@@ -2872,21 +2861,22 @@ export function status_hilite_linestr_gather_conditions() {
         }
     }
 }
-export function status_hilite_linestr_gather() {
+export async function status_hilite_linestr_gather() {
     let i = 0;
     let hl = null;
     status_hilite_linestr_done();
     for (i = 0; i < MAXBLSTATS; i++) {
         hl = game.blstats[0][i].thresholds;
         while (hl) {
-            status_hilite_linestr_add(i, hl, 0, status_hilite2str(hl));
+            status_hilite_linestr_add(i, hl, 0, await status_hilite2str(hl));
             hl = hl.next;
         }
     }
     status_hilite_linestr_gather_conditions();
 }
 let __status_hilite2str_buf = '';
-export function status_hilite2str(hl) {
+__nh_register_static(() => { __status_hilite2str_buf = ''; });
+export async function status_hilite2str(hl) {
     let clr = 8;
     let attr = 0;
     let behavebuf = '';
@@ -2905,7 +2895,7 @@ export function status_hilite2str(hl) {
             if (op) {
                 behavebuf = sprintf(behavebuf, "%s%d%%", op, hl.value.a_int);
             } else {
-                impossible("hl->behavior=percentage, rel error");
+                await impossible("hl->behavior=percentage, rel error");
             }
             break;
         case 102:
@@ -2916,28 +2906,28 @@ export function status_hilite2str(hl) {
             } else if (hl.rel == EQ_VALUE) {
                 behavebuf = sprintf(behavebuf, "changed");
             } else {
-                impossible("hl->behavior=updown, rel error");
+                await impossible("hl->behavior=updown, rel error");
             }
             break;
         case 101:
             if (op) {
                 behavebuf = sprintf(behavebuf, "%s%d", op, hl.value.a_int);
             } else {
-                impossible("hl->behavior=absolute, rel error");
+                await impossible("hl->behavior=absolute, rel error");
             }
             break;
         case 104:
             if (hl.rel == TXT_VALUE && hl.textmatch[0]) {
                 behavebuf = sprintf(behavebuf, "%s", hl.textmatch);
             } else {
-                impossible("hl->behavior=textmatch, rel or textmatch error");
+                await impossible("hl->behavior=textmatch, rel or textmatch error");
             }
             break;
         case 103:
             if (hl.rel == EQ_VALUE) {
                 behavebuf = sprintf(behavebuf, "%s", conditionbitmask2str(hl.value.a_ulong));
             } else {
-                impossible("hl->behavior=condition, rel error");
+                await impossible("hl->behavior=condition, rel error");
             }
             break;
         case 105:
@@ -2961,12 +2951,12 @@ export function status_hilite2str(hl) {
     __status_hilite2str_buf = nh_snprintf("status_hilite2str", 3666, __status_hilite2str_buf, 256 /* sizeof(char [256]) */, "%s/%s/%s", game.initblstats[hl.fld].fldname, behavebuf, clrbuf);
     return __status_hilite2str_buf;
 }
-export function status_hilite_menu_choose_field() {
+export async function status_hilite_menu_choose_field() {
     let tmpwin = 0;
     let i = 0;
     let res = 0;
     let fld = BL_FLUSH;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let picks = null;
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
@@ -2975,12 +2965,12 @@ export function status_hilite_menu_choose_field() {
         if (game.initblstats[i].fld == BL_SCORE && !game.blstats[0][BL_SCORE].thresholds) {
             continue;
         }
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = (i + 1);
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, game.initblstats[i].fldname, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, game.initblstats[i].fldname, 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Select a hilite field:");
-    res = select_menu(tmpwin, 1, picks);
+    res = await select_menu(tmpwin, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (res > 0) {
         fld = picks.item.a_int - 1;
@@ -2988,11 +2978,11 @@ export function status_hilite_menu_choose_field() {
     }
     return fld;
 }
-export function status_hilite_menu_choose_behavior(fld) {
+export async function status_hilite_menu_choose_behavior(fld) {
     let tmpwin = 0;
     let res = 0;
     let beh = 0 - 1;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let picks = null;
     let buf = '';
     let at = 0;
@@ -3006,55 +2996,55 @@ export function status_hilite_menu_choose_behavior(fld) {
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     if (fld != BL_CONDITION) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = onlybeh = 105;
         buf = sprintf(buf, "Always highlight %s", game.initblstats[fld].fldname);
-        add_menu(tmpwin, nul_glyphinfo, any, 97, 0, 0, clr, buf, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 97, 0, 0, clr, buf, 0);
         nopts++;
     }
     if (fld == BL_CONDITION) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = onlybeh = 103;
-        add_menu(tmpwin, nul_glyphinfo, any, 98, 0, 0, clr, "Bitmask of conditions", 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 98, 0, 0, clr, "Bitmask of conditions", 0);
         nopts++;
     }
     if (fld != BL_CONDITION && fld != BL_VERS) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = onlybeh = 102;
         buf = sprintf(buf, "%s value changes", game.initblstats[fld].fldname);
-        add_menu(tmpwin, nul_glyphinfo, any, 99, 0, 0, clr, buf, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 99, 0, 0, clr, buf, 0);
         nopts++;
     }
     if (fld != BL_CAP && fld != BL_HUNGER && (at == ANY_INT || at == ANY_LONG)) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = onlybeh = 101;
-        add_menu(tmpwin, nul_glyphinfo, any, 110, 0, 0, clr, "Number threshold", 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 110, 0, 0, clr, "Number threshold", 0);
         nopts++;
     }
     if (game.initblstats[fld].idxmax >= 0) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = onlybeh = 100;
-        add_menu(tmpwin, nul_glyphinfo, any, 112, 0, 0, clr, "Percentage threshold", 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 112, 0, 0, clr, "Percentage threshold", 0);
         nopts++;
     }
     if (fld == BL_HP) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = onlybeh = 106;
         buf = sprintf(buf, "Highlight critically low %s", game.initblstats[fld].fldname);
-        add_menu(tmpwin, nul_glyphinfo, any, 67, 0, 0, clr, buf, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 67, 0, 0, clr, buf, 0);
         nopts++;
     }
     if (game.initblstats[fld].anytype == ANY_STR || fld == BL_CAP || fld == BL_HUNGER) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = onlybeh = 104;
         buf = sprintf(buf, "%s text match", game.initblstats[fld].fldname);
-        add_menu(tmpwin, nul_glyphinfo, any, 116, 0, 0, clr, buf, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 116, 0, 0, clr, buf, 0);
         nopts++;
     }
     buf = sprintf(buf, "Select %s field hilite behavior:", game.initblstats[fld].fldname);
     (game.windowprocs.win_end_menu)(tmpwin, buf);
     if (nopts > 1) {
-        res = select_menu(tmpwin, 1, picks);
+        res = await select_menu(tmpwin, 1, picks);
         if (res == 0) {
             beh = 0;
         } else if (res == -1) {
@@ -3070,12 +3060,12 @@ export function status_hilite_menu_choose_behavior(fld) {
     }
     return beh;
 }
-export function status_hilite_menu_choose_updownboth(fld, str, ltok, gtok) {
+export async function status_hilite_menu_choose_updownboth(fld, str, ltok, gtok) {
     let res = 0;
     let ret = NO_LTEQGT;
     let tmpwin = 0;
     let buf = '';
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let picks = null;
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
@@ -3086,14 +3076,14 @@ export function status_hilite_menu_choose_updownboth(fld, str, ltok, gtok) {
         } else {
             buf = sprintf(buf, "Value goes down");
         }
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = 10 + LT_VALUE;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         if (str) {
             buf = sprintf(buf, "%s or %s", str, (fld == BL_AC) ? "better (lower)" : "less");
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             any.a_int = 10 + LE_VALUE;
-            add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+            await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
     }
     if (str) {
@@ -3101,28 +3091,28 @@ export function status_hilite_menu_choose_updownboth(fld, str, ltok, gtok) {
     } else {
         buf = sprintf(buf, "Value changes");
     }
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     any.a_int = 10 + EQ_VALUE;
-    add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+    await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
     if (gtok) {
         if (str) {
             buf = sprintf(buf, "%s or %s", str, (fld == BL_AC) ? "worse (higher)" : "more");
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             any.a_int = 10 + GE_VALUE;
-            add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+            await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
         if (str) {
             buf = sprintf(buf, "%s than %s", (fld == BL_AC) ? "Worse (higher)" : "More", str);
         } else {
             buf = sprintf(buf, "Value goes up");
         }
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = 10 + GT_VALUE;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
     }
     buf = sprintf(buf, "Select field %s value:", game.initblstats[fld].fldname);
     (game.windowprocs.win_end_menu)(tmpwin, buf);
-    res = select_menu(tmpwin, 1, picks);
+    res = await select_menu(tmpwin, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (res > 0) {
         ret = picks.item.a_int - 10;
@@ -3132,13 +3122,13 @@ export function status_hilite_menu_choose_updownboth(fld, str, ltok, gtok) {
 }
 const __status_hilite_menu_add_aligntxt = ["chaotic", "neutral", "lawful"];
 const __status_hilite_menu_add_hutxt = ["Satiated", null, "Hungry", "Weak", "Fainting", "Fainted", "Starved"];
-export function status_hilite_menu_add(origfld) {
+export async function status_hilite_menu_add(origfld) {
     let fld = 0;
     let behavior = 0;
     let lt_gt_eq = 0;
     let clr = 8;
     let atr = HL_UNDEF;
-    let hilite = { fld: 0, set: 0, anytype: 0, value: 0, behavior: 0, textmatch: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], rel: 0, coloridx: 0, next: null };
+    let hilite = { fld: 0, set: 0, anytype: 0, value: { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 }, behavior: 0, textmatch: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], rel: 0, coloridx: 0, next: null };
     let cond = 0;
     let colorqry = '';
     let attrqry = '';
@@ -3146,7 +3136,7 @@ export function status_hilite_menu_add(origfld) {
     choose_field: while (true) {
         fld = origfld;
         if (fld == BL_FLUSH) {
-            fld = status_hilite_menu_choose_field();
+            fld = await status_hilite_menu_choose_field();
             /* isn't this redundant given what follows? */
             if (fld == BL_FLUSH) {
                 return (0);
@@ -3162,7 +3152,7 @@ export function status_hilite_menu_add(origfld) {
         hilite.set = (0);
         hilite.fld = fld;
         choose_behavior: while (true) {
-            behavior = status_hilite_menu_choose_behavior(fld);
+            behavior = await status_hilite_menu_choose_behavior(fld);
             if (behavior == (0 - 1)) {
                 return (0);
             } else if (behavior == 0) {
@@ -3174,13 +3164,13 @@ export function status_hilite_menu_add(origfld) {
             hilite.behavior = behavior;
             choose_value: while (true) {
                 if (retry++ > 5) {
-                    pline("That's enough tries.");
+                    await pline("That's enough tries.");
                     return (0);
                 }
                 if (behavior == 100 || behavior == 101) {
                     let inbuf = '';
                     let buf = '';
-                    let aval = 0;
+                    let aval = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
                     let val = 0;
                     let dt = 0;
                     let gotnum = (0);
@@ -3191,7 +3181,7 @@ export function status_hilite_menu_add(origfld) {
                     lt_gt_eq = NO_LTEQGT;
                     inbuf = '';
                     buf = sprintf(buf, "Enter %svalue for %s threshold:", percent ? "percentage " : "", game.initblstats[fld].fldname);
-                    getlin(buf, inbuf);
+                    inbuf = await getlin(buf, inbuf);
                     if (__nh_char_at0(inbuf) == 0 || __nh_char_at0(inbuf) == 27) {
                         continue choose_behavior;
                     }
@@ -3222,38 +3212,33 @@ export function status_hilite_menu_add(origfld) {
                     }
                     if (__nh_char_at0(inp) == 37) {
                         if (!percent) {
-                            pline("Not expecting a percentage.");
+                            await pline("Not expecting a percentage.");
                             continue choose_behavior;
                         }
                         /* strip '%' [this accepts trailing junk!] */
                         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
                     } else if (__nh_char_at0(inp)) {
-                        pline("\"%s\" is not a recognized number.", inp);
+                        await pline("\"%s\" is not a recognized number.", inp);
                         continue choose_value;
                     }
                     if (!gotnum) {
-                        pline("Is that an invisible number?");
+                        await pline("Is that an invisible number?");
                         continue choose_value;
                     }
                     op = (lt_gt_eq == LT_VALUE) ? "<" : (lt_gt_eq == LE_VALUE) ? "<=" : (lt_gt_eq == GT_VALUE) ? ">" : (lt_gt_eq == GE_VALUE) ? ">=" : (lt_gt_eq == EQ_VALUE) ? "=" : "";
                     /* didn't specify lt_gt_eq with number */
-                    aval = cg.zeroany;
+                    Object.assign(aval, cg.zeroany);
                     dt = percent ? ANY_INT : game.initblstats[fld].anytype;
                     s_to_anything(aval, numstart, dt);
                     if (percent) {
                         val = aval.a_int;
                         if (game.initblstats[fld].idxmax == -1) {
-                            pline("Field '%s' does not support percentage values.", game.initblstats[fld].fldname);
+                            await pline("Field '%s' does not support percentage values.", game.initblstats[fld].fldname);
                             behavior = 101;
                             continue choose_value;
                         }
                         if ((val < 0 && (val != -1 || lt_gt_eq != GT_VALUE)) || (val == 0 && lt_gt_eq == LT_VALUE) || (val == 100 && lt_gt_eq == GT_VALUE) || (val > 100 && (val != 101 || lt_gt_eq != LT_VALUE))) {
-                            /* if player only specified a number then lt_gt_eq isn't set
-               up yet and the >-1 and <101 exceptions can't be honored;
-               deliberate use of those should be uncommon enough for
-               that to be palatable; for 0 and 100, choose_updown_both()
-               will prevent useless operations */
-                            pline("'%s%d%%' is not a valid percent value.", op, val);
+                            await pline("'%s%d%%' is not a valid percent value.", op, val);
                             continue choose_value;
                         }
                         /* restore suffix for use in color and attribute prompts */
@@ -3262,16 +3247,16 @@ export function status_hilite_menu_add(origfld) {
                             numstart = strcat(numstart, "%");
                         }
                     } else if (dt == ANY_INT && (aval.a_int < ((fld == BL_AC) ? -128 : (lt_gt_eq == GT_VALUE) ? -1 : (lt_gt_eq == LT_VALUE) ? 1 : 0))) {
-                        pline("%s'%s%d'%s", threshold_value, op, aval.a_int, is_out_of_range);
+                        await pline("%s'%s%d'%s", threshold_value, op, aval.a_int, is_out_of_range);
                         continue choose_value;
                     } else if (dt == ANY_LONG && (aval.a_long < ((lt_gt_eq == GT_VALUE) ? -1 : (lt_gt_eq == LT_VALUE) ? 1 : 0))) {
-                        pline("%s'%s%ld'%s", threshold_value, op, aval.a_long, is_out_of_range);
+                        await pline("%s'%s%ld'%s", threshold_value, op, aval.a_long, is_out_of_range);
                         continue choose_value;
                     }
                     if (lt_gt_eq == NO_LTEQGT) {
                         let ltok = ((dt == ANY_INT) ? (aval.a_int > 0 || fld == BL_AC) : (aval.a_long > 0));
                         let gtok = (!percent || aval.a_long < 100);
-                        lt_gt_eq = status_hilite_menu_choose_updownboth(fld, inbuf, ltok, gtok);
+                        lt_gt_eq = await status_hilite_menu_choose_updownboth(fld, inbuf, ltok, gtok);
                         if (lt_gt_eq == NO_LTEQGT) {
                             continue choose_value;
                         }
@@ -3279,12 +3264,12 @@ export function status_hilite_menu_add(origfld) {
                     colorqry = sprintf(colorqry, "Choose a color for when %s is %s%s%s:", game.initblstats[fld].fldname, (lt_gt_eq == LT_VALUE) ? "less than " : (lt_gt_eq == GT_VALUE) ? "more than " : "", numstart, (lt_gt_eq == LE_VALUE) ? " or less" : (lt_gt_eq == GE_VALUE) ? " or more" : "");
                     attrqry = sprintf(attrqry, "Choose attribute for when %s is %s%s%s:", game.initblstats[fld].fldname, (lt_gt_eq == LT_VALUE) ? "less than " : (lt_gt_eq == GT_VALUE) ? "more than " : "", numstart, (lt_gt_eq == LE_VALUE) ? " or less" : (lt_gt_eq == GE_VALUE) ? " or more" : "");
                     hilite.rel = lt_gt_eq;
-                    hilite.value = aval;
+                    Object.assign(hilite.value, aval);
                 } else if (behavior == 102) {
                     if (game.initblstats[fld].anytype != ANY_STR) {
                         let ltok = (fld != BL_TIME);
                         let gtok = (1);
-                        lt_gt_eq = status_hilite_menu_choose_updownboth(fld, null, ltok, gtok);
+                        lt_gt_eq = await status_hilite_menu_choose_updownboth(fld, null, ltok, gtok);
                         if (lt_gt_eq == NO_LTEQGT) {
                             continue choose_behavior;
                         }
@@ -3301,7 +3286,7 @@ export function status_hilite_menu_add(origfld) {
                     attrqry = sprintf(attrqry, "Choose attribute for when %s %s:", game.initblstats[fld].fldname, (lt_gt_eq == EQ_VALUE) ? "changes" : (lt_gt_eq == LT_VALUE) ? "decreases" : "increases");
                     hilite.rel = lt_gt_eq;
                 } else if (behavior == 103) {
-                    cond = query_conditions();
+                    cond = await query_conditions();
                     if (!cond) {
                         if (origfld == BL_FLUSH) {
                             continue choose_field;
@@ -3314,21 +3299,21 @@ export function status_hilite_menu_add(origfld) {
                     let qry_buf = '';
                     qry_buf = sprintf(qry_buf, "%s %s text value to match:", (fld == BL_CAP || fld == BL_ALIGN || fld == BL_HUNGER || fld == BL_TITLE) ? "Choose" : "Enter", game.initblstats[fld].fldname);
                     if (fld == BL_CAP) {
-                        let rv = query_arrayvalue(qry_buf, enc_stat, SLT_ENCUMBER, OVERLOADED + 1);
+                        let rv = await query_arrayvalue(qry_buf, enc_stat, SLT_ENCUMBER, OVERLOADED + 1);
                         if (rv < SLT_ENCUMBER) {
                             continue choose_behavior;
                         }
                         hilite.rel = TXT_VALUE;
                         hilite.textmatch = strcpy(hilite.textmatch, enc_stat[rv]);
                     } else if (fld == BL_ALIGN) {
-                        let rv = query_arrayvalue(qry_buf, __status_hilite_menu_add_aligntxt, 0, 2 + 1);
+                        let rv = await query_arrayvalue(qry_buf, __status_hilite_menu_add_aligntxt, 0, 2 + 1);
                         if (rv < 0) {
                             continue choose_behavior;
                         }
                         hilite.rel = TXT_VALUE;
                         hilite.textmatch = strcpy(hilite.textmatch, __status_hilite_menu_add_aligntxt[rv]);
                     } else if (fld == BL_HUNGER) {
-                        let rv = query_arrayvalue(qry_buf, __status_hilite_menu_add_hutxt, SATIATED, STARVED + 1);
+                        let rv = await query_arrayvalue(qry_buf, __status_hilite_menu_add_hutxt, SATIATED, STARVED + 1);
                         if (rv < SATIATED) {
                             continue choose_behavior;
                         }
@@ -3369,7 +3354,7 @@ export function status_hilite_menu_add(origfld) {
                             }
                         }
                         rolelist[j++] = dupstr("\"none of the above (polymorphed)\"");
-                        rv = query_arrayvalue(qry_buf, rolelist, 0, j);
+                        rv = await query_arrayvalue(qry_buf, rolelist, 0, j);
                         if (rv >= 0) {
                             hilite.rel = TXT_VALUE;
                             hilite.textmatch = strcpy(hilite.textmatch, rolelist[rv]);
@@ -3383,7 +3368,7 @@ export function status_hilite_menu_add(origfld) {
                     } else {
                         let inbuf = '';
                         inbuf = '';
-                        getlin(qry_buf, inbuf);
+                        inbuf = await getlin(qry_buf, inbuf);
                         if (__nh_char_at0(inbuf) == 0 || __nh_char_at0(inbuf) == 27) {
                             continue choose_behavior;
                         }
@@ -3401,7 +3386,7 @@ export function status_hilite_menu_add(origfld) {
                     attrqry = sprintf(attrqry, "Choose attribute to always hilite %s:", game.initblstats[fld].fldname);
                 }
                 choose_color: while (true) {
-                    clr = query_color(colorqry, 8);
+                    clr = await query_color(colorqry, 8);
                     if (clr == -1) {
                         if (behavior != 105) {
                             continue choose_value;
@@ -3409,7 +3394,7 @@ export function status_hilite_menu_add(origfld) {
                             continue choose_behavior;
                         }
                     }
-                    atr = query_attr(attrqry, 0);
+                    atr = await query_attr(attrqry, 0);
                     if (atr == -1) {
                         continue choose_color;
                     }
@@ -3449,7 +3434,7 @@ export function status_hilite_menu_add(origfld) {
                         if (tmpattr) {
                             clrbuf = __nh_buf_append(clrbuf, sprintf('', "&%s", tmpattr));
                         }
-                        pline("Added hilite condition/%s/%s", conditionbitmask2str(cond), clrbuf);
+                        await pline("Added hilite condition/%s/%s", conditionbitmask2str(cond), clrbuf);
                     } else {
                         let p = null;
                         let q = null;
@@ -3461,7 +3446,7 @@ export function status_hilite_menu_add(origfld) {
                             /* chop off " or female-rank" */
                             hilite.textmatch = nh_strchr_truncate(hilite.textmatch, " or ", 'stri');
                             status_hilite_add_threshold(fld, hilite);
-                            pline("Added hilite %s", status_hilite2str(hilite));
+                            await pline("Added hilite %s", await status_hilite2str(hilite));
                             /* transfer female-rank to start of hilite.textmatch buffer */
                             p = __nh_advance_str(p, 5 /* sizeof(char [5]) */ - 1 /* sizeof(char [1]) */);
                             q = hilite.textmatch;
@@ -3471,7 +3456,7 @@ export function status_hilite_menu_add(origfld) {
                             }
                         }
                         status_hilite_add_threshold(fld, hilite);
-                        pline("Added hilite %s", status_hilite2str(hilite));
+                        await pline("Added hilite %s", await status_hilite2str(hilite));
                     }
                     reset_status_hilites();
                     return (1);
@@ -3528,21 +3513,21 @@ export function status_hilite_remove(id) {
     }
     return (0);
 }
-export function status_hilite_menu_fld(fld) {
+export async function status_hilite_menu_fld(fld) {
     let tmpwin = 0;
     let i = 0;
     let res = 0;
     let picks = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let count = status_hilite_linestr_countfield(fld);
     let hlstr = null;
     let buf = '';
     let acted = 0;
     let clr = 8;
     if (!count) {
-        if (status_hilite_menu_add(fld)) {
+        if (await status_hilite_menu_add(fld)) {
             status_hilite_linestr_done();
-            status_hilite_linestr_gather();
+            await status_hilite_linestr_gather();
             count = status_hilite_linestr_countfield(fld);
         } else {
             return (0);
@@ -3554,33 +3539,33 @@ export function status_hilite_menu_fld(fld) {
         hlstr = game.status_hilite_str;
         while (hlstr) {
             if (hlstr.fld == fld) {
-                any = cg.zeroany;
+                Object.assign(any, cg.zeroany);
                 any.a_int = hlstr.id;
-                add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, hlstr.str, 0);
+                await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, hlstr.str, 0);
             }
             hlstr = hlstr.next;
         }
     } else {
         buf = sprintf(buf, "No current hilites for %s", game.initblstats[fld].fldname);
-        add_menu_str(tmpwin, buf);
+        await add_menu_str(tmpwin, buf);
     }
-    add_menu_str(tmpwin, "");
+    await add_menu_str(tmpwin, "");
     if (count) {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = -1;
-        add_menu(tmpwin, nul_glyphinfo, any, 88, 0, 0, clr, "Remove selected hilites", 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 88, 0, 0, clr, "Remove selected hilites", 0);
     }
     if (fld == BL_SCORE) {
         ;
     } else {
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_int = -2;
-        add_menu(tmpwin, nul_glyphinfo, any, 90, 0, 0, clr, "Add new hilites", 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 90, 0, 0, clr, "Add new hilites", 0);
     }
     buf = sprintf(buf, "Current %s hilites:", game.initblstats[fld].fldname);
     (game.windowprocs.win_end_menu)(tmpwin, buf);
     acted = (0);
-    if ((res = select_menu(tmpwin, 2, picks)) > 0) {
+    if ((res = await select_menu(tmpwin, 2, picks)) > 0) {
         /* suppress 'Z - Add a new hilite' for 'score' when SCORE_ON_BOTL
            is disabled; we wouldn't be called for 'score' unless it has
            hilite rules from the config file, so count must be positive
@@ -3604,7 +3589,7 @@ export function status_hilite_menu_fld(fld) {
             }
         }
         if (mode & 2) {
-            while (status_hilite_menu_add(fld)) {
+            while (await status_hilite_menu_add(fld)) {
                 acted = (1);
             }
         }
@@ -3613,7 +3598,7 @@ export function status_hilite_menu_fld(fld) {
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     return acted;
 }
-export function status_hilites_viewall() {
+export async function status_hilites_viewall() {
     let datawin = 0;
     let hlstr = game.status_hilite_str;
     let buf = '';
@@ -3623,14 +3608,14 @@ export function status_hilites_viewall() {
         (game.windowprocs.win_putstr)(datawin, 0, buf);
         hlstr = hlstr.next;
     }
-    (game.windowprocs.win_display_nhwindow)(datawin, (0));
+    await (game.windowprocs.win_display_nhwindow)(datawin, (0));
     (game.windowprocs.win_destroy_nhwindow)(datawin);
 }
-export function all_options_statushilites(sbuf) {
+export async function all_options_statushilites(sbuf) {
     let hlstr = null;
     let buf = '';
     status_hilite_linestr_done();
-    status_hilite_linestr_gather();
+    await status_hilite_linestr_gather();
     hlstr = game.status_hilite_str;
     while (hlstr) {
         buf = sprintf(buf, "OPTIONS=hilite_status: %.*s\n", (256 - 25 /* sizeof(char [25]) */ - 1), hlstr.str);
@@ -3639,13 +3624,13 @@ export function all_options_statushilites(sbuf) {
     }
     status_hilite_linestr_done();
 }
-export function status_hilite_menu() {
+export async function status_hilite_menu() {
     let tmpwin = 0;
     let i = 0;
     let fld = 0;
     let res = 0;
     let picks = null;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let redo = 0;
     let countall = 0;
     let clr = 8;
@@ -3653,13 +3638,13 @@ export function status_hilite_menu() {
         redo = (0);
         tmpwin = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(tmpwin, 0);
-        status_hilite_linestr_gather();
+        await status_hilite_linestr_gather();
         countall = status_hilite_linestr_countfield(BL_FLUSH);
         if (countall) {
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             any.a_int = -1;
-            add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, "View all hilites in config format", 0);
-            add_menu_str(tmpwin, "");
+            await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, "View all hilites in config format", 0);
+            await add_menu_str(tmpwin, "");
         }
         for (i = 0; i < MAXBLSTATS; i++) {
             let count = 0;
@@ -3673,21 +3658,21 @@ export function status_hilite_menu() {
             if (fld == BL_SCORE && !count) {
                 continue;
             }
-            any = cg.zeroany;
+            Object.assign(any, cg.zeroany);
             any.a_int = fld + 1;
             buf = sprintf(buf, "%-18s", game.initblstats[i].fldname);
             if (count) {
                 buf = __nh_buf_append(buf, sprintf('', " (%d defined)", count));
             }
-            add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+            await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
         (game.windowprocs.win_end_menu)(tmpwin, "Status hilites:");
-        if ((res = select_menu(tmpwin, 1, picks)) > 0) {
+        if ((res = await select_menu(tmpwin, 1, picks)) > 0) {
             fld = picks.item.a_int - 1;
             if (fld < 0) {
-                status_hilites_viewall();
+                await status_hilites_viewall();
             } else {
-                if (status_hilite_menu_fld(fld)) {
+                if (await status_hilite_menu_fld(fld)) {
                     reset_status_hilites();
                 }
             }
@@ -3714,6 +3699,27 @@ export function status_hilite_menu() {
 }
 /* STATUS_HILITES */
 /*botl.c*/
+/*
+     * Put the pieces together.  If they all fit, keep the traditional
+     * sequence.  Otherwise, move least important parts to the end in
+     * case the interface side of things has to truncate.  Note that
+     * dloc[] contains '$' encoded in ten character sequence \GXXXXNNNN
+     * so we want to test its display length rather than buffer length.
+     *
+     * We don't have an actual display limit here, so have to go by the
+     * width of the map.  Since we're reordering rather than truncating,
+     * wider displays can still show wider status than the map if the
+     * interface supports that.
+     */
+/* dosave() flags completion by setting u.uhp to -1; suppress_map_output()
+       covers program_state.restoring and is used for status as well as map */
+/* we're called when disp.time_botl is set and general disp.botl
+       is clear; disp.time_botl gets set whenever svm.moves changes value
+       so there's no benefit in tracking previous value to decide whether
+       to skip update; suppress_map_output() handles program_state.restoring
+       and program_state.done_hup (tty hangup => no further output at all)
+       and we use it for maybe skipping status as well as for the map */
+/* old status display updates everything */
 /* just one piece; spell it out */
 /* if in-lava or tethered is disabled and the condition applies,
            lump it in with trapped */
@@ -3738,7 +3744,17 @@ export function status_hilite_menu() {
      */
 /* engulfed/swallowed isn't currently a tracked status condition;
                "held" might look odd for it but seems better than blank */
+/* if Xp percentage changed, we set 'chg' to 1 above;
+                   reset that if the Xp value hasn't actually changed
+                   or possibly went down rather than up (level loss) */
 /* Color for conditions is done through gc.cond_hilites[] */
 /* HP and energy are int so this is the only case that cares
                about 'rawval'; for them, we use that rather than their
                potentially truncated (to 9999) display value */
+/* maximum delta between levels is 10000000; calculation of
+               100 * (10000000 - N) / 10000000 fits within 32-bit long */
+/* if player only specified a number then lt_gt_eq isn't set
+               up yet and the >-1 and <101 exceptions can't be honored;
+               deliberate use of those should be uncommon enough for
+               that to be palatable; for 0 and 100, choose_updown_both()
+               will prevent useless operations */

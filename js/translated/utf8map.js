@@ -23,7 +23,7 @@ export function unicode_val(cp) {
             cp = __nh_advance_str(cp, 2);
             do {
                 cval = (cval * 16) + (Math.trunc(((hexdd.length - dp.length)) / 2));
-            } while ((cp = __nh_advance_str(cp, 1)) && (dp = strchr(hexdd, __nh_char_at0(cp))) != null && ++dcount < 7);
+            } while (__nh_char_at0((cp = __nh_advance_str(cp, 1))) && (dp = strchr(hexdd, __nh_char_at0(cp))) != null && ++dcount < 7);
         }
     }
     return cval;

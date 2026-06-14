@@ -93,7 +93,7 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
               const __step = 1;
               for (let i = 1; __step > 0 ? i <= __hi : i >= __hi; i += __step) {
                 await shuffle(zombifiable);
-                let o = des.object({ id: "corpse", montype: zombifiable[0], buried: true });
+                let o = await des.object({ id: "corpse", montype: zombifiable[0], buried: true });
                 o.stop_timer("rot-corpse");
                 o.start_timer("zombify-mon", math.random(990, 1010));
               }
@@ -359,15 +359,15 @@ export default async function({ d, des, ipairs, math, nh, obj, percent, pline, s
           let chest_spots = [[2, 2], [3, 2], [2, 3], [3, 3]];
           await shuffle(chest_spots);
           let escape_items = ["scroll of teleportation", "ring of teleportation", "wand of teleportation", "wand of digging"];
-          let itm = obj.new(escape_items[(math.random(escape_items.length)) - 1]);
+          let itm = await obj.new(escape_items[(math.random(escape_items.length)) - 1]);
           let itmcls = itm.class();
           let box;
           if (itmcls["material"] == "glass") {
-                      box = des.object({ id: "chest", coord: chest_spots[0], olocked: "no" });
+                      box = await des.object({ id: "chest", coord: chest_spots[0], olocked: "no" });
                     } else {
-                      box = des.object({ id: "chest", coord: chest_spots[0] });
+                      box = await des.object({ id: "chest", coord: chest_spots[0] });
                     }
-          box.addcontent(itm);
+          await box.addcontent(itm);
           {
                       const __hi = chest_spots.length;
                       const __step = 1;

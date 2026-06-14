@@ -182,7 +182,7 @@ export function themeroom_fill(rm) {
 
 // C ref themerms.lua:880-888.  Wrapper around des.region used by
 // some fills.  Calls into the engine's `des` table.
-export function filler_region(x, y) {
+export async function filler_region(x, y) {
     let rmtyp = 'ordinary';
     let func = null;
     if (percent(30)) {
@@ -191,13 +191,13 @@ export function filler_region(x, y) {
     }
     const des = globalThis.__nh_des;
     if (des && typeof des.region === 'function') {
-        des.region({ region: [x, y, x, y], type: rmtyp, irregular: true, filled: 1, contents: func });
+        await des.region({ region: [x, y, x, y], type: rmtyp, irregular: true, filled: 1, contents: func });
     }
 }
 
 // Postprocess handlers (C ref themerms.lua:1052-1090).
 
-export function make_dig_engraving(data) {
+export async function make_dig_engraving(data) {
     const floors = Selection.negate(Selection.new()).filter_mapchar('.');
     const pos = floors.rndcoord();
     if (!pos) return;
@@ -212,20 +212,20 @@ export function make_dig_engraving(data) {
     }
     const des = globalThis.__nh_des;
     if (des && typeof des.engraving === 'function') {
-        des.engraving({ coord: pos, type: 'burn', text: 'Dig' + dig });
+        await des.engraving({ coord: pos, type: 'burn', text: 'Dig' + dig });
     }
 }
 
-export function make_garden_walls(data) {
+export async function make_garden_walls(data) {
     const sel = (data.sel?.grow ? data.sel.grow() : new Selection(data.sel).grow());
     const des = globalThis.__nh_des;
     if (des && typeof des.replace_terrain === 'function') {
-        des.replace_terrain({ selection: sel, fromterrain: 'w', toterrain: 'T' });
-        des.replace_terrain({ selection: sel, fromterrain: 'S', toterrain: 'A' });
+        await des.replace_terrain({ selection: sel, fromterrain: 'w', toterrain: 'T' });
+        await des.replace_terrain({ selection: sel, fromterrain: 'S', toterrain: 'A' });
     }
 }
 
-export function make_a_trap(data) {
+export async function make_a_trap(data) {
     if (data.teledest === 1 && data.type === 'teleport') {
         const locs = Selection.negate(Selection.new()).filter_mapchar('.');
         let p;
@@ -236,7 +236,7 @@ export function make_a_trap(data) {
         data.teledest = p;
     }
     const des = globalThis.__nh_des;
-    if (des && typeof des.trap === 'function') des.trap(data);
+    if (des && typeof des.trap === 'function') await des.trap(data);
 }
 
 // C ref themerms.lua:1092-1097.  Drains the postprocess queue.

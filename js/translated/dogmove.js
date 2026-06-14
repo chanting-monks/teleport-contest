@@ -7,6 +7,7 @@ import { game } from '../gstate.js';
 import { sgn } from '../c2js-runtime/math.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, Your, pline } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { strchr, strcpy } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
 import { m_unleash } from './apply.js';
@@ -50,7 +51,8 @@ import { which_armor } from './worn.js';
 
 /* pick a carried item for pet to drop */
 let __droppables_dummy = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
-export function droppables(mon) {
+__nh_register_static(() => { __droppables_dummy = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null }; });
+export async function droppables(mon) {
     /*
      * 'key|pickaxe|&c = &dummy' is used to make various creatures
      * that can't use a key/pick-axe/&c behave as if they are already
@@ -100,7 +102,7 @@ export function droppables(mon) {
     for (obj = mon.minvent; obj; obj = obj.nobj) {
         switch (obj.otyp) {
             case DWARVISH_MATTOCK:
-                if (which_armor(mon, 8)) {
+                if (await which_armor(mon, 8)) {
                     break;
                 }
                 /* keep mattock in preference to pick unless pick is already
@@ -175,7 +177,7 @@ export function cursed_object_at(x, y) {
     }
     return (0);
 }
-export function dog_nutrition(mtmp, obj) {
+export async function dog_nutrition(mtmp, obj) {
     fnEnter("dog_nutrition", "dogmove.c", 0);
     let nutrit = 0;
     if (obj.oclass == FOOD_CLASS) {
@@ -212,8 +214,8 @@ export function dog_nutrition(mtmp, obj) {
                 break;
         }
         if (obj.oeaten) {
-            mtmp.meating = eaten_stat(mtmp.meating, obj);
-            nutrit = eaten_stat(nutrit, obj);
+            mtmp.meating = await eaten_stat(mtmp.meating, obj);
+            nutrit = await eaten_stat(nutrit, obj);
         }
     } else if (obj.oclass == COIN_CLASS) {
         mtmp.meating = (Math.trunc(obj.quan / 2000)) + 1;
@@ -239,7 +241,7 @@ export function dog_nutrition(mtmp, obj) {
 /* if unpaid, then thrown or kicked by hero */
 /* dog's starting location, */
 /* might be different from current */
-export function dog_eat(mtmp, obj, x, y, devour) {
+export async function dog_eat(mtmp, obj, x, y, devour) {
     fnEnter("dog_eat", "dogmove.c", 0);
     let edog = ((mtmp).mextra.edog);
     let nutrit = 0;
@@ -251,7 +253,7 @@ export function dog_eat(mtmp, obj, x, y, devour) {
     if (edog.hungrytime < game.moves) {
         edog.hungrytime = game.moves;
     }
-    nutrit = dog_nutrition(mtmp, obj);
+    nutrit = await dog_nutrition(mtmp, obj);
     if (devour) {
         if (mtmp.meating > 1) {
             mtmp.meating = Math.trunc(mtmp.meating / 2);
@@ -273,17 +275,16 @@ export function dog_eat(mtmp, obj, x, y, devour) {
         mtmp.mtame++;
     }
     if (x != mtmp.mx || y != mtmp.my) {
-        /* moved & ate on same turn */
-        newsym(x, y);
-        newsym(mtmp.mx, mtmp.my);
+        await newsym(x, y);
+        await newsym(mtmp.mx, mtmp.my);
     }
-    if (mtmp.data == game.mons[PM_KILLER_BEE] && obj.otyp == LUMP_OF_ROYAL_JELLY && (res = bee_eat_jelly(mtmp, obj)) >= 0) {
+    if (mtmp.data == game.mons[PM_KILLER_BEE] && obj.otyp == LUMP_OF_ROYAL_JELLY && (res = await bee_eat_jelly(mtmp, obj)) >= 0) {
         return (res + 1);
     }
     /* 1 -> 2, 0 -> 1; -1, keep going */
     /* food items are eaten one at a time; entire stack for other stuff */
     if (obj.quan > 1 && obj.oclass == FOOD_CLASS) {
-        obj = splitobj(obj, 1);
+        obj = await splitobj(obj, 1);
     }
     if (obj.unpaid) {
         game.iflags.suppress_price++;
@@ -298,79 +299,64 @@ export function dog_eat(mtmp, obj, x, y, devour) {
         let seeobj = ((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0);
         let sawpet = ((game.viz_array[y][x] & 2) != 0) && mon_visible(mtmp);
         if (sawpet || (seeobj && (canseemon(mtmp) || sensemon(mtmp)))) {
-            /* Observe the action if either the food location or the pet
-           itself is in view.  When pet which was in view moves to an
-           unseen spot to eat the food there, avoid referring to that
-           pet as "it".  However, we want "it" if invisible/unsensed
-           pet eats visible food. */
-            /* call distant_name() for possible side-effects even if the
-               result won't be printed */
-            obj_name = distant_name(obj, doname);
+            obj_name = await distant_name(obj, doname);
             if ((((mtmp.data).mflags1 & 32) != 0)) {
-                pline_mon(mtmp, "%s digs in.", noit_Monnam(mtmp));
+                await pline_mon(mtmp, "%s digs in.", await noit_Monnam(mtmp));
             } else {
-                pline_mon(mtmp, "%s %s %s.", noit_Monnam(mtmp), devour ? "devours" : "eats", obj_name);
+                await pline_mon(mtmp, "%s %s %s.", await noit_Monnam(mtmp), devour ? "devours" : "eats", obj_name);
             }
         } else if (seeobj) {
-            obj_name = distant_name(obj, doname);
-            pline("It %s %s.", devour ? "devours" : "eats", obj_name);
+            obj_name = await distant_name(obj, doname);
+            await pline("It %s %s.", devour ? "devours" : "eats", obj_name);
         }
     }
     if (obj.unpaid) {
-        objnambuf = strcpy(objnambuf, xname(obj));
+        objnambuf = strcpy(objnambuf, await xname(obj));
         game.iflags.suppress_price--;
     }
     if (mtmp.data == game.mons[PM_RUST_MONSTER] && obj.oerodeproof) {
-        /* The object's rustproofing is gone now */
         if (obj.unpaid) {
-            costly_alteration(obj, COST_DEGRD);
+            await costly_alteration(obj, COST_DEGRD);
         }
         obj.oerodeproof = 0;
         mtmp.mstun = 1;
         if (canseemon(mtmp)) {
-            obj_name = distant_name(obj, doname);
+            obj_name = await distant_name(obj, doname);
             if (game.flags.verbose) {
-                pline("%s spits %s out in disgust!", Monnam(mtmp), obj_name);
+                await pline("%s spits %s out in disgust!", await Monnam(mtmp), obj_name);
             }
         }
     } else {
-        if (dogfood(mtmp, obj) == DOGFOOD && obj.invlet) {
+        if (await dogfood(mtmp, obj) == DOGFOOD && obj.invlet) {
             /* It's a reward if it's DOGFOOD and the player dropped/threw it.
            We know the player had it if invlet is set. -dlc */
             let prior_apport = edog.apport;
             edog.apport += (Math.trunc(200 / (edog.dropdist + game.moves - edog.droptime)));
             if (edog.apport <= 0) {
-                impossible("dog_eat: pet apport <= 0 (%d, %d, %ld, %ld, %d, %u, %u)", edog.apport, edog.dropdist, edog.droptime, game.moves, prior_apport, mtmp.m_id, edog.parentmid);
+                await impossible("dog_eat: pet apport <= 0 (%d, %d, %ld, %ld, %d, %u, %u)", edog.apport, edog.dropdist, edog.droptime, game.moves, prior_apport, mtmp.m_id, edog.parentmid);
                 edog.apport = 1;
             }
         }
         if (obj.unpaid) {
-            /* check whether edog struct got clobbered;
-                              these two values should always match if
-                              edog content is still intact */
-            /* edible item owned by shop has been thrown or kicked
-               by hero and caught by tame or food-tameable monst */
-            oprice = unpaid_cost(obj, COST_CONTENTS);
-            /* m_consume_obj() -> delobj() -> obfree() will handle the shop
-               billing update */
-            pline("That %s will cost you %ld %s.", objnambuf, oprice, currency(oprice));
+            oprice = await unpaid_cost(obj, COST_CONTENTS);
+            await pline("That %s will cost you %ld %s.", objnambuf, oprice, await currency(oprice));
         }
-        m_consume_obj(mtmp, obj);
+        await m_consume_obj(mtmp, obj);
     }
     return (((mtmp).mhp < 1)) ? 2 : 1;
 }
-export function dog_starve(mtmp) {
+export async function dog_starve(mtmp) {
     if (mtmp.mleashed && mtmp != game.u.usteed) {
-        Your("leash goes slack.");
+        await Your("leash goes slack.");
     } else if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
-        pline_mon(mtmp, "%s starves.", Monnam(mtmp));
+        await pline_mon(mtmp, "%s starves.", await Monnam(mtmp));
     } else {
-        You_feel("%s for a moment.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "bummed" : "sad");
+        await You_feel("%s for a moment.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "bummed" : "sad");
     }
-    mondied(mtmp);
+    await mondied(mtmp);
 }
 /* hunger effects -- returns TRUE on starvation */
-export function dog_hunger(mtmp, edog) {
+export async function dog_hunger(mtmp, edog) {
     if (game.moves > edog.hungrytime + 500) {
         if (!(((mtmp.data).mflags1 & 536870912) != 0) && !(((mtmp.data).mflags1 & 1073741824) != 0)) {
             /* but not too high; it might polymorph */
@@ -385,19 +371,19 @@ export function dog_hunger(mtmp, edog) {
                 mtmp.mhp = mtmp.mhpmax;
             }
             if (((mtmp).mhp < 1)) {
-                dog_starve(mtmp);
+                await dog_starve(mtmp);
                 return (1);
             }
             if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
-                pline_mon(mtmp, "%s is confused from hunger.", Monnam(mtmp));
+                await pline_mon(mtmp, "%s is confused from hunger.", await Monnam(mtmp));
             } else if (((game.viz_array[mtmp.my][mtmp.mx] & 1) != 0)) {
-                beg(mtmp);
+                await beg(mtmp);
             } else {
-                You_feel("worried about %s.", y_monnam(mtmp));
+                await You_feel("worried about %s.", await y_monnam(mtmp));
             }
-            stop_occupation();
+            await stop_occupation();
         } else if (game.moves > edog.hungrytime + 750 || ((mtmp).mhp < 1)) {
-            dog_starve(mtmp);
+            await dog_starve(mtmp);
             return (1);
         }
     }
@@ -406,7 +392,7 @@ export function dog_hunger(mtmp, edog) {
 /* do something with object (drop, pick up, eat) at current position
  * returns 1 if object eaten (since that counts as dog's move), 2 if died
  */
-export function dog_invent(mtmp, edog, udist) {
+export async function dog_invent(mtmp, edog, udist) {
     fnEnter("dog_invent", "dogmove.c", 0);
     let omx = 0;
     let omy = 0;
@@ -418,15 +404,11 @@ export function dog_invent(mtmp, edog, udist) {
     }
     omx = mtmp.mx;
     omy = mtmp.my;
-    if (droppables(mtmp)) {
+    if (await droppables(mtmp)) {
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
         if (!rn2(udist + 1) || !rn2(edog.apport)) {
             if (rn2(10) < edog.apport) {
-                /* If we are carrying something then we drop it (perhaps near @).
-     * Note: if apport == 1 then our behavior is independent of udist.
-     * Use udist+1 so steed won't cause divide by zero.
-     */
-                relobj(mtmp, mtmp.minvis, (1));
+                await relobj(mtmp, mtmp.minvis, (1));
                 if (edog.apport > 1) {
                     edog.apport--;
                 }
@@ -436,38 +418,31 @@ export function dog_invent(mtmp, edog, udist) {
         }
     } else {
         if ((obj = game.level.objects[omx][omy]) != null && !strchr(nofetch, obj.oclass) && obj.otyp != SCR_MAIL && !(((obj).o_id == game.context.achieveo.mines_prize_oid) || ((obj).o_id == game.context.achieveo.soko_prize_oid))) {
-            /* avoid special items; once hero picks them up, they'll cease
-               being special and become eligible for normal monst activity */
-            let edible = dogfood(mtmp, obj);
+            let edible = await dogfood(mtmp, obj);
             if ((edible <= CADAVER || (edog.mhpmax_penalty && edible == ACCFOOD)) && could_reach_item(mtmp, obj.ox, obj.oy)) {
-                return dog_eat(mtmp, obj, omx, omy, (0));
+                return await dog_eat(mtmp, obj, omx, omy, (0));
             }
-            carryamt = can_carry(mtmp, obj);
+            carryamt = await can_carry(mtmp, obj);
             if (carryamt > 0 && !obj.cursed && could_reach_item(mtmp, obj.ox, obj.oy)) {
                 if (rn2(20) < edog.apport + 3) {
                     if (rn2(udist) || !rn2(edog.apport)) {
                         /* starving pet is more aggressive about eating */
                         otmp = obj;
                         if (carryamt != obj.quan) {
-                            otmp = splitobj(obj, carryamt);
+                            otmp = await splitobj(obj, carryamt);
                         }
                         if (((game.viz_array[omy][omx] & 2) != 0)) {
-                            /* call distant_name() for possible side-effects
-                               even if the result won't be printed; should be
-                               done before extract+pickup for distant_name()
-                               -> doname() -> xname() -> find_artifact()
-                               while otmp is still on floor */
-                            let otmpname = distant_name(otmp, doname);
+                            let otmpname = await distant_name(otmp, doname);
                             if (game.flags.verbose) {
-                                pline_xy(omx, omy, "%s picks up %s.", Monnam(mtmp), otmpname);
+                                await pline_xy(omx, omy, "%s picks up %s.", await Monnam(mtmp), otmpname);
                             }
                         }
-                        obj_extract_self(otmp);
-                        newsym(omx, omy);
-                        mpickobj(mtmp, otmp);
+                        await obj_extract_self(otmp);
+                        await newsym(omx, omy);
+                        await mpickobj(mtmp, otmp);
                         if (attacktype(mtmp.data, 254) && mtmp.weapon_check == NEED_WEAPON) {
                             mtmp.weapon_check = NEED_HTH_WEAPON;
-                            mon_wield_item(mtmp);
+                            await mon_wield_item(mtmp);
                         }
                         check_gear_next_turn(mtmp);
                     }
@@ -479,7 +454,7 @@ export function dog_invent(mtmp, edog, udist) {
 }
 /* set dog's goal -- gtyp, gx, gy;
    returns -1/0/1 (dog's desire to approach player) or -2 (abort move) */
-export function dog_goal(mtmp, edog, after, udist, whappr) {
+export async function dog_goal(mtmp, edog, after, udist, whappr) {
     fnEnter("dog_goal", "dogmove.c", 0);
     let omx = 0;
     let omy = 0;
@@ -495,7 +470,7 @@ export function dog_goal(mtmp, edog, after, udist, whappr) {
     omx = mtmp.mx;
     omy = mtmp.my;
     in_masters_sight = ((game.viz_array[omy][omx] & 1) != 0);
-    dog_has_minvent = (droppables(mtmp) != null);
+    dog_has_minvent = (await droppables(mtmp) != null);
     if (!edog || mtmp.mleashed) {
         /* he's not going anywhere... */
         game.gtyp = APPORT;
@@ -529,7 +504,7 @@ export function dog_goal(mtmp, edog, after, udist, whappr) {
             nx = obj.ox;
             ny = obj.oy;
             if (nx >= min_x && nx <= max_x && ny >= min_y && ny <= max_y) {
-                otyp = dogfood(mtmp, obj);
+                otyp = await dogfood(mtmp, obj);
                 if (otyp > game.gtyp || otyp == UNDEF) {
                     continue;
                 }
@@ -547,7 +522,7 @@ export function dog_goal(mtmp, edog, after, udist, whappr) {
                         game.gy = ny;
                         game.gtyp = otyp;
                     }
-                } else if (game.gtyp == UNDEF && in_masters_sight && !dog_has_minvent && (!game.level.locations[omx][omy].lit || game.level.locations[game.u.ux][game.u.uy].lit) && (otyp == MANFOOD || clear_path((mtmp).mx, (mtmp).my, (nx), (ny))) && edog.apport > rn2(8) && can_carry(mtmp, obj) > 0) {
+                } else if (game.gtyp == UNDEF && in_masters_sight && !dog_has_minvent && (!game.level.locations[omx][omy].lit || game.level.locations[game.u.ux][game.u.uy].lit) && (otyp == MANFOOD || clear_path((mtmp).mx, (mtmp).my, (nx), (ny))) && edog.apport > rn2(8) && await can_carry(mtmp, obj) > 0) {
                     game.gx = nx;
                     game.gy = ny;
                     game.gtyp = APPORT;
@@ -575,7 +550,7 @@ export function dog_goal(mtmp, edog, after, udist, whappr) {
                 appr = 1;
             } else {
                 for (obj = game.invent; obj; obj = obj.nobj) {
-                    if (dogfood(mtmp, obj) == DOGFOOD) {
+                    if (await dogfood(mtmp, obj) == DOGFOOD) {
                         appr = 1;
                         break;
                     }
@@ -619,7 +594,7 @@ export function dog_goal(mtmp, edog, after, udist, whappr) {
             } else {
                 let fardist = (80 + 2) * (80 + 2);
                 game.gx = game.gy = (80 + 2);
-                do_clear_area(omx, omy, 9, wantdoor, fardist);
+                await do_clear_area(omx, omy, 9, wantdoor, fardist);
                 if (game.gx == (80 + 2) || (game.gx == omx && game.gy == omy)) {
                     /* here gx == FARAWAY e.g. when dog is in a vault */
                     game.gx = game.u.ux;
@@ -859,7 +834,7 @@ export function best_target(mtmp, forced) {
     return best_targ;
 }
 /* Pet considers and maybe executes a ranged attack */
-export function pet_ranged_attk(mtmp, forced) {
+export async function pet_ranged_attk(mtmp, forced) {
     let mtarg = null;
     let hungry = 0;
     if (!mtmp.isminion) {
@@ -874,7 +849,7 @@ export function pet_ranged_attk(mtmp, forced) {
         /* Hungry pets are unlikely to use breath/spit attacks */
         let mstatus = 0;
         if (mtarg == game.youmonst) {
-            if (mattacku(mtmp)) {
+            if (await mattacku(mtmp)) {
                 return 2;
             }
             /* Treat this as the pet having initiated an attack even if it
@@ -887,7 +862,7 @@ export function pet_ranged_attk(mtmp, forced) {
         } else {
             game.bhitpos.x = mtmp.mx , game.bhitpos.y = mtmp.my;
             game.notonhead = (0);
-            mstatus = mattackm(mtmp, mtarg);
+            mstatus = await mattackm(mtmp, mtarg);
             /* Shouldn't happen, really */
             if (mstatus & 4) {
                 return 2;
@@ -906,7 +881,7 @@ export function pet_ranged_attk(mtmp, forced) {
                     let mresp = 0;
                     game.bhitpos.x = mtmp.mx , game.bhitpos.y = mtmp.my;
                     game.notonhead = (0);
-                    mresp = mattackm(mtarg, mtmp);
+                    mresp = await mattackm(mtarg, mtmp);
                     if (mresp & 2) {
                         return 2;
                     }
@@ -927,7 +902,7 @@ export function pet_ranged_attk(mtmp, forced) {
             return 3;
         }
     } else if (forced) {
-        domonnoise(mtmp);
+        await domonnoise(mtmp);
     }
     return 0;
 }
@@ -940,7 +915,7 @@ export function pet_ranged_attk(mtmp, forced) {
  */
 /* pet */
 /* this is extra fast monster movement */
-export function dog_move(mtmp, after) {
+export async function dog_move(mtmp, after) {
     fnEnter("dog_move", "dogmove.c", 0);
     let omx = 0;
     let omy = 0;
@@ -977,26 +952,18 @@ export function dog_move(mtmp, after) {
         /* position mtmp is (considering) moving to */
         chi = -1;
         if (!edog && !mtmp.isminion) {
-            /*
-     * Tame Angels have isminion set and an ispriest structure instead of
-     * an edog structure.  Fortunately, guardian Angels need not worry
-     * about mundane things like eating and fetching objects, and can
-     * spend all their energy defending the player.  (They are the only
-     * monsters with other structures that can be tame.)
-     */
-            impossible("dog_move for non-pet?");
+            await impossible("dog_move for non-pet?");
             return 0;
         }
         omx = mtmp.mx;
         omy = mtmp.my;
-        if (edog && dog_hunger(mtmp, edog)) {
+        if (edog && await dog_hunger(mtmp, edog)) {
             return 2;
         }
         udist = dist2((omx), (omy), game.u.ux, game.u.uy);
         if (mtmp == game.u.usteed) {
             if ((game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic) && !resist_conflict(mtmp)) {
-                /* Let steeds eat and maybe throw rider during Conflict */
-                dismount_steed(DISMOUNT_THROWN);
+                await dismount_steed(DISMOUNT_THROWN);
                 return 1;
             }
             udist = 1;
@@ -1007,7 +974,7 @@ export function dog_move(mtmp, after) {
         niy = omy;
         cursemsg[0] = (0);
         if (edog) {
-            j = dog_invent(mtmp, edog, udist);
+            j = await dog_invent(mtmp, edog, udist);
             if (j == 2 || ((mtmp).mstate != 0)) {
                 return ((mtmp).mhp < 1) ? 2 : 3;
             } else if (j == 1) {
@@ -1017,23 +984,18 @@ export function dog_move(mtmp, after) {
         } else {
             whappr = 0;
         }
-        appr = dog_goal(mtmp, edog, after, udist, whappr);
+        appr = await dog_goal(mtmp, edog, after, udist, whappr);
         if (appr == -2) {
             return 0;
         }
         if ((game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic) && !resist_conflict(mtmp)) {
             if (!edog) {
-                /* Guardian angel refuses to be conflicted; rather,
-             * it disappears, angrily, and sends in some nasties
-             */
-                lose_guardian_angel(mtmp);
+                await lose_guardian_angel(mtmp);
                 return 2;
             }
         }
-        /* [this is now handled in dochug()] */
-        /* swallowed case handled above */
-        allowflags = mon_allowflags(mtmp);
-        cnt = mfndpos(mtmp, mfp, allowflags);
+        allowflags = await mon_allowflags(mtmp);
+        cnt = await mfndpos(mtmp, mfp, allowflags);
         /* Normally dogs don't step on cursed items, but if they have no
      * other choice they will.  This requires checking ahead of time
      * to see how many uncursed item squares are around.
@@ -1086,10 +1048,10 @@ export function dog_move(mtmp, after) {
              * they are willing to attack; note the >= used when comparing it.
              */
                     let balk = mtmp.m_lev + (Math.trunc((5 * mtmp.mhp) / mtmp.mhpmax)) - 2;
-                    if (mtmp2.m_lev >= balk || (mtmp2.mtame && mtmp.mtame && !(game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic)) || (max_passive_dmg(mtmp2, mtmp) >= mtmp.mhp) || ((mtmp.mhp * 4 < mtmp.mhpmax || mtmp2.data.msound == MS_GUARDIAN || mtmp2.data.msound == MS_LEADER) && mtmp2.mpeaceful && !(game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic))) {
+                    if (mtmp2.m_lev >= balk || (mtmp2.mtame && mtmp.mtame && !(game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic)) || (await max_passive_dmg(mtmp2, mtmp) >= mtmp.mhp) || ((mtmp.mhp * 4 < mtmp.mhpmax || mtmp2.data.msound == MS_GUARDIAN || mtmp2.data.msound == MS_LEADER) && mtmp2.mpeaceful && !(game.u.uprops[CONFLICT].intrinsic || game.u.uprops[CONFLICT].extrinsic))) {
                         continue;
                     }
-                    if ((mtmp2.data == game.mons[PM_FLOATING_EYE] && rn2(10) && mtmp.mcansee && (((mtmp.data).mflags1 & 4096) == 0) && mtmp2.mcansee && (!mtmp2.minvis || (((mtmp.data).mflags1 & 16777216) != 0)) && !mon_reflects(mtmp, (null))) || (mtmp2.data == game.mons[PM_GELATINOUS_CUBE] && rn2(10)) || (((mtmp2.data) == game.mons[PM_COCKATRICE] || (mtmp2.data) == game.mons[PM_CHICKATRICE]) && !Resists_Elem(mtmp, STONE_RES))) {
+                    if ((mtmp2.data == game.mons[PM_FLOATING_EYE] && rn2(10) && mtmp.mcansee && (((mtmp.data).mflags1 & 4096) == 0) && mtmp2.mcansee && (!mtmp2.minvis || (((mtmp.data).mflags1 & 16777216) != 0)) && !await mon_reflects(mtmp, (null))) || (mtmp2.data == game.mons[PM_GELATINOUS_CUBE] && rn2(10)) || (((mtmp2.data) == game.mons[PM_COCKATRICE] || (mtmp2.data) == game.mons[PM_CHICKATRICE]) && !await Resists_Elem(mtmp, STONE_RES))) {
                         /* only skip this foe if a ranged attack isn't viable */
                         if (dist2(mtmp.mx, mtmp.my, mtmp2.mx, mtmp2.my) <= 2 || best_target(mtmp, (0)) != mtmp2) {
                             continue;
@@ -1105,7 +1067,7 @@ export function dog_move(mtmp, after) {
                     }
                     game.bhitpos.x = nx , game.bhitpos.y = ny;
                     game.notonhead = mtmp2.mx != nx || mtmp2.my != ny;
-                    mstatus = mattackm(mtmp, mtmp2);
+                    mstatus = await mattackm(mtmp, mtmp2);
                     if (mstatus & 4) {
                         return 2;
                     }
@@ -1113,7 +1075,7 @@ export function dog_move(mtmp, after) {
                         /* monnear check needed: long worms hit on tail */
                         game.bhitpos.x = mtmp.mx , game.bhitpos.y = mtmp.my;
                         game.notonhead = (0);
-                        mstatus = mattackm(mtmp2, mtmp);
+                        mstatus = await mattackm(mtmp2, mtmp);
                         if (mstatus & 2) {
                             return 2;
                         }
@@ -1123,7 +1085,7 @@ export function dog_move(mtmp, after) {
                 if ((mfp.info[i] & 4096) && (game.level.monsters[nx][ny] != null) && better_with_displacing && !undesirable_disp(mtmp, nx, ny)) {
                     let mstatus = 0;
                     let mtmp2 = (game.level.monsters[nx][ny]);
-                    mstatus = mdisplacem(mtmp, mtmp2, (0));
+                    mstatus = await mdisplacem(mtmp, mtmp2, (0));
                     if (mstatus & 2) {
                         return 2;
                     }
@@ -1148,7 +1110,7 @@ export function dog_move(mtmp, after) {
                     if ((mfp.info[i] & 131072) && (trap = t_at(nx, ny))) {
                         if (mtmp.mleashed) {
                             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                                whimper(mtmp);
+                                await whimper(mtmp);
                             }
                         } else {
                             /* 1/40 chance of stepping on it anyway, in case
@@ -1167,7 +1129,7 @@ export function dog_move(mtmp, after) {
                     for (obj = game.level.objects[nx][ny]; obj; obj = obj.v.v_nexthere) {
                         if (obj.cursed) {
                             cursemsg[i] = (1);
-                        } else if (can_reach_food && (otyp = dogfood(mtmp, obj)) < MANFOOD && (otyp < ACCFOOD || edog.hungrytime <= game.moves)) {
+                        } else if (can_reach_food && (otyp = await dogfood(mtmp, obj)) < MANFOOD && (otyp < ACCFOOD || edog.hungrytime <= game.moves)) {
                             /* Note: our dog likes the food so much that he
                      * might eat it even when it conceals a cursed object */
                             nix = nx;
@@ -1211,11 +1173,7 @@ export function dog_move(mtmp, after) {
                 }
             }
         }
-        /* Pet hasn't attacked anything but is considering moving -
-     * now's the time for ranged attacks. Note that the pet can move
-     * after it performs its ranged attack. Should this be changed?
-     */
-        if ((i = pet_ranged_attk(mtmp, (0))) != 0) {
+        if ((i = await pet_ranged_attk(mtmp, (0))) != 0) {
             return i;
         }
     }
@@ -1223,37 +1181,33 @@ export function dog_move(mtmp, after) {
         let wasseen = 0;
         if (mfp.info[chi] & 262144) {
             if (mtmp.mleashed) {
-                pline_mon(mtmp, "%s breaks loose of %s leash!", Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his));
-                m_unleash(mtmp, (0));
+                await pline_mon(mtmp, "%s breaks loose of %s leash!", await Monnam(mtmp), (genders[pronoun_gender(mtmp, 2)].his));
+                await m_unleash(mtmp, (0));
             }
-            mattacku(mtmp);
+            await mattacku(mtmp);
             return 3;
         }
-        if (!m_in_out_region(mtmp, nix, niy)) {
+        if (!await m_in_out_region(mtmp, nix, niy)) {
             return 1;
         }
-        if (m_digweapon_check(mtmp, nix, niy)) {
+        if (await m_digweapon_check(mtmp, nix, niy)) {
             return 0;
         }
         /* insert a worm_move() if worms ever begin to eat things */
         wasseen = canseemon(mtmp);
         game.level.monsters[omx][omy] = null;
-        place_monster(mtmp, nix, niy);
+        await place_monster(mtmp, nix, niy);
         if (cursemsg[chi] && (wasseen || canseemon(mtmp))) {
             /* describe top item of pile, not necessarily cursed item itself;
                don't use glyph_at() here--it would return the pet but we want
                to know whether an object is remembered at this map location */
             let o = (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && game.level.flags.hero_memory && (((game.level.locations[nix][niy].glyph) == GLYPH_OBJ_OFF || ((game.level.locations[nix][niy].glyph) >= GLYPH_OBJ_OFF + FIRST_OBJECT - 1 && (game.level.locations[nix][niy].glyph) < (GLYPH_OBJ_OFF + NUM_OBJECTS)) || ((game.level.locations[nix][niy].glyph) == GLYPH_OBJ_PILETOP_OFF || ((game.level.locations[nix][niy].glyph) > GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1 && (game.level.locations[nix][niy].glyph) < (GLYPH_OBJ_PILETOP_OFF + NUM_OBJECTS)))) || (((game.level.locations[nix][niy].glyph) > GLYPH_OBJ_OFF && (game.level.locations[nix][niy].glyph) < GLYPH_OBJ_OFF + FIRST_OBJECT - 1) || ((game.level.locations[nix][niy].glyph) > GLYPH_OBJ_PILETOP_OFF && (game.level.locations[nix][niy].glyph) < GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1)) || (((((game.level.locations[nix][niy].glyph) >= GLYPH_STATUE_MALE_OFF) && ((game.level.locations[nix][niy].glyph) < (GLYPH_STATUE_MALE_OFF + NUMMONS))) || (((game.level.locations[nix][niy].glyph) >= GLYPH_STATUE_MALE_PILETOP_OFF) && ((game.level.locations[nix][niy].glyph) < (GLYPH_STATUE_MALE_PILETOP_OFF + NUMMONS)))) || ((((game.level.locations[nix][niy].glyph) >= GLYPH_STATUE_FEM_OFF) && ((game.level.locations[nix][niy].glyph) < (GLYPH_STATUE_FEM_OFF + NUMMONS))) || (((game.level.locations[nix][niy].glyph) >= GLYPH_STATUE_FEM_PILETOP_OFF) && ((game.level.locations[nix][niy].glyph) < (GLYPH_STATUE_FEM_PILETOP_OFF + NUMMONS))))) || ((((game.level.locations[nix][niy].glyph) >= GLYPH_BODY_OFF) && ((game.level.locations[nix][niy].glyph) < (GLYPH_BODY_OFF + NUMMONS))) || (((game.level.locations[nix][niy].glyph) >= GLYPH_BODY_PILETOP_OFF) && ((game.level.locations[nix][niy].glyph) < (GLYPH_BODY_PILETOP_OFF + NUMMONS)))))) ? (game.level.objects[nix][niy]) : null;
-            let what = o ? distant_name(o, doname) : c_common_strings.c_something;
-            pline_mon(mtmp, "%s %s reluctantly %s %s.", noit_Monnam(mtmp), vtense(null, locomotion(mtmp.data, "step")), ((((mtmp.data).mflags1 & 1) != 0) || ((mtmp.data).mlet == S_EYE || (mtmp.data).mlet == S_LIGHT)) ? "over" : "onto", what);
+            let what = o ? await distant_name(o, doname) : c_common_strings.c_something;
+            await pline_mon(mtmp, "%s %s reluctantly %s %s.", await noit_Monnam(mtmp), await vtense(null, locomotion(mtmp.data, "step")), ((((mtmp.data).mflags1 & 1) != 0) || ((mtmp.data).mlet == S_EYE || (mtmp.data).mlet == S_LIGHT)) ? "over" : "onto", what);
         }
         mon_track_add(mtmp, omx, omy);
         if (do_eat) {
-            /* We have to know if the pet's going to do a combined eat and
-         * move before moving it, but it can't eat until after being
-         * moved.  Thus the do_eat flag.
-         */
-            if (dog_eat(mtmp, obj, omx, omy, (0)) == 2) {
+            if (await dog_eat(mtmp, obj, omx, omy, (0)) == 2) {
                 return 2;
             }
         }
@@ -1286,12 +1240,12 @@ export function dog_move(mtmp, after) {
             cc.x = mtmp.mx;
             cc.y = mtmp.my;
         }
-        if (!m_in_out_region(mtmp, nix, niy)) {
+        if (!await m_in_out_region(mtmp, nix, niy)) {
             return 1;
         }
         game.level.monsters[mtmp.mx][mtmp.my] = null;
-        place_monster(mtmp, cc.x, cc.y);
-        newsym(cc.x, cc.y);
+        await place_monster(mtmp, cc.x, cc.y);
+        await newsym(cc.x, cc.y);
         set_apparxy(mtmp);
     }
     return 1;
@@ -1357,13 +1311,13 @@ const qm = [{ mndx: PM_LITTLE_DOG, mlet: 0, mappearance: PM_KITTEN, m_ap_type: M
 /* Things that some pets might be thinking about at the time */
 /* sorry, no fire hydrants */
 /* leave this at end */
-export function finish_meating(mtmp) {
+export async function finish_meating(mtmp) {
     mtmp.meating = 0;
     if (((mtmp).m_ap_type & 7) != M_AP_NOTHING && mtmp.data.mlet != S_MIMIC) {
         /* was eating a mimic and now appearance needs resetting */
         mtmp.m_ap_type = M_AP_NOTHING;
         mtmp.mappearance = 0;
-        newsym(mtmp.mx, mtmp.my);
+        await newsym(mtmp.mx, mtmp.my);
     }
 }
 /*
@@ -1371,7 +1325,7 @@ export function finish_meating(mtmp) {
 export function mnum_leashable(mnum) {
     return ((mnum >= LOW_PM && mnum <= HIGH_PM) && mnum != PM_LONG_WORM && !(((game.mons[mnum]).mflags1 & 1048576) != 0) && (!(((game.mons[mnum]).mflags1 & 24576) == 24576) || (((game.mons[mnum]).mflags1 & 32768) == 0))) ? (1) : (0);
 }
-export function quickmimic(mtmp) {
+export async function quickmimic(mtmp) {
     let idx = 0;
     let trycnt = 5;
     let spotted = 0;
@@ -1381,14 +1335,8 @@ export function quickmimic(mtmp) {
     if ((game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic) || !mtmp.meating) {
         return;
     }
-    /* with polymorph, the steed's equipment would be re-checked and its
-       saddle would come off, triggering DISMOUNT_FELL, but mimicking
-       doesn't impact monster's equipment; normally DISMOUNT_POLY is for
-       rider taking on an unsuitable shape, but its message works fine
-       for this and also avoids inflicting damage during forced dismount;
-       do this before changing so that dismount refers to original shape */
     if (mtmp == game.u.usteed) {
-        dismount_steed(DISMOUNT_POLY);
+        await dismount_steed(DISMOUNT_POLY);
     }
     do {
         idx = rn2((Math.trunc(9 /* sizeof(const struct qmchoices [9]) */ / 1 /* sizeof(const struct qmchoices) */)));
@@ -1405,7 +1353,7 @@ export function quickmimic(mtmp) {
     if (trycnt == 0) {
         idx = (Math.trunc(9 /* sizeof(const struct qmchoices [9]) */ / 1 /* sizeof(const struct qmchoices) */)) - 1;
     }
-    buf = strcpy(buf, y_monnam(mtmp));
+    buf = strcpy(buf, await y_monnam(mtmp));
     /* "your <pet>" or "the <mon>" or "Fang" */
     spotted = (canseemon(mtmp) || sensemon(mtmp));
     seeloc = ((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0);
@@ -1414,19 +1362,73 @@ export function quickmimic(mtmp) {
     if (spotted || seeloc || (canseemon(mtmp) || sensemon(mtmp))) {
         let prev_glyph = glyph_at(mtmp.mx, mtmp.my);
         let what = (((mtmp).m_ap_type & 7) == M_AP_FURNITURE) ? defsyms[mtmp.mappearance].explanation : (((mtmp).m_ap_type & 7) == M_AP_OBJECT && (game.obj_descr[(game.objects[mtmp.mappearance]).oc_descr_idx].oc_descr)) ? (game.obj_descr[(game.objects[mtmp.mappearance]).oc_descr_idx].oc_descr) : (((mtmp).m_ap_type & 7) == M_AP_OBJECT && (game.obj_descr[(game.objects[mtmp.mappearance]).oc_name_idx].oc_name)) ? (game.obj_descr[(game.objects[mtmp.mappearance]).oc_name_idx].oc_name) : (((mtmp).m_ap_type & 7) == M_AP_MONSTER) ? pmname(game.mons[mtmp.mappearance], Mgender(mtmp)) : c_common_strings.c_something;
-        newsym(mtmp.mx, mtmp.my);
+        await newsym(mtmp.mx, mtmp.my);
         if (was_leashed && (((mtmp).m_ap_type & 7) != M_AP_MONSTER || !mnum_leashable(mtmp.mappearance))) {
-            Your("leash goes slack.");
-            m_unleash(mtmp, (0));
+            await Your("leash goes slack.");
+            await m_unleash(mtmp, (0));
         }
         if (glyph_at(mtmp.mx, mtmp.my) != prev_glyph) {
-            You("%s %s %s where %s was!", seeloc ? "see" : "sense that", (what != c_common_strings.c_something) ? an(what) : what, seeloc ? "appear" : "has appeared", buf);
+            await You("%s %s %s where %s was!", seeloc ? "see" : "sense that", (what != c_common_strings.c_something) ? await an(what) : what, seeloc ? "appear" : "has appeared", buf);
         } else {
-            You("sense that %s feels rather %s-ish.", buf, what);
+            await You("sense that %s feels rather %s-ish.", buf, what);
         }
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MAP, (1));
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MAP, (1));
     }
 }
 /*dogmove.c*/
+/* moved & ate on same turn */
+/* Observe the action if either the food location or the pet
+           itself is in view.  When pet which was in view moves to an
+           unseen spot to eat the food there, avoid referring to that
+           pet as "it".  However, we want "it" if invisible/unsensed
+           pet eats visible food. */
+/* call distant_name() for possible side-effects even if the
+               result won't be printed */
+/* The object's rustproofing is gone now */
+/* check whether edog struct got clobbered;
+                              these two values should always match if
+                              edog content is still intact */
+/* edible item owned by shop has been thrown or kicked
+               by hero and caught by tame or food-tameable monst */
+/* m_consume_obj() -> delobj() -> obfree() will handle the shop
+               billing update */
+/* If we are carrying something then we drop it (perhaps near @).
+     * Note: if apport == 1 then our behavior is independent of udist.
+     * Use udist+1 so steed won't cause divide by zero.
+     */
+/* avoid special items; once hero picks them up, they'll cease
+               being special and become eligible for normal monst activity */
+/* call distant_name() for possible side-effects
+                               even if the result won't be printed; should be
+                               done before extract+pickup for distant_name()
+                               -> doname() -> xname() -> find_artifact()
+                               while otmp is still on floor */
 /* if a long worm, only accept the head as a target */
+/*
+     * Tame Angels have isminion set and an ispriest structure instead of
+     * an edog structure.  Fortunately, guardian Angels need not worry
+     * about mundane things like eating and fetching objects, and can
+     * spend all their energy defending the player.  (They are the only
+     * monsters with other structures that can be tame.)
+     */
+/* Let steeds eat and maybe throw rider during Conflict */
+/* Guardian angel refuses to be conflicted; rather,
+             * it disappears, angrily, and sends in some nasties
+             */
+/* [this is now handled in dochug()] */
+/* swallowed case handled above */
+/* Pet hasn't attacked anything but is considering moving -
+     * now's the time for ranged attacks. Note that the pet can move
+     * after it performs its ranged attack. Should this be changed?
+     */
+/* We have to know if the pet's going to do a combined eat and
+         * move before moving it, but it can't eat until after being
+         * moved.  Thus the do_eat flag.
+         */
 /* tunnelling monsters can't do that on the rogue level */
+/* with polymorph, the steed's equipment would be re-checked and its
+       saddle would come off, triggering DISMOUNT_FELL, but mimicking
+       doesn't impact monster's equipment; normally DISMOUNT_POLY is for
+       rider taking on an unsuitable shape, but its message works fine
+       for this and also avoids inflicting damage during forced dismount;
+       do this before changing so that dismount refers to original shape */

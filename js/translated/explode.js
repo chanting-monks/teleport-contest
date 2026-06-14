@@ -53,7 +53,7 @@ export const EXPL_SKIP = 4;
 /* target monster (might be youmonst) */
 /* damage type */
 /* object class (only matters for AD_DISN) */
-export function explosionmask(m, adtyp, olet) {
+export async function explosionmask(m, adtyp, olet) {
     let res = EXPL_NONE;
     if (m == game.youmonst) {
         switch (adtyp) {
@@ -95,7 +95,7 @@ export function explosionmask(m, adtyp, olet) {
                 }
                 break;
             default:
-                impossible("explosion type %d?", adtyp);
+                await impossible("explosion type %d?", adtyp);
                 break;
         }
     } else {
@@ -108,43 +108,43 @@ export function explosionmask(m, adtyp, olet) {
                 }
                 break;
             case 2:
-                if (Resists_Elem(m, FIRE_RES)) {
+                if (await Resists_Elem(m, FIRE_RES)) {
                     res = EXPL_MON;
                 }
                 break;
             case 3:
-                if (Resists_Elem(m, COLD_RES)) {
+                if (await Resists_Elem(m, COLD_RES)) {
                     res = EXPL_MON;
                 }
                 break;
             case 5:
-                if ((olet == WAND_CLASS) ? (((((m.data).mflags2 & 2) != 0) || (m.data) == game.mons[PM_MANES] || (((m.data).mlet == S_GOLEM) || (m.data).mlet == S_VORTEX)) || (((m.data).mflags2 & 256) != 0) || ((m).cham == PM_VAMPIRE || (m).cham == PM_VAMPIRE_LEADER || (m).cham == PM_VLAD_THE_IMPALER)) : !!Resists_Elem(m, DISINT_RES)) {
+                if ((olet == WAND_CLASS) ? (((((m.data).mflags2 & 2) != 0) || (m.data) == game.mons[PM_MANES] || (((m.data).mlet == S_GOLEM) || (m.data).mlet == S_VORTEX)) || (((m.data).mflags2 & 256) != 0) || ((m).cham == PM_VAMPIRE || (m).cham == PM_VAMPIRE_LEADER || (m).cham == PM_VLAD_THE_IMPALER)) : !!await Resists_Elem(m, DISINT_RES)) {
                     res = EXPL_MON;
                 }
                 break;
             case 6:
-                if (Resists_Elem(m, SHOCK_RES)) {
+                if (await Resists_Elem(m, SHOCK_RES)) {
                     res = EXPL_MON;
                 }
                 break;
             case 7:
-                if (Resists_Elem(m, POISON_RES)) {
+                if (await Resists_Elem(m, POISON_RES)) {
                     res = EXPL_MON;
                 }
                 break;
             case 8:
-                if (Resists_Elem(m, ACID_RES)) {
+                if (await Resists_Elem(m, ACID_RES)) {
                     res = EXPL_MON;
                 }
                 break;
             default:
-                impossible("explosion type %d?", adtyp);
+                await impossible("explosion type %d?", adtyp);
                 break;
         }
     }
     return res;
 }
-export function engulfer_explosion_msg(adtyp, olet) {
+export async function engulfer_explosion_msg(adtyp, olet) {
     let adj = null;
     if ((dmgtype_fromattack((game.u.ustuck.data), 26, 11) != null)) {
         switch (adtyp) {
@@ -174,7 +174,7 @@ export function engulfer_explosion_msg(adtyp, olet) {
                 adj = "fried";
                 break;
         }
-        pline("%s gets %s!", Monnam(game.u.ustuck), adj);
+        await pline("%s gets %s!", await Monnam(game.u.ustuck), adj);
     } else {
         switch (adtyp) {
             case 2:
@@ -203,7 +203,7 @@ export function engulfer_explosion_msg(adtyp, olet) {
                 adj = "fried";
                 break;
         }
-        pline("%s gets slightly %s!", Monnam(game.u.ustuck), adj);
+        await pline("%s gets slightly %s!", await Monnam(game.u.ustuck), adj);
     }
 }
 /* Note: I had to choose one of three possible kinds of "type" when writing
@@ -229,7 +229,7 @@ export function engulfer_explosion_msg(adtyp, olet) {
 /* damage amount */
 /* object class or BURNING_OIL or MON_EXPLODE */
 /* explosion type: controls color of explosion glyphs */
-export function explode(x, y, type, dam, olet, expltype) {
+export async function explode(x, y, type, dam, olet, expltype) {
     let i = 0;
     let j = 0;
     let k = 0;
@@ -270,7 +270,7 @@ export function explode(x, y, type, dam, olet, expltype) {
                other types produce a generic magical explosion */
                 type -= WAN_MAGIC_MISSILE;
                 if (type < 0 || type > 9) {
-                    impossible("explode: wand has bad zap type (%d).", type);
+                    await impossible("explode: wand has bad zap type (%d).", type);
                     /* hardcoded to generic magic explosion */
                     type = 0;
                 }
@@ -377,7 +377,7 @@ export function explode(x, y, type, dam, olet, expltype) {
                 adtyp = 8;
                 break;
             default:
-                impossible("explosion base type %d?", type);
+                await impossible("explosion base type %d?", type);
                 return;
         }
         if (!str) {
@@ -395,7 +395,7 @@ export function explode(x, y, type, dam, olet, expltype) {
             }
             explmask[i][j] = EXPL_NONE;
             if (((xx) == game.u.ux && (yy) == game.u.uy)) {
-                explmask[i][j] = explosionmask(game.youmonst, adtyp, olet);
+                explmask[i][j] = await explosionmask(game.youmonst, adtyp, olet);
             }
             /* can be both you and mtmp if you're swallowed or riding */
             mtmp = (game.level.monsters[xx][yy]);
@@ -406,12 +406,12 @@ export function explode(x, y, type, dam, olet, expltype) {
                 mtmp = null;
             }
             if (mtmp) {
-                explmask[i][j] |= explosionmask(mtmp, adtyp, olet);
+                explmask[i][j] |= await explosionmask(mtmp, adtyp, olet);
             }
             if (mtmp && ((game.viz_array[yy][xx] & 2) != 0) && !(canseemon(mtmp) || sensemon(mtmp))) {
-                map_invisible(xx, yy);
+                await map_invisible(xx, yy);
             } else if (!mtmp) {
-                unmap_invisible(xx, yy);
+                await unmap_invisible(xx, yy);
             }
             if (((game.viz_array[yy][xx] & 2) != 0)) {
                 visible = (1);
@@ -430,13 +430,12 @@ export function explode(x, y, type, dam, olet, expltype) {
                 }
                 xx = x + i - 1;
                 yy = y + j - 1;
-                tmp_at(starting ? (-1) : (-6), ((explosion[i][j]) - S_expl_tl + (((expltype) == EXPL_FROSTY) ? GLYPH_EXPLODE_FROSTY_OFF : ((expltype) == EXPL_MAGICAL) ? GLYPH_EXPLODE_MAGICAL_OFF : ((expltype) == EXPL_WET) ? GLYPH_EXPLODE_WET_OFF : ((expltype) == EXPL_MUDDY) ? GLYPH_EXPLODE_MUDDY_OFF : ((expltype) == EXPL_NOXIOUS) ? GLYPH_EXPLODE_NOXIOUS_OFF : GLYPH_EXPLODE_FIERY_OFF)));
-                tmp_at(xx, yy);
+                await tmp_at(starting ? (-1) : (-6), ((explosion[i][j]) - S_expl_tl + (((expltype) == EXPL_FROSTY) ? GLYPH_EXPLODE_FROSTY_OFF : ((expltype) == EXPL_MAGICAL) ? GLYPH_EXPLODE_MAGICAL_OFF : ((expltype) == EXPL_WET) ? GLYPH_EXPLODE_WET_OFF : ((expltype) == EXPL_MUDDY) ? GLYPH_EXPLODE_MUDDY_OFF : ((expltype) == EXPL_NOXIOUS) ? GLYPH_EXPLODE_NOXIOUS_OFF : GLYPH_EXPLODE_FIERY_OFF)));
+                await tmp_at(xx, yy);
                 starting = 0;
             }
         }
-        /* will flush screen and output */
-        curs_on_u();
+        await curs_on_u();
         if (any_shield && game.flags.sparkle) {
             for (k = 0; k < 21; k++) {
                 for (i = 0; i < 3; i++) {
@@ -450,11 +449,11 @@ export function explode(x, y, type, dam, olet, expltype) {
                         xx = x + i - 1;
                         yy = y + j - 1;
                         if ((explmask[i][j] & (EXPL_MON | EXPL_HERO)) != 0) {
-                            show_glyph(xx, yy, (((shield_static[k]) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((shield_static[k]) <= S_trwall) ? ((shield_static[k]) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((shield_static[k]) < S_altar) ? (((shield_static[k]) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((shield_static[k]) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((shield_static[k]) < S_arrow_trap + (TRAPNUM - 1)) ? (((shield_static[k]) - S_grave) + GLYPH_CMAP_B_OFF) : ((shield_static[k]) <= S_goodpos) ? (((shield_static[k]) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
+                            await show_glyph(xx, yy, (((shield_static[k]) == S_stone) ? GLYPH_CMAP_STONE_OFF : ((shield_static[k]) <= S_trwall) ? ((shield_static[k]) - S_vwall + (In_mines(game.u.uz) ? GLYPH_CMAP_MINES_OFF : In_hell(game.u.uz) ? GLYPH_CMAP_GEH_OFF : (((((game.dungeon_topology.d_knox_level)).dlevel || ((game.dungeon_topology.d_knox_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_knox_level)))) ? GLYPH_CMAP_KNOX_OFF : ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum)) ? GLYPH_CMAP_SOKO_OFF : GLYPH_CMAP_MAIN_OFF)) : ((shield_static[k]) < S_altar) ? (((shield_static[k]) - S_ndoor) + GLYPH_CMAP_A_OFF) : ((shield_static[k]) == S_altar) ? ((((2) & 16) == 16) ? (GLYPH_ALTAR_OFF + altar_other) : (((2) & 7) == 4) ? (GLYPH_ALTAR_OFF + altar_lawful) : (((2) & 7) == 2) ? (GLYPH_ALTAR_OFF + altar_neutral) : (((2) & 7) == 1) ? (GLYPH_ALTAR_OFF + altar_chaotic) : (GLYPH_ALTAR_OFF + altar_unaligned)) : ((shield_static[k]) < S_arrow_trap + (TRAPNUM - 1)) ? (((shield_static[k]) - S_grave) + GLYPH_CMAP_B_OFF) : ((shield_static[k]) <= S_goodpos) ? (((shield_static[k]) - S_digbeam) + GLYPH_CMAP_C_OFF) : MAX_GLYPH));
                         }
                     }
                 }
-                curs_on_u();
+                await curs_on_u();
                 (game.windowprocs.win_delay_output)();
             }
             for (i = 0; i < 3; i++) {
@@ -462,7 +461,7 @@ export function explode(x, y, type, dam, olet, expltype) {
                     xx = x + i - 1;
                     yy = y + j - 1;
                     if ((explmask[i][j] & (EXPL_MON | EXPL_HERO)) != 0) {
-                        show_glyph(xx, yy, ((explosion[i][j]) - S_expl_tl + (((expltype) == EXPL_FROSTY) ? GLYPH_EXPLODE_FROSTY_OFF : ((expltype) == EXPL_MAGICAL) ? GLYPH_EXPLODE_MAGICAL_OFF : ((expltype) == EXPL_WET) ? GLYPH_EXPLODE_WET_OFF : ((expltype) == EXPL_MUDDY) ? GLYPH_EXPLODE_MUDDY_OFF : ((expltype) == EXPL_NOXIOUS) ? GLYPH_EXPLODE_NOXIOUS_OFF : GLYPH_EXPLODE_FIERY_OFF)));
+                        await show_glyph(xx, yy, ((explosion[i][j]) - S_expl_tl + (((expltype) == EXPL_FROSTY) ? GLYPH_EXPLODE_FROSTY_OFF : ((expltype) == EXPL_MAGICAL) ? GLYPH_EXPLODE_MAGICAL_OFF : ((expltype) == EXPL_WET) ? GLYPH_EXPLODE_WET_OFF : ((expltype) == EXPL_MUDDY) ? GLYPH_EXPLODE_MUDDY_OFF : ((expltype) == EXPL_NOXIOUS) ? GLYPH_EXPLODE_NOXIOUS_OFF : GLYPH_EXPLODE_FIERY_OFF)));
                     }
                 }
             }
@@ -470,7 +469,7 @@ export function explode(x, y, type, dam, olet, expltype) {
             (game.windowprocs.win_delay_output)();
             (game.windowprocs.win_delay_output)();
         }
-        tmp_at((-7), 0);
+        await tmp_at((-7), 0);
     } else {
         if (olet == (MAXOCLASSES + 2) || olet == (MAXOCLASSES + 3)) {
             str = "explosion";
@@ -478,12 +477,12 @@ export function explode(x, y, type, dam, olet, expltype) {
         }
         if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && olet != SCROLL_CLASS) {
             ;
-            You_hear("a blast.");
+            await You_hear("a blast.");
             didmsg = (1);
         }
     }
     if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !didmsg) {
-        pline("Boom!");
+        await pline("Boom!");
     }
     if (dam) {
         for (i = 0; i < 3; i++) {
@@ -511,7 +510,7 @@ export function explode(x, y, type, dam, olet, expltype) {
                 /* Affect the floor unless the player caused the explosion
                  * from inside their engulfer. */
                 if (!(game.u.uswallow && !game.context.mon_moving)) {
-                    zap_over_floor(xx, yy, type, { get value() { return shopdamage; }, set value(_v) { shopdamage = _v; } }, (0), exploding_wand_typ);
+                    await zap_over_floor(xx, yy, type, { get value() { return shopdamage; }, set value(_v) { shopdamage = _v; } }, (0), exploding_wand_typ);
                 }
                 mtmp = (game.level.monsters[xx][yy]);
                 if (!mtmp && ((xx) == game.u.ux && (yy) == game.u.uy)) {
@@ -522,37 +521,26 @@ export function explode(x, y, type, dam, olet, expltype) {
                 }
                 if (do_hallu) {
                     let tryct = 0;
-                    /* replace "gas spore" with a different description
-                       for each target (we can't distinguish personal names
-                       like "Barney" here in order to suppress "the" below,
-                       so avoid any which begins with a capital letter) */
                     do {
-                        hallu_buf = sprintf(hallu_buf, "%s explosion", s_suffix(rndmonnam(null)));
+                        hallu_buf = sprintf(hallu_buf, "%s explosion", s_suffix(await rndmonnam(null)));
                     } while (hallu_buf != lowc(hallu_buf) && ++tryct < 20);
                     str = hallu_buf;
                 }
                 if ((game.u.uswallow && (game.u.ustuck == (mtmp)))) {
-                    engulfer_explosion_msg(adtyp, olet);
+                    await engulfer_explosion_msg(adtyp, olet);
                 } else if (((game.viz_array[yy][xx] & 2) != 0)) {
                     if (mtmp.m_ap_type) {
-                        seemimic(mtmp);
+                        await seemimic(mtmp);
                     }
-                    pline("%s is caught in the %s!", Monnam(mtmp), str);
+                    await pline("%s is caught in the %s!", await Monnam(mtmp), str);
                 }
-                itemdmg = destroy_items(mtmp, adtyp, dam);
+                itemdmg = await destroy_items(mtmp, adtyp, dam);
                 if (adtyp == 2) {
-                    burnarmor(mtmp);
-                    ignite_items(mtmp.minvent);
+                    await burnarmor(mtmp);
+                    await ignite_items(mtmp.minvent);
                 }
                 if ((explmask[i][j] & EXPL_MON) != 0) {
-                    /* Damage from ring/wand explosion isn't itself
-                     * electrical in nature, nor is damage from freezing
-                     * potion really cold in nature, nor is damage from
-                     * boiling potion or exploding oil; only burning items
-                     * damage is the "same type" as the explosion.  Because
-                     * this is imperfect and marginal (burning items only
-                     * deal 1 damage), ignore it for golemeffects(). */
-                    golemeffects(mtmp, adtyp, dam);
+                    await golemeffects(mtmp, adtyp, dam);
                     mtmp.mhp -= itemdmg;
                 } else {
                     /* Call resist with 0 and do damage manually so 1) we can
@@ -560,10 +548,10 @@ export function explode(x, y, type, dam, olet, expltype) {
                      * can call mondied, not killed, if it's not your blast.
                      */
                     let mdam = dam;
-                    if (resist(mtmp, olet, 0, (0))) {
+                    if (await resist(mtmp, olet, 0, (0))) {
                         /* inside_engulfer: <xx,yy> == <u.ux,u.uy> */
                         if (((game.viz_array[yy][xx] & 2) != 0) || inside_engulfer) {
-                            pline("%s resists the %s!", Monnam(mtmp), str);
+                            await pline("%s resists the %s!", await Monnam(mtmp), str);
                         }
                         mdam = Math.trunc((dam + 1) / 2);
                     }
@@ -573,13 +561,9 @@ export function explode(x, y, type, dam, olet, expltype) {
                     if (grabbed && mtmp == game.u.ustuck && (dist2(((x)), ((y)), game.u.ux, game.u.uy) <= 2)) {
                         mdam *= 2;
                     }
-                    /* being resistant to opposite type of damage makes
-                       target more vulnerable to current type of damage
-                       (when target is also resistant to current type,
-                       we won't get here) */
-                    if (Resists_Elem(mtmp, COLD_RES) && adtyp == 2) {
+                    if (await Resists_Elem(mtmp, COLD_RES) && adtyp == 2) {
                         mdam *= 2;
-                    } else if (Resists_Elem(mtmp, FIRE_RES) && adtyp == 3) {
+                    } else if (await Resists_Elem(mtmp, FIRE_RES) && adtyp == 3) {
                         mdam *= 2;
                     }
                     mtmp.mhp -= mdam + itemdmg;
@@ -587,7 +571,7 @@ export function explode(x, y, type, dam, olet, expltype) {
                 if (((mtmp).mhp < 1)) {
                     let xkflg = ((adtyp == 2 && ((mtmp.data) == game.mons[PM_PAPER_GOLEM] || (mtmp.data) == game.mons[PM_STRAW_GOLEM])) ? 2 : 0);
                     if (!game.context.mon_moving) {
-                        xkilled(mtmp, 0 | xkflg);
+                        await xkilled(mtmp, 0 | xkflg);
                     } else if (mdef && mtmp == mdef) {
                         /* 'mdef' killed self trying to cure being turned
                          * into slime due to some action by the player.
@@ -598,18 +582,17 @@ export function explode(x, y, type, dam, olet, expltype) {
                          * would be "you killed <mdef>" so give our own.
                          */
                         if (((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0) || (canseemon(mtmp) || sensemon(mtmp))) {
-                            pline("%s is %s!", Monnam(mtmp), xkflg ? "burned completely" : ((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) ? "destroyed" : "killed");
+                            await pline("%s is %s!", await Monnam(mtmp), xkflg ? "burned completely" : ((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) ? "destroyed" : "killed");
                         }
-                        xkilled(mtmp, 1 | 4 | xkflg);
+                        await xkilled(mtmp, 1 | 4 | xkflg);
                     } else {
                         if (xkflg) {
                             adtyp = 242;
                         }
-                        monkilled(mtmp, "", adtyp);
+                        await monkilled(mtmp, "", adtyp);
                     }
                 } else if (!game.context.mon_moving) {
-                    /* all affected monsters, even if mdef is set */
-                    setmangry(mtmp, (1));
+                    await setmangry(mtmp, (1));
                 }
             }
         }
@@ -617,32 +600,29 @@ export function explode(x, y, type, dam, olet, expltype) {
     if (uhurt) {
         if (game.flags.verbose && (type < 0 || olet != SCROLL_CLASS)) {
             if (do_hallu) {
-                /* give message for any monster-induced explosion
-           or player-induced one other than scroll of fire */
                 do {
-                    hallu_buf = sprintf(hallu_buf, "%s explosion", s_suffix(rndmonnam(null)));
+                    hallu_buf = sprintf(hallu_buf, "%s explosion", s_suffix(await rndmonnam(null)));
                 } while (hallu_buf != lowc(hallu_buf));
                 str = hallu_buf;
             }
-            You("are caught in the %s!", str);
+            await You("are caught in the %s!", str);
             game.iflags.last_msg = PLNMSG_CAUGHT_IN_EXPLOSION;
         }
-        /* do property damage first, in case we end up leaving bones */
         if (adtyp == 2) {
-            burn_away_slime();
+            await burn_away_slime();
         }
         if (game.u.uprops[INVULNERABLE].intrinsic) {
             damu = 0;
-            You("are unharmed!");
+            await You("are unharmed!");
         } else if (adtyp == 0 || adtyp == 8) {
             damu = (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((damu) + 1) / 2)) : (damu));
         }
         if (adtyp == 2) {
-            burnarmor(game.youmonst);
-            ignite_items(game.invent);
+            await burnarmor(game.youmonst);
+            await ignite_items(game.invent);
         }
-        destroy_items(game.youmonst, adtyp, dam);
-        ugolemeffects(adtyp, damu);
+        await destroy_items(game.youmonst, adtyp, dam);
+        await ugolemeffects(adtyp, damu);
         if (uhurt == 2) {
             /* if poly'd hero is grabbing another victim, hero takes
                double damage (note: don't rely on u.ustuck here because
@@ -667,7 +647,7 @@ export function explode(x, y, type, dam, olet, expltype) {
         }
         if (game.u.uhp <= 0 || ((game.u.umonnum != game.u.umonster) && game.u.mh <= 0)) {
             if ((game.u.umonnum != game.u.umonster)) {
-                rehumanize();
+                await rehumanize();
             } else {
                 if (olet == (MAXOCLASSES + 2)) {
                     /* explosion was unseen; str=="explosion", */
@@ -689,19 +669,17 @@ export function explode(x, y, type, dam, olet, expltype) {
                     game.killer.name = strcpy(game.killer.name, str);
                 }
                 if (game.iflags.last_msg == PLNMSG_CAUGHT_IN_EXPLOSION || game.iflags.last_msg == PLNMSG_TOWER_OF_FLAME) {
-                    pline("It is fatal.");
+                    await pline("It is fatal.");
                 } else {
-                    pline_The("%s is fatal.", str);
+                    await pline_The("%s is fatal.", str);
                 }
-                /* Known BUG: BURNING suppresses corpse in bones data,
-                   but done does not handle killer reason correctly */
-                done((adtyp == 2) ? BURNING : DIED);
+                await done((adtyp == 2) ? BURNING : DIED);
             }
         }
-        exercise(A_STR, (0));
+        await exercise(A_STR, (0));
     }
     if (shopdamage) {
-        pay_for_damage((adtyp == 2) ? "burn away" : (adtyp == 3) ? "shatter" : (adtyp == 5) ? "disintegrate" : "destroy", (0));
+        await pay_for_damage((adtyp == 2) ? "burn away" : (adtyp == 3) ? "shatter" : (adtyp == 5) ? "disintegrate" : "destroy", (0));
     }
     i = dam * dam;
     if (i < 50) {
@@ -711,7 +689,7 @@ export function explode(x, y, type, dam, olet, expltype) {
     if (inside_engulfer) {
         i = Math.trunc((i + 3) / 4);
     }
-    wake_nearto(x, y, i);
+    await wake_nearto(x, y, i);
 }
 // struct scatter_chain: { next, obj, ox, oy, dx, dy, range, stopped }
 /* pointer to next scatter item */
@@ -735,7 +713,7 @@ export function explode(x, y, type, dam, olet, expltype) {
 /* location of objects to scatter */
 /* force behind the scattering */
 /* only scatter this obj */
-export function scatter(sx, sy, blastforce, scflags, obj) {
+export async function scatter(sx, sy, blastforce, scflags, obj) {
     let otmp = null;
     let tmp = 0;
     let farthest = 0;
@@ -752,19 +730,19 @@ export function scatter(sx, sy, blastforce, scflags, obj) {
     let schain = null;
     let total = 0;
     if (individual_object && (obj.ox != sx || obj.oy != sy)) {
-        impossible("scattered object <%d,%d> not at scatter site <%d,%d>", obj.ox, obj.oy, sx, sy);
+        await impossible("scattered object <%d,%d> not at scatter site <%d,%d>", obj.ox, obj.oy, sx, sy);
     }
-    shop_origin = ((shkp = shop_keeper(in_rooms(sx, sy, SHOPBASE))) != null && costly_spot(sx, sy));
+    shop_origin = ((shkp = await shop_keeper(in_rooms(sx, sy, SHOPBASE))) != null && await costly_spot(sx, sy));
     if (shop_origin) {
-        credit_report(shkp, 0, (1));
+        await credit_report(shkp, 0, (1));
     }
     while ((otmp = (individual_object ? obj : game.level.objects[sx][sy])) != null) {
         if (otmp == game.uball || otmp == game.uchain) {
             /* establish baseline, without msgs */
             let waschain = (otmp == game.uchain);
             ;
-            pline_The("chain shatters!");
-            unpunish();
+            await pline_The("chain shatters!");
+            await unpunish();
             if (waschain) {
                 continue;
             }
@@ -775,48 +753,45 @@ export function scatter(sx, sy, blastforce, scflags, obj) {
                 qtmp = 32767;
             }
             qtmp = rnd(qtmp);
-            otmp = splitobj(otmp, qtmp);
+            otmp = await splitobj(otmp, qtmp);
         } else {
             obj = null;
         }
-        obj_extract_self(otmp);
+        await obj_extract_self(otmp);
         used_up = (0);
         if ((scflags & 16) != 0 && (otmp.otyp == BOULDER || otmp.otyp == STATUE) && rn2(10)) {
             if (otmp.otyp == BOULDER) {
                 if (((game.viz_array[sy][sx] & 2) != 0)) {
-                    /* 9 in 10 chance of fracturing boulders or statues */
-                    pline("%s apart.", Tobjnam(otmp, "break"));
+                    await pline("%s apart.", await Tobjnam(otmp, "break"));
                 } else {
                     ;
-                    You_hear("stone breaking.");
+                    await You_hear("stone breaking.");
                 }
-                fracture_rock(otmp);
-                place_object(otmp, sx, sy);
+                await fracture_rock(otmp);
+                await place_object(otmp, sx, sy);
                 if ((otmp = sobj_at(BOULDER, sx, sy)) != null) {
-                    /* another boulder here, restack it to the top */
-                    obj_extract_self(otmp);
-                    place_object(otmp, sx, sy);
+                    await obj_extract_self(otmp);
+                    await place_object(otmp, sx, sy);
                 }
             } else {
                 let trap = null;
                 if ((trap = t_at(sx, sy)) && trap.ttyp == STATUE_TRAP) {
-                    deltrap(trap);
+                    await deltrap(trap);
                 }
                 if (((game.viz_array[sy][sx] & 2) != 0)) {
-                    pline("%s.", Tobjnam(otmp, "crumble"));
+                    await pline("%s.", await Tobjnam(otmp, "crumble"));
                 } else {
                     ;
-                    You_hear("stone crumbling.");
+                    await You_hear("stone crumbling.");
                 }
-                break_statue(otmp);
-                place_object(otmp, sx, sy);
+                await break_statue(otmp);
+                await place_object(otmp, sx, sy);
             }
-            /* in case it's beyond radius of 'farthest' */
-            newsym(sx, sy);
+            await newsym(sx, sy);
             /* 1 in 10 chance of destruction of obj; glass, egg destruction */
             used_up = (1);
         } else if ((scflags & 8) != 0 && (!rn2(10) || (game.objects[otmp.otyp].oc_material == GLASS || otmp.otyp == EGG))) {
-            if (breaks(otmp, sx, sy)) {
+            if (await breaks(otmp, sx, sy)) {
                 used_up = (1);
             }
         }
@@ -870,7 +845,7 @@ export function scatter(sx, sy, blastforce, scflags, obj) {
                 } else if ((mtmp = (game.level.monsters[game.bhitpos.x][game.bhitpos.y])) != null) {
                     if (scflags & 2) {
                         stmp.range--;
-                        if (ohitmon(mtmp, stmp.obj, 1, (0))) {
+                        if (await ohitmon(mtmp, stmp.obj, 1, (0))) {
                             stmp.obj = null;
                             stmp.stopped = (1);
                         }
@@ -883,18 +858,18 @@ export function scatter(sx, sy, blastforce, scflags, obj) {
                         if (game.multi) {
                             nomul(0);
                         }
-                        dam = dmgval(stmp.obj, game.youmonst);
+                        dam = await dmgval(stmp.obj, game.youmonst);
                         hitvalu = 8 + stmp.obj.spe;
                         if (((game.youmonst.data).msize >= 3)) {
                             hitvalu++;
                         }
-                        hitu = thitu(hitvalu, (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dam) + 1) / 2)) : (dam)), { get value() { return stmp.obj; }, set value(_v) { stmp.obj = _v; } }, null);
+                        hitu = await thitu(hitvalu, (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dam) + 1) / 2)) : (dam)), { get value() { return stmp.obj; }, set value(_v) { stmp.obj = _v; } }, null);
                         if (!stmp.obj) {
                             stmp.stopped = (1);
                         }
                         if (hitu) {
                             stmp.range -= 3;
-                            stop_occupation();
+                            await stop_occupation();
                         }
                     }
                 } else {
@@ -919,45 +894,32 @@ export function scatter(sx, sy, blastforce, scflags, obj) {
         if (stmp.obj) {
             if (x != sx || y != sy) {
                 total += stmp.obj.quan;
-                obj_left_shop = (shop_origin && !costly_spot(x, y));
+                obj_left_shop = (shop_origin && !await costly_spot(x, y));
             }
-            if (!flooreffects(stmp.obj, x, y, "land")) {
+            if (!await flooreffects(stmp.obj, x, y, "land")) {
                 if (obj_left_shop && strchr(game.u.urooms, in_rooms(game.u.ux, game.u.uy, SHOPBASE))) {
                     if (stmp.obj.otyp == GOLD_PIECE) {
-                        /* At the moment this only takes on gold. While it is
-                       simple enough to call addtobill for other items that
-                       leave the shop due to scatter(), by default the hero
-                       will get billed for the full shopkeeper asking-price
-                       on the object's way out of shop. That can leave the
-                       hero in a pickle. Even if the hero then manages to
-                       retrieve the item and drop it back inside the shop,
-                       the owed charges will only be reduced at that point
-                       by the lesser shopkeeper buying-price.
-                       The non-gold situation will likely get adjusted
-                       further.
-                     */
-                        addtobill(stmp.obj, (0), (0), (1));
+                        await addtobill(stmp.obj, (0), (0), (1));
                         lostgoods = (1);
                     }
                 }
-                place_object(stmp.obj, x, y);
-                stackobj(stmp.obj);
+                await place_object(stmp.obj, x, y);
+                await stackobj(stmp.obj);
             }
         }
         free(stmp);
-        newsym(x, y);
+        await newsym(x, y);
     }
-    newsym(sx, sy);
+    await newsym(sx, sy);
     if (((sx) == game.u.ux && (sy) == game.u.uy) && game.u.uundetected && (((game.youmonst.data).mflags1 & 128) != 0)) {
-        hideunder(game.youmonst);
+        await hideunder(game.youmonst);
     }
     if (((mtmp = (game.level.monsters[sx][sy])) != null) && mtmp.mtrapped) {
         mtmp.mtrapped = 0;
     }
-    maybe_unhide_at(sx, sy);
-    /* implies shop_origin and therefore shkp valid */
+    await maybe_unhide_at(sx, sy);
     if (lostgoods) {
-        credit_report(shkp, 1, (0));
+        await credit_report(shkp, 1, (0));
     }
     return total;
 }
@@ -973,24 +935,23 @@ export function scatter(sx, sy, blastforce, scflags, obj) {
  *
  * For now, just perform a "regular" explosion.
  */
-export function splatter_burning_oil(x, y, diluted_oil) {
+export async function splatter_burning_oil(x, y, diluted_oil) {
     let dmg = d(diluted_oil ? 3 : 4, 4);
-    /* ZT_SPELL(ZT_FIRE) = ZT_SPELL(AD_FIRE-1) = 10+(2-1) = 11 */
-    explode(x, y, 11, dmg, (MAXOCLASSES + 1), EXPL_FIERY);
+    await explode(x, y, 11, dmg, (MAXOCLASSES + 1), EXPL_FIERY);
 }
 /* lit potion of oil is exploding; extinguish it as a light source before
    possibly killing the hero and attempting to save bones */
-export function explode_oil(obj, x, y) {
+export async function explode_oil(obj, x, y) {
     let diluted_oil = obj.oeroded;
     if (!obj.lamplit) {
-        impossible("exploding unlit oil");
+        await impossible("exploding unlit oil");
     }
-    end_burn(obj, (1));
+    await end_burn(obj, (1));
     obj.how_lost = 4;
-    splatter_burning_oil(x, y, diluted_oil);
+    await splatter_burning_oil(x, y, diluted_oil);
 }
 /* Convert a damage type into an explosion display type. */
-export function adtyp_to_expltype(adtyp) {
+export async function adtyp_to_expltype(adtyp) {
     switch (adtyp) {
         case 6:
         case 241:
@@ -1009,7 +970,7 @@ export function adtyp_to_expltype(adtyp) {
         case 0:
             return EXPL_NOXIOUS;
         default:
-            impossible("adtyp_to_expltype: bad explosion type %d", adtyp);
+            await impossible("adtyp_to_expltype: bad explosion type %d", adtyp);
             return EXPL_FIERY;
     }
 }
@@ -1017,7 +978,7 @@ export function adtyp_to_expltype(adtyp) {
  * or gas spore, not a yellow light or similar).
  * This is some common code between explmu() and explmm().
  */
-export function mon_explodes(mon, mattk) {
+export async function mon_explodes(mon, mattk) {
     let dmg = 0;
     let type = 0;
     if (mattk.damn) {
@@ -1035,24 +996,63 @@ export function mon_explodes(mon, mattk) {
         /* FIXME: there are macros for kind of thing... */
         type = -((mattk.adtyp - 1) + 20);
     } else {
-        impossible("unknown type for mon_explode %d", mattk.adtyp);
+        await impossible("unknown type for mon_explode %d", mattk.adtyp);
         return;
     }
     if (!((mon).mhp < 1)) {
-        /* Kill it now so it won't appear to be caught in its own explosion.
-     * Must check to see if already dead - which happens if this is called
-     * from an AT_BOOM attack upon death. */
-        mondead(mon);
+        await mondead(mon);
     }
     game.killer.name = sprintf(game.killer.name, "%s explosion", s_suffix(pmname(mon.data, Mgender(mon))));
     game.killer.format = 0;
-    explode(mon.mx, mon.my, type, dmg, (MAXOCLASSES + 2), adtyp_to_expltype(mattk.adtyp));
-    game.killer.name[0] = 0;
+    await explode(mon.mx, mon.my, type, dmg, (MAXOCLASSES + 2), await adtyp_to_expltype(mattk.adtyp));
+    game.killer.name = '';
 }
 /*explode.c*/
 /* leave 'res' with EXPL_NONE */
+/* will flush screen and output */
+/* replace "gas spore" with a different description
+                       for each target (we can't distinguish personal names
+                       like "Barney" here in order to suppress "the" below,
+                       so avoid any which begins with a capital letter) */
+/* Damage from ring/wand explosion isn't itself
+                     * electrical in nature, nor is damage from freezing
+                     * potion really cold in nature, nor is damage from
+                     * boiling potion or exploding oil; only burning items
+                     * damage is the "same type" as the explosion.  Because
+                     * this is imperfect and marginal (burning items only
+                     * deal 1 damage), ignore it for golemeffects(). */
+/* being resistant to opposite type of damage makes
+                       target more vulnerable to current type of damage
+                       (when target is also resistant to current type,
+                       we won't get here) */
+/* all affected monsters, even if mdef is set */
+/* give message for any monster-induced explosion
+           or player-induced one other than scroll of fire */
+/* do property damage first, in case we end up leaving bones */
+/* Known BUG: BURNING suppresses corpse in bones data,
+                   but done does not handle killer reason correctly */
+/* 9 in 10 chance of fracturing boulders or statues */
+/* another boulder here, restack it to the top */
+/* in case it's beyond radius of 'farthest' */
 /* tmp_at(gb.bhitpos.x, gb.bhitpos.y); */
+/* At the moment this only takes on gold. While it is
+                       simple enough to call addtobill for other items that
+                       leave the shop due to scatter(), by default the hero
+                       will get billed for the full shopkeeper asking-price
+                       on the object's way out of shop. That can leave the
+                       hero in a pickle. Even if the hero then manages to
+                       retrieve the item and drop it back inside the shop,
+                       the owed charges will only be reduced at that point
+                       by the lesser shopkeeper buying-price.
+                       The non-gold situation will likely get adjusted
+                       further.
+                     */
+/* implies shop_origin and therefore shkp valid */
+/* ZT_SPELL(ZT_FIRE) = ZT_SPELL(AD_FIRE-1) = 10+(2-1) = 11 */
 /* Electricity isn't magical, but there currently isn't an electric
          * explosion type. Magical is the next best thing. */
+/* Kill it now so it won't appear to be caught in its own explosion.
+     * Must check to see if already dead - which happens if this is called
+     * from an AT_BOOM attack upon death. */
 /* This might end up killing you, too; you never know...
      * also, it is used in explode() messages */

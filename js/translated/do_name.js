@@ -7,6 +7,7 @@ import { alloc, free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, pline, verbalize } from '../c2js-runtime/pline.js';
 import { get_rnd_text } from '../c2js-runtime/rumors.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
 import { beautiful } from './apply.js';
@@ -40,7 +41,9 @@ import { add_menu, getlin, select_menu } from './windows.js';
 
 /* manage a pool of BUFSZ buffers, so callers don't have to */
 let __nextmbuf_bufs = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+__nh_register_static(() => { __nextmbuf_bufs = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]; });
 let __nextmbuf_bufidx = 0;
+__nh_register_static(() => { __nextmbuf_bufidx = 0; });
 export function nextmbuf() {
     __nextmbuf_bufidx = (__nextmbuf_bufidx + 1) % 5;
     return __nextmbuf_bufs[__nextmbuf_bufidx];
@@ -113,11 +116,10 @@ export function safe_oname(obj) {
                          * anything longer than PL_PSIZ will be truncated */
 /* only used if EDIT_GETLIN is enabled; only useful
                          * if windowport xxx's xxx_getlin() supports that */
-export function name_from_player(outbuf, prompt, defres) {
+export async function name_from_player(outbuf, prompt, defres) {
     outbuf = __nh_char_write(outbuf, 0, 0);
     ((defres));
-    /* default response from getlin() */
-    getlin(prompt, outbuf);
+    outbuf = await getlin(prompt, outbuf);
     if (!__nh_char_at0(outbuf) || __nh_char_at0(outbuf) == 27) {
         return null;
     }
@@ -155,33 +157,29 @@ export function christen_monst(mtmp, name) {
 /* check whether user-supplied name matches or nearly matches an unnameable
    monster's name, or is an attempt to delete the monster's name; if so, give
    alternate reject message for do_mgivenname() */
-export function alreadynamed(mtmp, monnambuf, usrbuf) {
+export async function alreadynamed(mtmp, monnambuf, usrbuf) {
     let pronounbuf = '';
     let p = null;
     if (!__nh_char_at0(usrbuf)) {
         /* attempt to erase existing name */
         let name_not_title = (((mtmp).mextra && ((mtmp).mextra.mgivenname)) || (((mtmp.data).mflags2 & 524288) != 0) || mtmp.isshk);
-        pline("%s would rather keep %s existing %s.", upstart(monnambuf), ((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE]) ? "its" : (genders[pronoun_gender(mtmp, 2)].his), name_not_title ? "name" : "title");
+        await pline("%s would rather keep %s existing %s.", upstart(monnambuf), ((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE]) ? "its" : (genders[pronoun_gender(mtmp, 2)].his), name_not_title ? "name" : "title");
         return (1);
     } else if (fuzzymatch(usrbuf, monnambuf, " -_", (1)) || (!strncmpi(monnambuf, "the ", 4) && fuzzymatch(usrbuf, __nh_advance_str(monnambuf, 4), " -_", (1))) || ((p = strstri(monnambuf, "invisible ")) != null && fuzzymatch(usrbuf, __nh_advance_str(p, 10), " -_", (1))) || ((p = strstri(monnambuf, " of ")) != null && fuzzymatch(usrbuf, __nh_advance_str(p, 4), " -_", (1)))) {
         if (((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE])) {
-            /* catch trying to name "the Oracle" as "Oracle" */
-            /* catch trying to name "invisible Orcus" as "Orcus" */
-            /* catch trying to name "the priest of Crom" as "Crom" */
-            /* avoid gendered pronoun for riders */
-            pline("%s is already called that.", upstart(monnambuf));
+            await pline("%s is already called that.", upstart(monnambuf));
         } else {
-            pline("%s is already called %s.", upstart(strcpy(pronounbuf, (genders[pronoun_gender(mtmp, 2)].he))), monnambuf);
+            await pline("%s is already called %s.", upstart(strcpy(pronounbuf, (genders[pronoun_gender(mtmp, 2)].he))), monnambuf);
         }
         return (1);
     } else if (mtmp.data == game.mons[PM_JUIBLEX] && strstri(monnambuf, "Juiblex") && !strncmpi((usrbuf), ("Jubilex"), -1)) {
-        pline("%s doesn't like being called %s.", upstart(monnambuf), usrbuf);
+        await pline("%s doesn't like being called %s.", upstart(monnambuf), usrbuf);
         return (1);
     }
     return (0);
 }
 /* allow player to assign a name to some chosen monster */
-export function do_mgivenname() {
+export async function do_mgivenname() {
     let buf = '';
     let monnambuf = '';
     let qbuf = '';
@@ -191,12 +189,12 @@ export function do_mgivenname() {
     let mtmp = null;
     let do_swallow = (0);
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-        You("would never recognize it anyway.");
+        await You("would never recognize it anyway.");
         return;
     }
     cc.x = game.u.ux;
     cc.y = game.u.uy;
-    if (getpos(cc, (0), "the monster you want to name") < 0 || !isok(cc.x, cc.y)) {
+    if (await getpos(cc, (0), "the monster you want to name") < 0 || !isok(cc.x, cc.y)) {
         return;
     }
     cx = cc.x , cy = cc.y;
@@ -204,7 +202,7 @@ export function do_mgivenname() {
         if (game.u.usteed && (canseemon(game.u.usteed) || sensemon(game.u.usteed))) {
             mtmp = game.u.usteed;
         } else {
-            pline("This %s creature is called %s and cannot be renamed.", beautiful(), game.plname);
+            await pline("This %s creature is called %s and cannot be renamed.", beautiful(), game.plname);
             return;
         }
     } else {
@@ -219,35 +217,25 @@ export function do_mgivenname() {
         }
     }
     if (!do_swallow && (!mtmp || (!sensemon(mtmp) && (!(((game.viz_array[cy][cx] & 2) != 0) || see_with_infrared(mtmp)) || mtmp.mundetected || ((mtmp).m_ap_type & 7) == M_AP_FURNITURE || ((mtmp).m_ap_type & 7) == M_AP_OBJECT || (mtmp.minvis && !(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic)))))) {
-        pline("I see no monster there.");
+        await pline("I see no monster there.");
         return;
     }
-    qbuf = sprintf(qbuf, "What do you want to call %s?", distant_monnam(mtmp, 1, monnambuf));
-    /* use getlin() to get a name string from the player */
-    if (!name_from_player(buf, qbuf, ((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? ((mtmp).mextra.mgivenname) : null)) {
+    qbuf = sprintf(qbuf, "What do you want to call %s?", await distant_monnam(mtmp, 1, monnambuf));
+    if (!await name_from_player(buf, qbuf, ((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? ((mtmp).mextra.mgivenname) : null)) {
         return;
     }
     if ((mtmp.data.geno & 4096) && !mtmp.ispriest) {
-        /* special case similar to the one in lookat() */
-        /* Unique monsters have their own specific names or titles.
-     * Shopkeepers, temple priests and other minions use alternate
-     * name formatting routines which ignore any user-supplied name.
-     *
-     * Don't say a new name is being rejected if it happens to match
-     * the existing name, or if the player is trying to remove the
-     * monster's existing name without assigning a new one.
-     */
-        if (!alreadynamed(mtmp, monnambuf, buf)) {
-            pline("%s doesn't like being called names!", upstart(monnambuf));
+        if (!await alreadynamed(mtmp, monnambuf, buf)) {
+            await pline("%s doesn't like being called names!", upstart(monnambuf));
         }
     } else if (mtmp.isshk && !((game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) || ((mtmp).msleeping || !(mtmp).mcanmove) || mtmp.data.msound <= MS_ANIMAL)) {
-        if (!alreadynamed(mtmp, monnambuf, buf)) {
+        if (!await alreadynamed(mtmp, monnambuf, buf)) {
             ;
-            verbalize("I'm %s, not %s.", shkname(mtmp), buf);
+            await verbalize("I'm %s, not %s.", await shkname(mtmp), buf);
         }
     } else if (mtmp.ispriest || mtmp.isminion || mtmp.isshk || mtmp.data == game.mons[PM_GHOST] || ((mtmp).mextra && ((mtmp).mextra.ebones))) {
-        if (!alreadynamed(mtmp, monnambuf, buf)) {
-            pline("%s will not accept the name %s.", upstart(monnambuf), buf);
+        if (!await alreadynamed(mtmp, monnambuf, buf)) {
+            await pline("%s will not accept the name %s.", upstart(monnambuf), buf);
         }
     } else {
         christen_monst(mtmp, buf);
@@ -258,7 +246,7 @@ export function do_mgivenname() {
  * used with extreme care.  Applying a name to an object no longer
  * allocates a replacement object, so that old risk is gone.
  */
-export function do_oname(obj) {
+export async function do_oname(obj) {
     let bufp = null;
     let buf = '';
     let bufcpy = '';
@@ -266,28 +254,16 @@ export function do_oname(obj) {
     let aname = null;
     let objtyp = STRANGE_OBJECT;
     if (obj.otyp == SPE_NOVEL) {
-        /* Do this now because there's no point in even asking for a name */
-        pline("%s already has a published name.", Ysimple_name2(obj));
+        await pline("%s already has a published name.", await Ysimple_name2(obj));
         return;
     }
     qbuf = sprintf(qbuf, "What do you want to name %s ", ((obj).quan != 1 || ((obj).oartifact == ART_EYES_OF_THE_OVERWORLD && !undiscovered_artifact(ART_EYES_OF_THE_OVERWORLD))) ? "these" : "this");
-    safe_qbuf(qbuf, qbuf, "?", obj, xname, simpleonames, "item");
-    if (!name_from_player(buf, qbuf, safe_oname(obj))) {
+    await safe_qbuf(qbuf, qbuf, "?", obj, xname, simpleonames, "item");
+    if (!await name_from_player(buf, qbuf, safe_oname(obj))) {
         return;
     }
     if (obj.oartifact) {
-        /*
-     * We don't violate illiteracy conduct here, although it is
-     * arguable that we should for anything other than "X".  Doing so
-     * would make attaching player's notes to hero's inventory have an
-     * in-game effect, which may or may not be the correct thing to do.
-     *
-     * We do violate illiteracy in oname() if player creates Sting or
-     * Orcrist, clearly being literate (no pun intended...).
-     */
-        /* this used to give "The artifact seems to resist the attempt."
-           but resisting is definite, no "seems to" about it */
-        pline("%s resists the attempt.", ((obj).oextra && ((obj).oextra.oname)) ? ((obj).oextra.oname) : "The artifact");
+        await pline("%s resists the attempt.", ((obj).oextra && ((obj).oextra.oname)) ? ((obj).oextra.oname) : "The artifact");
         return;
     }
     if ((aname = artifact_name(buf, { get value() { return objtyp; }, set value(_v) { objtyp = _v; } }, (1))) != null && (restrict_name(obj, aname) || exist_artifact(obj.otyp, aname))) {
@@ -313,9 +289,9 @@ export function do_oname(obj) {
         do {
             wipeout_text(bufp, rnd_on_display_rng(2), 0);
         } while (!strcmp(buf, bufcpy));
-        pline("While engraving, your %s slips.", body_part(HAND));
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
-        You("engrave: \"%s\".", buf);
+        await pline("While engraving, your %s slips.", await body_part(HAND));
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+        await You("engrave: \"%s\".", buf);
         /* violate illiteracy conduct since hero attempted to write
            a valid artifact name */
         game.u.uconduct.literate++;
@@ -323,13 +299,13 @@ export function do_oname(obj) {
         (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
         buf = strcpy(buf, aname);
     }
-    obj = oname(obj, buf, 2 | 256);
+    obj = await oname(obj, buf, 2 | 256);
     ((obj));
 }
 /* item to assign name to */
 /* name to assign */
 /* flags, mostly for artifact creation */
-export function oname(obj, name, oflgs) {
+export async function oname(obj, name, oflgs) {
     let lth = 0;
     let buf = '';
     let via_naming = (oflgs & 2) != 0;
@@ -352,27 +328,23 @@ export function oname(obj, name, oflgs) {
         (obj).oextra.oname = strcpy(((obj).oextra.oname), name);
     }
     if (lth) {
-        artifact_exists(obj, name, (1), oflgs);
+        await artifact_exists(obj, name, (1), oflgs);
     }
     if (obj.oartifact) {
-        /* can't dual-wield with artifact as secondary weapon */
         if (obj == game.uswapwep) {
-            untwoweapon();
+            await untwoweapon();
         }
-        /* activate warning if you've just named your weapon "Sting" */
         if (obj == game.uwep) {
-            set_artifact_intrinsic(obj, (1), 256);
+            await set_artifact_intrinsic(obj, (1), 256);
         }
-        /* if obj is owned by a shop, increase your bill */
         if (obj.unpaid) {
-            alter_cost(obj, 0);
+            await alter_cost(obj, 0);
         }
         if (via_naming) {
-            /* violate illiteracy conduct since successfully wrote arti-name */
             if (!game.u.uconduct.literate++) {
-                livelog_printf(32 | 64, "became literate by naming %s", bare_artifactname(obj));
+                livelog_printf(32 | 64, "became literate by naming %s", await bare_artifactname(obj));
             } else {
-                livelog_printf(64, "chose %s to be named \"%s\"", ansimpleoname(obj), bare_artifactname(obj));
+                livelog_printf(64, "chose %s to be named \"%s\"", await ansimpleoname(obj), await bare_artifactname(obj));
             }
         }
     }
@@ -436,10 +408,10 @@ export function call_ok(obj) {
     return GETOBJ_SUGGEST;
 }
 /* #call / #name command - player can name monster or object or type of obj */
-export function docallcmd() {
+export async function docallcmd() {
     let obj = null;
     let win = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let pick_list = null;
     let cq = { typ: 0, key: 0, dirx: 0, diry: 0, dirz: 0, intval: 0, ec_entry: null, next: null };
     let cmdq = null;
@@ -464,26 +436,26 @@ export function docallcmd() {
         }
         win = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(win, 0);
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         any.a_char = 109;
-        add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 67, 0, clr, "a monster", 0);
+        await add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 67, 0, clr, "a monster", 0);
         if (game.invent) {
             /* we use y and n as accelerators so that we can accept user's
            response keyed to old "name an individual object?" prompt */
             any.a_char = 105;
-            add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 121, 0, clr, "a particular object in inventory", 0);
+            await add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 121, 0, clr, "a particular object in inventory", 0);
             any.a_char = 111;
-            add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 110, 0, clr, "the type of an object in inventory", 0);
+            await add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 110, 0, clr, "the type of an object in inventory", 0);
         }
         /* group accelerator ',' (or ':' instead?) */
         any.a_char = 102;
-        add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 44, 0, clr, "the type of an object upon the floor", 0);
+        await add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 44, 0, clr, "the type of an object upon the floor", 0);
         any.a_char = 100;
-        add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 92, 0, clr, "the type of an object on discoveries list", 0);
+        await add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 92, 0, clr, "the type of an object on discoveries list", 0);
         any.a_char = 97;
-        add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 108, 0, clr, "record an annotation for the current level", 0);
+        await add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 108, 0, clr, "record an annotation for the current level", 0);
         (game.windowprocs.win_end_menu)(win, "What do you want to name?");
-        if (select_menu(win, 1, pick_list) > 0) {
+        if (await select_menu(win, 1, pick_list) > 0) {
             ch = pick_list[0].item.a_char;
             free(pick_list);
         } else {
@@ -496,46 +468,43 @@ export function docallcmd() {
         case 113:
             break;
         case 109:
-            do_mgivenname();
+            await do_mgivenname();
             break;
         /* name an individual object in inventory */
         case 105:
-            obj = getobj("name", name_ok, 2);
+            obj = await getobj("name", name_ok, 2);
             if (obj) {
-                do_oname(obj);
+                await do_oname(obj);
             }
             break;
         /* name a type of object in inventory */
         case 111:
-            obj = getobj("call", call_ok, 0);
+            obj = await getobj("call", call_ok, 0);
             if (obj) {
-                /* behave as if examining it in inventory;
-               this might set dknown if it was picked up
-               while blind and the hero can now see */
-                xname(obj);
+                await xname(obj);
                 if (!obj.dknown) {
-                    You("would never recognize another one.");
+                    await You("would never recognize another one.");
                 } else {
-                    docall(obj);
+                    await docall(obj);
                 }
             }
             break;
         /* name a type of object visible on the floor */
         case 102:
-            namefloorobj();
+            await namefloorobj();
             break;
         /* name a type of object on the discoveries list */
         case 100:
-            rename_disco();
+            await rename_disco();
             break;
         case 97:
-            donamelevel();
+            await donamelevel();
             break;
     }
     return 0;
 }
 /* for use by safe_qbuf() */
-export function docall_xname(obj) {
+export async function docall_xname(obj) {
     let otemp = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
     Object.assign(otemp, obj);
     otemp.oextra = null;
@@ -560,10 +529,9 @@ export function docall_xname(obj) {
     } else if (otemp.oclass == FOOD_CLASS && otemp.globby) {
         otemp.owt = 120;
     }
-    /* 6*20, neither a small glob nor a large one */
-    return an(xname(otemp));
+    return await an(await xname(otemp));
 }
-export function docall(obj) {
+export async function docall(obj) {
     let buf = '';
     let qbuf = '';
     let uname_p = null;
@@ -571,16 +539,14 @@ export function docall(obj) {
     if (!obj.dknown) {
         return;
     }
-    /* probably blind; Blind || Hallucination for 'fromsink' */
-    /* buffered updates might matter to player's response */
-    flush_screen(1);
+    await flush_screen(1);
     if (obj.oclass == POTION_CLASS && obj.corpsenm) {
         qbuf = sprintf(qbuf, "Call a stream of %s fluid:", (game.obj_descr[(game.objects[obj.otyp]).oc_descr_idx].oc_descr));
     } else {
-        safe_qbuf(qbuf, "Call ", ":", obj, docall_xname, simpleonames, "thing");
+        await safe_qbuf(qbuf, "Call ", ":", obj, docall_xname, simpleonames, "thing");
     }
     uname_p = (game.objects[obj.otyp].oc_uname);
-    if (!name_from_player(buf, qbuf, uname_p)) {
+    if (!await name_from_player(buf, qbuf, uname_p)) {
         return;
     }
     if (uname_p) {
@@ -592,22 +558,21 @@ export function docall(obj) {
     /* strip leading and trailing spaces; uncalls item if all spaces */
     buf = mungspaces(buf);
     if (!buf) {
-        /* possibly remove from disco[]; old *uname_p is gone */
         if (had_name) {
-            undiscover_object(obj.otyp);
+            await undiscover_object(obj.otyp);
         }
     } else {
         /* §23.232u oc_uname — set via direct slot from buf */
         const __bufStr = (typeof buf === 'string') ? buf
             : (Array.isArray(buf) ? ((() => { let r=''; for (let i=0; i<buf.length && buf[i]; i++) r += String.fromCharCode(buf[i]); return r; })()) : String(buf));
         game.objects[obj.otyp].oc_uname = __bufStr;
-        discover_object(obj.otyp, (0), (1), (1));
+        await discover_object(obj.otyp, (0), (1), (1));
     }
     if (obj.where == 3 || carrying(obj.otyp)) {
         update_inventory();
     }
 }
-export function namefloorobj() {
+export async function namefloorobj() {
     let cc = { x: 0, y: 0 };
     let glyph = 0;
     let buf = '';
@@ -616,7 +581,7 @@ export function namefloorobj() {
     let use_plural = 0;
     cc.x = game.u.ux , cc.y = game.u.uy;
     buf = sprintf(buf, "object on map (or '.' for one %s you)", (game.u.uundetected && (((game.youmonst.data).mflags1 & 128) != 0)) ? "over" : "under");
-    if (getpos(cc, (0), buf) < 0 || cc.x <= 0) {
+    if (await getpos(cc, (0), buf) < 0 || cc.x <= 0) {
         return;
     }
     if (((cc.x) == game.u.ux && (cc.y) == game.u.uy)) {
@@ -627,15 +592,14 @@ export function namefloorobj() {
     } else {
         glyph = glyph_at(cc.x, cc.y);
         if ((((glyph) == GLYPH_OBJ_OFF || ((glyph) >= GLYPH_OBJ_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_OFF + NUM_OBJECTS)) || ((glyph) == GLYPH_OBJ_PILETOP_OFF || ((glyph) > GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1 && (glyph) < (GLYPH_OBJ_PILETOP_OFF + NUM_OBJECTS)))) || (((glyph) > GLYPH_OBJ_OFF && (glyph) < GLYPH_OBJ_OFF + FIRST_OBJECT - 1) || ((glyph) > GLYPH_OBJ_PILETOP_OFF && (glyph) < GLYPH_OBJ_PILETOP_OFF + FIRST_OBJECT - 1)) || (((((glyph) >= GLYPH_STATUE_MALE_OFF) && ((glyph) < (GLYPH_STATUE_MALE_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_MALE_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_MALE_PILETOP_OFF + NUMMONS)))) || ((((glyph) >= GLYPH_STATUE_FEM_OFF) && ((glyph) < (GLYPH_STATUE_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_STATUE_FEM_PILETOP_OFF) && ((glyph) < (GLYPH_STATUE_FEM_PILETOP_OFF + NUMMONS))))) || ((((glyph) >= GLYPH_BODY_OFF) && ((glyph) < (GLYPH_BODY_OFF + NUMMONS))) || (((glyph) >= GLYPH_BODY_PILETOP_OFF) && ((glyph) < (GLYPH_BODY_PILETOP_OFF + NUMMONS)))))) {
-            fakeobj = object_from_map(glyph, cc.x, cc.y, { get value() { return obj; }, set value(_v) { obj = _v; } });
+            fakeobj = await object_from_map(glyph, cc.x, cc.y, { get value() { return obj; }, set value(_v) { obj = _v; } });
         }
     }
     if (!obj) {
-        /* "under you" is safe here since there's no object to hide under */
-        There("doesn't seem to be any object %s.", ((cc.x) == game.u.ux && (cc.y) == game.u.uy) ? "under you" : "there");
+        await There("doesn't seem to be any object %s.", ((cc.x) == game.u.ux && (cc.y) == game.u.uy) ? "under you" : "there");
         return;
     }
-    buf = strcpy(buf, (obj.otyp != STRANGE_OBJECT) ? simpleonames(obj) : game.obj_descr[STRANGE_OBJECT].oc_name);
+    buf = strcpy(buf, (obj.otyp != STRANGE_OBJECT) ? await simpleonames(obj) : game.obj_descr[STRANGE_OBJECT].oc_name);
     use_plural = (obj.quan > 1);
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
         /* note well: 'obj' might be an instance of STRANGE_OBJECT if target
@@ -651,23 +615,23 @@ export function namefloorobj() {
            note: the 30 is hardcoded in xlev_to_rank, so should be
            hardcoded here too */
         unames[1] = rank_of(rn2_on_display_rng(30) + 1, (game.urole.mnum), game.flags.female);
-        unames[2] = bogusmon(tmpbuf, null);
+        unames[2] = await bogusmon(tmpbuf, null);
         /* increased chance for fake monster */
         unames[3] = unames[2];
         unames[4] = roguename();
         unames[5] = "Wibbly Wobbly";
-        pline("%s %s to call you \"%s.\"", The(buf), use_plural ? "decide" : "decides", unames[rn2_on_display_rng((Math.trunc(48 /* sizeof(const char *[6]) */ / 8 /* sizeof(const char *) */)))]);
+        await pline("%s %s to call you \"%s.\"", await The(buf), use_plural ? "decide" : "decides", unames[rn2_on_display_rng((Math.trunc(48 /* sizeof(const char *[6]) */ / 8 /* sizeof(const char *) */)))]);
     } else if (call_ok(obj) == GETOBJ_EXCLUDE) {
-        pline("%s %s can't be assigned a type name.", use_plural ? "Those" : "That", buf);
+        await pline("%s %s can't be assigned a type name.", use_plural ? "Those" : "That", buf);
     } else if (!obj.dknown) {
-        You("don't know %s %s well enough to name %s.", use_plural ? "those" : "that", buf, use_plural ? "them" : "it");
+        await You("don't know %s %s well enough to name %s.", use_plural ? "those" : "that", buf, use_plural ? "them" : "it");
     } else {
-        docall(obj);
+        await docall(obj);
     }
     if (fakeobj) {
         /* object_from_map() sets it to OBJ_FLOOR */
         obj.where = 0;
-        dealloc_obj(obj);
+        await dealloc_obj(obj);
     }
 }
 const ghostnames = ["Adri", "Andries", "Andreas", "Bert", "David", "Dirk", "Emile", "Frans", "Fred", "Greg", "Hether", "Jay", "John", "Jon", "Karnov", "Kay", "Kenny", "Kevin", "Maud", "Michiel", "Mike", "Peter", "Robert", "Ron", "Tom", "Wilmar", "Nick Danger", "Phoenix", "Jiro", "Mizue", "Stephan", "Lance Braccus", "Shadowhawk", "Murphy"];
@@ -724,7 +688,7 @@ export function rndghostname() {
  * Bug: if the monster is a priest or shopkeeper, not every one of these
  * options works, since those are special cases.
  */
-export function x_monnam(mtmp, article, adjective, suppress, called) {
+export async function x_monnam(mtmp, article, adjective, suppress, called) {
     let buf = nextmbuf();
     let mdat = mtmp.data;
     let pm_name = null;
@@ -791,8 +755,7 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
         if (!do_invis) {
             mtmp.minvis = 0;
         }
-        /* EXACT_NAME will force "of <deity>" on the Astral Plane */
-        name = priestname(mtmp, article, do_exact, buf2);
+        name = await priestname(mtmp, article, do_exact, buf2);
         game.u.uprops[HALLUC_RES].extrinsic = save_prop;
         mtmp.minvis = save_invis;
         if (article == 0 && !strncmp(name, "the ", 4)) {
@@ -811,9 +774,9 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
         if (adjective && article == 1) {
             buf = strcpy(buf, "the ");
             strcat(strcat(buf, adjective), " ");
-            buf = strcat(buf, shkname(mtmp));
+            buf = strcat(buf, await shkname(mtmp));
         } else {
-            buf = strcat(buf, shkname(mtmp));
+            buf = strcat(buf, await shkname(mtmp));
             if (mdat != game.mons[PM_SHOPKEEPER] || do_invis) {
                 buf = strcat(buf, " the ");
                 /* Shopkeepers: use shopkeeper name.  For normal shopkeepers, just
@@ -846,7 +809,7 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
         /* Put the actual monster name or type into the buffer now.
        Remember whether the buffer starts with a personal name. */
         let rnamecode = 0;
-        let rname = rndmonnam({ get value() { return rnamecode; }, set value(_v) { rnamecode = _v; } });
+        let rname = await rndmonnam({ get value() { return rnamecode; }, set value(_v) { rnamecode = _v; } });
         buf = strcat(buf, rname);
         name_at_start = bogon_is_pname(rnamecode);
     } else if (do_name && ((mtmp).mextra && ((mtmp).mextra.mgivenname))) {
@@ -916,80 +879,80 @@ export function x_monnam(mtmp, article, adjective, suppress, called) {
     }
     return buf;
 }
-export function l_monnam(mtmp) {
-    return x_monnam(mtmp, 0, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname))) ? 8 : 0, (1));
+export async function l_monnam(mtmp) {
+    return await x_monnam(mtmp, 0, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname))) ? 8 : 0, (1));
 }
-export function mon_nam(mtmp) {
-    return x_monnam(mtmp, 1, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname))) ? 8 : 0, (0));
+export async function mon_nam(mtmp) {
+    return await x_monnam(mtmp, 1, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname))) ? 8 : 0, (0));
 }
 /* print the name as if mon_nam() (y_monnam() if tame) was called, but
    assume that the player can always see the monster--used for probing and
    for monsters aggravating the player with a cursed potion of invisibility;
    also used for pet moving "reluctantly" onto cursed object when that pet
    can be seen either before or after it moves */
-export function noit_mon_nam(mtmp) {
-    return x_monnam(mtmp, 3, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? (8 | 1) : 1), (0));
+export async function noit_mon_nam(mtmp) {
+    return await x_monnam(mtmp, 3, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? (8 | 1) : 1), (0));
 }
 /* in between noit_mon_nam() and mon_nam(); if the latter would pick "it",
    use "someone" (for humanoids) or "something" (for others) instead */
-export function some_mon_nam(mtmp) {
-    return x_monnam(mtmp, 1, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? (8 | 64) : 64), (0));
+export async function some_mon_nam(mtmp) {
+    return await x_monnam(mtmp, 1, null, (((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? (8 | 64) : 64), (0));
 }
-export function Monnam(mtmp) {
-    let bp = mon_nam(mtmp);
+export async function Monnam(mtmp) {
+    let bp = await mon_nam(mtmp);
     bp = (() => { const __s = bp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return bp;
 }
-export function noit_Monnam(mtmp) {
-    let bp = noit_mon_nam(mtmp);
+export async function noit_Monnam(mtmp) {
+    let bp = await noit_mon_nam(mtmp);
     bp = (() => { const __s = bp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return bp;
 }
-export function Some_Monnam(mtmp) {
-    let bp = some_mon_nam(mtmp);
+export async function Some_Monnam(mtmp) {
+    let bp = await some_mon_nam(mtmp);
     bp = (() => { const __s = bp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return bp;
 }
 /* return "a dog" rather than "Fido", honoring hallucination and visibility */
-export function noname_monnam(mtmp, article) {
-    return x_monnam(mtmp, article, null, 32, (0));
+export async function noname_monnam(mtmp, article) {
+    return await x_monnam(mtmp, article, null, 32, (0));
 }
 /* monster's own name -- overrides hallucination and [in]visibility
    so shouldn't be used in ordinary messages (mainly for disclosure) */
-export function m_monnam(mtmp) {
-    return x_monnam(mtmp, 0, null, 31, (0));
+export async function m_monnam(mtmp) {
+    return await x_monnam(mtmp, 0, null, 31, (0));
 }
 /* pet name: "your little dog" */
-export function y_monnam(mtmp) {
+export async function y_monnam(mtmp) {
     let prefix = 0;
     let suppression_flag = 0;
     prefix = mtmp.mtame ? 3 : 1;
     suppression_flag = (((mtmp).mextra && ((mtmp).mextra.mgivenname)) || mtmp == game.u.usteed) ? 8 : 0;
-    return x_monnam(mtmp, prefix, null, suppression_flag, (0));
+    return await x_monnam(mtmp, prefix, null, suppression_flag, (0));
 }
 /* y_monnam() for start of sentence */
-export function YMonnam(mtmp) {
-    let bp = y_monnam(mtmp);
+export async function YMonnam(mtmp) {
+    let bp = await y_monnam(mtmp);
     bp = (() => { const __s = bp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return bp;
 }
-export function Adjmonnam(mtmp, adj) {
-    let bp = x_monnam(mtmp, 1, adj, ((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? 8 : 0, (0));
+export async function Adjmonnam(mtmp, adj) {
+    let bp = await x_monnam(mtmp, 1, adj, ((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? 8 : 0, (0));
     bp = (() => { const __s = bp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return bp;
 }
-export function a_monnam(mtmp) {
-    return x_monnam(mtmp, 2, null, ((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? 8 : 0, (0));
+export async function a_monnam(mtmp) {
+    return await x_monnam(mtmp, 2, null, ((mtmp).mextra && ((mtmp).mextra.mgivenname)) ? 8 : 0, (0));
 }
-export function Amonnam(mtmp) {
-    let bp = a_monnam(mtmp);
+export async function Amonnam(mtmp) {
+    let bp = await a_monnam(mtmp);
     bp = (() => { const __s = bp; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return bp;
 }
 /* used for monster ID by the '/', ';', and 'C' commands to block remote
    identification of the endgame altars via their attending priests */
 /* only ARTICLE_NONE and ARTICLE_THE are handled here */
-export function distant_monnam(mon, article, outbuf) {
+export async function distant_monnam(mon, article, outbuf) {
     /* high priest(ess)'s identity is concealed on the Astral Plane,
        unless you're adjacent (overridden for hallucination which does
        its own obfuscation) */
@@ -997,16 +960,16 @@ export function distant_monnam(mon, article, outbuf) {
         outbuf = strcpy(outbuf, article == 1 ? "the " : "");
         outbuf = strcat(outbuf, mon.female ? "high priestess" : "high priest");
     } else {
-        outbuf = strcpy(outbuf, x_monnam(mon, article, null, 0, (1)));
+        outbuf = strcpy(outbuf, await x_monnam(mon, article, null, 0, (1)));
     }
     return outbuf;
 }
 /* returns mon_nam(mon) relative to other_mon; normal name unless they're
    the same, in which case the reference is to {him|her|it} self */
-export function mon_nam_too(mon, other_mon) {
+export async function mon_nam_too(mon, other_mon) {
     let outbuf = null;
     if (mon != other_mon) {
-        outbuf = mon_nam(mon);
+        outbuf = await mon_nam(mon);
     } else {
         outbuf = nextmbuf();
         switch (pronoun_gender(mon, 2)) {
@@ -1031,17 +994,14 @@ export function mon_nam_too(mon, other_mon) {
 /* construct "<monnamtext> <verb> <othertext> {him|her|it}self" which might
    be distorted by Hallu; if that's plural, adjust monnamtext and verb */
 /* modifiable 'mbuf' with adequate room at end */
-export function monverbself(mon, monnamtext, verb, othertext) {
+export async function monverbself(mon, monnamtext, verb, othertext) {
     /* sizeof "themselves" suffices */
     let verbs = null;
     let selfbuf = '';
-    selfbuf = strcpy(selfbuf, mon_nam_too(mon, mon));
-    /* "himself"/"herself"/"itself", maybe "themselves" if hallucinating */
-    /* verb starts plural; this will yield singular except for "themselves" */
-    verbs = vtense(selfbuf, verb);
+    selfbuf = strcpy(selfbuf, await mon_nam_too(mon, mon));
+    verbs = await vtense(selfbuf, verb);
     if (!strcmp(verb, verbs)) {
-        /* a match indicates that it stayed plural */
-        monnamtext = makeplural(monnamtext);
+        monnamtext = await makeplural(monnamtext);
         if (!strncmpi((monnamtext), (genders[3].he), -1)) {
             /* for "it", makeplural() produces "them" but we want "they" */
             let capitaliz = (__nh_char_at0(monnamtext) == highc(__nh_char_at0(monnamtext)));
@@ -1105,7 +1065,7 @@ export function mon_pmname(mon) {
     return pmname(mon.data, Mgender(mon));
 }
 /* mons[]->pmname for a corpse or statue or figurine */
-export function obj_pmname(obj) {
+export async function obj_pmname(obj) {
     if ((obj.otyp == CORPSE || obj.otyp == STATUE || obj.otyp == FIGURINE) && ((obj.corpsenm) >= LOW_PM && (obj.corpsenm) < NUMMONS)) {
         /* ignore saved montraits even when they're available; they determine
          * what a corpse would revive as if resurrected (human corpse from
@@ -1129,7 +1089,7 @@ export function obj_pmname(obj) {
         }
         return pmname(game.mons[mndx], mgend);
     }
-    impossible("obj_pmname otyp:%i,corpsenm:%i", obj.otyp, obj.corpsenm);
+    await impossible("obj_pmname otyp:%i,corpsenm:%i", obj.otyp, obj.corpsenm);
     return "two-legged glorkum-seeker";
 }
 /* used by bogusmon(next) and also by init_CapMons(rumors.c);
@@ -1139,13 +1099,12 @@ export function obj_pmname(obj) {
 export const bogon_codes = "-_+|=";
 /* see dat/bonusmon.txt */
 /* fake monsters used to be in a hard-coded array, now in a data file */
-export function bogusmon(buf, code) {
+export async function bogusmon(buf, code) {
     let mnam = buf;
     if (code) {
         code.value = 0;
     }
-    /* might fail (return empty buf[]) if the file isn't available */
-    get_rnd_text("bogusmon", buf, rn2_on_display_rng, 20);
+    await get_rnd_text("bogusmon", buf, rn2_on_display_rng, 20);
     if (!mnam.value) {
         buf = strcpy(buf, "bogon");
     } else if (strchr(bogon_codes, mnam.value)) {
@@ -1158,7 +1117,8 @@ export function bogusmon(buf, code) {
 }
 /* return a random monster name, for hallucination */
 let __rndmonnam_buf = '';
-export function rndmonnam(code) {
+__nh_register_static(() => { __rndmonnam_buf = ''; });
+export async function rndmonnam(code) {
     let mnam = null;
     let name = 0;
     if (code) {
@@ -1168,7 +1128,7 @@ export function rndmonnam(code) {
         name = rn2_on_display_rng(SPECIAL_PM + 100 - LOW_PM) + LOW_PM;
     } while (name < SPECIAL_PM && ((((game.mons[name]).mflags2 & 524288) != 0) || (game.mons[name].geno & 512)));
     if (name >= SPECIAL_PM) {
-        mnam = bogusmon(__rndmonnam_buf, code);
+        mnam = await bogusmon(__rndmonnam_buf, code);
     } else {
         mnam = strcpy(__rndmonnam_buf, pmname(game.mons[name], rn2_on_display_rng(2)));
     }
@@ -1233,9 +1193,9 @@ export function hliquid(liquidpref) {
 /* Aliases for road-runner nemesis
  */
 const coynames = ["Carnivorous Vulgaris", "Road-Runnerus Digestus", "Eatibus Anythingus", "Famishus-Famishus", "Eatibus Almost Anythingus", "Eatius Birdius", "Famishius Fantasticus", "Eternalii Famishiis", "Famishus Vulgarus", "Famishius Vulgaris Ingeniusi", "Eatius-Slobbius", "Hardheadipus Oedipus", "Carnivorous Slobbius", "Hard-Headipus Ravenus", "Evereadii Eatibus", "Apetitius Giganticus", "Hungrii Flea-Bagius", "Overconfidentii Vulgaris", "Caninus Nervous Rex", "Grotesques Appetitus", "Nemesis Ridiculii", "Canis latrans"];
-export function coyotename(mtmp, buf) {
+export async function coyotename(mtmp, buf) {
     if (mtmp && buf) {
-        buf = sprintf(buf, "%s - %s", x_monnam(mtmp, 0, null, 0, (1)), mtmp.mcan ? coynames[(Math.trunc(22 /* sizeof(const char *const [22]) */ / 1 /* sizeof(const char *const) */)) - 1] : coynames[mtmp.m_id % ((Math.trunc(22 /* sizeof(const char *const [22]) */ / 1 /* sizeof(const char *const) */)) - 1)]);
+        buf = sprintf(buf, "%s - %s", await x_monnam(mtmp, 0, null, 0, (1)), mtmp.mcan ? coynames[(Math.trunc(22 /* sizeof(const char *const [22]) */ / 1 /* sizeof(const char *const) */)) - 1] : coynames[mtmp.m_id % ((Math.trunc(22 /* sizeof(const char *const [22]) */ / 1 /* sizeof(const char *const) */)) - 1)]);
     }
     return buf;
 }
@@ -1301,27 +1261,21 @@ export function noveltitle(novidx) {
     return sir_Terry_novels[j];
 }
 /* figure out canonical novel title from player-specified one */
-export function lookup_novel(lookname, idx) {
+export async function lookup_novel(lookname, idx) {
     let k = 0;
-    /*
-     * Accept variant spellings:
-     * _The_Colour_of_Magic_ uses British spelling, and American
-     * editions keep that, but we also recognize American spelling;
-     * _Sourcery_ is a joke rather than British spelling of "sorcery".
-     */
-    if (!strncmpi((The(lookname)), ("The Color of Magic"), -1)) {
+    if (!strncmpi((await The(lookname)), ("The Color of Magic"), -1)) {
         lookname = sir_Terry_novels[0];
     } else if (!strncmpi((lookname), ("Sorcery"), -1)) {
         lookname = sir_Terry_novels[4];
     } else if (!strncmpi((lookname), ("Masquerade"), -1)) {
         lookname = sir_Terry_novels[17];
-    } else if (!strncmpi((The(lookname)), ("The Amazing Maurice"), -1)) {
+    } else if (!strncmpi((await The(lookname)), ("The Amazing Maurice"), -1)) {
         lookname = sir_Terry_novels[27];
     } else if (!strncmpi((lookname), ("Thud"), -1)) {
         lookname = sir_Terry_novels[33];
     }
     for (k = 0; k < (Math.trunc(41 /* sizeof(const char *const [41]) */ / 1 /* sizeof(const char *const) */)); ++k) {
-        if (!strncmpi((lookname), (sir_Terry_novels[k]), -1) || !strncmpi((The(lookname)), (sir_Terry_novels[k]), -1)) {
+        if (!strncmpi((lookname), (sir_Terry_novels[k]), -1) || !strncmpi((await The(lookname)), (sir_Terry_novels[k]), -1)) {
             if (idx) {
                 idx.value = k;
             }
@@ -1335,10 +1289,41 @@ export function lookup_novel(lookname, idx) {
     return null;
 }
 /*do_name.c*/
+/* default response from getlin() */
+/* catch trying to name "the Oracle" as "Oracle" */
+/* catch trying to name "invisible Orcus" as "Orcus" */
+/* catch trying to name "the priest of Crom" as "Crom" */
+/* avoid gendered pronoun for riders */
+/* use getlin() to get a name string from the player */
+/* special case similar to the one in lookat() */
+/* Unique monsters have their own specific names or titles.
+     * Shopkeepers, temple priests and other minions use alternate
+     * name formatting routines which ignore any user-supplied name.
+     *
+     * Don't say a new name is being rejected if it happens to match
+     * the existing name, or if the player is trying to remove the
+     * monster's existing name without assigning a new one.
+     */
+/* Do this now because there's no point in even asking for a name */
+/*
+     * We don't violate illiteracy conduct here, although it is
+     * arguable that we should for anything other than "X".  Doing so
+     * would make attaching player's notes to hero's inventory have an
+     * in-game effect, which may or may not be the correct thing to do.
+     *
+     * We do violate illiteracy in oname() if player creates Sting or
+     * Orcrist, clearly being literate (no pun intended...).
+     */
+/* this used to give "The artifact seems to resist the attempt."
+           but resisting is definite, no "seems to" about it */
 /* artifact_name() always returns non-Null when it sets objtyp */
 /* artifact_name() found a match and restrict_name() didn't reject
            it; since 'obj' is the right type, naming will change it into an
            artifact so use canonical capitalization (Sting or Orcrist) */
+/* can't dual-wield with artifact as secondary weapon */
+/* activate warning if you've just named your weapon "Sting" */
+/* if obj is owned by a shop, increase your bill */
+/* violate illiteracy conduct since successfully wrote arti-name */
 /* 5.0: calling these used to be allowed but that enabled the
            player to tell whether two unID'd amulets of yendor were both
            fake or one was real by calling them distinct names and then
@@ -1346,7 +1331,26 @@ export function lookup_novel(lookname, idx) {
            by second or both names stuck; with more than two available
            to work with, if they weren't all fake it was possible to
            determine which one was the real one */
+/* behave as if examining it in inventory;
+               this might set dknown if it was picked up
+               while blind and the hero can now see */
+/* 6*20, neither a small glob nor a large one */
 /* suppress tin type (homemade, &c) and mon type */
+/* probably blind; Blind || Hallucination for 'fromsink' */
+/* buffered updates might matter to player's response */
+/* possibly remove from disco[]; old *uname_p is gone */
+/* "under you" is safe here since there's no object to hide under */
+/* EXACT_NAME will force "of <deity>" on the Astral Plane */
 /* buf2[] isn't viable to return,  */
 /* so transfer the result to buf[] */
 /* "saddled" is redundant when mounted */
+/* "himself"/"herself"/"itself", maybe "themselves" if hallucinating */
+/* verb starts plural; this will yield singular except for "themselves" */
+/* a match indicates that it stayed plural */
+/* might fail (return empty buf[]) if the file isn't available */
+/*
+     * Accept variant spellings:
+     * _The_Colour_of_Magic_ uses British spelling, and American
+     * editions keep that, but we also recognize American spelling;
+     * _Sourcery_ is a joke rather than British spelling of "sorcery".
+     */

@@ -247,6 +247,19 @@ export function putchar(c) {
 // PRNG-faithful play.
 export function vsnprintf(_buf, _size, _fmt, _va) { return 0; }
 
+// String-returning vsnprintf twin (§23.243).  The build-engine
+// va-rest pass converts C varargs functions to rest parameters and
+// rewrites `vsnprintf(buf, N, fmt, va); ... = buf` call shapes to
+// `buf = vsnprintf_str(fmt, va)`, so the translated pline family
+// (pline_mon / Norep / impossible / panic / livelog_printf) actually
+// formats.  Before this, `the_args` was always 0 and putmesg
+// delivered the raw zero-filled pbuf array — every message on this
+// path was silently unprintable.
+export function vsnprintf_str(fmt, va) {
+    const args = Array.isArray(va) ? va : [];
+    return sprintf('', String(fmt ?? ''), ...args);
+}
+
 // snprintf / nh_snprintf / sprintf — return the formatted string.
 // Translated NetHack uses these like
 //   buf = sprintf(buf, "Foo %s", x);

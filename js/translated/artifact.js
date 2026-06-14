@@ -14,6 +14,7 @@ import { free, memset } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, Your, pline, pline_The, verbalize } from '../c2js-runtime/pline.js';
 import { getrumor } from '../c2js-runtime/rumors.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, strcat, strcmp, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { do_blinding_ray, next_to_u } from './apply.js';
@@ -60,15 +61,7 @@ import { add_menu, select_menu } from './windows.js';
 import { bypass_obj, clear_bypasses, nxt_unbypassed_obj, recalc_telepat_range, which_armor } from './worn.js';
 import { cancel_monst, destroy_items, flashburn, lightdamage, probe_monster, resist } from './zap.js';
 
-const artilist = (() => {
-  const ent = () => ({ name: "", otyp: 0, spfx: 0, cspfx: 0, defn: 0,
-    attk: { aatyp: 0, adtyp: 0, damn: 0, damd: 0 },
-    defense: { aatyp: 0, adtyp: 0, damn: 0, damd: 0 },
-    carry: { aatyp: 0, adtyp: 0, damn: 0, damd: 0 },
-    inv_prop: 0, alignment: 0, role: 0, race: 0,
-    acost: 0, gift_value: 0, cost: 0, color: 0, aflags: 0 });
-  const arr = []; for (let i = 0; i < 34; i++) arr.push(ent()); return arr;
-})();
+const artilist = JSON.parse("[{\"otyp\":0,\"name\":\"\",\"spfx\":0,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":0,\"gift_value\":0,\"cost\":0,\"acolor\":8},{\"otyp\":54,\"name\":\"Excalibur\",\"spfx\":663,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":10},\"defn\":{\"aatyp\":0,\"adtyp\":15,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":1,\"role\":335,\"race\":-1,\"gen_spe\":0,\"gift_value\":10,\"cost\":4000,\"acolor\":8},{\"otyp\":58,\"name\":\"Stormbringer\",\"spfx\":454,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":15,\"damn\":5,\"damd\":2},\"defn\":{\"aatyp\":0,\"adtyp\":15,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-1,\"role\":-1,\"race\":-1,\"gen_spe\":0,\"gift_value\":9,\"cost\":8000,\"acolor\":8},{\"otyp\":76,\"name\":\"Mjollnir\",\"spfx\":66,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":6,\"damn\":5,\"damd\":24},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":0,\"role\":342,\"race\":-1,\"gen_spe\":0,\"gift_value\":8,\"cost\":4000,\"acolor\":8},{\"otyp\":45,\"name\":\"Cleaver\",\"spfx\":2,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":3,\"damd\":6},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":0,\"role\":332,\"race\":-1,\"gen_spe\":0,\"gift_value\":8,\"cost\":1500,\"acolor\":8},{\"otyp\":36,\"name\":\"Grimtooth\",\"spfx\":8388642,\"cspfx\":0,\"mtype\":16,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":2,\"damd\":6},\"defn\":{\"aatyp\":0,\"adtyp\":7,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":79,\"alignment\":-1,\"role\":-1,\"race\":72,\"gen_spe\":0,\"gift_value\":5,\"cost\":1200,\"acolor\":1},{\"otyp\":53,\"name\":\"Orcrist\",\"spfx\":8388640,\"cspfx\":0,\"mtype\":128,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-1,\"role\":-1,\"race\":264,\"gen_spe\":3,\"gift_value\":4,\"cost\":2000,\"acolor\":12},{\"otyp\":35,\"name\":\"Sting\",\"spfx\":8388640,\"cspfx\":0,\"mtype\":128,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-1,\"role\":-1,\"race\":264,\"gen_spe\":3,\"gift_value\":1,\"cost\":800,\"acolor\":12},{\"otyp\":38,\"name\":\"Magicbane\",\"spfx\":194,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":12,\"damn\":3,\"damd\":4},\"defn\":{\"aatyp\":0,\"adtyp\":1,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":0,\"role\":343,\"race\":-1,\"gen_spe\":0,\"gift_value\":7,\"cost\":3500,\"acolor\":8},{\"otyp\":54,\"name\":\"Frost Brand\",\"spfx\":194,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":3,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":3,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":81,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":0,\"gift_value\":9,\"cost\":3000,\"acolor\":8},{\"otyp\":54,\"name\":\"Fire Brand\",\"spfx\":194,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":2,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":2,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":80,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":0,\"gift_value\":5,\"cost\":3000,\"acolor\":8},{\"otyp\":52,\"name\":\"Dragonbane\",\"spfx\":69206018,\"cspfx\":0,\"mtype\":30,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":2,\"gift_value\":5,\"cost\":500,\"acolor\":8},{\"otyp\":74,\"name\":\"Demonbane\",\"spfx\":8388610,\"cspfx\":0,\"mtype\":256,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":78,\"alignment\":1,\"role\":337,\"race\":-1,\"gen_spe\":1,\"gift_value\":3,\"cost\":2500,\"acolor\":8},{\"otyp\":51,\"name\":\"Werebane\",\"spfx\":8388610,\"cspfx\":0,\"mtype\":4,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":29,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":1,\"gift_value\":4,\"cost\":1500,\"acolor\":8},{\"otyp\":51,\"name\":\"Grayswandir\",\"spfx\":2050,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":1,\"role\":-1,\"race\":-1,\"gen_spe\":0,\"gift_value\":10,\"cost\":8000,\"acolor\":8},{\"otyp\":54,\"name\":\"Giantslayer\",\"spfx\":8388610,\"cspfx\":0,\"mtype\":8192,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":0,\"role\":-1,\"race\":-1,\"gen_spe\":2,\"gift_value\":4,\"cost\":200,\"acolor\":8},{\"otyp\":76,\"name\":\"Ogresmasher\",\"spfx\":2097154,\"cspfx\":0,\"mtype\":41,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":2,\"gift_value\":1,\"cost\":200,\"acolor\":8},{\"otyp\":75,\"name\":\"Trollsbane\",\"spfx\":2113538,\"cspfx\":0,\"mtype\":46,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":2,\"gift_value\":1,\"cost\":200,\"acolor\":8},{\"otyp\":54,\"name\":\"Vorpal Blade\",\"spfx\":1026,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":1},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":0,\"role\":-1,\"race\":-1,\"gen_spe\":1,\"gift_value\":5,\"cost\":4000,\"acolor\":8},{\"otyp\":56,\"name\":\"Snickersnee\",\"spfx\":2,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":8},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":1,\"role\":340,\"race\":-1,\"gen_spe\":0,\"gift_value\":8,\"cost\":1200,\"acolor\":8},{\"otyp\":54,\"name\":\"Sunsword\",\"spfx\":8388610,\"cspfx\":0,\"mtype\":2,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":11,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":82,\"alignment\":1,\"role\":-1,\"race\":-1,\"gen_spe\":0,\"gift_value\":6,\"cost\":1500,\"acolor\":8},{\"otyp\":231,\"name\":\"The Orb of Detection\",\"spfx\":7,\"cspfx\":69632,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":1,\"damn\":0,\"damd\":0},\"inv_prop\":40,\"alignment\":1,\"role\":331,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":2500,\"acolor\":8},{\"otyp\":470,\"name\":\"The Heart of Ahriman\",\"spfx\":7,\"cspfx\":8192,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":48,\"alignment\":0,\"role\":332,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":2500,\"acolor\":8},{\"otyp\":73,\"name\":\"The Sceptre of Might\",\"spfx\":16777223,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":1,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":44,\"alignment\":1,\"role\":333,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":2500,\"acolor\":8},{\"otyp\":231,\"name\":\"The Palantir of Westernesse\",\"spfx\":7,\"cspfx\":86016,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":69,\"alignment\":-1,\"role\":-1,\"race\":264,\"gen_spe\":0,\"gift_value\":12,\"cost\":8000,\"acolor\":8},{\"otyp\":79,\"name\":\"The Staff of Aesculapius\",\"spfx\":16711,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":15,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":15,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":70,\"alignment\":0,\"role\":334,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":5000,\"acolor\":8},{\"otyp\":230,\"name\":\"The Magic Mirror of Merlin\",\"spfx\":15,\"cspfx\":4096,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":1,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":1,\"role\":335,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":1500,\"acolor\":8},{\"otyp\":232,\"name\":\"The Eyes of the Overworld\",\"spfx\":33554439,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":1,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":76,\"alignment\":0,\"role\":336,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":2500,\"acolor\":8},{\"otyp\":96,\"name\":\"The Mitre of Holiness\",\"spfx\":142606343,\"cspfx\":0,\"mtype\":2,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":2,\"damn\":0,\"damd\":0},\"inv_prop\":71,\"alignment\":1,\"role\":337,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":2000,\"acolor\":8},{\"otyp\":83,\"name\":\"The Longbow of Diana\",\"spfx\":67108871,\"cspfx\":4096,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":5,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":77,\"alignment\":-1,\"role\":338,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":4000,\"acolor\":8},{\"otyp\":221,\"name\":\"The Master Key of Thievery\",\"spfx\":15,\"cspfx\":393248,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":72,\"alignment\":-1,\"role\":339,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":3500,\"acolor\":8},{\"otyp\":57,\"name\":\"The Tsurugi of Muramasa\",\"spfx\":134743047,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":8},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":1,\"role\":340,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":4500,\"acolor\":8},{\"otyp\":223,\"name\":\"The Platinum Yendorian Express Card\",\"spfx\":135,\"cspfx\":69632,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":1,\"damn\":0,\"damd\":0},\"inv_prop\":73,\"alignment\":0,\"role\":341,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":7000,\"acolor\":8},{\"otyp\":231,\"name\":\"The Orb of Fate\",\"spfx\":524295,\"cspfx\":196640,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":74,\"alignment\":0,\"role\":342,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":3500,\"acolor\":8},{\"otyp\":201,\"name\":\"The Eye of the Aethiopica\",\"spfx\":7,\"cspfx\":98304,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":1,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":75,\"alignment\":0,\"role\":343,\"race\":-1,\"gen_spe\":0,\"gift_value\":12,\"cost\":4000,\"acolor\":8},{\"otyp\":0,\"name\":null,\"spfx\":0,\"cspfx\":0,\"mtype\":0,\"attk\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"defn\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"cary\":{\"aatyp\":0,\"adtyp\":0,\"damn\":0,\"damd\":0},\"inv_prop\":0,\"alignment\":-128,\"role\":-1,\"race\":-1,\"gen_spe\":0,\"gift_value\":0,\"cost\":0,\"acolor\":8}]");
 
 /* #define get_artifact(o) \
     (((o) && ((o)->artifact > 0 && (o)->artifact < AFTER_LAST_ARTIFACT)) \
@@ -86,10 +79,10 @@ const artilist = (() => {
 /* arti_info struct definition moved to artifact.h */
 /* array of flags tracking which artifacts exist, indexed by ART_xx;
    ART_xx values are 1..N, element [0] isn't used; no terminator needed */
-game.artiexist = [{ exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }, { exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }];
+game.artiexist = artilist.map(() => ({ exists: 0, found: 0, gift: 0, wish: 0, named: 0, viadip: 0, lvldef: 0, bones: 0, rndm: 0 }));
 /* discovery list; for N discovered artifacts, the first N entries are ART_xx
    values in discovery order, the remaining (NROFARTIFACTS-N) slots are 0 */
-game.artidisco = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+game.artidisco = artilist.map(() => 0);
 /* note: artiexist[] and artidisco[] don't need to be in struct ga; they
  * get explicitly initialized at game start so don't need to be part of
  * bulk re-init if game restart ever gets implemented.  They are saved
@@ -169,7 +162,7 @@ export function artiname(artinum) {
 /* target alignment, or A_NONE */
 /* cap on generated giftvalue */
 /* whether to add spe to situational artifacts */
-export function mk_artifact(otmp, alignment, max_giftvalue, adjust_spe) {
+export async function mk_artifact(otmp, alignment, max_giftvalue, adjust_spe) {
     let a = null;
     let m = 0;
     let n = 0;
@@ -254,19 +247,9 @@ export function mk_artifact(otmp, alignment, max_giftvalue, adjust_spe) {
         m = eligible[rn2(n)];
         a = artilist[m];
         if (by_align) {
-            /* make an appropriate object if necessary, then christen it */
-            /* 'by_align' indicates that an alignment was passed as
-             * an argument, but also that the 'otmp' argument is not
-             * relevant */
-            let artiobj = mksobj(a.otyp, (1), (0));
-            /* nonnull value of 'otmp' is unexpected. Cope. */
-            /* just in case; avoid orphaning */
+            let artiobj = await mksobj(a.otyp, (1), (0));
             if (otmp) {
-                /* nothing appropriate could be found; return original object */
-                /* (there shouldn't have been an original object). Deal with it.
-             * The callers that passed an alignment and a NULL otmp are
-             * prepared to get a potential NULL return value, so this is okay */
-                dispose_of_orig_obj(otmp);
+                await dispose_of_orig_obj(otmp);
             }
             otmp = artiobj;
         }
@@ -277,11 +260,10 @@ export function mk_artifact(otmp, alignment, max_giftvalue, adjust_spe) {
          * the result of mksobj() just above if by_align is an alignment. */
         /* prevent erosion from generating */
         otmp.oeroded = otmp.oeroded2 = 0;
-        otmp = oname(otmp, a.name, 0);
+        otmp = await oname(otmp, a.name, 0);
         /* probably already set by this point, but */
         otmp.oartifact = m;
-        /* set existence and reason for creation bits */
-        artifact_origin(otmp, 128);
+        await artifact_origin(otmp, 128);
         if (adjust_spe) {
             let new_spe = 0;
             /* Adjust artiobj->spe by a->gen_spe. (This is a no-op for
@@ -295,7 +277,7 @@ export function mk_artifact(otmp, alignment, max_giftvalue, adjust_spe) {
         }
     } else {
         if (by_align && otmp) {
-            dispose_of_orig_obj(otmp);
+            await dispose_of_orig_obj(otmp);
             otmp = null;
         }
     }
@@ -304,12 +286,12 @@ export function mk_artifact(otmp, alignment, max_giftvalue, adjust_spe) {
     }
     return otmp;
 }
-export function dispose_of_orig_obj(obj) {
+export async function dispose_of_orig_obj(obj) {
     if (!obj) {
         return;
     }
-    obj_extract_self(obj);
-    obfree(obj, null);
+    await obj_extract_self(obj);
+    await obfree(obj, null);
 }
 /*
  * Returns the full name (with articles and correct capitalization) of an
@@ -360,7 +342,7 @@ export function exist_artifact(otyp, name) {
    to be created again later */
 /* True: exists, False: being un-created */
 /* ONAME_xyz flags; not relevant if !mod */
-export function artifact_exists(otmp, name, mod, flgs) {
+export async function artifact_exists(otmp, name, mod, flgs) {
     let a = null;
     if (otmp && __nh_char_at0(name)) {
         for (let __nhi_a = 1; (a = artilist[__nhi_a]) && (a.otyp); __nhi_a++) {
@@ -377,10 +359,7 @@ export function artifact_exists(otmp, name, mod, flgs) {
                     if ((flgs & (2 | 4 | 8 | 16 | 32 | 64 | 128)) == 0) {
                         flgs |= 128;
                     }
-                    /* 'exists' bit will become set (in artifact_origin();
-                       there's no ONAME_ flag) and flgs might also contain
-                       the know_arti bit (hero knows that artifact exists) */
-                    artifact_origin(otmp, flgs);
+                    await artifact_origin(otmp, flgs);
                 } else {
                     Object.assign(game.artiexist[m], zero_artiexist);
                 }
@@ -391,22 +370,22 @@ export function artifact_exists(otmp, name, mod, flgs) {
     return;
 }
 /* mark an artifact as 'found' */
-export function found_artifact(a) {
+export async function found_artifact(a) {
     if (a < 1 || a > NROFARTIFACTS) {
-        impossible("found_artifact: invalid artifact index! (%d)", a);
+        await impossible("found_artifact: invalid artifact index! (%d)", a);
     } else if (!game.artiexist[a].exists) {
-        impossible("found_artifact: artifact doesn't exist yet? (%d)", a);
+        await impossible("found_artifact: artifact doesn't exist yet? (%d)", a);
     } else {
         game.artiexist[a].found = 1;
     }
 }
 /* if an artifact hasn't already been designated 'found', do that now
    and generate a livelog event about finding it */
-export function find_artifact(otmp) {
+export async function find_artifact(otmp) {
     let a = otmp.oartifact;
     if (a && !game.artiexist[a].found) {
         let where = null;
-        found_artifact(a);
+        await found_artifact(a);
         /*
          * Unlike costly_spot(), inside_shop() includes the "free spot"
          * in front of the door.  And it doesn't care whether or not
@@ -421,7 +400,7 @@ export function find_artifact(otmp) {
          * mdrop_obj() so that we get called before obj->where changes.
          */
         where = ((otmp.where == 1) ? ((inside_shop(otmp.ox, otmp.oy) != 0) ? " in a shop" : " on the floor") : (otmp.where == 2) ? " in a container" : (otmp.where == 4) ? " carried by a monster" : "");
-        livelog_printf(64, "found %s%s", bare_artifactname(otmp), where);
+        livelog_printf(64, "found %s%s", await bare_artifactname(otmp), where);
     }
 }
 export function nartifact_exist() {
@@ -440,7 +419,7 @@ export function nartifact_exist() {
    followed by mksobj(),others -> artifact_origin(non-random origin) */
 /* new artifact */
 /* ONAME_xxx flags, shared by artifact_exists() */
-export function artifact_origin(arti, aflags) {
+export async function artifact_origin(arti, aflags) {
     let ct = 0;
     let a = arti.oartifact;
     if (a) {
@@ -478,7 +457,7 @@ export function artifact_origin(arti, aflags) {
             game.artiexist[a].rndm = 1 , ++ct;
         }
         if (ct != 1) {
-            impossible("invalid artifact origin: %4o", aflags);
+            await impossible("invalid artifact origin: %4o", aflags);
         }
     }
 }
@@ -657,7 +636,7 @@ export function protects(otmp, being_worn) {
  * a potential artifact has just been worn/wielded/picked-up or
  * unworn/unwielded/dropped.  Pickup/drop only set/reset the W_ART mask.
  */
-export function set_artifact_intrinsic(otmp, on, wp_mask) {
+export async function set_artifact_intrinsic(otmp, on, wp_mask) {
     let mask = null;
     let art = null;
     let oart = get_artifact(otmp);
@@ -726,13 +705,7 @@ export function set_artifact_intrinsic(otmp, on, wp_mask) {
         }
     }
     if (spfx & 2048) {
-        /* make_hallucinated must (re)set the mask itself to get
-         * the display right */
-        /* restoring needed because this is the only artifact intrinsic
-         * that can print a message--need to guard against being printed
-         * when restoring a game
-         */
-        make_hallucinated(!on, game.program_state.restoring ? (0) : (1), wp_mask);
+        await make_hallucinated(!on, game.program_state.restoring ? (0) : (1), wp_mask);
     }
     if (spfx & 4096) {
         if (on) {
@@ -741,7 +714,7 @@ export function set_artifact_intrinsic(otmp, on, wp_mask) {
             game.u.uprops[TELEPAT].extrinsic &= ~wp_mask;
         }
         recalc_telepat_range();
-        see_monsters();
+        await see_monsters();
     }
     if (spfx & 8192) {
         if (on) {
@@ -773,7 +746,7 @@ export function set_artifact_intrinsic(otmp, on, wp_mask) {
                 game.u.uprops[WARN_OF_MON].extrinsic &= ~wp_mask;
                 game.context.warntype.obj &= ~spec_m2(otmp);
             }
-            see_monsters();
+            await see_monsters();
         } else {
             if (on) {
                 game.u.uprops[WARNING].extrinsic |= wp_mask;
@@ -829,7 +802,7 @@ export function set_artifact_intrinsic(otmp, on, wp_mask) {
     if (wp_mask == 4096 && !on && oart.inv_prop) {
         /* might have to turn off invoked power too */
         if (oart.inv_prop <= LAST_PROP && (game.u.uprops[oart.inv_prop].extrinsic & 8192)) {
-            arti_invoke(otmp);
+            await arti_invoke(otmp);
         }
     }
     if (wp_mask == 256 && is_art(otmp, ART_SUNSWORD)) {
@@ -852,7 +825,7 @@ game.touch_blasted = 0;
  * Ignores such things as gauntlets, assuming the artifact is not
  * fooled by such trappings.
  */
-export function touch_artifact(obj, mon) {
+export async function touch_artifact(obj, mon) {
     let oart = get_artifact(obj);
     let badclass = 0;
     let badalign = 0;
@@ -879,10 +852,8 @@ export function touch_artifact(obj, mon) {
            quest item can touch anything except `spec_applies' artifacts */
         badclass = badalign = (0);
     }
-    /* weapons which attack specific categories of monsters are
-       bad for them even if their alignments happen to match */
     if (!badalign) {
-        badalign = bane_applies(oart, mon);
+        badalign = await bane_applies(oart, mon);
     }
     if (((badclass || badalign) && self_willed) || (badalign && (!yours || !rn2(4)))) {
         let dmg = 0;
@@ -891,7 +862,7 @@ export function touch_artifact(obj, mon) {
         if (!yours) {
             return 0;
         }
-        You("are blasted by %s power!", s_suffix(the(xname(obj))));
+        await You("are blasted by %s power!", s_suffix(await the(await xname(obj))));
         game.touch_blasted = (1);
         dmg = d(((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) ? 2 : 4), (self_willed ? 10 : 4));
         /* add half (maybe quarter) of the usual silver damage bonus */
@@ -899,17 +870,15 @@ export function touch_artifact(obj, mon) {
             tmp = rnd(10) , dmg += (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((tmp) + 1) / 2)) : (tmp));
         }
         buf = sprintf(buf, "touching %s", oart.name);
-        /* magic damage, not physical */
-        losehp(dmg, buf, 1);
-        exercise(A_WIS, (0));
+        await losehp(dmg, buf, 1);
+        await exercise(A_WIS, (0));
     }
     if (badclass && badalign && self_willed) {
         if (yours) {
             if (!((obj).where == 3)) {
-                pline("%s your grasp!", Tobjnam(obj, "evade"));
-            /* can pick it up unless you're totally non-synch'd with the artifact */
+                await pline("%s your grasp!", await Tobjnam(obj, "evade"));
             } else {
-                pline("%s beyond your control!", Tobjnam(obj, "are"));
+                await pline("%s beyond your control!", await Tobjnam(obj, "are"));
             }
         }
         return 0;
@@ -929,19 +898,19 @@ export function arti_immune(obj, dtyp) {
     /* nothing is immune to phys dmg */
     return (weap.attk.adtyp == dtyp || weap.defn.adtyp == dtyp || weap.cary.adtyp == dtyp);
 }
-export function bane_applies(oart, mon) {
+export async function bane_applies(oart, mon) {
     let atmp = { otyp: 0, name: null, spfx: 0, cspfx: 0, mtype: 0, attk: { aatyp: 0, adtyp: 0, damn: 0, damd: 0 }, defn: { aatyp: 0, adtyp: 0, damn: 0, damd: 0 }, cary: { aatyp: 0, adtyp: 0, damn: 0, damd: 0 }, inv_prop: 0, alignment: 0, role: 0, race: 0, gen_spe: 0, gift_value: 0, cost: 0, acolor: 0 };
     if (oart != artilist[ART_NONARTIFACT] && (oart.spfx & 32505856) != 0) {
         Object.assign(atmp, oart);
         atmp.spfx &= 32505856;
-        if (spec_applies(atmp, mon)) {
+        if (await spec_applies(atmp, mon)) {
             return (1);
         }
     }
     return (0);
 }
 /* decide whether an artifact's special attacks apply against mtmp */
-export function spec_applies(weap, mtmp) {
+export async function spec_applies(weap, mtmp) {
     let ptr = null;
     let yours = 0;
     if (!(weap.spfx & (32505856 | 64))) {
@@ -960,27 +929,27 @@ export function spec_applies(weap, mtmp) {
     } else if (weap.spfx & 16777216) {
         return yours ? (game.u.ualign.type != weap.alignment) : (ptr.maligntyp == (-128) || sgn(ptr.maligntyp) != weap.alignment);
     } else if (weap.spfx & 64) {
-        if (defended(mtmp, weap.attk.adtyp)) {
+        if (await defended(mtmp, weap.attk.adtyp)) {
             return (0);
         }
         switch (weap.attk.adtyp) {
             case 2:
-                return !(yours ? (game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic) : Resists_Elem(mtmp, FIRE_RES));
+                return !(yours ? (game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic) : await Resists_Elem(mtmp, FIRE_RES));
             case 3:
-                return !(yours ? (game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic) : Resists_Elem(mtmp, COLD_RES));
+                return !(yours ? (game.u.uprops[COLD_RES].intrinsic || game.u.uprops[COLD_RES].extrinsic) : await Resists_Elem(mtmp, COLD_RES));
             case 6:
-                return !(yours ? (game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic) : Resists_Elem(mtmp, SHOCK_RES));
+                return !(yours ? (game.u.uprops[SHOCK_RES].intrinsic || game.u.uprops[SHOCK_RES].extrinsic) : await Resists_Elem(mtmp, SHOCK_RES));
             case 1:
             case 12:
                 return !(yours ? (game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) : (rn2(100) < ptr.mr));
             case 7:
-                return !(yours ? (game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) : Resists_Elem(mtmp, POISON_RES));
+                return !(yours ? (game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) : await Resists_Elem(mtmp, POISON_RES));
             case 15:
-                return !(yours ? (game.u.uprops[DRAIN_RES].intrinsic || game.u.uprops[DRAIN_RES].extrinsic) : resists_drli(mtmp));
+                return !(yours ? (game.u.uprops[DRAIN_RES].intrinsic || game.u.uprops[DRAIN_RES].extrinsic) : await resists_drli(mtmp));
             case 18:
-                return !(yours ? (game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) : Resists_Elem(mtmp, STONE_RES));
+                return !(yours ? (game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) : await Resists_Elem(mtmp, STONE_RES));
             default:
-                impossible("Weird weapon special attack.");
+                await impossible("Weird weapon special attack.");
         }
     }
     return 0;
@@ -995,26 +964,22 @@ export function spec_m2(otmp) {
     return 0;
 }
 /* special attack bonus */
-export function spec_abon(otmp, mon) {
+export async function spec_abon(otmp, mon) {
     let weap = get_artifact(otmp);
-    /* no need for an extra check for `NO_ATTK' because this will
-       always return 0 for any artifact which has that attribute */
-    if (weap != artilist[ART_NONARTIFACT] && weap.attk.damn && spec_applies(weap, mon)) {
+    if (weap != artilist[ART_NONARTIFACT] && weap.attk.damn && await spec_applies(weap, mon)) {
         return rnd(weap.attk.damn);
     }
     return 0;
 }
 /* special damage bonus */
-export function spec_dbon(otmp, mon, tmp) {
+export async function spec_dbon(otmp, mon, tmp) {
     let weap = get_artifact(otmp);
     if ((weap == artilist[ART_NONARTIFACT]) || (weap.attk.adtyp == 0 && weap.attk.damn == 0 && weap.attk.damd == 0)) {
         game.spec_dbon_applies = (0);
     } else if (is_art(otmp, ART_GRIMTOOTH)) {
         game.spec_dbon_applies = (1);
-    /* Grimtooth has SPFX settings to warn against elves but we want its
-           damage bonus to apply to all targets, so bypass spec_applies() */
     } else {
-        game.spec_dbon_applies = spec_applies(weap, mon);
+        game.spec_dbon_applies = await spec_applies(weap, mon);
     }
     if (game.spec_dbon_applies) {
         return weap.attk.damd ? rnd(weap.attk.damd) : ((tmp) > (1) ? (tmp) : (1));
@@ -1022,7 +987,7 @@ export function spec_dbon(otmp, mon, tmp) {
     return 0;
 }
 /* add identified artifact to discoveries list */
-export function discover_artifact(m) {
+export async function discover_artifact(m) {
     let i = 0;
     for (i = 0; i < NROFARTIFACTS; i++) {
         if (game.artidisco[i] == 0 || game.artidisco[i] == m) {
@@ -1032,9 +997,7 @@ export function discover_artifact(m) {
             return;
         }
     }
-    /* there is one slot per artifact, so we should never reach the
-       end without either finding the artifact or an empty slot... */
-    impossible("couldn't discover artifact (%d)", m);
+    await impossible("couldn't discover artifact (%d)", m);
 }
 /* used to decide whether an artifact has been fully identified */
 export function undiscovered_artifact(m) {
@@ -1052,7 +1015,7 @@ export function undiscovered_artifact(m) {
 }
 /* display a list of discovered artifacts; return their count */
 /* supplied by dodiscover(); type is NHW_TEXT */
-export function disp_artifact_discoveries(tmpwin) {
+export async function disp_artifact_discoveries(tmpwin) {
     let i = 0;
     let m = 0;
     let otyp = 0;
@@ -1076,7 +1039,7 @@ export function disp_artifact_discoveries(tmpwin) {
         if (!strcmp(algnstr, "unaligned")) {
             algnstr = "non-aligned";
         }
-        buf = sprintf(buf, "  %s [%s %s]", artiname(m), algnstr, simple_typename(otyp));
+        buf = sprintf(buf, "  %s [%s %s]", artiname(m), algnstr, await simple_typename(otyp));
         (game.windowprocs.win_putstr)(tmpwin, 0, buf);
     }
     return i;
@@ -1130,7 +1093,7 @@ const mb_verb = [["probe", "stun", "scare", "cancel"], ["prod", "amaze", "tickle
 /* d20 that has already scored a hit */
 /* whether the action can be seen */
 /* target's name: "you" or mon_nam(mdef) */
-export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
+export async function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
     let old_mdat = null;
     let verb = null;
     let youattack = (magr == game.youmonst);
@@ -1182,18 +1145,18 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
     verb = mb_verb[!!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))][attack_indx];
     if (youattack || youdefend || vis) {
         result = (1);
-        pline_The("magic-absorbing blade %s %s!", vtense(null, verb), hittee);
+        await pline_The("magic-absorbing blade %s %s!", await vtense(null, verb), hittee);
         /* assume probing has some sort of noticeable feedback
            even if it is being done by one monster to another */
         if (attack_indx == MB_INDEX_PROBE && !(canseemon(mdef) || sensemon(mdef))) {
-            map_invisible(mdef.mx, mdef.my);
+            await map_invisible(mdef.mx, mdef.my);
         }
     }
     switch (attack_indx) {
         /* now perform special effects */
         case MB_INDEX_CANCEL:
             old_mdat = youdefend ? game.youmonst.data : mdef.data;
-            if (!cancel_monst(mdef, mb, youattack, (0), (0))) {
+            if (!await cancel_monst(mdef, mb, youattack, (0), (0))) {
                 /* No mdef->mcan check: even a cancelled monster can be polymorphed
          * into a golem, and the "cancel" effect acts as if some magical
          * energy remains in spellcasting defenders to be absorbed later.
@@ -1212,13 +1175,11 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
                             game.u.uen--;
                         }
                         game.disp.botl = (1);
-                        You("lose magical energy!");
+                        await You("lose magical energy!");
                     }
                 } else {
-                    /* canceled shapeshifter/vamp may have changed forms, so
-                   update its name if necessary */
                     if (mdef.data != old_mdat) {
-                        hittee = strcpy(hittee, mon_nam(mdef));
+                        hittee = strcpy(hittee, await mon_nam(mdef));
                     }
                     if (mdef.data == game.mons[PM_CLAY_GOLEM]) {
                         mdef.mhp = 1;
@@ -1231,7 +1192,7 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
                         }
                         game.u.uen++;
                         game.disp.botl = (1);
-                        You("absorb magical energy!");
+                        await You("absorb magical energy!");
                     }
                 }
             }
@@ -1245,15 +1206,15 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
                     game.multi_reason = "being scared stiff";
                     game.nomovemsg = "";
                     if (magr && magr == game.u.ustuck && sticks(game.youmonst.data)) {
-                        set_ustuck(null);
-                        You("release %s!", mon_nam(magr));
+                        await set_ustuck(null);
+                        await You("release %s!", await mon_nam(magr));
                     }
                 }
             } else {
-                if (rn2(2) && resist(mdef, WEAPON_CLASS, 0, 0)) {
+                if (rn2(2) && await resist(mdef, WEAPON_CLASS, 0, 0)) {
                     resisted = (1);
                 } else {
-                    monflee(mdef, 3, (0), (mdef.mhp > dmgptr.value));
+                    await monflee(mdef, 3, (0), (mdef.mhp > dmgptr.value));
                 }
             }
             if (!resisted) {
@@ -1265,14 +1226,14 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
             break;
         case MB_INDEX_PROBE:
             if (youattack && (mb.spe == 0 || !rn2(3 * abs(mb.spe)))) {
-                pline_The("%s is insightful.", verb);
-                probe_monster(mdef);
+                await pline_The("%s is insightful.", verb);
+                await probe_monster(mdef);
             }
             break;
     }
     if (do_stun) {
         if (youdefend) {
-            make_stunned(((game.u.uprops[STUNNED].intrinsic & 16777215) + 3), (0));
+            await make_stunned(((game.u.uprops[STUNNED].intrinsic & 16777215) + 3), (0));
         /* stun if that was selected and a worse effect didn't occur */
         } else {
             mdef.mstun = 1;
@@ -1286,7 +1247,7 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
     do_confuse = !rn2(12);
     if (do_confuse) {
         if (youdefend) {
-            make_confused((game.u.uprops[CONFUSION].intrinsic & 16777215) + 4, (0));
+            await make_confused((game.u.uprops[CONFUSION].intrinsic & 16777215) + 4, (0));
         } else {
             mdef.mconf = 1;
         }
@@ -1297,8 +1258,8 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
     if (youattack || youdefend || vis) {
         hittee = upstart(hittee);
         if (resisted) {
-            pline("%s %s!", hittee, vtense(c_common_strings.c_fakename[fakeidx], "resist"));
-            shieldeff(youdefend ? game.u.ux : mdef.mx, youdefend ? game.u.uy : mdef.my);
+            await pline("%s %s!", hittee, await vtense(c_common_strings.c_fakename[fakeidx], "resist"));
+            await shieldeff(youdefend ? game.u.ux : mdef.mx, youdefend ? game.u.uy : mdef.my);
         }
         if ((do_stun || do_confuse) && game.flags.verbose) {
             let buf = '';
@@ -1312,7 +1273,7 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
             if (do_confuse) {
                 buf = strcat(buf, "confused");
             }
-            pline("%s %s %s%c", hittee, vtense(c_common_strings.c_fakename[fakeidx], "are"), buf, (do_stun && do_confuse) ? 33 : 46);
+            await pline("%s %s %s%c", hittee, await vtense(c_common_strings.c_fakename[fakeidx], "are"), buf, (do_stun && do_confuse) ? 33 : 46);
         }
     }
     return result;
@@ -1332,48 +1293,42 @@ export function Mb_hit(magr, mdef, mb, dmgptr, dieroll, vis, hittee) {
 /* needed for Magicbane and vorpal blades */
 const __artifact_hit_you = "you";
 const __artifact_hit_behead_msg = ["%s beheads %s!", "%s decapitates %s!"];
-export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
+export async function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
     let youattack = (magr == game.youmonst);
     let youdefend = (mdef == game.youmonst);
     let vis = (!youattack && magr && ((game.viz_array[magr.my][magr.mx] & 2) != 0)) || (!youdefend && ((game.viz_array[mdef.my][mdef.mx] & 2) != 0)) || (youattack && (game.u.uswallow && (game.u.ustuck == (mdef))) && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked));
     let realizes_damage = 0;
     let wepdesc = null;
     let hittee = '';
-    hittee = strcpy(hittee, youdefend ? __artifact_hit_you : mon_nam(mdef));
-    /* The following takes care of most of the damage, but not all--
-     * the exception being for level draining, which is specially
-     * handled.  Messages are done in this function, however.
-     */
-    dmgptr.value += spec_dbon(otmp, mdef, dmgptr.value);
+    hittee = strcpy(hittee, youdefend ? __artifact_hit_you : await mon_nam(mdef));
+    dmgptr.value += await spec_dbon(otmp, mdef, dmgptr.value);
     if (youattack && youdefend) {
-        impossible("attacking yourself with weapon?");
+        await impossible("attacking yourself with weapon?");
         return (0);
     }
     realizes_damage = (youdefend || vis || (youattack && mdef == game.u.ustuck));
     if (attacks(2, otmp)) {
-        /* feel the effect even if not seen */
-        /* the four basic attacks: fire, cold, shock and missiles */
         if (realizes_damage) {
-            pline_The("fiery blade %s %s%c", !game.spec_dbon_applies ? "hits" : (mdef.data == game.mons[PM_WATER_ELEMENTAL]) ? "vaporizes part of" : "burns", hittee, !game.spec_dbon_applies ? 46 : 33);
+            await pline_The("fiery blade %s %s%c", !game.spec_dbon_applies ? "hits" : (mdef.data == game.mons[PM_WATER_ELEMENTAL]) ? "vaporizes part of" : "burns", hittee, !game.spec_dbon_applies ? 46 : 33);
         }
         if (!rn2(4)) {
-            let itemdmg = destroy_items(mdef, 2, dmgptr.value);
+            let itemdmg = await destroy_items(mdef, 2, dmgptr.value);
             if (!youdefend) {
                 dmgptr.value += itemdmg;
             }
-            ignite_items(mdef.minvent);
+            await ignite_items(mdef.minvent);
         }
         if (youdefend && game.u.uprops[SLIMED].intrinsic) {
-            burn_away_slime();
+            await burn_away_slime();
         }
         return realizes_damage;
     }
     if (attacks(3, otmp)) {
         if (realizes_damage) {
-            pline_The("ice-cold blade %s %s%c", !game.spec_dbon_applies ? "hits" : "freezes", hittee, !game.spec_dbon_applies ? 46 : 33);
+            await pline_The("ice-cold blade %s %s%c", !game.spec_dbon_applies ? "hits" : "freezes", hittee, !game.spec_dbon_applies ? 46 : 33);
         }
         if (!rn2(4)) {
-            let itemdmg = destroy_items(mdef, 3, dmgptr.value);
+            let itemdmg = await destroy_items(mdef, 3, dmgptr.value);
             if (!youdefend) {
                 dmgptr.value += itemdmg;
             }
@@ -1382,13 +1337,13 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
     }
     if (attacks(6, otmp)) {
         if (realizes_damage) {
-            pline_The("massive hammer hits%s %s%c", !game.spec_dbon_applies ? "" : "!  Lightning strikes", hittee, !game.spec_dbon_applies ? 46 : 33);
+            await pline_The("massive hammer hits%s %s%c", !game.spec_dbon_applies ? "" : "!  Lightning strikes", hittee, !game.spec_dbon_applies ? 46 : 33);
         }
         if (game.spec_dbon_applies) {
-            wake_nearto(mdef.mx, mdef.my, 4 * 4);
+            await wake_nearto(mdef.mx, mdef.my, 4 * 4);
         }
         if (!rn2(5)) {
-            let itemdmg = destroy_items(mdef, 6, dmgptr.value);
+            let itemdmg = await destroy_items(mdef, 6, dmgptr.value);
             if (!youdefend) {
                 dmgptr.value += itemdmg;
             }
@@ -1397,13 +1352,12 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
     }
     if (attacks(1, otmp)) {
         if (realizes_damage) {
-            pline_The("imaginary widget hits%s %s%c", !game.spec_dbon_applies ? "" : "!  A hail of magic missiles strikes", hittee, !game.spec_dbon_applies ? 46 : 33);
+            await pline_The("imaginary widget hits%s %s%c", !game.spec_dbon_applies ? "" : "!  A hail of magic missiles strikes", hittee, !game.spec_dbon_applies ? 46 : 33);
         }
         return realizes_damage;
     }
     if (attacks(12, otmp) && dieroll <= 8) {
-        /* Magicbane's special attacks (possibly modifies hittee[]) */
-        return Mb_hit(magr, mdef, otmp, dmgptr, dieroll, vis, hittee);
+        return await Mb_hit(magr, mdef, otmp, dmgptr, dieroll, vis, hittee);
     }
     if (!game.spec_dbon_applies) {
         return (0);
@@ -1413,8 +1367,7 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
             /* We really want "on a natural 20" but Nethack does it in */
             wepdesc = "The razor-sharp blade";
             if (youattack && (game.u.uswallow && (game.u.ustuck == (mdef)))) {
-                /* not really beheading, but so close, why add another SPFX */
-                You("slice %s wide open!", mon_nam(mdef));
+                await You("slice %s wide open!", await mon_nam(mdef));
                 /* losing a level when at 0 is fatal */
                 dmgptr.value = 2 * mdef.mhp + 200;
                 /* Should amulets fall off? */
@@ -1427,20 +1380,20 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
                 }
                 if (((mdef.data).msize >= 3)) {
                     if (youattack) {
-                        You("slice deeply into %s!", mon_nam(mdef));
+                        await You("slice deeply into %s!", await mon_nam(mdef));
                     } else if (vis) {
-                        pline("%s cuts deeply into %s!", Monnam(magr), hittee);
+                        await pline("%s cuts deeply into %s!", await Monnam(magr), hittee);
                     }
                     dmgptr.value *= 2;
                     return (1);
                 }
                 dmgptr.value = 2 * mdef.mhp + 200;
-                pline("%s cuts %s in half!", wepdesc, mon_nam(mdef));
-                observe_object(otmp);
+                await pline("%s cuts %s in half!", wepdesc, await mon_nam(mdef));
+                await observe_object(otmp);
                 return (1);
             } else {
                 if (((game.youmonst.data).msize >= 3)) {
-                    pline("%s cuts deeply into you!", magr ? Monnam(magr) : wepdesc);
+                    await pline("%s cuts deeply into you!", magr ? await Monnam(magr) : wepdesc);
                     dmgptr.value *= 2;
                     return (1);
                 }
@@ -1450,8 +1403,8 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
                  * damage does not prevent death.
                  */
                 dmgptr.value = 2 * ((game.u.umonnum != game.u.umonster) ? game.u.mh : game.u.uhp) + 200;
-                pline("%s cuts you in half!", wepdesc);
-                observe_object(otmp);
+                await pline("%s cuts you in half!", wepdesc);
+                await observe_object(otmp);
                 return (1);
             }
         } else if (is_art(otmp, ART_VORPAL_BLADE) && (dieroll == 1 || mdef.data == game.mons[PM_JABBERWOCK])) {
@@ -1462,37 +1415,37 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
             if (!youdefend) {
                 if (!(((mdef.data).mflags1 & 32768) == 0) || game.notonhead || game.u.uswallow) {
                     if (youattack) {
-                        pline("Somehow, you miss %s wildly.", mon_nam(mdef));
+                        await pline("Somehow, you miss %s wildly.", await mon_nam(mdef));
                     } else if (vis) {
-                        pline("Somehow, %s misses wildly.", mon_nam(magr));
+                        await pline("Somehow, %s misses wildly.", await mon_nam(magr));
                     }
                     dmgptr.value = 0;
                     return (youattack || vis);
                 }
                 if (((mdef.data).mlet == S_GHOST) || (((mdef.data).mflags1 & 4) != 0)) {
-                    pline("%s slices through %s %s.", wepdesc, s_suffix(mon_nam(mdef)), mbodypart(mdef, NECK));
+                    await pline("%s slices through %s %s.", wepdesc, s_suffix(await mon_nam(mdef)), await mbodypart(mdef, NECK));
                     return (1);
                 }
                 dmgptr.value = 2 * mdef.mhp + 200;
-                pline(__artifact_hit_behead_msg[rn2((Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)))], wepdesc, mon_nam(mdef));
+                await pline(__artifact_hit_behead_msg[rn2((Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)))], wepdesc, await mon_nam(mdef));
                 if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !game.flags.female) {
-                    pline("Good job Henry, but that wasn't Anne.");
+                    await pline("Good job Henry, but that wasn't Anne.");
                 }
-                observe_object(otmp);
+                await observe_object(otmp);
                 return (1);
             } else {
                 if (!(((game.youmonst.data).mflags1 & 32768) == 0)) {
-                    pline("Somehow, %s misses you wildly.", magr ? mon_nam(magr) : wepdesc);
+                    await pline("Somehow, %s misses you wildly.", magr ? await mon_nam(magr) : wepdesc);
                     dmgptr.value = 0;
                     return (1);
                 }
                 if (((game.youmonst.data).mlet == S_GHOST) || (((game.youmonst.data).mflags1 & 4) != 0)) {
-                    pline("%s slices through your %s.", wepdesc, body_part(NECK));
+                    await pline("%s slices through your %s.", wepdesc, await body_part(NECK));
                     return (1);
                 }
                 dmgptr.value = 2 * ((game.u.umonnum != game.u.umonster) ? game.u.mh : game.u.uhp) + 200;
-                pline(__artifact_hit_behead_msg[rn2((Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)))], wepdesc, "you");
-                observe_object(otmp);
+                await pline(__artifact_hit_behead_msg[rn2((Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)))], wepdesc, "you");
+                await observe_object(otmp);
                 return (1);
             }
         }
@@ -1512,13 +1465,11 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
                 drain = (mhpmax > m_lev) ? (mhpmax - (m_lev + 1)) : 0;
             }
             if (vis) {
-                /* call distant_name() for possible side-effects even if
-                   the result won't be printed */
-                let otmpname = distant_name(otmp, xname);
+                let otmpname = await distant_name(otmp, xname);
                 if (is_art(otmp, ART_STORMBRINGER)) {
-                    pline_The("%s blade draws the %s from %s!", hcolor(c_color_names.c_black), life, mon_nam(mdef));
+                    await pline_The("%s blade draws the %s from %s!", hcolor(c_color_names.c_black), life, await mon_nam(mdef));
                 } else {
-                    pline("%s draws the %s from %s!", The(otmpname), life, mon_nam(mdef));
+                    await pline("%s draws the %s from %s!", await The(otmpname), life, await mon_nam(mdef));
                 }
             }
             if (mdef.m_lev == 0) {
@@ -1532,28 +1483,28 @@ export function artifact_hit(magr, mdef, otmp, dmgptr, dieroll) {
                 /* drain: was target's damage, now heal attacker by half */
                 drain = Math.trunc((drain + 1) / 2);
                 if (youattack) {
-                    healup(drain, 0, (0), (0));
+                    await healup(drain, 0, (0), (0));
                 } else {
                     (4 /* sizeof(int) */ , void 0 /* StmtExpr */);
-                    healmon(magr, drain, 0);
+                    await healmon(magr, drain, 0);
                 }
             }
             return vis;
         } else {
             let oldhpmax = game.u.uhpmax;
             if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                You_feel("an %s drain your %s!", is_art(otmp, ART_STORMBRINGER) ? "unholy blade" : "object", life);
+                await You_feel("an %s drain your %s!", is_art(otmp, ART_STORMBRINGER) ? "unholy blade" : "object", life);
             } else {
-                let otmpname = distant_name(otmp, xname);
+                let otmpname = await distant_name(otmp, xname);
                 if (is_art(otmp, ART_STORMBRINGER)) {
-                    pline_The("%s blade drains your %s!", hcolor(c_color_names.c_black), life);
+                    await pline_The("%s blade drains your %s!", hcolor(c_color_names.c_black), life);
                 } else {
-                    pline("%s drains your %s!", The(otmpname), life);
+                    await pline("%s drains your %s!", await The(otmpname), life);
                 }
             }
-            losexp("life drainage");
+            await losexp("life drainage");
             if (magr && magr.mhp < magr.mhpmax) {
-                healmon(magr, Math.trunc((abs(oldhpmax - game.u.uhpmax) + 1) / 2), 0);
+                await healmon(magr, Math.trunc((abs(oldhpmax - game.u.uhpmax) + 1) / 2), 0);
             }
             return (1);
         }
@@ -1579,43 +1530,43 @@ export function invoke_ok(obj) {
     return GETOBJ_EXCLUDE;
 }
 /* the #invoke command */
-export function doinvoke() {
+export async function doinvoke() {
     let obj = null;
-    obj = getobj("invoke", invoke_ok, 2);
+    obj = await getobj("invoke", invoke_ok, 2);
     if (!obj) {
         return 2;
     }
-    if (!retouch_object({ get value() { return obj; }, set value(_v) { obj = _v; } }, (0))) {
+    if (!await retouch_object({ get value() { return obj; }, set value(_v) { obj = _v; } }, (0))) {
         return 1;
     }
-    return arti_invoke(obj);
+    return await arti_invoke(obj);
 }
-export function nothing_special(obj) {
+export async function nothing_special(obj) {
     if (((obj).where == 3)) {
-        You_feel("a surge of power, but nothing seems to happen.");
+        await You_feel("a surge of power, but nothing seems to happen.");
     }
 }
-export function invoke_taming(obj) {
+export async function invoke_taming(obj) {
     let pseudo = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
     /* neither cursed nor blessed, zero oextra too */
     Object.assign(pseudo, cg.zeroobj);
     pseudo.otyp = SCR_TAMING;
-    seffects(pseudo);
+    await seffects(pseudo);
     return 1;
 }
-export function invoke_healing(obj) {
+export async function invoke_healing(obj) {
     let healamt = Math.trunc((game.u.uhpmax + 1 - game.u.uhp) / 2);
     let creamed = game.u.ucreamed;
     if ((game.u.umonnum != game.u.umonster)) {
         healamt = Math.trunc((game.u.mhmax + 1 - game.u.mh) / 2);
     }
     if (healamt || game.u.uprops[SICK].intrinsic || game.u.uprops[SLIMED].intrinsic || (game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked) > creamed) {
-        You_feel("better.");
+        await You_feel("better.");
     }
     if (healamt || game.u.uprops[SICK].intrinsic || game.u.uprops[SLIMED].intrinsic || (game.u.uprops[BLINDED].intrinsic & 16777215) > creamed) {
-        You_feel("%sbetter.", (!healamt && !game.u.uprops[SICK].intrinsic && !game.u.uprops[SLIMED].intrinsic && (game.u.uprops[BLINDED].intrinsic & ~16777215) != 0) ? "slightly " : "");
+        await You_feel("%sbetter.", (!healamt && !game.u.uprops[SICK].intrinsic && !game.u.uprops[SLIMED].intrinsic && (game.u.uprops[BLINDED].intrinsic & ~16777215) != 0) ? "slightly " : "");
     } else {
-        nothing_special(obj);
+        await nothing_special(obj);
         return 1;
     }
     if (healamt > 0) {
@@ -1630,18 +1581,18 @@ export function invoke_healing(obj) {
         }
     }
     if (game.u.uprops[SICK].intrinsic) {
-        make_sick(0, null, (0), 3);
+        await make_sick(0, null, (0), 3);
     }
     if (game.u.uprops[SLIMED].intrinsic) {
-        make_slimed(0, null);
+        await make_slimed(0, null);
     }
     if ((game.u.uprops[BLINDED].intrinsic & 16777215) > creamed) {
-        make_blinded(creamed, (0));
+        await make_blinded(creamed, (0));
     }
     game.disp.botl = (1);
     return 1;
 }
-export function invoke_energy_boost(obj) {
+export async function invoke_energy_boost(obj) {
     let epboost = Math.trunc((game.u.uenmax + 1 - game.u.uen) / 2);
     if (epboost > 120) {
         epboost = 120;
@@ -1651,43 +1602,43 @@ export function invoke_energy_boost(obj) {
     if (epboost) {
         game.u.uen += epboost;
         game.disp.botl = (1);
-        You_feel("re-energized.");
+        await You_feel("re-energized.");
     } else {
-        nothing_special(obj);
+        await nothing_special(obj);
         return 1;
     }
     return 1;
 }
-export function invoke_untrap(obj) {
-    if (!untrap((1), 0, 0, null)) {
+export async function invoke_untrap(obj) {
+    if (!await untrap((1), 0, 0, null)) {
         /* don't charge for changing their mind */
         obj.age = 0;
         return 2;
     }
     return 1;
 }
-export function invoke_charge_obj(obj) {
+export async function invoke_charge_obj(obj) {
     let oart = get_artifact(obj);
-    let otmp = getobj("charge", charge_ok, 2 | 1);
+    let otmp = await getobj("charge", charge_ok, 2 | 1);
     let b_effect = 0;
     if (!otmp) {
         obj.age = 0;
         return 2;
     }
     b_effect = (obj.blessed && (oart.role == (game.urole.mnum) || oart.role == NON_PM));
-    recharge(otmp, b_effect ? 1 : obj.cursed ? -1 : 0);
+    await recharge(otmp, b_effect ? 1 : obj.cursed ? -1 : 0);
     update_inventory();
     return 1;
 }
-export function invoke_create_portal(obj) {
+export async function invoke_create_portal(obj) {
     let i = 0;
     let num_ok_dungeons = 0;
     let last_ok_dungeon = 0;
     let newlev = { dnum: 0, dlevel: 0 };
     let tmpwin = (game.windowprocs.win_create_nhwindow)(4);
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let clr = 8;
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
     for (i = num_ok_dungeons = 0; i < game.n_dgns; i++) {
         /* use index+1 (can't use 0) as identifier */
@@ -1699,7 +1650,7 @@ export function invoke_create_portal(obj) {
             continue;
         }
         any.a_int = i + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, game.dungeons[i].dname, 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, game.dungeons[i].dname, 0);
         num_ok_dungeons++;
         last_ok_dungeon = i;
     }
@@ -1708,11 +1659,10 @@ export function invoke_create_portal(obj) {
         /* more than one entry; display menu for choices */
         let selected = null;
         let n = 0;
-        n = select_menu(tmpwin, 1, selected);
+        n = await select_menu(tmpwin, 1, selected);
         if (n <= 0) {
             (game.windowprocs.win_destroy_nhwindow)(tmpwin);
-            /* you had the property from some other source too */
-            nothing_special(obj);
+            await nothing_special(obj);
             return 1;
         }
         i = selected[0].item.a_int - 1;
@@ -1734,22 +1684,22 @@ export function invoke_create_portal(obj) {
     } else {
         newlev.dlevel = game.dungeons[i].dunlev_ureached;
     }
-    if (game.u.uhave.amulet || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) || ((newlev).dnum == (game.dungeon_topology.d_astral_level).dnum) || newlev.dnum == game.u.uz.dnum || !next_to_u()) {
-        You_feel("very disoriented for a moment.");
+    if (game.u.uhave.amulet || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) || ((newlev).dnum == (game.dungeon_topology.d_astral_level).dnum) || newlev.dnum == game.u.uz.dnum || !await next_to_u()) {
+        await You_feel("very disoriented for a moment.");
     } else {
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            You("are surrounded by a shimmering sphere!");
+            await You("are surrounded by a shimmering sphere!");
         } else {
-            You_feel("weightless for a moment.");
+            await You_feel("weightless for a moment.");
         }
-        goto_level(newlev, (0), (0), (0));
+        await goto_level(newlev, (0), (0), (0));
     }
     return 1;
 }
-export function invoke_create_ammo(obj) {
-    let otmp = mksobj(ARROW, (1), (0));
+export async function invoke_create_ammo(obj) {
+    let otmp = await mksobj(ARROW, (1), (0));
     if (!otmp) {
-        nothing_special(obj);
+        await nothing_special(obj);
         return 1;
     }
     otmp.blessed = obj.blessed;
@@ -1768,12 +1718,12 @@ export function invoke_create_ammo(obj) {
     } else {
         otmp.quan += rnd(5);
     }
-    otmp.owt = weight(otmp);
-    otmp = hold_another_object(otmp, "Suddenly %s out.", aobjnam(otmp, "fall"), null);
+    otmp.owt = await weight(otmp);
+    otmp = await hold_another_object(otmp, "Suddenly %s out.", await aobjnam(otmp, "fall"), null);
     ((otmp));
     return 1;
 }
-export function invoke_banish(obj) {
+export async function invoke_banish(obj) {
     let nvanished = 0;
     let nstayed = 0;
     let mtmp = null;
@@ -1810,9 +1760,9 @@ export function invoke_banish(obj) {
                 nvanished++;
                 /* banish to a random level in Gehennom */
                 dest.dlevel = rn2(dunlevs_in_dungeon(dest));
-                migrate_mon(mtmp, ledger_no(dest), 0);
+                await migrate_mon(mtmp, ledger_no(dest), 0);
             } else {
-                u_teleport_mon(mtmp, (0));
+                await u_teleport_mon(mtmp, (0));
             }
         } else {
             nstayed++;
@@ -1823,56 +1773,52 @@ export function invoke_banish(obj) {
         if (nvanished == 1) {
             subject = "demon";
         }
-        pline("%s %s %s in a cloud of brimstone!", nstayed ? ((nvanished > nstayed) ? "Most of the" : "Some of the") : "The", subject, vtense(subject, "disappear"));
+        await pline("%s %s %s in a cloud of brimstone!", nstayed ? ((nvanished > nstayed) ? "Most of the" : "Some of the") : "The", subject, await vtense(subject, "disappear"));
     }
     return 1;
 }
-export function invoke_fling_poison(obj) {
-    if (getdir(null)) {
+export async function invoke_fling_poison(obj) {
+    if (await getdir(null)) {
         let venom = rn2(2) ? BLINDING_VENOM : ACID_VENOM;
-        let otmp = mksobj(venom, (1), (0));
+        let otmp = await mksobj(venom, (1), (0));
         otmp.spe = 1;
-        throwit(otmp, 0, (0), null);
+        await throwit(otmp, 0, (0), null);
     } else {
-        pline("%s", c_common_strings.c_Never_mind);
+        await pline("%s", c_common_strings.c_Never_mind);
         obj.age = game.moves;
         return 2;
     }
     return 1;
 }
-export function invoke_storm_spell(obj) {
+export async function invoke_storm_spell(obj) {
     let oart = get_artifact(obj);
     let storm = oart.inv_prop == SNOWSTORM ? SPE_CONE_OF_COLD : SPE_FIREBALL;
     let skill = spell_skilltype(storm);
     let expertise = (game.u.weapon_skills[skill].skill);
     (game.u.weapon_skills[skill].skill) = P_EXPERT;
-    spelleffects(storm, (0), (1));
+    await spelleffects(storm, (0), (1));
     (game.u.weapon_skills[skill].skill) = expertise;
     return 1;
 }
-export function invoke_blinding_ray(obj) {
-    if (getdir(null)) {
+export async function invoke_blinding_ray(obj) {
+    if (await getdir(null)) {
         if (game.u.dx || game.u.dy) {
-            do_blinding_ray(obj);
+            await do_blinding_ray(obj);
         } else if (game.u.dz) {
-            /* up or down => light this map spot; litroom() uses
-               radius 0 for Sunsword, except on Rogue level where
-               whole room gets lit and corridor spots remain unlit */
-            litroom((1), obj);
-            pline("%s", ((!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && game.level.locations[game.u.ux][game.u.uy].lit && !game.level.locations[game.u.ux][game.u.uy].waslit) ? "It is lit here now." : c_common_strings.c_nothing_seems_to_happen));
+            await litroom((1), obj);
+            await pline("%s", ((!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && game.level.locations[game.u.ux][game.u.uy].lit && !game.level.locations[game.u.ux][game.u.uy].waslit) ? "It is lit here now." : c_common_strings.c_nothing_seems_to_happen));
         } else {
             let vulnerable = (game.u.umonnum == PM_GREMLIN);
             let damg = obj.blessed ? 15 : !obj.cursed ? 10 : 5;
-            /* could be fatal if Unchanging */
             if (vulnerable) {
-                lightdamage(obj, (1), 2 * damg);
+                await lightdamage(obj, (1), 2 * damg);
             }
-            if (!flashburn((damg + rnd(damg)), (0)) && !vulnerable) {
-                pline("%s", c_common_strings.c_nothing_seems_to_happen);
+            if (!await flashburn((damg + rnd(damg)), (0)) && !vulnerable) {
+                await pline("%s", c_common_strings.c_nothing_seems_to_happen);
             }
         }
     } else {
-        pline("%s", c_common_strings.c_Never_mind);
+        await pline("%s", c_common_strings.c_Never_mind);
         obj.age = game.moves;
         return 2;
     }
@@ -1889,19 +1835,17 @@ export function arti_invoke_cost_pw(obj) {
     return -1;
 }
 /* return TRUE if artifact object's invoke cost can be paid (and pay it) */
-export function arti_invoke_cost(obj) {
+export async function arti_invoke_cost(obj) {
     if (obj.age > game.moves) {
         let pw_cost = arti_invoke_cost_pw(obj);
         if (pw_cost < 0 || game.u.uen < pw_cost) {
-            /* the artifact is tired :-) */
-            You_feel("that %s %s ignoring you.", the(xname(obj)), otense(obj, "are"));
+            await You_feel("that %s %s ignoring you.", await the(await xname(obj)), await otense(obj, "are"));
             /* and just got more so; patience is essential... */
             /* can't just keep repeatedly trying */
             obj.age += d(3, 10);
             return (0);
         } else {
-            /* you pay invoke cost with your own magic */
-            You_feel("drained...");
+            await You_feel("drained...");
             game.u.uen -= pw_cost;
             game.disp.botl = (1);
         }
@@ -1910,72 +1854,71 @@ export function arti_invoke_cost(obj) {
     }
     return (1);
 }
-export function arti_invoke(obj) {
+export async function arti_invoke(obj) {
     let oart = null;
     let res = 0;
     if (!obj) {
-        impossible("arti_invoke without obj");
+        await impossible("arti_invoke without obj");
         return 0;
     }
     oart = get_artifact(obj);
     if (oart == artilist[ART_NONARTIFACT] || !oart.inv_prop) {
         if (obj.otyp == CRYSTAL_BALL) {
-            use_crystal_ball({ get value() { return obj; }, set value(_v) { obj = _v; } });
+            await use_crystal_ball({ get value() { return obj; }, set value(_v) { obj = _v; } });
         } else {
-            pline("%s", c_common_strings.c_nothing_happens);
+            await pline("%s", c_common_strings.c_nothing_happens);
         }
         return 1;
     }
     if (oart.inv_prop > LAST_PROP) {
-        /* It's a special power, not "just" a property */
-        if (!arti_invoke_cost(obj)) {
+        if (!await arti_invoke_cost(obj)) {
             return 1;
         }
         switch (oart.inv_prop) {
             case TAMING:
-                res = invoke_taming(obj);
+                res = await invoke_taming(obj);
                 break;
             case HEALING:
-                res = invoke_healing(obj);
+                res = await invoke_healing(obj);
                 break;
             case ENERGY_BOOST:
-                res = invoke_energy_boost(obj);
+                res = await invoke_energy_boost(obj);
                 break;
             case UNTRAP:
-                res = invoke_untrap(obj);
+                res = await invoke_untrap(obj);
                 break;
             case CHARGE_OBJ:
-                res = invoke_charge_obj(obj);
+                res = await invoke_charge_obj(obj);
                 break;
             case LEV_TELE:
-                level_tele();
+                await level_tele();
                 res = 1;
                 break;
             case CREATE_PORTAL:
-                res = invoke_create_portal(obj);
+                res = await invoke_create_portal(obj);
                 break;
             case ENLIGHTENING:
-                enlightenment(2, 0);
+                await enlightenment(2, 0);
                 res = 1;
                 break;
             case CREATE_AMMO:
-                res = invoke_create_ammo(obj);
+                res = await invoke_create_ammo(obj);
                 break;
             case BANISH:
-                res = invoke_banish(obj);
+                res = await invoke_banish(obj);
                 break;
             case FLING_POISON:
-                res = invoke_fling_poison(obj);
+                res = await invoke_fling_poison(obj);
                 break;
             case SNOWSTORM:
             case FIRESTORM:
-                res = invoke_storm_spell(obj);
+                res = await invoke_storm_spell(obj);
                 break;
             case BLINDING_RAY:
-                res = invoke_blinding_ray(obj);
+                res = await invoke_blinding_ray(obj);
                 break;
             default:
-                impossible("Unknown invoke power %d.", oart.inv_prop);
+                await impossible("Unknown invoke power %d.", oart.inv_prop);
                 break;
         }
         return res;
@@ -1985,7 +1928,7 @@ export function arti_invoke(obj) {
         let on = (eprop & 8192) != 0;
         if (on && obj.age > game.moves) {
             game.u.uprops[oart.inv_prop].extrinsic ^= 8192;
-            You_feel("that %s %s ignoring you.", the(xname(obj)), otense(obj, "are"));
+            await You_feel("that %s %s ignoring you.", await the(await xname(obj)), await otense(obj, "are"));
             obj.age += d(3, 10);
             return 1;
         } else if (!on) {
@@ -1994,35 +1937,35 @@ export function arti_invoke(obj) {
             obj.age = game.moves + rnz(100);
         }
         if ((eprop & ~8192) || iprop) {
-            nothing_special(obj);
+            await nothing_special(obj);
             return 1;
         }
         switch (oart.inv_prop) {
             case CONFLICT:
                 if (on) {
-                    You_feel("like a rabble-rouser.");
+                    await You_feel("like a rabble-rouser.");
                 } else {
-                    You_feel("the tension decrease around you.");
+                    await You_feel("the tension decrease around you.");
                 }
                 break;
             case LEVITATION:
                 if (on) {
-                    float_up();
-                    spoteffects((0));
+                    await float_up();
+                    await spoteffects((0));
                 } else {
-                    float_down(536870912 | 16777215, 8192);
+                    await float_down(536870912 | 16777215, 8192);
                 }
                 break;
             case INVIS:
                 if (game.u.uprops[INVIS].blocked || ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    nothing_special(obj);
+                    await nothing_special(obj);
                     return 1;
                 }
-                newsym(game.u.ux, game.u.uy);
+                await newsym(game.u.ux, game.u.uy);
                 if (on) {
-                    Your("body takes on a %s transparency...", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "normal" : "strange");
+                    await Your("body takes on a %s transparency...", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "normal" : "strange");
                 } else {
-                    Your("body seems to unfade...");
+                    await Your("body seems to unfade...");
                 }
                 break;
         }
@@ -2061,7 +2004,7 @@ export function artifact_light(obj) {
     return ((get_artifact(obj) != artilist[ART_NONARTIFACT]) && is_art(obj, ART_SUNSWORD));
 }
 /* KMH -- Talking artifacts are finally implemented */
-export function arti_speak(obj) {
+export async function arti_speak(obj) {
     let oart = get_artifact(obj);
     let line = null;
     let buf = '';
@@ -2069,13 +2012,13 @@ export function arti_speak(obj) {
     if (oart == artilist[ART_NONARTIFACT] || !(oart.spfx & 8)) {
         return 0;
     }
-    line = getrumor(bcsign(obj), buf, (1));
+    line = await getrumor(bcsign(obj), buf, (1));
     if (!__nh_char_at0(line)) {
         line = "NetHack rumors file closed for renovation.";
     }
-    pline("%s:", Tobjnam(obj, "whisper"));
+    await pline("%s:", await Tobjnam(obj, "whisper"));
     ;
-    verbalize("%s", line);
+    await verbalize("%s", line);
     return 1;
 }
 export function artifact_has_invprop(otmp, inv_prop) {
@@ -2174,6 +2117,7 @@ export function glow_strength(count) {
 }
 /* 0 means blind rather than no applicable creatures */
 let __glow_verb_resbuf = '';
+__nh_register_static(() => { __glow_verb_resbuf = ''; });
 export function glow_verb(count, ingsfx) {
     __glow_verb_resbuf = strcpy(__glow_verb_resbuf, glow_verbs[glow_strength(count)]);
     /* ing_suffix() will double the last consonant for all the words
@@ -2186,27 +2130,21 @@ export function glow_verb(count, ingsfx) {
 /* use for warning "glow" for Sting, Orcrist, and Grimtooth */
 /* new count (warn_obj_cnt is old count);
                     * -1 is a flag value */
-export function Sting_effects(orc_count) {
+export async function Sting_effects(orc_count) {
     if (is_art(game.uwep, ART_STING) || is_art(game.uwep, ART_ORCRIST) || is_art(game.uwep, ART_GRIMTOOTH)) {
         let oldstr = glow_strength(game.warn_obj_cnt);
         let newstr = glow_strength(orc_count);
         if (orc_count == -1 && game.warn_obj_cnt > 0) {
-            /* -1 means that blindness has just been toggled; give a
-               'continue' message that eventual 'stop' message will match */
-            pline("%s is %s.", bare_artifactname(game.uwep), glow_verb(((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? 0 : game.warn_obj_cnt, (1)));
+            await pline("%s is %s.", await bare_artifactname(game.uwep), glow_verb(((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? 0 : game.warn_obj_cnt, (1)));
         } else if (newstr > 0 && newstr != oldstr) {
-            /* goto_level() -> docrt() -> see_monsters() -> Sting_effects();
-               if "you materialize on a different level" is pending, give
-               it now so that start-glowing message comes after it */
-            /* usually called by goto_level() */
-            maybe_lvltport_feedback();
+            await maybe_lvltport_feedback();
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                pline("%s %s %s%c", bare_artifactname(game.uwep), otense(game.uwep, glow_verb(orc_count, (0))), glow_color(game.uwep.oartifact), (newstr > oldstr) ? 33 : 46);
+                await pline("%s %s %s%c", await bare_artifactname(game.uwep), await otense(game.uwep, glow_verb(orc_count, (0))), glow_color(game.uwep.oartifact), (newstr > oldstr) ? 33 : 46);
             } else if (oldstr == 0) {
-                pline("%s %s slightly.", bare_artifactname(game.uwep), otense(game.uwep, glow_verb(0, (0))));
+                await pline("%s %s slightly.", await bare_artifactname(game.uwep), await otense(game.uwep, glow_verb(0, (0))));
             }
         } else if (orc_count == 0 && game.warn_obj_cnt > 0) {
-            pline("%s stops %s.", bare_artifactname(game.uwep), glow_verb(((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? 0 : game.warn_obj_cnt, (1)));
+            await pline("%s stops %s.", await bare_artifactname(game.uwep), glow_verb(((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? 0 : game.warn_obj_cnt, (1)));
         }
     }
 }
@@ -2215,27 +2153,24 @@ export function Sting_effects(orc_count) {
    polymorph) which might affect item access */
 /* might be destroyed or unintentionally dropped */
 /* whether to drop it if hero can longer touch it */
-export function retouch_object(objp, loseit) {
+export async function retouch_object(objp, loseit) {
     let obj = objp.value;
     if (obj.otyp == BELL_OF_OPENING && invocation_pos(game.u.ux, game.u.uy) && !On_stairs(game.u.ux, game.u.uy)) {
         return 1;
     }
-    if (touch_artifact(obj, game.youmonst)) {
+    if (await touch_artifact(obj, game.youmonst)) {
         let buf = '';
         let dmg = 0;
         let tmp = 0;
         let ag = (game.objects[obj.otyp].oc_material == SILVER && (game.u.ulycn >= LOW_PM || hates_silver(game.youmonst.data)));
-        let bane = bane_applies(get_artifact(obj), game.youmonst);
+        let bane = await bane_applies(get_artifact(obj), game.youmonst);
         /* nothing else to do if hero can successfully handle this object */
         if (!ag && !bane) {
             return 1;
         }
-        /* hero can't handle this object, but didn't get touch_artifact()'s
-           "<obj> evades your grasp|control" message; give an alternate one */
-        You_cant("handle %s%s!", yname(obj), obj.owornmask ? " anymore" : "");
+        await You_cant("handle %s%s!", await yname(obj), obj.owornmask ? " anymore" : "");
         if (!game.touch_blasted) {
-            /* also inflict damage unless touch_artifact() already did so */
-            let what = killer_xname(obj);
+            let what = await killer_xname(obj);
             if (ag && !obj.oartifact && !bane) {
                 /* 'obj' is silver; for rings and wands it ended up that
                    way due to randomization at start of game; showing this
@@ -2257,8 +2192,8 @@ export function retouch_object(objp, loseit) {
                 dmg += rnd(10);
             }
             buf = sprintf(buf, "handling %s", what);
-            losehp(dmg, buf, 1);
-            exercise(A_CON, (0));
+            await losehp(dmg, buf, 1);
+            await exercise(A_CON, (0));
         }
     }
     if (obj.owornmask) {
@@ -2266,7 +2201,7 @@ export function retouch_object(objp, loseit) {
        dropping the hero onto a polymorph trap or into water or
        lava and potentially dropping or destroying the item */
         let otmp = null;
-        remove_worn_item(obj, (0));
+        await remove_worn_item(obj, (0));
         for (otmp = game.invent; otmp; otmp = otmp.nobj) {
             if (otmp == obj) {
                 break;
@@ -2278,16 +2213,15 @@ export function retouch_object(objp, loseit) {
     }
     if (loseit && obj) {
         if (((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked)) {
-            /* if we still have it and caller wants us to drop it, do so now */
-            freeinv(obj);
-            hitfloor(obj, (1));
+            await freeinv(obj);
+            await hitfloor(obj, (1));
         } else {
             /* dropx gives a message if a dropped item lands on an altar;
                we provide one for other terrain */
             if (!((game.level.locations[game.u.ux][game.u.uy].typ) == ALTAR)) {
-                pline("%s to the %s.", Tobjnam(obj, "fall"), surface(game.u.ux, game.u.uy));
+                await pline("%s to the %s.", await Tobjnam(obj, "fall"), surface(game.u.ux, game.u.uy));
             }
-            dropx(obj);
+            await dropx(obj);
         }
         objp.value = obj = null;
     }
@@ -2299,7 +2233,7 @@ export function retouch_object(objp, loseit) {
    if it fails, it will be unworn/unwielded and maybe dropped */
 /* object to test; in invent or is steed's saddle */
 /* whether to drop it if it can't be touched */
-export function untouchable(obj, drop_untouchable) {
+export async function untouchable(obj, drop_untouchable) {
     let art = null;
     let beingworn = 0;
     let carryeffect = 0;
@@ -2316,14 +2250,9 @@ export function untouchable(obj, drop_untouchable) {
         carryeffect = invoked = (0);
     }
     if (beingworn || carryeffect || invoked) {
-        if (!retouch_object({ get value() { return obj; }, set value(_v) { obj = _v; } }, drop_untouchable)) {
-            /* "<artifact> is beyond your control" or "you can't handle
-               <object>" has been given and it is now unworn/unwielded
-               and possibly dropped (depending upon caller); if dropped,
-               carried effect was turned off, else we leave that alone;
-               we turn off invocation property here if still carried */
+        if (!await retouch_object({ get value() { return obj; }, set value(_v) { obj = _v; } }, drop_untouchable)) {
             if (invoked && obj) {
-                arti_invoke(obj);
+                await arti_invoke(obj);
             }
             return (1);
         }
@@ -2333,7 +2262,8 @@ export function untouchable(obj, drop_untouchable) {
 /* check all items currently in use (mostly worn) for touchability */
 /* 0==don't drop, 1==drop all, 2==drop weapon */
 let __retouch_equipment_nesting = 0;
-export function retouch_equipment(dropflag) {
+__nh_register_static(() => { __retouch_equipment_nesting = 0; });
+export async function retouch_equipment(dropflag) {
     let obj = null;
     let dropit = 0;
     let had_gloves = (game.uarmg != null);
@@ -2357,20 +2287,16 @@ export function retouch_equipment(dropflag) {
         /* check secondary weapon first, before possibly unwielding primary */
         /* so loop below won't process it again */
         bypass_obj(game.uswapwep);
-        untouchable(game.uswapwep, dropit);
+        await untouchable(game.uswapwep, dropit);
     }
     if (game.uwep) {
         /* check primary weapon next so that they're handled together */
         bypass_obj(game.uwep);
-        untouchable(game.uwep, dropit);
+        await untouchable(game.uwep, dropit);
     }
-    if (game.u.usteed && (obj = which_armor(game.u.usteed, 1048576)) != null) {
-        /* in case someone is daft enough to add artifact or silver saddle */
-        /* untouchable() calls retouch_object() which expects an object in
-           hero's inventory, but remove_worn_item() will be harmless for
-           saddle and we're suppressing drop, so this works as intended */
-        if (untouchable(obj, (0))) {
-            dismount_steed(DISMOUNT_THROWN);
+    if (game.u.usteed && (obj = await which_armor(game.u.usteed, 1048576)) != null) {
+        if (await untouchable(obj, (0))) {
+            await dismount_steed(DISMOUNT_THROWN);
         }
     }
     /*
@@ -2386,14 +2312,13 @@ export function retouch_equipment(dropflag) {
        gi.invent chain each time it moves on to another object; we use bypass
        handling to keep track of which items have already been processed */
     while ((obj = nxt_unbypassed_obj(game.invent)) != null) {
-        untouchable(obj, dropit);
+        await untouchable(obj, dropit);
     }
     if (had_rings != (!!game.uleft + !!game.uright) && game.uarmg && game.uarmg.cursed) {
-        uncurse(game.uarmg);
+        await uncurse(game.uarmg);
     }
-    /* temporary? hack for ring removal plausibility */
     if (had_gloves && !game.uarmg) {
-        selftouch("After losing your gloves, you");
+        await selftouch("After losing your gloves, you");
     }
     if (!--__retouch_equipment_nesting) {
         clear_bypasses();
@@ -2448,13 +2373,13 @@ export function count_surround_traps(x, y) {
 }
 /* sense adjacent traps if wielding MKoT without wearing gloves */
 const __mkot_trap_warn_heat = ["cool", "slightly warm", "warm", "very warm", "hot", "very hot", "like fire"];
-export function mkot_trap_warn() {
+export async function mkot_trap_warn() {
     if (!game.uarmg && is_art(game.uwep, ART_MASTER_KEY_OF_THIEVERY)) {
         let idx = 0;
         let ntraps = count_surround_traps(game.u.ux, game.u.uy);
         if (ntraps != game.mkot_trap_warn_count) {
             idx = ((ntraps) < ((Math.trunc(7 /* sizeof(const char *const [7]) */ / 1 /* sizeof(const char *const) */)) - 1) ? (ntraps) : ((Math.trunc(7 /* sizeof(const char *const [7]) */ / 1 /* sizeof(const char *const) */)) - 1));
-            pline_The("Key feels %s%c", __mkot_trap_warn_heat[idx], (ntraps > 3) ? 33 : 46);
+            await pline_The("Key feels %s%c", __mkot_trap_warn_heat[idx], (ntraps > 3) ? 33 : 46);
         }
         game.mkot_trap_warn_count = ntraps;
     } else {
@@ -2519,7 +2444,21 @@ export function permapoisoned(obj) {
 }
 /* SFCTOOL */
 /*artifact.c*/
+/* make an appropriate object if necessary, then christen it */
+/* 'by_align' indicates that an alignment was passed as
+             * an argument, but also that the 'otmp' argument is not
+             * relevant */
+/* nonnull value of 'otmp' is unexpected. Cope. */
+/* just in case; avoid orphaning */
+/* set existence and reason for creation bits */
+/* nothing appropriate could be found; return original object */
+/* (there shouldn't have been an original object). Deal with it.
+             * The callers that passed an alignment and a NULL otmp are
+             * prepared to get a potential NULL return value, so this is okay */
 /* otherwise, otmp has not changed; just fallthrough to return it */
+/* 'exists' bit will become set (in artifact_origin();
+                       there's no ONAME_ flag) and flgs might also contain
+                       the know_arti bit (hero knows that artifact exists) */
 /* artifacts aren't created in containers but could be
                     inside one if it comes from a bones level */
 /* perhaps probing, or seeing monster wield artifact */
@@ -2533,7 +2472,63 @@ export function permapoisoned(obj) {
 /* confers speed so blocks speed removal */
 /* petrification resistance */
 /* SILVER_DRAGON_SCALES don't resist any particular attack type */
+/* make_hallucinated must (re)set the mask itself to get
+         * the display right */
+/* restoring needed because this is the only artifact intrinsic
+         * that can print a message--need to guard against being printed
+         * when restoring a game
+         */
+/* weapons which attack specific categories of monsters are
+       bad for them even if their alignments happen to match */
+/* magic damage, not physical */
+/* can pick it up unless you're totally non-synch'd with the artifact */
+/* no need for an extra check for `NO_ATTK' because this will
+       always return 0 for any artifact which has that attribute */
+/* Grimtooth has SPFX settings to warn against elves but we want its
+           damage bonus to apply to all targets, so bypass spec_applies() */
+/* there is one slot per artifact, so we should never reach the
+       end without either finding the artifact or an empty slot... */
 /* .exists and .found have different punctuation because
                    they're expected to be combined with one of these */
 /* 'tmpwin' here is a text window, not a menu */
 /* "The Platinum Yendorian Express Card" is 35 characters */
+/* canceled shapeshifter/vamp may have changed forms, so
+                   update its name if necessary */
+/* The following takes care of most of the damage, but not all--
+     * the exception being for level draining, which is specially
+     * handled.  Messages are done in this function, however.
+     */
+/* feel the effect even if not seen */
+/* the four basic attacks: fire, cold, shock and missiles */
+/* Magicbane's special attacks (possibly modifies hittee[]) */
+/* not really beheading, but so close, why add another SPFX */
+/* call distant_name() for possible side-effects even if
+                   the result won't be printed */
+/* up or down => light this map spot; litroom() uses
+               radius 0 for Sunsword, except on Rogue level where
+               whole room gets lit and corridor spots remain unlit */
+/* could be fatal if Unchanging */
+/* the artifact is tired :-) */
+/* you pay invoke cost with your own magic */
+/* It's a special power, not "just" a property */
+/* you had the property from some other source too */
+/* -1 means that blindness has just been toggled; give a
+               'continue' message that eventual 'stop' message will match */
+/* goto_level() -> docrt() -> see_monsters() -> Sting_effects();
+               if "you materialize on a different level" is pending, give
+               it now so that start-glowing message comes after it */
+/* usually called by goto_level() */
+/* hero can't handle this object, but didn't get touch_artifact()'s
+           "<obj> evades your grasp|control" message; give an alternate one */
+/* also inflict damage unless touch_artifact() already did so */
+/* if we still have it and caller wants us to drop it, do so now */
+/* "<artifact> is beyond your control" or "you can't handle
+               <object>" has been given and it is now unworn/unwielded
+               and possibly dropped (depending upon caller); if dropped,
+               carried effect was turned off, else we leave that alone;
+               we turn off invocation property here if still carried */
+/* in case someone is daft enough to add artifact or silver saddle */
+/* untouchable() calls retouch_object() which expects an object in
+           hero's inventory, but remove_worn_item() will be harmless for
+           saddle and we're suppressing drop, so this works as intended */
+/* temporary? hack for ring removal plausibility */

@@ -17,12 +17,12 @@ game.rect_cnt = 0;
  * Initialization of internal structures. Should be called for every
  * new level to be build...
  */
-export function init_rect() {
+export async function init_rect() {
     if (!game.rect) {
         game.n_rects = Math.trunc((80 * 21) / 30);
         game.rect = alloc(1 /* sizeof(NhRect) */ * game.n_rects);
         if (!game.rect) {
-            panic("Could not alloc rect");
+            await panic("Could not alloc rect");
         }
     }
     game.rect_cnt = 1;
@@ -126,9 +126,9 @@ export function remove_rect(r) {
 /*
  * Add a NhRect to the list.
  */
-export function add_rect(r) {
+export async function add_rect(r) {
     if (game.rect_cnt >= game.n_rects) {
-        impossible("n_rects may be too small.");
+        await impossible("n_rects may be too small.");
         return;
     }
     /* Check that this NhRect is not included in another one */
@@ -144,7 +144,7 @@ export function add_rect(r) {
  * What we want is to allocate r2, that is split r1 into smaller rectangles
  * then remove it.
  */
-export function split_rects(r1, r2) {
+export async function split_rects(r1, r2) {
     let r = { lx: 0, ly: 0, hx: 0, hy: 0 };
     let old_r = { lx: 0, ly: 0, hx: 0, hy: 0 };
     let i = 0;
@@ -153,28 +153,28 @@ export function split_rects(r1, r2) {
     /* Walk down since rect_cnt & rect[] will change... */
     for (i = game.rect_cnt - 1; i >= 0; i--) {
         if (intersect(game.rect[i], r2, r)) {
-            split_rects(game.rect[i], r);
+            await split_rects(game.rect[i], r);
         }
     }
     if (r2.ly - old_r.ly - 1 > (old_r.hy < 21 - 1 ? 2 * 3 : 3 + 1) + 4) {
         Object.assign(r, old_r);
         r.hy = r2.ly - 2;
-        add_rect(r);
+        await add_rect(r);
     }
     if (r2.lx - old_r.lx - 1 > (old_r.hx < 80 - 1 ? 2 * 4 : 4 + 1) + 4) {
         Object.assign(r, old_r);
         r.hx = r2.lx - 2;
-        add_rect(r);
+        await add_rect(r);
     }
     if (old_r.hy - r2.hy - 1 > (old_r.ly > 0 ? 2 * 3 : 3 + 1) + 4) {
         Object.assign(r, old_r);
         r.ly = r2.hy + 2;
-        add_rect(r);
+        await add_rect(r);
     }
     if (old_r.hx - r2.hx - 1 > (old_r.lx > 0 ? 2 * 4 : 4 + 1) + 4) {
         Object.assign(r, old_r);
         r.lx = r2.hx + 2;
-        add_rect(r);
+        await add_rect(r);
     }
 }
 /*rect.c*/

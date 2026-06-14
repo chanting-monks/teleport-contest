@@ -127,7 +127,7 @@ export function veggy_item(obj, otyp) {
     }
     return (0);
 }
-export function shkveg() {
+export async function shkveg() {
     let i = 0;
     let j = 0;
     let maxprob = 0;
@@ -146,7 +146,7 @@ export function shkveg() {
         }
     }
     if (maxprob < 1) {
-        panic("shkveg no veggy objects");
+        await panic("shkveg no veggy objects");
     }
     prob = rnd(maxprob);
     j = 0;
@@ -156,38 +156,38 @@ export function shkveg() {
         i = ok[j];
     }
     if (game.objects[i].oc_class != oclass || !(game.obj_descr[(game.objects[i]).oc_name_idx].oc_name)) {
-        panic("shkveg probtype error, oclass=%d i=%d", oclass, i);
+        await panic("shkveg probtype error, oclass=%d i=%d", oclass, i);
     }
     return i;
 }
 /* make a random item for health food store */
-export function mkveggy_at(sx, sy) {
-    let obj = mksobj_at(shkveg(), sx, sy, (1), (1));
+export async function mkveggy_at(sx, sy) {
+    let obj = await mksobj_at(await shkveg(), sx, sy, (1), (1));
     if (obj && obj.otyp == TIN) {
         set_tin_variety(obj, (-3));
     }
     return;
 }
 /* make an object of the appropriate type for a shop square */
-export function mkshobj_at(shp, sx, sy, mkspecl) {
+export async function mkshobj_at(shp, sx, sy, mkspecl) {
     let mtmp = null;
     let ptr = null;
     let atype = 0;
     if (mkspecl && (!strcmp(shp.name, "rare books") || !strcmp(shp.name, "second-hand bookstore"))) {
-        let novel = mksobj_at(SPE_NOVEL, sx, sy, (0), (0));
+        let novel = await mksobj_at(SPE_NOVEL, sx, sy, (0), (0));
         if (novel) {
             game.context.tribute.bookstock = (1);
         }
         return;
     }
-    if (rn2(100) < depth(game.u.uz) && !(game.level.monsters[sx][sy] != null) && (ptr = mkclass(S_MIMIC, 0)) != null && (mtmp = makemon(ptr, sx, sy, 0)) != null) {} else {
+    if (rn2(100) < depth(game.u.uz) && !(game.level.monsters[sx][sy] != null) && (ptr = await mkclass(S_MIMIC, 0)) != null && (mtmp = await makemon(ptr, sx, sy, 0)) != null) {} else {
         atype = get_shop_item((shp - shtypes));
         if (atype == (MAXOCLASSES + 1)) {
-            mkveggy_at(sx, sy);
+            await mkveggy_at(sx, sy);
         } else if (atype < 0) {
-            mksobj_at(-atype, sx, sy, (1), (1));
+            await mksobj_at(-atype, sx, sy, (1), (1));
         } else {
-            mkobj_at(atype, sx, sy, (1));
+            await mkobj_at(atype, sx, sy, (1));
         }
     }
 }
@@ -321,7 +321,7 @@ export function good_shopdoor(sroom, sx, sy) {
     return -1;
 }
 /* create a new shopkeeper in the given room */
-export function shkinit(shp, sroom) {
+export async function shkinit(shp, sroom) {
     let sh = 0;
     /*
      * Someday soon we'll dispatch on the shdist field of shclass to do
@@ -340,22 +340,21 @@ export function shkinit(shp, sroom) {
             /* Said to happen sometimes, but I have never seen it. */
             /* Supposedly fixed by fdoor change in mklev.c */
             let j = sroom.doorct;
-            impossible("Where is shopdoor?");
-            pline("Room at (%d,%d),(%d,%d).", sroom.lx, sroom.ly, sroom.hx, sroom.hy);
-            pline("doormax=%d doorct=%d fdoor=%d", game.doorindex, sroom.doorct, sh);
+            await impossible("Where is shopdoor?");
+            await pline("Room at (%d,%d),(%d,%d).", sroom.lx, sroom.ly, sroom.hx, sroom.hy);
+            await pline("doormax=%d doorct=%d fdoor=%d", game.doorindex, sroom.doorct, sh);
             while (j--) {
-                pline("door [%d,%d]", game.doors[sh].x, game.doors[sh].y);
+                await pline("door [%d,%d]", game.doors[sh].x, game.doors[sh].y);
                 sh++;
             }
-            (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+            await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
         }
         return -1;
     }
     if ((game.level.monsters[sx][sy] != null)) {
-        rloc((game.level.monsters[sx][sy]), 4);
+        await rloc((game.level.monsters[sx][sy]), 4);
     }
-    /* now initialize the shopkeeper monster structure */
-    if (!(shk = makemon(game.mons[PM_SHOPKEEPER], sx, sy, 512))) {
+    if (!(shk = await makemon(game.mons[PM_SHOPKEEPER], sx, sy, 512))) {
         return -1;
     }
     /* makemon(...,MM_ESHK) allocates this */
@@ -369,20 +368,20 @@ export function shkinit(shp, sroom) {
     sroom.resident = shk;
     eshkp.shoptype = sroom.rtype;
     assign_level(eshkp.shoplevel, game.u.uz);
-    eshkp.shd = game.doors[sh];
+    Object.assign(eshkp.shd, game.doors[sh]);
     eshkp.shk.x = sx;
     eshkp.shk.y = sy;
     eshkp.robbed = eshkp.credit = eshkp.debit = eshkp.loan = 0;
     eshkp.following = eshkp.surcharge = eshkp.dismiss_kops = (0);
     eshkp.billct = eshkp.visitct = 0;
     eshkp.bill_p = null;
-    eshkp.customer[0] = 0;
-    mkmonmoney(shk, 1000 + 30 * rnd(100));
+    eshkp.customer = '';
+    await mkmonmoney(shk, 1000 + 30 * rnd(100));
     if (shp.shknms == shkrings) {
-        mongets(shk, TOUCHSTONE);
+        await mongets(shk, TOUCHSTONE);
     }
     if (shp.shknms == shktools || shp.shknms == shkwands || (shp.shknms == shkrings && rn2(2)) || (shp.shknms == shkgeneral && rn2(5))) {
-        mongets(shk, SCR_CHARGING);
+        await mongets(shk, SCR_CHARGING);
     }
     nameshk(shk, shp.shknms);
     return sh;
@@ -402,7 +401,7 @@ export function stock_room_goodpos(sroom, rmno, sh, sx, sy) {
     return (1);
 }
 /* stock a newly-created room with objects */
-export function stock_room(shp_indx, sroom) {
+export async function stock_room(shp_indx, sroom) {
     let sx = 0;
     let sy = 0;
     let sh = 0;
@@ -411,8 +410,7 @@ export function stock_room(shp_indx, sroom) {
     let buf = '';
     let rmno = ((game.rooms.indexOf(sroom)) + 3);
     let shp = shtypes[shp_indx];
-    /* first, try to place a shopkeeper in the room */
-    if ((sh = shkinit(shp, sroom)) < 0) {
+    if ((sh = await shkinit(shp, sroom)) < 0) {
         return;
     }
     /* make sure no doorways without doors, and no trapped doors, in shops */
@@ -420,11 +418,11 @@ export function stock_room(shp_indx, sroom) {
     sy = game.doors[sroom.fdoor].y;
     if (game.level.locations[sx][sy].flags == 0) {
         game.level.locations[sx][sy].flags = 2;
-        newsym(sx, sy);
+        await newsym(sx, sy);
     }
     if (game.level.locations[sx][sy].typ == SDOOR) {
         cvt_sdoor_to_door(game.level.locations[sx][sy]);
-        newsym(sx, sy);
+        await newsym(sx, sy);
     }
     if (game.level.locations[sx][sy].flags & 16) {
         game.level.locations[sx][sy].flags = 8;
@@ -443,7 +441,7 @@ export function stock_room(shp_indx, sroom) {
             n++;
         }
         buf = sprintf(buf, "Closed for inventory");
-        make_engr_at(m, n, buf, null, 0, 1);
+        await make_engr_at(m, n, buf, null, 0, 1);
         if (game.level.locations[m][n].typ != CORR && game.level.locations[m][n].typ != ROOM) {
             game.level.locations[m][n].typ = (Is_special(game.u.uz) || in_rooms(m, n, 0)) ? ROOM : CORR;
         }
@@ -467,18 +465,13 @@ export function stock_room(shp_indx, sroom) {
         for (sy = sroom.ly; sy <= sroom.hy; sy++) {
             if (stock_room_goodpos(sroom, rmno, sh, sx, sy)) {
                 stockcount++;
-                mkshobj_at(shp, sx, sy, ((stockcount) && (stockcount == specialspot)));
+                await mkshobj_at(shp, sx, sy, ((stockcount) && (stockcount == specialspot)));
             }
         }
     }
     if (on_level(game.u.uz, (game.dungeon_topology.d_orcus_level))) {
-        /*
-     * Special monster placements (if any) should go here: that way,
-     * monsters will sit on top of objects and not the other way around.
-     */
-        /* Hack for Orcus's level: it's a ghost town, get rid of shopkeepers */
-        let mtmp = shop_keeper(rmno);
-        mongone(mtmp);
+        let mtmp = await shop_keeper(rmno);
+        await mongone(mtmp);
     }
     game.level.flags.has_shop = (1);
 }
@@ -515,8 +508,8 @@ export function get_shop_item(type) {
     return shp.iprobs[i].itype;
 }
 /* version of shkname() for beginning of sentence */
-export function Shknam(mtmp) {
-    let nam = shkname(mtmp);
+export async function Shknam(mtmp) {
+    let nam = await shkname(mtmp);
     /* 'nam[]' is almost certainly already capitalized, but be sure */
     nam = (() => { const __s = nam; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
     return nam;
@@ -524,17 +517,16 @@ export function Shknam(mtmp) {
 /* shopkeeper's name, without any visibility constraint; if hallucinating,
    will yield some other shopkeeper's name (not necessarily one residing
    in the current game's dungeon, or who keeps same type of shop) */
-export function shkname(mtmp) {
+export async function shkname(mtmp) {
     let nam = null;
     let save_isshk = mtmp.isshk;
     mtmp.isshk = 0;
-    /* get a modifiable name buffer along with fallback result */
-    nam = noit_mon_nam(mtmp);
+    nam = await noit_mon_nam(mtmp);
     mtmp.isshk = save_isshk;
     if (!mtmp.isshk) {
-        impossible("shkname: \"%s\" is not a shopkeeper.", nam);
+        await impossible("shkname: \"%s\" is not a shopkeeper.", nam);
     } else if (!((mtmp).mextra && ((mtmp).mextra.eshk))) {
-        panic("shkname: shopkeeper \"%s\" lacks 'eshk' data.", nam);
+        await panic("shkname: shopkeeper \"%s\" lacks 'eshk' data.", nam);
     } else {
         let shknm = ((mtmp).mextra.eshk).shknam;
         if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !game.program_state.gameover) {
@@ -588,3 +580,11 @@ export function is_izchak(shkp, override_hallucination) {
     return !strcmp(shknm, "Izchak");
 }
 /*shknam.c*/
+/* now initialize the shopkeeper monster structure */
+/* first, try to place a shopkeeper in the room */
+/*
+     * Special monster placements (if any) should go here: that way,
+     * monsters will sit on top of objects and not the other way around.
+     */
+/* Hack for Orcus's level: it's a ghost town, get rid of shopkeepers */
+/* get a modifiable name buffer along with fallback result */

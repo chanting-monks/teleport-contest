@@ -89,7 +89,7 @@ const stoned_texts = ["You are slowing down.", "Your limbs are stiffening.", "Yo
 /* 3 */
 /* 2 */
 /* 1 */
-export function stoned_dialogue() {
+export async function stoned_dialogue() {
     let i = (game.u.uprops[STONED].intrinsic & 16777215);
     if (i > 0 && i <= (Math.trunc(5 /* sizeof(const char *const [5]) */ / 1 /* sizeof(const char *const) */))) {
         let buf = '';
@@ -97,7 +97,7 @@ export function stoned_dialogue() {
         if ((((game.youmonst.data).mflags1 & 24576) == 24576) && strstri(buf, "limbs")) {
             buf = strsubst(buf, "limbs", "extremities");
         }
-        urgent_pline("%s", buf);
+        await urgent_pline("%s", buf);
     }
     switch (i) {
         case 5:
@@ -110,20 +110,20 @@ export function stoned_dialogue() {
             break;
         case 4:
             if (!Popeye(STONED)) {
-                stop_occupation();
+                await stop_occupation();
             }
             if (game.multi > 0) {
                 nomul(0);
             }
             break;
         case 3:
-            stop_occupation();
+            await stop_occupation();
             nomul(-3);
             game.multi_reason = "getting stoned";
             game.nomovemsg = c_common_strings.c_You_can_move_again;
             /* "your limbs have turned to stone" so terminate wounded legs */
             if ((game.u.uprops[WOUNDED_LEGS].intrinsic || game.u.uprops[WOUNDED_LEGS].extrinsic) && !game.u.usteed) {
-                heal_legs(2);
+                await heal_legs(2);
             }
             break;
         case 2:
@@ -133,16 +133,16 @@ export function stoned_dialogue() {
             /* avoid Hear_again at tail end */
             /* if also vomiting or turning into slime, stop those (no messages) */
             if (game.u.uprops[VOMITING].intrinsic) {
-                make_vomiting(0, (0));
+                await make_vomiting(0, (0));
             }
             if (game.u.uprops[SLIMED].intrinsic) {
-                make_slimed(0, null);
+                await make_slimed(0, null);
             }
             break;
         default:
             break;
     }
-    exercise(A_DEX, (0));
+    await exercise(A_DEX, (0));
 }
 /* hero is getting sicker and sicker prior to vomiting */
 const vomiting_texts = ["are feeling mildly nauseated.", "feel slightly confused.", "can't seem to think straight.", "feel incredibly sick.", "are about to vomit."];
@@ -151,7 +151,7 @@ const vomiting_texts = ["are feeling mildly nauseated.", "feel slightly confused
 /* 8 */
 /* 5 */
 /* 2 */
-export function vomiting_dialogue() {
+export async function vomiting_dialogue() {
     let txt = null;
     let buf = '';
     let v = (game.u.uprops[VOMITING].intrinsic & 16777215);
@@ -168,13 +168,13 @@ export function vomiting_dialogue() {
             }
             break;
         case 6:
-            make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + d(2, 4), (0));
+            await make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + d(2, 4), (0));
             if (!Popeye(VOMITING)) {
-                stop_occupation();
+                await stop_occupation();
             }
             ;
         case 9:
-            make_confused((game.u.uprops[CONFUSION].intrinsic & 16777215) + d(2, 4), (0));
+            await make_confused((game.u.uprops[CONFUSION].intrinsic & 16777215) + d(2, 4), (0));
             if (game.multi > 0) {
                 nomul(0);
             }
@@ -197,61 +197,51 @@ export function vomiting_dialogue() {
             }
             break;
         case 0:
-            stop_occupation();
+            await stop_occupation();
             if (!cantvomit(game.youmonst.data)) {
-                /* "hurl" is short for "hurl chunks" which is slang for
-               relatively violent vomiting... */
-                morehungry(20);
-                /* case 2 used to be "You suddenly vomit!" but it wasn't sudden
-               since you've just been through the earlier messages of the
-               countdown, and it was still possible to move around between
-               that message and "You can move again." (from vomit()'s
-               nomul(-2)) with no intervening message; give one here to
-               have more specific point at which hero became unable to move
-               [vomit() issues its own message for the cantvomit() case
-               and for the FAINTING-or-worse case where stomach is empty] */
+                await morehungry(20);
                 if (game.u.uhs < FAINTING) {
-                    You("%s!", !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "vomit" : "hurl chunks");
+                    await You("%s!", !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "vomit" : "hurl chunks");
                 }
             }
-            vomit();
+            await vomit();
             break;
         default:
             break;
     }
     if (txt) {
-        You("%s", txt);
+        await You("%s", txt);
     }
-    exercise(A_CON, (0));
+    await exercise(A_CON, (0));
 }
-export function sleep_dialogue() {
+export async function sleep_dialogue() {
     let i = (game.u.uprops[SLEEPY].intrinsic & 16777215);
     if (i == 4) {
-        You("yawn.");
+        await You("yawn.");
     }
 }
 /* RESTORE is after slime_dialogue */
 const choke_texts = ["You find it hard to breathe.", "You're gasping for air.", "You can no longer breathe.", "You're turning %s.", "You suffocate."];
 const choke_texts2 = ["Your %s is becoming constricted.", "Your blood is having trouble reaching your brain.", "The pressure on your %s increases.", "Your consciousness is fading.", "You suffocate."];
-export function choke_dialogue() {
+export async function choke_dialogue() {
     let i = (game.u.uprops[STRANGLED].intrinsic & 16777215);
     if (i > 0 && i <= (Math.trunc(5 /* sizeof(const char *const [5]) */ / 1 /* sizeof(const char *const) */))) {
         if ((game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 1024) != 0)) || !rn2(50)) {
-            urgent_pline(choke_texts2[(Math.trunc(5 /* sizeof(const char *const [5]) */ / 1 /* sizeof(const char *const) */)) - i], body_part(NECK));
+            await urgent_pline(choke_texts2[(Math.trunc(5 /* sizeof(const char *const [5]) */ / 1 /* sizeof(const char *const) */)) - i], await body_part(NECK));
         } else {
             let str = choke_texts[(Math.trunc(5 /* sizeof(const char *const [5]) */ / 1 /* sizeof(const char *const) */)) - i];
             if (strchr(str, 37)) {
-                urgent_pline(str, hcolor(c_color_names.c_blue));
+                await urgent_pline(str, hcolor(c_color_names.c_blue));
             } else {
-                urgent_pline("%s", str);
+                await urgent_pline("%s", str);
             }
-            stop_occupation();
+            await stop_occupation();
         }
     }
-    exercise(A_STR, (0));
+    await exercise(A_STR, (0));
 }
 const sickness_texts = ["Your illness feels worse.", "Your illness is severe.", "You are at Death's door."];
-export function sickness_dialogue() {
+export async function sickness_dialogue() {
     let j = (game.u.uprops[SICK].intrinsic & 16777215);
     let i = Math.trunc(j / 2);
     if (i > 0 && i <= (Math.trunc(3 /* sizeof(const char *const [3]) */ / 1 /* sizeof(const char *const) */)) && (j % 2) != 0) {
@@ -264,14 +254,14 @@ export function sickness_dialogue() {
         }
         if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && strstri(buf, "Death's door")) {
             pronounbuf = strcpy(pronounbuf, (genders[pronoun_gender(game.youmonst, 2)].he));
-            buf = __nh_buf_append(buf, sprintf('', "  %s %s inviting you in.", upstart(pronounbuf), vtense(pronounbuf, "are")));
+            buf = __nh_buf_append(buf, sprintf('', "  %s %s inviting you in.", upstart(pronounbuf), await vtense(pronounbuf, "are")));
         }
-        urgent_pline("%s", buf);
+        await urgent_pline("%s", buf);
     }
-    exercise(A_CON, (0));
+    await exercise(A_CON, (0));
 }
 const levi_texts = ["You float slightly lower.", "You wobble unsteadily %s the %s."];
-export function levitation_dialogue() {
+export async function levitation_dialogue() {
     /* -1 because the last message comes via float_down() */
     let i = (Math.trunc(((game.u.uprops[LEVITATION].intrinsic & 16777215) - 1) / 2));
     if (game.u.uprops[LEVITATION].extrinsic) {
@@ -284,11 +274,11 @@ export function levitation_dialogue() {
         let s = levi_texts[(Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)) - i];
         if (strchr(s, 37)) {
             let danger = (is_pool_or_lava(game.u.ux, game.u.uy) && !(((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))));
-            urgent_pline(s, danger ? "over" : "in", danger ? surface(game.u.ux, game.u.uy) : "air");
+            await urgent_pline(s, danger ? "over" : "in", danger ? surface(game.u.ux, game.u.uy) : "air");
         } else {
-            pline("%s", s);
+            await pline("%s", s);
         }
-        stop_occupation();
+        await stop_occupation();
     }
 }
 const slime_texts = ["You are turning a little %s.", "Your limbs are getting oozy.", "Your skin begins to peel away.", "You are turning into %s.", "You have become %s."];
@@ -297,7 +287,7 @@ const slime_texts = ["You are turning a little %s.", "Your limbs are getting ooz
 /* 3 */
 /* 2 */
 /* 1 */
-export function slime_dialogue() {
+export async function slime_dialogue() {
     let t = (game.u.uprops[SLIMED].intrinsic & 16777215);
     let i = Math.trunc(t / 2);
     if (t == 1) {
@@ -306,9 +296,7 @@ export function slime_dialogue() {
            mimicking something else at the time, implicitly be revealed */
         game.youmonst.m_ap_type = M_AP_MONSTER;
         game.youmonst.mappearance = PM_GREEN_SLIME;
-        /* no message given when 't' is odd, so no automatic update of
-           self; force one */
-        newsym(game.u.ux, game.u.uy);
+        await newsym(game.u.ux, game.u.uy);
     }
     if ((t % 2) != 0 && i >= 0 && i < (Math.trunc(5 /* sizeof(const char *const [5]) */ / 1 /* sizeof(const char *const) */))) {
         let buf = '';
@@ -320,20 +308,20 @@ export function slime_dialogue() {
             if (i == 4) {
                 /* [what if you're already green?] */
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    urgent_pline(buf, hcolor(c_color_names.c_green));
+                    await urgent_pline(buf, hcolor(c_color_names.c_green));
                 }
             } else {
-                urgent_pline(buf, an((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? rndmonnam(null) : "green slime"));
+                await urgent_pline(buf, await an((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? await rndmonnam(null) : "green slime"));
             }
         } else {
-            urgent_pline("%s", buf);
+            await urgent_pline("%s", buf);
         }
     }
     switch (i) {
         case 3:
             game.u.uprops[FAST].intrinsic = 0;
             if (!Popeye(SLIMED)) {
-                stop_occupation();
+                await stop_occupation();
             }
             if (game.multi > 0) {
                 nomul(0);
@@ -346,23 +334,22 @@ export function slime_dialogue() {
             break;
         case 1:
             if (game.u.uprops[STONED].intrinsic) {
-                make_stoned(0, null, 0, null);
+                await make_stoned(0, null, 0, null);
             }
             break;
     }
-    exercise(A_DEX, (0));
+    await exercise(A_DEX, (0));
 }
-export function burn_away_slime() {
+export async function burn_away_slime() {
     if (game.u.uprops[SLIMED].intrinsic) {
-        make_slimed(0, "The slime that covers you is burned away!");
+        await make_slimed(0, "The slime that covers you is burned away!");
     }
 }
 /* countdown timer for turning into green slime has run out; kill our hero */
-export function slimed_to_death(kptr) {
+export async function slimed_to_death(kptr) {
     let save_mvflags = 0;
     if ((game.u.umonnum != game.u.umonster) && game.youmonst.data == game.mons[PM_GREEN_SLIME]) {
-        /* redundant: polymon() cures sliming when polying into green slime */
-        dealloc_killer(kptr);
+        await dealloc_killer(kptr);
         return;
     }
     if (kptr && kptr.name[0]) {
@@ -373,7 +360,7 @@ export function slimed_to_death(kptr) {
         game.killer.format = 2;
         game.killer.name = strcpy(game.killer.name, "turned into green slime");
     }
-    dealloc_killer(kptr);
+    await dealloc_killer(kptr);
     /*
      * Polymorph into a green slime, which might destroy some worn armor
      * (potentially affecting bones) and dismount from steed.
@@ -387,14 +374,13 @@ export function slimed_to_death(kptr) {
      * Temporarily ungenocide if necessary.
      */
     if ((((game.youmonst.data).mlet == S_LIGHT || (game.youmonst.data) == game.mons[PM_FLAMING_SPHERE] || (game.youmonst.data) == game.mons[PM_SHOCKING_SPHERE] || (game.youmonst.data) == game.mons[PM_BABY_GOLD_DRAGON] || (game.youmonst.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((game.youmonst.data) == game.mons[PM_FIRE_ELEMENTAL] || (game.youmonst.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) {
-        del_light_source(LS_MONSTER, monst_to_any(game.youmonst));
+        await del_light_source(LS_MONSTER, monst_to_any(game.youmonst));
     }
     save_mvflags = game.mvitals[PM_GREEN_SLIME].mvflags;
     game.mvitals[PM_GREEN_SLIME].mvflags = save_mvflags & ~2;
-    /* become a green slime; also resets youmonst.m_ap_type+.mappearance */
-    polymon(PM_GREEN_SLIME);
+    await polymon(PM_GREEN_SLIME);
     game.mvitals[PM_GREEN_SLIME].mvflags = save_mvflags;
-    done_timeout(TURNED_SLIME, SLIMED);
+    await done_timeout(TURNED_SLIME, SLIMED);
     if ((game.mvitals[PM_GREEN_SLIME].mvflags & 2) != 0) {
         /* life-saved; even so, hero still has turned into green slime;
        player may have genocided green slimes after being infected */
@@ -403,19 +389,11 @@ export function slimed_to_death(kptr) {
         game.killer.name = strcpy(game.killer.name, "slimicide");
         slimebuf = strcpy(slimebuf, "green slime has been genocided...");
         if (game.iflags.last_msg == PLNMSG_OK_DONT_DIE) {
-            urgent_pline("Yes, you do.  %s", upstart(slimebuf));
-        /* vary the message depending upon whether life-save was due to
-           amulet or due to declining to die in explore or wizard mode */
-        /* follows "OK, so you don't die." and arg is second sentence */
-        /* follows "The medallion crumbles to dust." */
+            await urgent_pline("Yes, you do.  %s", upstart(slimebuf));
         } else {
-            urgent_pline("Unfortunately, %s", slimebuf);
+            await urgent_pline("Unfortunately, %s", slimebuf);
         }
-        /* die again; no possibility of amulet this time */
-        /* [should it be done_timeout(GENOCIDED, SLIMED)?] */
-        /* could be life-saved again (only in explore or wizard mode)
-           but green slimes are gone; just stay in current form */
-        done(GENOCIDED);
+        await done(GENOCIDED);
     }
     return;
 }
@@ -427,20 +405,20 @@ export function slimed_to_death(kptr) {
    move between things which are closely packed--like the substance of
    solid rock! */
 const phaze_texts = ["You start to feel bloated.", "You are feeling rather flabby."];
-export function phaze_dialogue() {
+export async function phaze_dialogue() {
     let i = (Math.trunc((game.u.uprops[PASSES_WALLS].intrinsic & 16777215) / 2));
     if (game.u.uprops[PASSES_WALLS].extrinsic || (game.u.uprops[PASSES_WALLS].intrinsic & ~16777215)) {
         return;
     }
     if (((game.u.uprops[PASSES_WALLS].intrinsic & 16777215) % 2) && i > 0 && i <= (Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */))) {
-        pline("%s", phaze_texts[(Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)) - i]);
+        await pline("%s", phaze_texts[(Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)) - i]);
     }
 }
 /* Similar to Passes_walls, if prayer tries to save hero from a poison
    gas region but can't, (HMagical_breathing & TIMEOUT) will be set to
    a small value.  Unlike Passes_walls, there's no joke message. */
 const region_texts = ["You seem to have some trouble breathing.", "The air here seems foul."];
-export function region_dialogue() {
+export async function region_dialogue() {
     let no_need_to_breathe = 0;
     let in_poison_gas_cloud = 0;
     let r = (game.u.uprops[MAGICAL_BREATHING].intrinsic & 16777215);
@@ -454,21 +432,21 @@ export function region_dialogue() {
         return;
     }
     if ((r % 2) && i > 0 && i <= (Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */))) {
-        pline("%s", region_texts[(Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)) - i]);
+        await pline("%s", region_texts[(Math.trunc(2 /* sizeof(const char *const [2]) */ / 1 /* sizeof(const char *const) */)) - i]);
     }
 }
 /* when a status timeout is fatal, keep the status line indicator shown
    during end of game rundown (and potential dumplog);
    timeout has already counted down to 0 by the time we get here */
-export function done_timeout(how, which) {
+export async function done_timeout(how, which) {
     let intrinsic_p = game.u.uprops[which].intrinsic;
     /* affects final disclosure */
     intrinsic_p |= 536870912;
-    done(how);
+    await done(how);
     intrinsic_p &= ~536870912;
     game.disp.botl = (1);
 }
-export function nh_timeout() {
+export async function nh_timeout() {
     let upp = null;
     let kptr = null;
     let was_flying = 0;
@@ -501,42 +479,40 @@ export function nh_timeout() {
     if (game.u.uinvulnerable) {
         return;
     }
-    /* things past this point could kill you */
     if (game.u.uprops[STONED].intrinsic) {
-        stoned_dialogue();
+        await stoned_dialogue();
     }
     if (game.u.uprops[SLIMED].intrinsic) {
-        slime_dialogue();
+        await slime_dialogue();
     }
     if (game.u.uprops[VOMITING].intrinsic) {
-        vomiting_dialogue();
+        await vomiting_dialogue();
     }
     if (game.u.uprops[STRANGLED].intrinsic) {
-        choke_dialogue();
+        await choke_dialogue();
     }
     if (game.u.uprops[SICK].intrinsic) {
-        sickness_dialogue();
+        await sickness_dialogue();
     }
     if (game.u.uprops[LEVITATION].intrinsic & 16777215) {
-        levitation_dialogue();
+        await levitation_dialogue();
     }
     if (game.u.uprops[PASSES_WALLS].intrinsic & 16777215) {
-        phaze_dialogue();
+        await phaze_dialogue();
     }
     if (game.u.uprops[MAGICAL_BREATHING].intrinsic & 16777215) {
-        region_dialogue();
+        await region_dialogue();
     }
     if (game.u.uprops[SLEEPY].intrinsic & 16777215) {
-        sleep_dialogue();
+        await sleep_dialogue();
     }
     if (game.u.mtimedone && !--game.u.mtimedone) {
         if ((game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic)) {
             game.u.mtimedone = rnd(100 * game.youmonst.data.mlevel + 1);
         } else if ((((game.youmonst.data).mflags2 & 4) != 0)) {
-            you_unwere((0));
-        /* if polycontrl, asks whether to rehumanize */
+            await you_unwere((0));
         } else {
-            rehumanize();
+            await rehumanize();
         }
     }
     if (game.u.ucreamed) {
@@ -549,13 +525,13 @@ export function nh_timeout() {
             game.u.uspellprot--;
             find_ac();
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                Norep("The %s haze around you %s.", hcolor(c_color_names.c_golden), game.u.uspellprot ? "becomes less dense" : "disappears");
+                await Norep("The %s haze around you %s.", hcolor(c_color_names.c_golden), game.u.uspellprot ? "becomes less dense" : "disappears");
             }
         }
     }
     if (game.u.ugallop) {
         if (--game.u.ugallop == 0 && game.u.usteed) {
-            pline("%s stops galloping.", Monnam(game.u.usteed));
+            await pline("%s stops galloping.", await Monnam(game.u.usteed));
         }
     }
     was_flying = ((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked);
@@ -571,65 +547,62 @@ export function nh_timeout() {
                         game.killer.format = 2;
                         game.killer.name = strcpy(game.killer.name, "killed by petrification");
                     }
-                    dealloc_killer(kptr);
-                    /* (unlike sliming, you aren't changing form here) */
-                    done_timeout(STONING, STONED);
+                    await dealloc_killer(kptr);
+                    await done_timeout(STONING, STONED);
                     /* done_timeout(TURNED_SLIME,SLIMED) */
                     /* might update persistent inventory */
                     break;
                 case SLIMED:
-                    slimed_to_death(kptr);
+                    await slimed_to_death(kptr);
                     break;
                 case VOMITING:
-                    make_vomiting(0, (1));
+                    await make_vomiting(0, (1));
                     break;
                 case SICK:
                     if ((game.u.usick_type & 2) == 0 && rn2(100) < (acurr(A_CON))) {
-                        /* hero might be able to bounce back from food poisoning,
-                   but not other forms of illness */
-                        You("have recovered from your illness.");
-                        make_sick(0, null, (0), 3);
-                        exercise(A_CON, (0));
-                        adjattrib(A_CON, -1, 1);
+                        await You("have recovered from your illness.");
+                        await make_sick(0, null, (0), 3);
+                        await exercise(A_CON, (0));
+                        await adjattrib(A_CON, -1, 1);
                         break;
                     }
-                    urgent_pline("You die from your illness.");
+                    await urgent_pline("You die from your illness.");
                     if (kptr && kptr.name[0]) {
                         game.killer.format = kptr.format;
                         game.killer.name = strcpy(game.killer.name, kptr.name);
                     } else {
                         game.killer.format = 0;
-                        game.killer.name[0] = 0;
+                        game.killer.name = '';
                     }
-                    dealloc_killer(kptr);
-                    if ((m_idx = name_to_mon(game.killer.name, null)) >= LOW_PM) {
+                    await dealloc_killer(kptr);
+                    if ((m_idx = await name_to_mon(game.killer.name, null)) >= LOW_PM) {
                         if ((((game.mons[m_idx]).mflags2 & 524288) != 0)) {
                             game.killer.format = 1;
                         } else if (game.mons[m_idx].geno & 4096) {
-                            game.killer.name = strcpy(game.killer.name, the(game.killer.name));
+                            game.killer.name = strcpy(game.killer.name, await the(game.killer.name));
                             game.killer.format = 1;
                         }
                     }
-                    done_timeout(POISONING, SICK);
+                    await done_timeout(POISONING, SICK);
                     game.u.usick_type = 0;
                     break;
                 case FAST:
                     if (!((game.u.uprops[FAST].intrinsic & ~(67108864 | 33554432 | 16777216)) || game.u.uprops[FAST].extrinsic)) {
-                        You_feel("yourself slow down%s.", (game.u.uprops[FAST].intrinsic || game.u.uprops[FAST].extrinsic) ? " a bit" : "");
+                        await You_feel("yourself slow down%s.", (game.u.uprops[FAST].intrinsic || game.u.uprops[FAST].extrinsic) ? " a bit" : "");
                     }
                     break;
                 case CONFUSION:
                     set_itimeout({ get value() { return game.u.uprops[CONFUSION].intrinsic; }, set value(_v) { game.u.uprops[CONFUSION].intrinsic = _v; } }, 1);
-                    make_confused(0, (1));
+                    await make_confused(0, (1));
                     if (!game.u.uprops[CONFUSION].intrinsic) {
-                        stop_occupation();
+                        await stop_occupation();
                     }
                     break;
                 case STUNNED:
                     set_itimeout({ get value() { return game.u.uprops[STUNNED].intrinsic; }, set value(_v) { game.u.uprops[STUNNED].intrinsic = _v; } }, 1);
-                    make_stunned(0, (1));
+                    await make_stunned(0, (1));
                     if (!game.u.uprops[STUNNED].intrinsic) {
-                        stop_occupation();
+                        await stop_occupation();
                     }
                     break;
                 case BLINDED:
@@ -637,52 +610,51 @@ export function nh_timeout() {
                         /* So make_confused works properly */
                         let was_blind = !!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked);
                         set_itimeout({ get value() { return game.u.uprops[BLINDED].intrinsic; }, set value(_v) { game.u.uprops[BLINDED].intrinsic = _v; } }, 1);
-                        make_blinded(0, (1));
+                        await make_blinded(0, (1));
                         if (was_blind && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                            stop_occupation();
+                            await stop_occupation();
                         }
                         break;
                     }
                 case DEAF:
                     set_itimeout({ get value() { return game.u.uprops[DEAF].intrinsic; }, set value(_v) { game.u.uprops[DEAF].intrinsic = _v; } }, 1);
-                    make_deaf(0, (1));
+                    await make_deaf(0, (1));
                     game.disp.botl = (1);
                     if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                        stop_occupation();
+                        await stop_occupation();
                     }
                     break;
                 case INVIS:
-                    newsym(game.u.ux, game.u.uy);
+                    await newsym(game.u.ux, game.u.uy);
                     if (!((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !game.u.uprops[INVIS].blocked && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        You(!(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic) ? "are no longer invisible." : "can no longer see through yourself.");
-                        stop_occupation();
+                        await You(!(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic) ? "are no longer invisible." : "can no longer see through yourself.");
+                        await stop_occupation();
                     }
                     break;
                 case SEE_INVIS:
-                    set_mimic_blocking();
-                    /* do special mimic handling */
-                    see_monsters();
-                    newsym(game.u.ux, game.u.uy);
-                    stop_occupation();
+                    await set_mimic_blocking();
+                    await see_monsters();
+                    await newsym(game.u.ux, game.u.uy);
+                    await stop_occupation();
                     break;
                 case WOUNDED_LEGS:
-                    heal_legs(0);
-                    stop_occupation();
+                    await heal_legs(0);
+                    await stop_occupation();
                     break;
                 case HALLUC:
                     set_itimeout({ get value() { return game.u.uprops[HALLUC].intrinsic; }, set value(_v) { game.u.uprops[HALLUC].intrinsic = _v; } }, 1);
-                    make_hallucinated(0, (1), 0);
+                    await make_hallucinated(0, (1), 0);
                     if (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                        stop_occupation();
+                        await stop_occupation();
                     }
                     break;
                 case SLEEPY:
                     if (unconscious() || (game.u.uprops[SLEEP_RES].intrinsic || game.u.uprops[SLEEP_RES].extrinsic)) {
                         incr_itimeout({ get value() { return game.u.uprops[SLEEPY].intrinsic; }, set value(_v) { game.u.uprops[SLEEPY].intrinsic = _v; } }, rnd(100));
                     } else if ((game.u.uprops[SLEEPY].intrinsic || game.u.uprops[SLEEPY].extrinsic)) {
-                        You("fall asleep.");
+                        await You("fall asleep.");
                         sleeptime = rnd(20);
-                        fall_asleep(-sleeptime, (1));
+                        await fall_asleep(-sleeptime, (1));
                         incr_itimeout({ get value() { return game.u.uprops[SLEEPY].intrinsic; }, set value(_v) { game.u.uprops[SLEEPY].intrinsic = _v; } }, sleeptime + rnd(100));
                     }
                     break;
@@ -690,7 +662,7 @@ export function nh_timeout() {
                     if ((game.u.uprops[FLYING].intrinsic & 16777215) == 1) {
                         set_itimeout({ get value() { return game.u.uprops[FLYING].intrinsic; }, set value(_v) { game.u.uprops[FLYING].intrinsic = _v; } }, 0);
                     }
-                    float_down(536870912 | 16777215, 0);
+                    await float_down(536870912 | 16777215, 0);
                     break;
                 case FLYING:
                     if (was_flying && !((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked)) {
@@ -702,8 +674,8 @@ export function nh_timeout() {
                    assumes Levitation is handled before Flying */
                         /* timed Flying is via #wizintrinsic only */
                         game.disp.botl = (1);
-                        You("land.");
-                        spoteffects((1));
+                        await You("land.");
+                        await spoteffects((1));
                     }
                     break;
                 case ACID_RES:
@@ -716,7 +688,7 @@ export function nh_timeout() {
                             break;
                         }
                         if (!(game.multi < 0 && (unconscious() || is_fainted()))) {
-                            You("no longer feel safe from acid.");
+                            await You("no longer feel safe from acid.");
                         }
                     }
                     break;
@@ -730,29 +702,25 @@ export function nh_timeout() {
                             break;
                         }
                         if (!(game.multi < 0 && (unconscious() || is_fainted()))) {
-                            You("no longer feel secure from petrification.");
+                            await You("no longer feel secure from petrification.");
                         }
-                        /* no-op if not wielding a cockatrice corpse;
-                       uswapwep case is always a no-op because two-weapon
-                       combat is only possible with two one-handed weapons
-                       or weapon tools, not corpses */
-                        wielding_corpse(game.uwep, null, (0));
-                        wielding_corpse(game.uswapwep, null, (0));
+                        await wielding_corpse(game.uwep, null, (0));
+                        await wielding_corpse(game.uswapwep, null, (0));
                     }
                     break;
                 case FIRE_RES:
                     if (!(game.u.uprops[FIRE_RES].intrinsic || game.u.uprops[FIRE_RES].extrinsic)) {
-                        Your("temporary ability to survive burning has ended.");
+                        await Your("temporary ability to survive burning has ended.");
                     }
                     break;
                 case WWALKING:
                     if (!((game.u.uprops[WWALKING].intrinsic || game.u.uprops[WWALKING].extrinsic) && !(((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))))) {
-                        Your("temporary ability to walk on liquid has ended.");
+                        await Your("temporary ability to walk on liquid has ended.");
                     }
                     break;
                 case DISPLACED:
                     if (!(game.u.uprops[DISPLACED].intrinsic || game.u.uprops[DISPLACED].extrinsic)) {
-                        toggle_displacement(null, 0, (0));
+                        await toggle_displacement(null, 0, (0));
                     }
                     break;
                 case WARN_OF_MON:
@@ -766,42 +734,38 @@ export function nh_timeout() {
                         game.context.warntype.species = null;
                         game.context.warntype.speciesidx = NON_PM;
                         if (wptr) {
-                            You("are no longer warned about %s.", makeplural(wptr.pmnames[NEUTRAL]));
+                            await You("are no longer warned about %s.", await makeplural(wptr.pmnames[NEUTRAL]));
                         }
                     }
                     break;
                 case PASSES_WALLS:
                     if (!(game.u.uprops[PASSES_WALLS].intrinsic || game.u.uprops[PASSES_WALLS].extrinsic)) {
                         if (stuck_in_wall()) {
-                            You_feel("hemmed in again.");
+                            await You_feel("hemmed in again.");
                         } else {
-                            pline("You're back to your %s self again.", !(game.u.umonnum != game.u.umonster) ? "normal" : "unusual");
+                            await pline("You're back to your %s self again.", !(game.u.umonnum != game.u.umonster) ? "normal" : "unusual");
                         }
                     }
                     break;
                 case MAGICAL_BREATHING:
                     if (!(game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 1024) != 0))) {
                         if (region_danger()) {
-                            You("cough%s", (game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) ? "." : " and spit blood!");
+                            await You("cough%s", (game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic) ? "." : " and spit blood!");
                         }
                     }
                     break;
                 case STRANGLED:
                     game.killer.format = 1;
                     game.killer.name = strcpy(game.killer.name, (game.u.uburied) ? "suffocation" : "strangulation");
-                    done_timeout(DIED, STRANGLED);
+                    await done_timeout(DIED, STRANGLED);
                     if (game.uamul && game.uamul.otyp == AMULET_OF_STRANGULATION) {
-                        /* must be declining to die in explore|wizard mode;
-                   treat like being cured of strangulation by prayer */
-                        Your("amulet vanishes!");
-                        useup(game.uamul);
+                        await Your("amulet vanishes!");
+                        await useup(game.uamul);
                     }
                     break;
                 case FUMBLING:
                     if (game.u.umoved && !(((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) || ((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked))) {
-                        /* call this only when a move took place.  */
-                        /* otherwise handle fumbling msgs locally. */
-                        slip_or_trip();
+                        await slip_or_trip();
                         nomul(-2);
                         game.multi_reason = "fumbling";
                         game.nomovemsg = "";
@@ -811,9 +775,9 @@ export function nh_timeout() {
                      * to this number must be thoroughly play tested.
                      */
                             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                                You("make a lot of noise!");
+                                await You("make a lot of noise!");
                             }
-                            wake_nearby((0));
+                            await wake_nearby((0));
                         }
                     }
                     game.u.uprops[FUMBLING].intrinsic &= ~67108864;
@@ -823,29 +787,27 @@ export function nh_timeout() {
                         incr_itimeout({ get value() { return game.u.uprops[FUMBLING].intrinsic; }, set value(_v) { game.u.uprops[FUMBLING].intrinsic = _v; } }, rnd(20));
                     }
                     if (game.iflags.defer_decor) {
-                        /* 'mention_decor' was deferred for message sequencing
-                       reasons; catch up now */
-                        deferred_decor((0));
+                        await deferred_decor((0));
                     }
                     break;
                 case DETECT_MONSTERS:
-                    see_monsters();
+                    await see_monsters();
                     break;
                 case GLIB:
                     make_glib(0);
                     break;
                 case PROT_FROM_SHAPE_CHANGERS:
                     if (!(game.u.uprops[PROT_FROM_SHAPE_CHANGERS].intrinsic || game.u.uprops[PROT_FROM_SHAPE_CHANGERS].extrinsic)) {
-                        restartcham();
+                        await restartcham();
                     }
                     break;
             }
         }
     }
-    run_timers();
+    await run_timers();
 }
-export function fall_asleep(how_long, wakeup_msg) {
-    stop_occupation();
+export async function fall_asleep(how_long, wakeup_msg) {
+    await stop_occupation();
     nomul(how_long);
     game.multi_reason = "sleeping";
     /* this was broken; the fix for 'how_long' will result in changed
@@ -866,7 +828,7 @@ export function fall_asleep(how_long, wakeup_msg) {
  *      when = Time to hatch, usually only passed if re-creating an
  *             existing hatch timer. Pass 0L for random hatch time.
  */
-export function attach_egg_hatch_timeout(egg, when) {
+export async function attach_egg_hatch_timeout(egg, when) {
     let i = 0;
     /* stop previous timer, if any */
     stop_timer(HATCH_EGG, obj_to_any(egg));
@@ -885,7 +847,7 @@ export function attach_egg_hatch_timeout(egg, when) {
         }
     }
     if (when) {
-        start_timer(when, TIMER_OBJECT, HATCH_EGG, obj_to_any(egg));
+        await start_timer(when, TIMER_OBJECT, HATCH_EGG, obj_to_any(egg));
     }
 }
 /* prevent an egg from ever hatching */
@@ -893,7 +855,7 @@ export function kill_egg(egg) {
     stop_timer(HATCH_EGG, obj_to_any(egg));
 }
 /* timer callback routine: hatch the given egg */
-export function hatch_egg(arg, timeout) {
+export async function hatch_egg(arg, timeout) {
     let egg = null;
     let mon = null;
     let mon2 = null;
@@ -941,11 +903,11 @@ export function hatch_egg(arg, timeout) {
          */
         if (!(game.mons[mnum].geno & 4096) && !(game.mvitals[mnum].mvflags & (2 | 1))) {
             for (i = hatchcount; i > 0; i--) {
-                if (!enexto(cc, x, y, game.mons[mnum]) || !(mon = makemon(game.mons[mnum], cc.x, cc.y, 1 | 131072))) {
+                if (!await enexto(cc, x, y, game.mons[mnum]) || !(mon = await makemon(game.mons[mnum], cc.x, cc.y, 1 | 131072))) {
                     break;
                 }
                 if ((yours && !silent) || (((egg).where == 3) && mon.data.mlet == S_DRAGON)) {
-                    if (tamedog(mon, null, (0))) {
+                    if (await tamedog(mon, null, (0))) {
                         /* tame if your own egg hatches while you're on the
                    same dungeon level, or any dragon egg which hatches
                    while it's in your inventory */
@@ -973,36 +935,29 @@ export function hatch_egg(arg, timeout) {
         let siblings = (hatchcount > 1);
         let redraw = (0);
         if (cansee_hatchspot) {
-            /* we don't learn the egg type here because learning
-               an egg type requires either seeing the egg hatch
-               or being familiar with the egg already,
-               as well as being able to see the resulting
-               monster, checked below
-            */
-            monnambuf = sprintf(monnambuf, "%s%s", siblings ? "some " : "", siblings ? makeplural(m_monnam(mon)) : an(m_monnam(mon)));
+            monnambuf = sprintf(monnambuf, "%s%s", siblings ? "some " : "", siblings ? await makeplural(await m_monnam(mon)) : await an(await m_monnam(mon)));
         }
         switch (egg.where) {
             /* [bug?  m_monnam() yields accurate monster type
                regardless of hallucination] */
             case 3:
                 knows_egg = (1);
-                /* true even if you are blind */
                 if (!cansee_hatchspot) {
-                    You_feel("%s %s from your pack!", c_common_strings.c_something, locomotion(mon.data, "drop"));
+                    await You_feel("%s %s from your pack!", c_common_strings.c_something, locomotion(mon.data, "drop"));
                 } else {
-                    You_see("%s %s out of your pack!", monnambuf, locomotion(mon.data, "drop"));
+                    await You_see("%s %s out of your pack!", monnambuf, locomotion(mon.data, "drop"));
                 }
                 if (yours) {
-                    pline("%s %s %s like \"%s%s\"", siblings ? "Their" : "Its", ing_suffix(cry_sound(mon)), (((mon.data).msound == MS_SILENT) || (game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) ? "seems" : "sounds", game.flags.female ? "mommy" : "daddy", egg.spe ? "." : "?");
+                    await pline("%s %s %s like \"%s%s\"", siblings ? "Their" : "Its", ing_suffix(cry_sound(mon)), (((mon.data).msound == MS_SILENT) || (game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) ? "seems" : "sounds", game.flags.female ? "mommy" : "daddy", egg.spe ? "." : "?");
                 } else if (mon.data.mlet == S_DRAGON && !(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
                     ;
-                    verbalize("Gleep!");
+                    await verbalize("Gleep!");
                 }
                 break;
             case 1:
                 if (cansee_hatchspot) {
                     knows_egg = (1);
-                    You_see("%s hatch.", monnambuf);
+                    await You_see("%s hatch.", monnambuf);
                     /* update egg's map location */
                     redraw = (1);
                 }
@@ -1012,44 +967,37 @@ export function hatch_egg(arg, timeout) {
                     /* egg carrying monster might be invisible */
                     mon2 = egg.v.v_ocarry;
                     if (canseemon(mon2) && (!mon2.wormno || ((game.viz_array[mon2.my][mon2.mx] & 2) != 0))) {
-                        carriedby = sprintf(carriedby, "%s pack", s_suffix(a_monnam(mon2)));
+                        carriedby = sprintf(carriedby, "%s pack", s_suffix(await a_monnam(mon2)));
                         knows_egg = (1);
                     } else if (is_pool(mon.mx, mon.my)) {
                         carriedby = strcpy(carriedby, "empty water");
                     } else {
                         carriedby = strcpy(carriedby, "thin air");
                     }
-                    You_see("%s %s out of %s!", monnambuf, locomotion(mon.data, "drop"), carriedby);
+                    await You_see("%s %s out of %s!", monnambuf, locomotion(mon.data, "drop"), carriedby);
                 }
                 break;
             default:
-                impossible("egg hatched where? (%d)", egg.where);
+                await impossible("egg hatched where? (%d)", egg.where);
                 break;
         }
         if (cansee_hatchspot && knows_egg) {
             learn_egg_type(mnum);
         }
         if (egg.quan > 0) {
-            /* still some eggs left; we didn't split the stack, just
-               subtracted from quantity so weight needs to be updated;
-               for remainder of stack, add a new, short hatch timer */
-            attach_egg_hatch_timeout(egg, rnd(12));
-            /* container_weight(arg) updates arg->owt, and if contained,
-               its enclosing container arg->ocontainer (recursively)
-               [egg won't be contained due to conditions imposed above] */
-            container_weight(egg);
+            await attach_egg_hatch_timeout(egg, rnd(12));
+            await container_weight(egg);
         } else if (((egg).where == 3)) {
-            useup(egg);
+            await useup(egg);
         } else {
-            /* free egg here because we use it above */
-            obj_extract_self(egg);
-            obfree(egg, null);
-            if ((mon = (game.level.monsters[x][y])) && !hideunder(mon) && ((game.viz_array[y][x] & 2) != 0)) {
+            await obj_extract_self(egg);
+            await obfree(egg, null);
+            if ((mon = (game.level.monsters[x][y])) && !await hideunder(mon) && ((game.viz_array[y][x] & 2) != 0)) {
                 redraw = (1);
             }
         }
         if (redraw) {
-            newsym(x, y);
+            await newsym(x, y);
         }
     }
 }
@@ -1062,17 +1010,17 @@ export function learn_egg_type(mnum) {
     update_inventory();
 }
 /* Attach a fig_transform timeout to the given figurine. */
-export function attach_fig_transform_timeout(figurine) {
+export async function attach_fig_transform_timeout(figurine) {
     let i = 0;
     stop_timer(FIG_TRANSFORM, obj_to_any(figurine));
     /*
      * Decide when to transform the figurine.
      */
     i = rnd(9000) + 200;
-    start_timer(i, TIMER_OBJECT, FIG_TRANSFORM, obj_to_any(figurine));
+    await start_timer(i, TIMER_OBJECT, FIG_TRANSFORM, obj_to_any(figurine));
 }
 /* give a fumble message */
-export function slip_or_trip() {
+export async function slip_or_trip() {
     let otmp = (game.level.objects[game.u.ux][game.u.uy]);
     let otmp2 = null;
     let saddle = null;
@@ -1083,42 +1031,25 @@ export function slip_or_trip() {
         otmp = null;
     }
     if (otmp && on_foot) {
-        /* trip over something in particular */
-        /*
-          If there is only one item, it will have just been named
-          during the move, so refer to it by pronoun; otherwise,
-          if the top item has been or can be seen, refer to it by
-          name; if not, look for rocks to trip over; trip over
-          anonymous "something" if there aren't any rocks.
-        */
-        what = (game.iflags.last_msg == PLNMSG_ONE_ITEM_HERE) ? ((otmp.quan == 1) ? "it" : (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "they" : "them") : (otmp.dknown || !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) ? doname(otmp) : ((otmp2 = sobj_at(ROCK, game.u.ux, game.u.uy)) == null ? c_common_strings.c_something : (otmp2.quan == 1 ? "a rock" : "some rocks"));
+        what = (game.iflags.last_msg == PLNMSG_ONE_ITEM_HERE) ? ((otmp.quan == 1) ? "it" : (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "they" : "them") : (otmp.dknown || !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) ? await doname(otmp) : ((otmp2 = sobj_at(ROCK, game.u.ux, game.u.uy)) == null ? c_common_strings.c_something : (otmp2.quan == 1 ? "a rock" : "some rocks"));
         if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
             what = strcpy(buf, what);
             buf = (() => { const __s = buf; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toUpperCase() + __t.slice(1) : __s; })();
-            pline("Egads!  %s bite%s your %s!", what, (!otmp || otmp.quan == 1) ? "s" : "", body_part(FOOT));
+            await pline("Egads!  %s bite%s your %s!", what, (!otmp || otmp.quan == 1) ? "s" : "", await body_part(FOOT));
         } else {
-            You("trip over %s.", what);
+            await You("trip over %s.", what);
         }
         if (!game.uarmf && otmp.otyp == CORPSE && ((game.mons[otmp.corpsenm]) == game.mons[PM_COCKATRICE] || (game.mons[otmp.corpsenm]) == game.mons[PM_CHICKATRICE]) && !(game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic)) {
-            game.killer.name = sprintf(game.killer.name, "tripping over %s corpse", an(game.mons[otmp.corpsenm].pmnames[NEUTRAL]));
-            instapetrify(game.killer.name);
+            game.killer.name = sprintf(game.killer.name, "tripping over %s corpse", await an(game.mons[otmp.corpsenm].pmnames[NEUTRAL]));
+            await instapetrify(game.killer.name);
         }
     } else if ((game.u.uprops[FUMBLING].intrinsic & 67108864) || (is_ice(game.u.ux, game.u.uy) && !rn2(3))) {
         /* is fumbling from ice alone? */
         let ice_only = !(game.u.uprops[FUMBLING].extrinsic || (game.u.uprops[FUMBLING].intrinsic & ~67108864));
-        pline("%s %s %s the ice.", game.u.usteed ? upstart(x_monnam(game.u.usteed, 1, null, 8, (0))) : "You", vtense(game.u.usteed ? "steed" : "you", rn2(2) ? "slip" : "slide"), is_ice(game.u.ux, game.u.uy) ? "on" : "off");
-        if (!on_foot && ((saddle = which_armor(game.u.usteed, 1048576)) == null || !saddle.cursed) && (!ice_only || !rn2(3))) {
-            /* "steed": arbitrary value that will use third person verb
-                 regardless of what u.usteed might be named, as opposed to
-                 "you" (second person, which won't have final 's' added) */
-            /* sometimes slipping due to ice occurs during turn that hero
-                 has just moved off the ice; phrase things differently then */
-            /* fumbling outside of ice while mounted always causes the hero to
-           fall from the saddle (unless it is cursed), so to avoid a
-           counterintuitive effect where ice makes riding _less_ hazardous,
-           unconditionally dismount if fumbling is from a non-ice source */
-            You("lose your balance.");
-            dismount_steed(DISMOUNT_FELL);
+        await pline("%s %s %s the ice.", game.u.usteed ? upstart(await x_monnam(game.u.usteed, 1, null, 8, (0))) : "You", await vtense(game.u.usteed ? "steed" : "you", rn2(2) ? "slip" : "slide"), is_ice(game.u.ux, game.u.uy) ? "on" : "off");
+        if (!on_foot && ((saddle = await which_armor(game.u.usteed, 1048576)) == null || !saddle.cursed) && (!ice_only || !rn2(3))) {
+            await You("lose your balance.");
+            await dismount_steed(DISMOUNT_FELL);
         } else if (!rn2(10 + (acurr(A_DEX)))) {
             /* Maybe slip in a random direction.  This takes place after
                the hero has already changed location.  If the hero is
@@ -1131,7 +1062,7 @@ export function slip_or_trip() {
             /* Only hurtle if the random direction won't move hero back
                to same spot where this move started. */
             if (game.u.ux + game.u.dx != game.u.ux0 || game.u.uy + game.u.dy != game.u.uy0) {
-                hurtle(game.u.dx, game.u.dy, 1, (0));
+                await hurtle(game.u.dx, game.u.dy, 1, (0));
             }
         }
     } else {
@@ -1140,63 +1071,63 @@ export function slip_or_trip() {
            don't fall off when it happens to be cursed */
             switch (rn2(4)) {
                 case 1:
-                    You("trip over your own %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "elbow" : makeplural(body_part(FOOT)));
+                    await You("trip over your own %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "elbow" : await makeplural(await body_part(FOOT)));
                     break;
                 case 2:
-                    You("slip %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "on a banana peel" : "and nearly fall");
+                    await You("slip %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "on a banana peel" : "and nearly fall");
                     break;
                 case 3:
-                    You("flounder.");
+                    await You("flounder.");
                     break;
                 default:
-                    You("stumble.");
+                    await You("stumble.");
                     break;
             }
-        } else if ((saddle = which_armor(game.u.usteed, 1048576)) == null || !saddle.cursed) {
+        } else if ((saddle = await which_armor(game.u.usteed, 1048576)) == null || !saddle.cursed) {
             switch (rn2(4)) {
                 case 1:
-                    Your("%s slip out of the stirrups.", makeplural(body_part(FOOT)));
+                    await Your("%s slip out of the stirrups.", await makeplural(await body_part(FOOT)));
                     break;
                 case 2:
-                    You("let go of the reins.");
+                    await You("let go of the reins.");
                     break;
                 case 3:
-                    You("bang into the saddle-horn.");
+                    await You("bang into the saddle-horn.");
                     break;
                 default:
-                    You("slide to one side of the saddle.");
+                    await You("slide to one side of the saddle.");
                     break;
             }
-            dismount_steed(DISMOUNT_FELL);
+            await dismount_steed(DISMOUNT_FELL);
         }
     }
 }
 /* Print a lamp flicker message with tailer.  Only called if seen. */
-export function see_lamp_flicker(obj, tailer) {
+export async function see_lamp_flicker(obj, tailer) {
     switch (obj.where) {
         case 3:
         case 4:
-            pline("%s flickers%s.", Yname2(obj), tailer);
+            await pline("%s flickers%s.", await Yname2(obj), tailer);
             break;
         case 1:
-            You_see("%s flicker%s.", an(xname(obj)), tailer);
+            await You_see("%s flicker%s.", await an(await xname(obj)), tailer);
             break;
     }
 }
 /* Print a dimming message for brass lanterns.  Only called if seen. */
-export function lantern_message(obj) {
+export async function lantern_message(obj) {
     switch (obj.where) {
         case 3:
-            Your("lantern is getting dim.");
+            await Your("lantern is getting dim.");
             if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-                pline("Batteries have not been invented yet.");
+                await pline("Batteries have not been invented yet.");
             }
             break;
         case 1:
-            You_see("a lantern getting dim.");
+            await You_see("a lantern getting dim.");
             break;
         case 4:
-            pline("%s lantern is getting dim.", s_suffix(Monnam(obj.v.v_ocarry)));
+            await pline("%s lantern is getting dim.", s_suffix(await Monnam(obj.v.v_ocarry)));
             break;
     }
 }
@@ -1204,7 +1135,7 @@ export function lantern_message(obj) {
  * Timeout callback for objects that are burning. E.g. lamps, candles.
  * See begin_burn() for meanings of obj->age and obj->spe.
  */
-export function burn_object(arg, timeout) {
+export async function burn_object(arg, timeout) {
     let obj = arg.a_obj;
     let canseeit = 0;
     let many = 0;
@@ -1221,36 +1152,32 @@ export function burn_object(arg, timeout) {
         let how_long = game.moves - timeout;
         if (how_long >= obj.age) {
             obj.age = 0;
-            end_burn(obj, (0));
+            await end_burn(obj, (0));
             if (menorah) {
                 obj.spe = 0;
-                obj.owt = weight(obj);
+                obj.owt = await weight(obj);
             } else if ((obj.otyp == TALLOW_CANDLE || obj.otyp == WAX_CANDLE) || obj.otyp == POT_OIL) {
                 let mtmp = null;
                 if (obj.where == 1) {
                     mtmp = (game.level.monsters[obj.ox][obj.oy]);
                 }
-                /* get rid of candles and burning oil potions;
-                   we know this object isn't carried by hero,
-                   nor is it migrating */
-                obj_extract_self(obj);
-                obfree(obj, null);
+                await obj_extract_self(obj);
+                await obfree(obj, null);
                 obj = null;
                 if (mtmp) {
-                    maybe_unhide_at(mtmp.mx, mtmp.my);
+                    await maybe_unhide_at(mtmp.mx, mtmp.my);
                 }
             }
         } else {
             obj.age -= how_long;
-            begin_burn(obj, (1));
+            await begin_burn(obj, (1));
         }
         return;
     }
     if (get_obj_location(obj, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 0)) {
         /* only interested in INVENT, FLOOR, and MINVENT */
         canseeit = !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && ((game.viz_array[y][x] & 2) != 0);
-        /* set `whose[]' to be "Your " or "Fred's " or "The goblin's " */
-        Shk_Your(whose, obj);
+        await Shk_Your(whose, obj);
     } else {
         canseeit = (0);
     }
@@ -1270,25 +1197,25 @@ export function burn_object(arg, timeout) {
                         need_invupdate = (1);
                         ;
                     case 4:
-                        pline("%spotion of oil has burnt away.", whose);
+                        await pline("%spotion of oil has burnt away.", whose);
                         break;
                     case 1:
-                        You_see("a burning potion of oil go out.");
+                        await You_see("a burning potion of oil go out.");
                         need_newsym = (1);
                         break;
                 }
             }
-            end_burn(obj, (0));
+            await end_burn(obj, (0));
             if (((obj).where == 3)) {
-                useupall(obj);
+                await useupall(obj);
             } else {
                 /* clear migrating obj's destination code before obfree
                to avoid false complaint of deleting worn item */
                 if (obj.where == 5) {
                     obj.owornmask = 0;
                 }
-                obj_extract_self(obj);
-                obfree(obj, null);
+                await obj_extract_self(obj);
+                await obfree(obj, null);
             }
             obj = null;
             break;
@@ -1300,26 +1227,26 @@ export function burn_object(arg, timeout) {
                 case 50:
                     if (canseeit) {
                         if (obj.otyp == BRASS_LANTERN) {
-                            lantern_message(obj);
+                            await lantern_message(obj);
                         } else {
-                            see_lamp_flicker(obj, obj.age == 50 ? " considerably" : "");
+                            await see_lamp_flicker(obj, obj.age == 50 ? " considerably" : "");
                         }
                     }
                     break;
                 case 25:
                     if (canseeit) {
                         if (obj.otyp == BRASS_LANTERN) {
-                            lantern_message(obj);
+                            await lantern_message(obj);
                         } else {
                             switch (obj.where) {
                                 /* even if blind you'll know if holding it */
                                 /* we know even if blind and in our inventory */
                                 case 3:
                                 case 4:
-                                    pline("%s seems about to go out.", Yname2(obj));
+                                    await pline("%s seems about to go out.", await Yname2(obj));
                                     break;
                                 case 1:
-                                    You_see("%s about to go out.", an(xname(obj)));
+                                    await You_see("%s about to go out.", await an(await xname(obj)));
                                     break;
                             }
                         }
@@ -1333,27 +1260,27 @@ export function burn_object(arg, timeout) {
                                 ;
                             case 4:
                                 if (obj.otyp == BRASS_LANTERN) {
-                                    pline("%slantern has run out of power.", whose);
+                                    await pline("%slantern has run out of power.", whose);
                                 } else {
-                                    pline("%s has gone out.", Yname2(obj));
+                                    await pline("%s has gone out.", await Yname2(obj));
                                 }
                                 break;
                             case 1:
                                 if (obj.otyp == BRASS_LANTERN) {
-                                    You_see("a lantern run out of power.");
+                                    await You_see("a lantern run out of power.");
                                 } else {
-                                    You_see("%s go out.", an(xname(obj)));
+                                    await You_see("%s go out.", await an(await xname(obj)));
                                 }
                                 break;
                         }
                     }
-                    end_burn(obj, (0));
+                    await end_burn(obj, (0));
                     break;
                 default:
                     break;
             }
             if (obj.age) {
-                begin_burn(obj, (1));
+                await begin_burn(obj, (1));
             }
             break;
         case CANDELABRUM_OF_INVOCATION:
@@ -1365,10 +1292,10 @@ export function burn_object(arg, timeout) {
                         switch (obj.where) {
                             case 3:
                             case 4:
-                                pline("%s%scandle%s getting short.", whose, menorah ? "candelabrum's " : "", many ? "s are" : " is");
+                                await pline("%s%scandle%s getting short.", whose, menorah ? "candelabrum's " : "", many ? "s are" : " is");
                                 break;
                             case 1:
-                                You_see("%scandle%s getting short.", menorah ? "a candelabrum's " : many ? "some " : "a ", many ? "s" : "");
+                                await You_see("%scandle%s getting short.", menorah ? "a candelabrum's " : many ? "some " : "a ", many ? "s" : "");
                                 break;
                         }
                     }
@@ -1378,10 +1305,10 @@ export function burn_object(arg, timeout) {
                         switch (obj.where) {
                             case 3:
                             case 4:
-                                pline("%s%scandle%s flame%s flicker%s low!", whose, menorah ? "candelabrum's " : "", many ? "s'" : "'s", many ? "s" : "", many ? "" : "s");
+                                await pline("%s%scandle%s flame%s flicker%s low!", whose, menorah ? "candelabrum's " : "", many ? "s'" : "'s", many ? "s" : "", many ? "" : "s");
                                 break;
                             case 1:
-                                You_see("%scandle%s flame%s flicker low!", menorah ? "a candelabrum's " : many ? "some " : "a ", many ? "s'" : "'s", many ? "s" : "");
+                                await You_see("%scandle%s flame%s flicker low!", menorah ? "a candelabrum's " : many ? "some " : "a ", many ? "s'" : "'s", many ? "s" : "");
                                 break;
                         }
                     }
@@ -1394,10 +1321,10 @@ export function burn_object(arg, timeout) {
                                     need_invupdate = (1);
                                     ;
                                 case 4:
-                                    pline("%scandelabrum's flame%s.", whose, many ? "s die" : " dies");
+                                    await pline("%scandelabrum's flame%s.", whose, many ? "s die" : " dies");
                                     break;
                                 case 1:
-                                    You_see("a candelabrum's flame%s die.", many ? "s" : "");
+                                    await You_see("a candelabrum's flame%s die.", many ? "s" : "");
                                     break;
                             }
                         } else {
@@ -1405,26 +1332,26 @@ export function burn_object(arg, timeout) {
                                 case 3:
                                     ;
                                 case 4:
-                                    pline("%s %s consumed!", Yname2(obj), many ? "are" : "is");
+                                    await pline("%s %s consumed!", await Yname2(obj), many ? "are" : "is");
                                     break;
                                 case 1:
-                                    You_see("%s%s consumed!", many ? "some " : "", many ? xname(obj) : an(xname(obj)));
+                                    await You_see("%s%s consumed!", many ? "some " : "", many ? await xname(obj) : await an(await xname(obj)));
                                     need_newsym = (1);
                                     break;
                             }
-                            pline((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? (many ? "They shriek!" : "It shrieks!") : ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "" : (many ? "Their flames die." : "Its flame dies."));
+                            await pline((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? (many ? "They shriek!" : "It shrieks!") : ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "" : (many ? "Their flames die." : "Its flame dies."));
                         }
                     }
-                    end_burn(obj, (0));
+                    await end_burn(obj, (0));
                     if (menorah) {
                         obj.spe = 0;
-                        obj.owt = weight(obj);
+                        obj.owt = await weight(obj);
                         if (((obj).where == 3)) {
                             need_invupdate = (1);
                         }
                     } else {
                         if (((obj).where == 3)) {
-                            useupall(obj);
+                            await useupall(obj);
                         } else {
                             let onfloor = (obj.where == 1);
                             /* clear migrating obj's destination code
@@ -1432,11 +1359,11 @@ export function burn_object(arg, timeout) {
                             if (obj.where == 5) {
                                 obj.owornmask = 0;
                             }
-                            obj_extract_self(obj);
+                            await obj_extract_self(obj);
                             if (onfloor) {
-                                maybe_unhide_at(x, y);
+                                await maybe_unhide_at(x, y);
                             }
-                            obfree(obj, null);
+                            await obfree(obj, null);
                         }
                         obj = null;
                     }
@@ -1445,15 +1372,15 @@ export function burn_object(arg, timeout) {
                     break;
             }
             if (obj && obj.age) {
-                begin_burn(obj, (1));
+                await begin_burn(obj, (1));
             }
             break;
         default:
-            impossible("burn_object: unexpected obj %s", xname(obj));
+            await impossible("burn_object: unexpected obj %s", await xname(obj));
             break;
     }
     if (need_newsym) {
-        newsym(x, y);
+        await newsym(x, y);
     }
     if (need_invupdate) {
         update_inventory();
@@ -1488,7 +1415,7 @@ export function burn_object(arg, timeout) {
  *
  * This is a "silent" routine - it should not print anything out.
  */
-export function begin_burn(obj, already_lit) {
+export async function begin_burn(obj, already_lit) {
     let radius = 3;
     let turns = 0;
     let do_timer = (1);
@@ -1542,13 +1469,13 @@ export function begin_burn(obj, already_lit) {
                 do_timer = (0);
                 radius = arti_light_radius(obj);
             } else {
-                impossible("begin burn: unexpected %s", xname(obj));
+                await impossible("begin burn: unexpected %s", await xname(obj));
                 turns = obj.age;
             }
             break;
     }
     if (do_timer) {
-        if (start_timer(turns, TIMER_OBJECT, BURN_OBJECT, obj_to_any(obj))) {
+        if (await start_timer(turns, TIMER_OBJECT, BURN_OBJECT, obj_to_any(obj))) {
             obj.lamplit = 1;
             obj.age -= turns;
             if (((obj).where == 3) && !already_lit) {
@@ -1566,9 +1493,9 @@ export function begin_burn(obj, already_lit) {
         let x = 0;
         let y = 0;
         if (get_obj_location(obj, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1 | 2)) {
-            new_light_source(x, y, radius, LS_OBJECT, obj_to_any(obj));
+            await new_light_source(x, y, radius, LS_OBJECT, obj_to_any(obj));
         } else {
-            impossible("begin_burn: can't get obj position");
+            await impossible("begin_burn: can't get obj position");
         }
     }
 }
@@ -1576,42 +1503,41 @@ export function begin_burn(obj, already_lit) {
  * Stop a burn timeout on the given object if timer attached.  Darken
  * light source.
  */
-export function end_burn(obj, timer_attached) {
+export async function end_burn(obj, timer_attached) {
     if (!obj.lamplit) {
-        impossible("end_burn: obj %s not lit", xname(obj));
+        await impossible("end_burn: obj %s not lit", await xname(obj));
         return;
     }
     if (obj.otyp == MAGIC_LAMP || artifact_light(obj)) {
         timer_attached = (0);
     }
     if (!timer_attached) {
-        /* [DS] Cleanup explicitly, since timer cleanup won't happen */
-        del_light_source(LS_OBJECT, obj_to_any(obj));
+        await del_light_source(LS_OBJECT, obj_to_any(obj));
         obj.lamplit = 0;
         if (obj.where == 3) {
             update_inventory();
         }
     } else if (!stop_timer(BURN_OBJECT, obj_to_any(obj))) {
-        impossible("end_burn: obj %s not timed!", xname(obj));
+        await impossible("end_burn: obj %s not timed!", await xname(obj));
     }
 }
 /*
  * Cleanup a burning object if timer stopped.
  */
-export function cleanup_burn(arg, expire_time) {
+export async function cleanup_burn(arg, expire_time) {
     let obj = arg.a_obj;
     if (!obj.lamplit) {
-        impossible("cleanup_burn: obj %s not lit", xname(obj));
+        await impossible("cleanup_burn: obj %s not lit", await xname(obj));
         return;
     }
-    del_light_source(LS_OBJECT, obj_to_any(obj));
+    await del_light_source(LS_OBJECT, obj_to_any(obj));
     obj.age += expire_time - game.moves;
     obj.lamplit = 0;
     if (obj.where == 3) {
         update_inventory();
     }
 }
-export function do_storms() {
+export async function do_storms() {
     let nstrike = 0;
     let x = 0;
     let y = 0;
@@ -1635,25 +1561,23 @@ export function do_storms() {
             if (dirx != 0 || diry != 0) {
                 /* BZ_M_SPELL(BZ_OFS_AD(AD_ELEC)): monster LIGHTNING spell */
                 game.buzzer = null;
-                buzz((-10 - ((abs((6) - 1) % 10))), 8, x, y, dirx, diry);
+                await buzz((-10 - ((abs((6) - 1) % 10))), 8, x, y, dirx, diry);
             }
         }
     }
     if (game.level.locations[game.u.ux][game.u.uy].typ == CLOUD) {
         ;
-        /* Inside a cloud during a thunderstorm is deafening. */
-        /* Even if already deaf, we sense the thunder's vibrations. */
-        pline("Kaboom!!!  Boom!!  Boom!!");
+        await pline("Kaboom!!!  Boom!!  Boom!!");
         incr_itimeout({ get value() { return game.u.uprops[DEAF].intrinsic; }, set value(_v) { game.u.uprops[DEAF].intrinsic = _v; } }, (rn2(20) + (30)));
         game.disp.botl = (1);
         if (!game.u.uinvulnerable) {
-            stop_occupation();
+            await stop_occupation();
             nomul(-3);
             game.multi_reason = "hiding from thunderstorm";
             game.nomovemsg = null;
         }
     } else {
-        You_hear("a rumbling noise.");
+        await You_hear("a rumbling noise.");
     }
 }
 /* -------------------------------------------------------------------------
@@ -1719,14 +1643,14 @@ export function do_storms() {
 /*
  * Table of timeout functions, listed in order of enum timeout_types:
  */
-const timeout_funcs = [[rot_organic, null, "rot_organic"], [rot_corpse, null, "rot_corpse"], [revive_mon, null, "revive_mon"], [zombify_mon, null, "zombify_mon"], [burn_object, cleanup_burn, "burn_object"], [hatch_egg, null, "hatch_egg"], [fig_transform, null, "fig_transform"], [shrink_glob, null, "shrink_glob"], [melt_ice_away, null, "melt_ice_away"]];
+const timeout_funcs = [{ f: rot_organic, cleanup: null, name: "rot_organic" }, { f: rot_corpse, cleanup: null, name: "rot_corpse" }, { f: revive_mon, cleanup: null, name: "revive_mon" }, { f: zombify_mon, cleanup: null, name: "zombify_mon" }, { f: burn_object, cleanup: cleanup_burn, name: "burn_object" }, { f: hatch_egg, cleanup: null, name: "hatch_egg" }, { f: fig_transform, cleanup: null, name: "fig_transform" }, { f: shrink_glob, cleanup: null, name: "shrink_glob" }, { f: melt_ice_away, cleanup: null, name: "melt_ice_away" }];
 /* object timers */
 /* level timers */
 /* currently no monster or global timers */
-export function kind_name(kind) {
+export async function kind_name(kind) {
     switch (kind) {
         case TIMER_NONE:
-            impossible("no timer type");
+            await impossible("no timer type");
             return "none";
         case TIMER_LEVEL:
             return "level";
@@ -1739,7 +1663,7 @@ export function kind_name(kind) {
     }
     return "unknown";
 }
-export function print_queue(win, base) {
+export async function print_queue(win, base) {
     let curr = null;
     let buf = '';
     if (!base) {
@@ -1747,13 +1671,13 @@ export function print_queue(win, base) {
     } else {
         (game.windowprocs.win_putstr)(win, 0, "timeout  id   kind   call");
         for (curr = base; curr; curr = curr.next) {
-            buf = sprintf(buf, " %4ld   %4ld  %-6s %s(%s)", curr.timeout, curr.tid, kind_name(curr.kind), timeout_funcs[curr.func_index].name, fmt_ptr(curr.arg.a_void));
+            buf = sprintf(buf, " %4ld   %4ld  %-6s %s(%s)", curr.timeout, curr.tid, await kind_name(curr.kind), timeout_funcs[curr.func_index].name, fmt_ptr(curr.arg.a_void));
             (game.windowprocs.win_putstr)(win, 0, buf);
         }
     }
 }
 /* the #timeout command */
-export function wiz_timeout_queue() {
+export async function wiz_timeout_queue() {
     let win = 0;
     let buf = '';
     let propname = null;
@@ -1773,7 +1697,7 @@ export function wiz_timeout_queue() {
     (game.windowprocs.win_putstr)(win, 0, "");
     (game.windowprocs.win_putstr)(win, 0, "Active timeout queue:");
     (game.windowprocs.win_putstr)(win, 0, "");
-    print_queue(win, game.timer_base);
+    await print_queue(win, game.timer_base);
     /* Timed properties:
      * check every one; the majority can't obtain temporary timeouts in
      * normal play but those can be forced via the #wizintrinsic command.
@@ -1832,11 +1756,11 @@ export function wiz_timeout_queue() {
         buf = sprintf(buf, "Level is no-teleport for %ld %s.", game.level.flags.stasis_until - game.moves + 1, (game.level.flags.stasis_until - game.moves > 0) ? "turns" : "more turn");
         (game.windowprocs.win_putstr)(win, 0, buf);
     }
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
-export function timer_sanity_check() {
+export async function timer_sanity_check() {
     let curr = null;
     let t_id = 0;
     let x = 0;
@@ -1853,7 +1777,7 @@ export function timer_sanity_check() {
                     let obj_adr = fmt_ptr(obj);
                     let owhere = obj.where;
                     if (obj.timed == 0) {
-                        impossible("timer sanity: untimed obj %s, timer %lu", obj_adr, t_id);
+                        await impossible("timer sanity: untimed obj %s, timer %lu", obj_adr, t_id);
                     }
                     x = y = 0;
                     /* if obj is in a container, possibly a nested one, figure out
@@ -1867,17 +1791,14 @@ export function timer_sanity_check() {
                     if (owhere == 5 || (owhere == 4 && !mon_is_local(top.v.v_ocarry))) {
                         ;
                     } else if (!get_obj_location(obj, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1 | 2)) {
-                        /* migrating directly or carried by migrating monster */
-                        /* not able to validate location so skip checks */
-                        /* free? or on a shop's used-up bill? */
-                        impossible("timer sanity: can't locate obj %s [where=%d], timer %lu", obj_adr, obj.where, t_id);
+                        await impossible("timer sanity: can't locate obj %s [where=%d], timer %lu", obj_adr, obj.where, t_id);
                     } else if (!isok(x, y)) {
-                        impossible("timer sanity: obj %s [where=%d] located at <%d,%d>, timer %lu", obj_adr, obj.where, x, y, t_id);
+                        await impossible("timer sanity: obj %s [where=%d] located at <%d,%d>, timer %lu", obj_adr, obj.where, x, y, t_id);
                     }
                     break;
                 }
             case TIMER_MONSTER:
-                impossible("timer sanity: unexpected monster timer %lu", t_id);
+                await impossible("timer sanity: unexpected monster timer %lu", t_id);
                 break;
             case TIMER_LEVEL:
 {
@@ -1892,18 +1813,18 @@ export function timer_sanity_check() {
                    hasn't intruded on the sign bit to yield a negative value;
                    the analyzer isn't aware that isok() filters such things */
                         if (curr.func_index == MELT_ICE_AWAY && !is_ice(x, y) && !(game.level.locations[x][y].typ == DRAWBRIDGE_DOWN && (game.level.locations[x][y].flags & 28) == 8)) {
-                            impossible("timer sanity: melt timer %lu on non-ice %d <%d,%d>", t_id, game.level.locations[x][y].typ, x, y);
+                            await impossible("timer sanity: melt timer %lu on non-ice %d <%d,%d>", t_id, game.level.locations[x][y].typ, x, y);
                         }
                     } else {
-                        impossible("timer sanity: spot timer %lu at <%d,%d>", t_id, x, y);
+                        await impossible("timer sanity: spot timer %lu at <%d,%d>", t_id, x, y);
                     }
                     break;
                 }
             case TIMER_GLOBAL:
-                impossible("timer sanity: unexpected global timer %lu", t_id);
+                await impossible("timer sanity: unexpected global timer %lu", t_id);
                 break;
             default:
-                impossible("timer sanity: unknown timer %lu, type: %d", t_id, curr.kind);
+                await impossible("timer sanity: unknown timer %lu, type: %d", t_id, curr.kind);
                 break;
         }
     }
@@ -1912,7 +1833,7 @@ export function timer_sanity_check() {
  * Pick off timeout elements from the global queue and call their functions.
  * Do this until their time is less than or equal to the move count.
  */
-export function run_timers() {
+export async function run_timers() {
     let curr = null;
     while (game.timer_base && game.timer_base.timeout <= game.moves) {
         /*
@@ -1925,19 +1846,19 @@ export function run_timers() {
         if (curr.kind == TIMER_OBJECT) {
             (curr.arg.a_obj).timed--;
         }
-        (timeout_funcs[curr.func_index].f)(curr.arg, curr.timeout);
-        memset(curr, 0, 1 /* sizeof(timer_element) */);
+        await (timeout_funcs[curr.func_index].f)(curr.arg, curr.timeout);
+        /* C poison-before-free dropped: JS memset would recurse into arg.a_obj and destroy the live object (see build-engine note) */
         free(curr);
     }
 }
 /*
  * Start a timer.  Return TRUE if successful.
  */
-export function start_timer(when, kind, func_index, arg) {
+export async function start_timer(when, kind, func_index, arg) {
     let gnu = null;
     let dup = null;
     if (kind <= TIMER_NONE || kind >= NUM_TIMER_KINDS || func_index < 0 || func_index >= NUM_TIME_FUNCS) {
-        panic("start_timer (%s: %d)", kind_name(kind), func_index);
+        await panic("start_timer (%s: %d)", await kind_name(kind), func_index);
     }
     /* fail if <arg> already has a <func_index> timer running */
     for (dup = game.timer_base; dup; dup = dup.next) {
@@ -1948,7 +1869,7 @@ export function start_timer(when, kind, func_index, arg) {
     if (dup) {
         let idbuf = '';
         idbuf = sprintf(idbuf, "%s timer", timeout_funcs[func_index].name);
-        impossible("Attempted to start duplicate %s, aborted.", idbuf);
+        await impossible("Attempted to start duplicate %s, aborted.", idbuf);
         return (0);
     }
     gnu = alloc(1 /* sizeof(timer_element) */);
@@ -1959,7 +1880,7 @@ export function start_timer(when, kind, func_index, arg) {
     gnu.kind = kind;
     gnu.needs_fixup = 0;
     gnu.func_index = func_index;
-    gnu.arg = arg;
+    Object.assign(gnu.arg, arg);
     insert_timer(gnu);
     /* increment object's timed count */
     if (kind == TIMER_OBJECT) {
@@ -1984,7 +1905,7 @@ export function stop_timer(func_index, arg) {
         if ((cleanup_func = timeout_funcs[doomed.func_index].cleanup) != null) {
             (cleanup_func)(arg, timeout);
         }
-        memset(doomed, 0, 1 /* sizeof(timer_element) */);
+        /* C poison-before-free dropped (see timer-element note above) */
         free(doomed);
         return (timeout - game.moves);
     }
@@ -2005,7 +1926,7 @@ export function peek_timer(type, arg) {
 /*
  * Move all object timers from src to dest, leaving src untimed.
  */
-export function obj_move_timers(src, dest) {
+export async function obj_move_timers(src, dest) {
     let count = 0;
     let curr = null;
     for (count = 0 , curr = game.timer_base; curr; curr = curr.next) {
@@ -2016,20 +1937,20 @@ export function obj_move_timers(src, dest) {
         }
     }
     if (count != src.timed) {
-        panic("obj_move_timers");
+        await panic("obj_move_timers");
     }
     src.timed = 0;
 }
 /*
  * Find all object timers and duplicate them for the new object "dest".
  */
-export function obj_split_timers(src, dest) {
+export async function obj_split_timers(src, dest) {
     let curr = null;
     let next_timer = null;
     for (curr = game.timer_base; curr; curr = next_timer) {
         next_timer = curr.next;
         if (curr.kind == TIMER_OBJECT && curr.arg.a_obj == src) {
-            start_timer(curr.timeout - game.moves, TIMER_OBJECT, curr.func_index, obj_to_any(dest));
+            await start_timer(curr.timeout - game.moves, TIMER_OBJECT, curr.func_index, obj_to_any(dest));
         }
     }
 }
@@ -2053,7 +1974,7 @@ export function obj_stop_timers(obj) {
             if ((cleanup_func = timeout_funcs[curr.func_index].cleanup) != null) {
                 (cleanup_func)(curr.arg, curr.timeout);
             }
-            memset(curr, 0, 1 /* sizeof(timer_element) */);
+            /* C poison-before-free dropped: JS memset would recurse into arg.a_obj and destroy the live object (see build-engine note) */
             free(curr);
         } else {
             prev = curr;
@@ -2089,7 +2010,7 @@ export function spot_stop_timers(x, y, func_index) {
             if ((cleanup_func = timeout_funcs[curr.func_index].cleanup) != null) {
                 (cleanup_func)(curr.arg, curr.timeout);
             }
-            memset(curr, 0, 1 /* sizeof(timer_element) */);
+            /* C poison-before-free dropped: JS memset would recurse into arg.a_obj and destroy the live object (see build-engine note) */
             free(curr);
         } else {
             prev = curr;
@@ -2147,9 +2068,9 @@ export function remove_timer(base, func_index, arg) {
     }
     return curr;
 }
-export function write_timer(nhfp, timer) {
-    let arg_save = 0;
-    arg_save = cg.zeroany;
+export async function write_timer(nhfp, timer) {
+    let arg_save = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
+    Object.assign(arg_save, cg.zeroany);
     switch (timer.kind) {
         case TIMER_GLOBAL:
         case TIMER_LEVEL:
@@ -2161,7 +2082,7 @@ export function write_timer(nhfp, timer) {
             } else {
                 /* replace object pointer with id */
                 arg_save.a_obj = timer.arg.a_obj;
-                timer.arg = cg.zeroany;
+                Object.assign(timer.arg, cg.zeroany);
                 timer.arg.a_uint = (arg_save.a_obj).o_id;
                 timer.needs_fixup = 1;
                 sfo_fe(nhfp, timer, "timer");
@@ -2175,7 +2096,7 @@ export function write_timer(nhfp, timer) {
             } else {
                 /* replace monster pointer with id */
                 arg_save.a_monst = timer.arg.a_monst;
-                timer.arg = cg.zeroany;
+                Object.assign(timer.arg, cg.zeroany);
                 timer.arg.a_uint = (arg_save.a_monst).m_id;
                 timer.needs_fixup = 1;
                 sfo_fe(nhfp, timer, "timer");
@@ -2184,7 +2105,7 @@ export function write_timer(nhfp, timer) {
             }
             break;
         default:
-            panic("write_timer");
+            await panic("write_timer");
             break;
     }
 }
@@ -2192,7 +2113,7 @@ export function write_timer(nhfp, timer) {
  * Return TRUE if the object will stay on the level when the level is
  * saved.
  */
-export function obj_is_local(obj) {
+export async function obj_is_local(obj) {
     switch (obj.where) {
         case 3:
         case 5:
@@ -2201,11 +2122,11 @@ export function obj_is_local(obj) {
         case 6:
             return (1);
         case 2:
-            return obj_is_local(obj.v.v_ocontainer);
+            return await obj_is_local(obj.v.v_ocontainer);
         case 4:
             return mon_is_local(obj.v.v_ocarry);
     }
-    panic("obj_is_local");
+    await panic("obj_is_local");
     return (0);
 }
 /*
@@ -2231,40 +2152,40 @@ export function mon_is_local(mon) {
  * Return TRUE if the timer is attached to something that will stay on the
  * level when the level is saved.
  */
-export function timer_is_local(timer) {
+export async function timer_is_local(timer) {
     switch (timer.kind) {
         case TIMER_LEVEL:
             return (1);
         case TIMER_GLOBAL:
             return (0);
         case TIMER_OBJECT:
-            return obj_is_local(timer.arg.a_obj);
+            return await obj_is_local(timer.arg.a_obj);
         case TIMER_MONSTER:
             return mon_is_local(timer.arg.a_monst);
     }
-    panic("timer_is_local");
+    await panic("timer_is_local");
     return (0);
 }
 /*
  * Part of the save routine.  Count up the number of timers that would
  * be written.  If write_it is true, actually write the timer.
  */
-export function maybe_write_timer(nhfp, range, write_it) {
+export async function maybe_write_timer(nhfp, range, write_it) {
     let count = 0;
     let curr = null;
     for (curr = game.timer_base; curr; curr = curr.next) {
         if (range == 1) {
-            if (!timer_is_local(curr)) {
+            if (!await timer_is_local(curr)) {
                 count++;
                 if (write_it) {
-                    write_timer(nhfp, curr);
+                    await write_timer(nhfp, curr);
                 }
             }
         } else {
-            if (timer_is_local(curr)) {
+            if (await timer_is_local(curr)) {
                 count++;
                 if (write_it) {
-                    write_timer(nhfp, curr);
+                    await write_timer(nhfp, curr);
                 }
             }
         }
@@ -2284,7 +2205,7 @@ export function maybe_write_timer(nhfp, range, write_it) {
  *      + timeouts that are level-specific (e.g. storms)
  *      + timeouts that stay with the level (obj & monst)
  */
-export function save_timers(nhfp, range) {
+export async function save_timers(nhfp, range) {
     let curr = null;
     let prev = null;
     let next_timer = null;
@@ -2294,20 +2215,20 @@ export function save_timers(nhfp, range) {
             sfo_ulong(nhfp, { get value() { return game.timer_id; }, set value(_v) { game.timer_id = _v; } }, "timer-timer_id");
             ;
         }
-        count = maybe_write_timer(nhfp, range, (0));
+        count = await maybe_write_timer(nhfp, range, (0));
         sfo_int(nhfp, { get value() { return count; }, set value(_v) { count = _v; } }, "timer-timer_count");
-        maybe_write_timer(nhfp, range, (1));
+        await maybe_write_timer(nhfp, range, (1));
     }
     if (((nhfp).mode & 4)) {
         for (prev = null , curr = game.timer_base; curr; curr = next_timer) {
             next_timer = curr.next;
-            if (!(!!(range == 0) ^ !!timer_is_local(curr))) {
+            if (!(!!(range == 0) ^ !!await timer_is_local(curr))) {
                 if (prev) {
                     prev.next = curr.next;
                 } else {
                     game.timer_base = curr.next;
                 }
-                memset(curr, 0, 1 /* sizeof(timer_element) */);
+                /* C poison-before-free dropped: JS memset would recurse into arg.a_obj and destroy the live object (see build-engine note) */
                 free(curr);
             } else {
                 prev = curr;
@@ -2350,7 +2271,7 @@ export function timer_stats(hdrfmt, hdrbuf, count, size) {
     }
 }
 /* reset all timers that are marked for resetting */
-export function relink_timers(ghostly) {
+export async function relink_timers(ghostly) {
     let curr = null;
     let nid = 0;
     for (curr = game.timer_base; curr; curr = curr.next) {
@@ -2358,20 +2279,20 @@ export function relink_timers(ghostly) {
             if (curr.kind == TIMER_OBJECT) {
                 if (ghostly) {
                     if (!lookup_id_mapping(curr.arg.a_uint, { get value() { return nid; }, set value(_v) { nid = _v; } })) {
-                        panic("relink_timers 1");
+                        await panic("relink_timers 1");
                     }
                 } else {
                     nid = curr.arg.a_uint;
                 }
                 curr.arg.a_obj = find_oid(nid);
                 if (!curr.arg.a_obj) {
-                    panic("can't find o_id %d", nid);
+                    await panic("can't find o_id %d", nid);
                 }
                 curr.needs_fixup = 0;
             } else if (curr.kind == TIMER_MONSTER) {
-                panic("relink_timers: no monster timer implemented");
+                await panic("relink_timers: no monster timer implemented");
             } else {
-                panic("relink_timers 2");
+                await panic("relink_timers 2");
             }
         }
     }
@@ -2380,12 +2301,85 @@ export function relink_timers(ghostly) {
 /*timeout.c*/
 /* just one move left to save oneself so quit fiddling around;
            don't stop attempt to eat tin--might be lizard or acidic */
+/* "hurl" is short for "hurl chunks" which is slang for
+               relatively violent vomiting... */
+/* case 2 used to be "You suddenly vomit!" but it wasn't sudden
+               since you've just been through the earlier messages of the
+               countdown, and it was still possible to move around between
+               that message and "You can move again." (from vomit()'s
+               nomul(-2)) with no intervening message; give one here to
+               have more specific point at which hero became unable to move
+               [vomit() issues its own message for the cantvomit() case
+               and for the FAINTING-or-worse case where stomach is empty] */
 /* youmonst: for Hallucination, mhe()'s mon argument isn't used */
 /* upstart() modifies its argument but vtense() doesn't
                        care whether or not that has already happened */
+/* no message given when 't' is odd, so no automatic update of
+           self; force one */
 /* if also turning to stone, stop doing that (no message) */
+/* redundant: polymon() cures sliming when polying into green slime */
+/* become a green slime; also resets youmonst.m_ap_type+.mappearance */
+/* vary the message depending upon whether life-save was due to
+           amulet or due to declining to die in explore or wizard mode */
+/* follows "OK, so you don't die." and arg is second sentence */
+/* follows "The medallion crumbles to dust." */
+/* die again; no possibility of amulet this time */
+/* [should it be done_timeout(GENOCIDED, SLIMED)?] */
+/* could be life-saved again (only in explore or wizard mode)
+           but green slimes are gone; just stay in current form */
+/* things past this point could kill you */
+/* if polycontrl, asks whether to rehumanize */
+/* (unlike sliming, you aren't changing form here) */
+/* hero might be able to bounce back from food poisoning,
+                   but not other forms of illness */
+/* do special mimic handling */
+/* no-op if not wielding a cockatrice corpse;
+                       uswapwep case is always a no-op because two-weapon
+                       combat is only possible with two one-handed weapons
+                       or weapon tools, not corpses */
+/* must be declining to die in explore|wizard mode;
+                   treat like being cured of strangulation by prayer */
+/* call this only when a move took place.  */
+/* otherwise handle fumbling msgs locally. */
+/* 'mention_decor' was deferred for message sequencing
+                       reasons; catch up now */
 /* timed Protection_from_shape_changers is via
                    #wizintrinsic only */
+/* we don't learn the egg type here because learning
+               an egg type requires either seeing the egg hatch
+               or being familiar with the egg already,
+               as well as being able to see the resulting
+               monster, checked below
+            */
+/* true even if you are blind */
+/* still some eggs left; we didn't split the stack, just
+               subtracted from quantity so weight needs to be updated;
+               for remainder of stack, add a new, short hatch timer */
+/* container_weight(arg) updates arg->owt, and if contained,
+               its enclosing container arg->ocontainer (recursively)
+               [egg won't be contained due to conditions imposed above] */
+/* free egg here because we use it above */
+/* trip over something in particular */
+/*
+          If there is only one item, it will have just been named
+          during the move, so refer to it by pronoun; otherwise,
+          if the top item has been or can be seen, refer to it by
+          name; if not, look for rocks to trip over; trip over
+          anonymous "something" if there aren't any rocks.
+        */
+/* "steed": arbitrary value that will use third person verb
+                 regardless of what u.usteed might be named, as opposed to
+                 "you" (second person, which won't have final 's' added) */
+/* sometimes slipping due to ice occurs during turn that hero
+                 has just moved off the ice; phrase things differently then */
+/* fumbling outside of ice while mounted always causes the hero to
+           fall from the saddle (unless it is cursed), so to avoid a
+           counterintuitive effect where ice makes riding _less_ hazardous,
+           unconditionally dismount if fumbling is from a non-ice source */
+/* get rid of candles and burning oil potions;
+                   we know this object isn't carried by hero,
+                   nor is it migrating */
+/* set `whose[]' to be "Your " or "Fred's " or "The goblin's " */
 /*
              * Someone added fuel to the lamp while it was
              * lit. Just fall through and let begin_burn()
@@ -2402,10 +2396,16 @@ export function relink_timers(ghostly) {
              * it was lit. Just fall through and let begin_burn()
              * handle the new age.
              */
+/* [DS] Cleanup explicitly, since timer cleanup won't happen */
+/* Inside a cloud during a thunderstorm is deafening. */
+/* Even if already deaf, we sense the thunder's vibrations. */
 /* timeout value can be up to 16777215 (0x00ffffff) but
                    width of 4 digits should result in values lining up
                    almost all the time (if/when they don't, it won't
                    look nice but the information will still be accurate) */
+/* migrating directly or carried by migrating monster */
+/* not able to validate location so skip checks */
+/* free? or on a shop's used-up bill? */
 /* the terrain under the span of an open drawbridge might
                        be frozen moat; is_ice() only checks for that when
                        the drawbridge is closed (and terrain here would be

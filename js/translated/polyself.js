@@ -72,7 +72,7 @@ import { destroy_items, ubreatheu, ubuzz } from './zap.js';
 
 const no_longer_petrify_resistant = "No longer petrify-resistant, you";
 /* update the gy.youmonst.data structure pointer and intrinsics */
-export function set_uasmon() {
+export async function set_uasmon() {
     let mdat = game.mons[game.u.umonnum];
     let was_vampshifter = valid_vampshiftform(game.youmonst.cham, game.u.umonnum);
     set_mon_data(game.youmonst, mdat);
@@ -147,7 +147,7 @@ export function set_uasmon() {
         let save_uwep = game.uwep;
         game.uwep = null;
         do {
-            if (resists_drli(game.youmonst)) {
+            if (await resists_drli(game.youmonst)) {
                 game.u.uprops[DRAIN_RES].intrinsic |= 268435456;
             } else {
                 game.u.uprops[DRAIN_RES].intrinsic &= ~268435456;
@@ -297,7 +297,7 @@ export function set_uasmon() {
     /* maybe toggle (BFlying & I_SPECIAL) */
     polysense();
     if (((game.windowprocs.wincap2 & (8 | 128)) != 0)) {
-        status_initialize((1));
+        await status_initialize((1));
     }
     /* we can reset this now, having just done what it is meant to trigger */
     game.were_changes = 0;
@@ -333,29 +333,28 @@ export function steed_vs_stealth() {
     }
 }
 /* for changing into form that's immune to strangulation */
-export function check_strangling(on) {
+export async function check_strangling(on) {
     if (on) {
         /* on -- maybe resume strangling */
         let was_strangled = (game.u.uprops[STRANGLED].intrinsic != 0);
-        /* off -- maybe block strangling */
-        if (game.uamul && game.uamul.otyp == AMULET_OF_STRANGULATION && can_be_strangled(game.youmonst)) {
+        if (game.uamul && game.uamul.otyp == AMULET_OF_STRANGULATION && await can_be_strangled(game.youmonst)) {
             game.u.uprops[STRANGLED].intrinsic = 6;
             /* when Strangled is already set, polymorphing from one
            vulnerable form into another causes the counter to be reset */
             game.disp.botl = (1);
-            Your("%s %s your %s!", simpleonames(game.uamul), was_strangled ? "still constricts" : "begins constricting", body_part(NECK));
-            discover_object((AMULET_OF_STRANGULATION), (1), (1), (1));
+            await Your("%s %s your %s!", await simpleonames(game.uamul), was_strangled ? "still constricts" : "begins constricting", await body_part(NECK));
+            await discover_object((AMULET_OF_STRANGULATION), (1), (1), (1));
         }
     } else {
-        if (game.u.uprops[STRANGLED].intrinsic && !can_be_strangled(game.youmonst)) {
+        if (game.u.uprops[STRANGLED].intrinsic && !await can_be_strangled(game.youmonst)) {
             game.u.uprops[STRANGLED].intrinsic = 0;
             game.disp.botl = (1);
-            You("are no longer being strangled.");
+            await You("are no longer being strangled.");
         }
     }
 }
 /* make a (new) human out of the player */
-export function polyman(fmt, arg) {
+export async function polyman(fmt, arg) {
     let sticking = (sticks(game.youmonst.data) && game.u.ustuck && !game.u.uswallow);
     let was_mimicking = ((game.youmonst.m_ap_type & 7) != M_AP_NOTHING);
     let was_blind = !!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked);
@@ -365,31 +364,30 @@ export function polyman(fmt, arg) {
         /* Monster to monster; restore human stats, to be
          * immediately changed to provide stats for the new monster
          */
-        game.u.acurr = game.u.macurr;
-        game.u.amax = game.u.mamax;
+        Object.assign(game.u.acurr, game.u.macurr);
+        Object.assign(game.u.amax, game.u.mamax);
         game.u.umonnum = game.u.umonster;
         game.flags.female = game.u.mfemale;
     }
-    set_uasmon();
+    await set_uasmon();
     game.u.mh = game.u.mhmax = 0;
     game.u.mtimedone = 0;
-    skinback((0));
+    await skinback((0));
     game.u.uundetected = 0;
     if (sticking) {
-        /* was holding onto u.ustuck but no longer capable of that */
-        uunstick();
+        await uunstick();
     }
     find_ac();
     if (was_mimicking) {
         if (game.multi < 0) {
-            unmul("");
+            await unmul("");
         }
         /* if becoming a non-mimic, stop mimicking anything */
         game.youmonst.m_ap_type = M_AP_NOTHING;
         game.youmonst.mappearance = 0;
     }
-    newsym(game.u.ux, game.u.uy);
-    urgent_pline(fmt, arg);
+    await newsym(game.u.ux, game.u.uy);
+    await urgent_pline(fmt, arg);
     if (ugenocided()) {
         /* check whether player foolishly genocided self while poly'd */
         /* intervening activity might have clobbered genocide info */
@@ -401,15 +399,15 @@ export function polyman(fmt, arg) {
             game.killer.format = 1;
             game.killer.name = strcpy(game.killer.name, "self-genocide");
         }
-        dealloc_killer(kptr);
-        done(GENOCIDED);
+        await dealloc_killer(kptr);
+        await done(GENOCIDED);
     }
     if (!!(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic) ^ had_see_invis) {
-        set_mimic_blocking();
+        await set_mimic_blocking();
     }
     /* See_invisible just toggled */
     if (game.u.twoweap && !((((game.youmonst.data).mattk[0].aatyp == 254) + ((game.youmonst.data).mattk[1].aatyp == 254) + ((game.youmonst.data).mattk[2].aatyp == 254)) > 1)) {
-        untwoweapon();
+        await untwoweapon();
     }
     if (game.u.utrap && game.u.utraptype == TT_PIT) {
         set_utrap((rn2(6) + (2)), TT_PIT);
@@ -417,18 +415,15 @@ export function polyman(fmt, arg) {
     if (was_blind && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
         /* previous form was eyeless */
         set_itimeout({ get value() { return game.u.uprops[BLINDED].intrinsic; }, set value(_v) { game.u.uprops[BLINDED].intrinsic = _v; } }, 1);
-        make_blinded(0, (1));
+        await make_blinded(0, (1));
     }
-    check_strangling((1));
+    await check_strangling((1));
     if (!((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) && !game.u.ustuck && is_pool_or_lava(game.u.ux, game.u.uy)) {
-        /* if expelled above, expels() already called spoteffects() */
-        /* FIXME? if spoteffects() triggered rehumanize then we should
-           return early */
-        spoteffects((1));
+        await spoteffects((1));
     }
-    see_monsters();
+    await see_monsters();
 }
-export function change_sex() {
+export async function change_sex() {
     /* Some monsters are always of one sex and their sex can't be changed;
      * Succubi/incubi can change, but are handled below.
      *
@@ -452,13 +447,11 @@ export function change_sex() {
         game.u.umonnum = game.u.umonster;
     } else if (game.u.umonnum == PM_AMOROUS_DEMON) {
         game.flags.female = !game.flags.female;
-        /* change monster type to match new sex; disabled with
-           PM_AMOROUS_DEMON */
-        set_uasmon();
+        await set_uasmon();
     }
 }
 /* log a message if non-poly'd hero's gender has changed */
-export function livelog_newform(viapoly, oldgend, newgend) {
+export async function livelog_newform(viapoly, oldgend, newgend) {
     let buf = '';
     let oldrole = null;
     let oldrank = null;
@@ -475,11 +468,11 @@ export function livelog_newform(viapoly, oldgend, newgend) {
             oldrank = rank_of(game.u.ulevel, (game.urole.mnum), oldgend);
             newrank = rank_of(game.u.ulevel, (game.urole.mnum), newgend);
             buf = sprintf(buf, "%.10s %.30s", genders[game.flags.female].adj, newrank);
-            livelog_printf(4096, "%s into %s", viapoly ? "polymorphed" : "transformed", an(strcmp(newrole, oldrole) ? newrole : strcmp(newrank, oldrank) ? newrank : buf));
+            livelog_printf(4096, "%s into %s", viapoly ? "polymorphed" : "transformed", await an(strcmp(newrole, oldrole) ? newrole : strcmp(newrank, oldrank) ? newrank : buf));
         }
     }
 }
-export function newman() {
+export async function newman() {
     let newform = null;
     let i = 0;
     let oldlvl = 0;
@@ -492,12 +485,12 @@ export function newman() {
     /* new = old + {-2,-1,0,+1,+2} */
     newlvl = oldlvl + (rn2(5) + (-2));
     if (newlvl > 127 || newlvl < 1) {
-        urgent_pline("Your new form doesn't seem healthy enough to survive.");
+        await urgent_pline("Your new form doesn't seem healthy enough to survive.");
         game.killer.format = 2;
         game.killer.name = strcpy(game.killer.name, "unsuccessful polymorph");
-        done(DIED);
-        newuhs((0));
-        encumber_msg();
+        await done(DIED);
+        await newuhs((0));
+        await encumber_msg();
         return;
     }
     if (newlvl > 30) {
@@ -518,9 +511,9 @@ export function newman() {
     game.u.ulevel = newlvl;
     oldgend = poly_gender();
     if (game.sex_change_ok && !rn2(10)) {
-        change_sex();
+        await change_sex();
     }
-    adjabil(oldlvl, game.u.ulevel);
+    await adjabil(oldlvl, game.u.ulevel);
     /* random experience points for the new experience level */
     game.u.uexp = rndexp((0));
     /* set up new attribute points (particularly Con) */
@@ -543,16 +536,14 @@ export function newman() {
     for (i = 0; i < oldlvl; i++) {
         hpmax -= game.u.uhpinc[i];
     }
-    /* hpmax * rn1(4,8) / 10; 0.95*hpmax on average */
-    hpmax = rounddiv(hpmax * (rn2(4) + (8)), 10);
+    hpmax = await rounddiv(hpmax * (rn2(4) + (8)), 10);
     for (i = 0; (game.u.ulevel = i) < newlvl; i++) {
         hpmax += newhp();
     }
     if (hpmax < game.u.ulevel) {
         hpmax = game.u.ulevel;
     }
-    /* retain same proportion for current HP; u.uhp * hpmax / u.uhpmax */
-    game.u.uhp = rounddiv(game.u.uhp * hpmax, game.u.uhpmax);
+    game.u.uhp = await rounddiv(game.u.uhp * hpmax, game.u.uhpmax);
     setuhpmax(hpmax, (1));
     /*
      * Do the same for spell power.
@@ -561,22 +552,22 @@ export function newman() {
     for (i = 0; i < oldlvl; i++) {
         enmax -= game.u.ueninc[i];
     }
-    enmax = rounddiv(enmax * (rn2(4) + (8)), 10);
+    enmax = await rounddiv(enmax * (rn2(4) + (8)), 10);
     for (i = 0; (game.u.ulevel = i) < newlvl; i++) {
         enmax += newpw();
     }
     if (enmax < game.u.ulevel) {
         enmax = game.u.ulevel;
     }
-    game.u.uen = rounddiv(game.u.uen * enmax, ((game.u.uenmax < 1) ? 1 : game.u.uenmax));
+    game.u.uen = await rounddiv(game.u.uen * enmax, ((game.u.uenmax < 1) ? 1 : game.u.uenmax));
     game.u.uenmax = enmax;
     /* [should alignment record be tweaked too?] */
     game.u.uhunger = (rn2(500) + (500));
     if (game.u.uprops[SICK].intrinsic) {
-        make_sick(0, null, (0), 3);
+        await make_sick(0, null, (0), 3);
     }
     if (game.u.uprops[STONED].intrinsic) {
-        make_stoned(0, null, 0, null);
+        await make_stoned(0, null, 0, null);
     }
     if (game.u.uhp <= 0) {
         if ((game.u.uprops[POLYMORPH_CONTROL].intrinsic || game.u.uprops[POLYMORPH_CONTROL].extrinsic)) {
@@ -587,15 +578,12 @@ export function newman() {
         } else {
             dead: {
             }
-            /* we come directly here if experience level went to 0 or less */
-            urgent_pline("Your new form doesn't seem healthy enough to survive.");
+            await urgent_pline("Your new form doesn't seem healthy enough to survive.");
             game.killer.format = 0;
             game.killer.name = strcpy(game.killer.name, "unsuccessful polymorph");
-            done(DIED);
-            /* must have been life-saved to get here */
-            newuhs((0));
-            /* used to be done by redist_attr() */
-            encumber_msg();
+            await done(DIED);
+            await newuhs((0));
+            await encumber_msg();
             /* can get to here if declining to die in explore or wizard
                mode; since we're wearing an amulet of unchanging we can't
                be wearing an amulet of life-saving */
@@ -603,35 +591,31 @@ export function newman() {
             return;
         }
     }
-    newuhs((0));
+    await newuhs((0));
     /* use saved gender we're about to revert to, not current */
     newform = (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) && game.urace.individual.f) ? game.urace.individual.f : (game.urace.individual.m) ? game.urace.individual.m : game.urace.noun;
-    polyman("You feel like a new %s!", newform);
+    await polyman("You feel like a new %s!", newform);
     newgend = poly_gender();
     /* note: newman() bypasses achievements for new ranks attained and
        doesn't log "new <form>" when that isn't accompanied by level change */
     if (newlvl != oldlvl) {
         livelog_printf(4096, "became experience level %d as a new %s", newlvl, newform);
     } else {
-        livelog_newform((1), oldgend, newgend);
+        await livelog_newform((1), oldgend, newgend);
     }
     if (game.u.uprops[SLIMED].intrinsic) {
-        Your("body transforms, but there is still slime on you.");
-        make_slimed(10, null);
+        await Your("body transforms, but there is still slime on you.");
+        await make_slimed(10, null);
     }
     game.disp.botl = (1);
-    see_monsters();
-    encumber_msg();
-    retouch_equipment(2);
-    /* this might trigger a recursive call to polymon() [stone golem
-       wielding cockatrice corpse and hit by stone-to-flesh, becomes
-       flesh golem above, now gets transformed back into stone golem;
-       fortunately neither form uses #monster] */
+    await see_monsters();
+    await encumber_msg();
+    await retouch_equipment(2);
     if (!game.uarmg) {
-        selftouch(no_longer_petrify_resistant);
+        await selftouch(no_longer_petrify_resistant);
     }
 }
-export function polyself(psflags) {
+export async function polyself(psflags) {
     let buf = '';
     let old_light = 0;
     let new_light = 0;
@@ -658,17 +642,14 @@ export function polyself(psflags) {
         isvamp = (((game.youmonst.data).mlet == S_VAMPIRE) || ((game.youmonst).cham == PM_VAMPIRE || (game.youmonst).cham == PM_VAMPIRE_LEADER || (game.youmonst).cham == PM_VLAD_THE_IMPALER));
         controllable_poly = (game.u.uprops[POLYMORPH_CONTROL].intrinsic || game.u.uprops[POLYMORPH_CONTROL].extrinsic) && !(game.u.uprops[STUNNED].intrinsic || (game.multi < 0 && (unconscious() || is_fainted())));
         if ((game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic)) {
-            You("fail to transform!");
+            await You("fail to transform!");
             return;
         }
         if (!(game.u.uprops[POLYMORPH_CONTROL].intrinsic || game.u.uprops[POLYMORPH_CONTROL].extrinsic) && !forcecontrol && !draconian && !iswere && !isvamp) {
             if (rn2(20) > (acurr(A_CON))) {
-                You("%s", c_common_strings.c_shudder_for_moment);
-                /* being Stunned|Unaware doesn't negate this aspect of Poly_control */
-                losehp(rnd(30), "system shock", 0);
-                /* exercise used to be at the very end but only Wis was affected
-       there since the polymorph was always in effect by then */
-                exercise(A_CON, (0));
+                await You("%s", c_common_strings.c_shudder_for_moment);
+                await losehp(rnd(30), "system shock", 0);
+                await exercise(A_CON, (0));
                 return;
             }
         }
@@ -690,11 +671,11 @@ export function polyself(psflags) {
             tryct = 5;
             do {
                 mntmp = NON_PM;
-                getlin("Become what kind of monster? [type the name]", buf);
+                buf = await getlin("Become what kind of monster? [type the name]", buf);
                 buf = mungspaces(buf);
                 if (buf == 27) {
                     if (forcecontrol) {
-                        pline("%s", c_common_strings.c_Never_mind);
+                        await pline("%s", c_common_strings.c_Never_mind);
                         /* user is cancelling controlled poly */
                         return;
                     }
@@ -708,11 +689,11 @@ export function polyself(psflags) {
                     continue;
                 }
                 class_ = 0;
-                mntmp = name_to_mon(buf, { get value() { return gvariant; }, set value(_v) { gvariant = _v; } });
+                mntmp = await name_to_mon(buf, { get value() { return gvariant; }, set value(_v) { gvariant = _v; } });
                 if (mntmp < LOW_PM) {
                     by_class: {
                     }
-                    class_ = name_to_monclass(buf, { get value() { return mntmp; }, set value(_v) { mntmp = _v; } });
+                    class_ = await name_to_monclass(buf, { get value() { return mntmp; }, set value(_v) { mntmp = _v; } });
                     if (class_ && mntmp == NON_PM) {
                         mntmp = (draconian && class_ == S_DRAGON) ? armor_to_dragon(game.uarm.otyp) : mkclass_poly(class_);
                     }
@@ -737,17 +718,12 @@ export function polyself(psflags) {
                 }
                 if (mntmp < LOW_PM) {
                     if (!class_) {
-                        pline("I've never heard of such monsters.");
+                        await pline("I've never heard of such monsters.");
                     } else {
-                        You_cant("polymorph into any of those.");
+                        await You_cant("polymorph into any of those.");
                     }
                 } else if (game.flags.debug && (game.u.umonnum != game.u.umonster) && (mntmp == game.u.umonster || (game.u.umonster == PM_CLERIC && mntmp == PM_ALIGNED_CLERIC && !strstri(buf, "aligned")))) {
-                    /* "priest" and "priestess" match the monster
-                              rather than the role; override that unless
-                              the text explicitly contains "aligned" */
-                    /* in wizard mode, picking own role while poly'd reverts to
-                   normal without newman()'s chance of level or sex change */
-                    rehumanize();
+                    await rehumanize();
                     /* rehumanize() extinguishes u-as-mon light */
                     old_light = 0;
                     /* maybe not, but this is right anyway */
@@ -773,11 +749,11 @@ export function polyself(psflags) {
                     }
                     pm_name = pmname(game.mons[mntmp], game.flags.female ? FEMALE : MALE);
                     if (the_unique_pm(game.mons[mntmp])) {
-                        pm_name = the(pm_name);
+                        pm_name = await the(pm_name);
                     } else if (!(((game.mons[mntmp]).mflags2 & 524288) != 0)) {
-                        pm_name = an(pm_name);
+                        pm_name = await an(pm_name);
                     }
-                    You_cant("polymorph into %s.", pm_name);
+                    await You_cant("polymorph into %s.", pm_name);
                 } else {
                     /* Note that otmp->nobj is pointing at fobj now,
              * as a result of:
@@ -792,7 +768,7 @@ export function polyself(psflags) {
                 }
             } while (--tryct > 0);
             if (!tryct) {
-                pline("%s", c_common_strings.c_thats_enough_tries);
+                await pline("%s", c_common_strings.c_thats_enough_tries);
             }
             /* allow skin merging, even when polymorph is controlled */
             if (draconian && (tryct <= 0 || mntmp == armor_to_dragon(game.uarm.otyp))) {
@@ -811,30 +787,26 @@ export function polyself(psflags) {
                     let was_lit = game.uarm.lamplit;
                     let arm_light = artifact_light(game.uarm) ? arti_light_radius(game.uarm) : 0;
                     if (((game.uarm).otyp >= GRAY_DRAGON_SCALES && (game.uarm).otyp <= YELLOW_DRAGON_SCALES)) {
-                        /* dragon scales remain intact as uskin */
-                        You("merge with your scaly armor.");
+                        await You("merge with your scaly armor.");
                     } else {
-                        buf = strcpy(buf, simpleonames(game.uarm));
+                        buf = strcpy(buf, await simpleonames(game.uarm));
                         /* dragon scale mail reverts to scales */
                         /* similar to noarmor(invent.c),
                        shorten to "<color> scale mail" */
                         buf = strsubst(buf, " dragon ", " ");
-                        /* tricky phrasing; dragon scale mail is singular, dragon
-                       scales are plural (note: we don't use "set of scales",
-                       which usually overrides the distinction, here) */
-                        Your("%s reverts to scales as you merge with them.", buf);
+                        await Your("%s reverts to scales as you merge with them.", buf);
                         /* uarm->spe enchantment remains unchanged;
                        re-converting scales to mail poses risk
                        of evaporation due to over enchanting */
                         game.uarm.otyp += GRAY_DRAGON_SCALES - GRAY_DRAGON_SCALE_MAIL;
-                        observe_object(game.uarm);
+                        await observe_object(game.uarm);
                         game.disp.botl = (1);
                     }
                     game.uskin = game.uarm;
                     game.uarm = null;
                     game.uskin.owornmask |= 536870912;
                     if (was_lit) {
-                        maybe_adjust_light(game.uskin, arm_light);
+                        await maybe_adjust_light(game.uskin, arm_light);
                     }
                     update_inventory();
                 }
@@ -856,19 +828,16 @@ export function polyself(psflags) {
                     }
                 }
                 if (controllable_poly) {
-                    buf = sprintf(buf, "Become %s?", an(pmname(game.mons[mntmp], gvariant)));
-                    if (yn_function(buf, ynchars, 110, (1)) != 121) {
+                    buf = sprintf(buf, "Become %s?", await an(pmname(game.mons[mntmp], gvariant)));
+                    if (await yn_function(buf, ynchars, 110, (1)) != 121) {
                         return;
                     }
                 }
             }
             if (mntmp == PM_HUMAN) {
-                newman();
-            /* if polymon fails, "you feel" message has been given
-           so don't follow up with another polymon or newman;
-           sex_change_ok left disabled here */
+                await newman();
             } else {
-                polymon(mntmp);
+                await polymon(mntmp);
             }
             break made_change;
         }
@@ -887,30 +856,29 @@ export function polyself(psflags) {
      */
         game.sex_change_ok++;
         if (!(((game.mons[mntmp]).mflags2 & 1) == 0) || (!forcecontrol && !rn2(5)) || (((game.mons[mntmp]).mflags2 & game.urace.selfmask) != 0)) {
-            newman();
+            await newman();
         } else {
-            polymon(mntmp);
+            await polymon(mntmp);
         }
         game.sex_change_ok--;
     }
     new_light = (((game.youmonst.data).mlet == S_LIGHT || (game.youmonst.data) == game.mons[PM_FLAMING_SPHERE] || (game.youmonst.data) == game.mons[PM_SHOCKING_SPHERE] || (game.youmonst.data) == game.mons[PM_BABY_GOLD_DRAGON] || (game.youmonst.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((game.youmonst.data) == game.mons[PM_FIRE_ELEMENTAL] || (game.youmonst.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0);
     if (old_light != new_light) {
         if (old_light) {
-            del_light_source(LS_MONSTER, monst_to_any(game.youmonst));
+            await del_light_source(LS_MONSTER, monst_to_any(game.youmonst));
         }
         if (new_light == 1) {
             ++new_light;
         }
-        /* otherwise it's undetectable */
         if (new_light) {
-            new_light_source(game.u.ux, game.u.uy, new_light, LS_MONSTER, monst_to_any(game.youmonst));
+            await new_light_source(game.u.ux, game.u.uy, new_light, LS_MONSTER, monst_to_any(game.youmonst));
         }
     }
 }
 /* (try to) make a mntmp monster out of the player; return 1 if successful */
 const __polymon_use_thec = "Use the command #%s to %s.";
 const __polymon_monsterc = "monster";
-export function polymon(mntmp) {
+export async function polymon(mntmp) {
     let buf = '';
     let ustuckNam = '';
     let sticking = sticks(game.youmonst.data) && game.u.ustuck && !game.u.uswallow;
@@ -921,28 +889,28 @@ export function polymon(mntmp) {
     let mlvl = 0;
     let newMaxStr = 0;
     if (game.mvitals[mntmp].mvflags & 2) {
-        You_feel("rather %s-ish.", pmname(game.mons[mntmp], game.flags.female ? FEMALE : MALE));
-        exercise(A_WIS, (1));
+        await You_feel("rather %s-ish.", pmname(game.mons[mntmp], game.flags.female ? FEMALE : MALE));
+        await exercise(A_WIS, (1));
         return 0;
     }
     if (!game.u.uconduct.polyselfs++) {
-        livelog_printf(32, "changed form for the first time, becoming %s", an(pmname(game.mons[mntmp], game.flags.female ? FEMALE : MALE)));
+        livelog_printf(32, "changed form for the first time, becoming %s", await an(pmname(game.mons[mntmp], game.flags.female ? FEMALE : MALE)));
     }
-    exercise(A_CON, (0));
-    exercise(A_WIS, (1));
+    await exercise(A_CON, (0));
+    await exercise(A_WIS, (1));
     if (!(game.u.umonnum != game.u.umonster)) {
         /* Human to monster; save human stats */
-        game.u.macurr = game.u.acurr;
-        game.u.mamax = game.u.amax;
+        Object.assign(game.u.macurr, game.u.acurr);
+        Object.assign(game.u.mamax, game.u.amax);
         game.u.mfemale = game.flags.female;
     } else {
-        game.u.acurr = game.u.macurr;
-        game.u.amax = game.u.mamax;
+        Object.assign(game.u.acurr, game.u.macurr);
+        Object.assign(game.u.amax, game.u.mamax);
         game.flags.female = game.u.mfemale;
     }
     /* if stuck mimicking gold, stop immediately */
     if (game.multi < 0 && (game.youmonst.m_ap_type & 7) == M_AP_OBJECT && game.youmonst.data.mlet != S_MIMIC) {
-        unmul("");
+        await unmul("");
     }
     if (game.mons[mntmp].mlet != S_MIMIC) {
         game.youmonst.m_ap_type = M_AP_NOTHING;
@@ -961,22 +929,22 @@ export function polymon(mntmp) {
             dochange = (1);
         }
     }
-    ustuckNam = strcpy(ustuckNam, game.u.ustuck ? Some_Monnam(game.u.ustuck) : "");
+    ustuckNam = strcpy(ustuckNam, game.u.ustuck ? await Some_Monnam(game.u.ustuck) : "");
     buf = strcpy(buf, (game.u.umonnum != mntmp) ? "" : "new ");
     if (dochange) {
         game.flags.female = !game.flags.female;
         buf = strcat(buf, ((((game.mons[mntmp]).mflags2 & 65536) != 0) || (((game.mons[mntmp]).mflags2 & 131072) != 0)) ? "" : game.flags.female ? "female " : "male ");
     }
     buf = strcat(buf, pmname(game.mons[mntmp], game.flags.female ? FEMALE : MALE));
-    You("%s %s!", (game.u.umonnum != mntmp) ? "turn into" : "feel like", an(buf));
+    await You("%s %s!", (game.u.umonnum != mntmp) ? "turn into" : "feel like", await an(buf));
     if (game.u.uprops[STONED].intrinsic && poly_when_stoned(game.mons[mntmp])) {
         /* poly_when_stoned already checked stone golem genocide */
         mntmp = PM_STONE_GOLEM;
-        make_stoned(0, "You turn to stone!", 0, null);
+        await make_stoned(0, "You turn to stone!", 0, null);
     }
     game.u.mtimedone = (rn2(500) + (500));
     game.u.umonnum = mntmp;
-    set_uasmon();
+    await set_uasmon();
     /* New stats for monster, to last only as long as polymorphed.
      * Currently only strength gets changed.
      */
@@ -995,21 +963,20 @@ export function polymon(mntmp) {
         }
     }
     if ((game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) && game.u.uprops[STONED].intrinsic) {
-        /* parnes@eniac.seas.upenn.edu */
-        make_stoned(0, "You no longer seem to be petrifying.", 0, null);
+        await make_stoned(0, "You no longer seem to be petrifying.", 0, null);
     }
-    if ((game.u.uprops[SICK_RES].intrinsic || game.u.uprops[SICK_RES].extrinsic || defended(game.youmonst, 33)) && game.u.uprops[SICK].intrinsic) {
-        make_sick(0, null, (0), 3);
-        You("no longer feel sick.");
+    if ((game.u.uprops[SICK_RES].intrinsic || game.u.uprops[SICK_RES].extrinsic || await defended(game.youmonst, 33)) && game.u.uprops[SICK].intrinsic) {
+        await make_sick(0, null, (0), 3);
+        await You("no longer feel sick.");
     }
     if (game.u.uprops[SLIMED].intrinsic) {
         if (((game.youmonst.data) == game.mons[PM_FIRE_VORTEX] || (game.youmonst.data) == game.mons[PM_FLAMING_SPHERE] || (game.youmonst.data) == game.mons[PM_FIRE_ELEMENTAL] || (game.youmonst.data) == game.mons[PM_SALAMANDER])) {
-            make_slimed(0, "The slime burns away!");
+            await make_slimed(0, "The slime burns away!");
         } else if (mntmp == PM_GREEN_SLIME) {
-            make_slimed(0, null);
+            await make_slimed(0, null);
         }
     }
-    check_strangling((0));
+    await check_strangling((0));
     if ((((game.youmonst.data).mflags1 & 8192) != 0)) {
         make_glib(0);
     }
@@ -1040,24 +1007,22 @@ export function polymon(mntmp) {
         game.u.mtimedone = Math.trunc(game.u.mtimedone * game.u.ulevel / mlvl);
     }
     if (game.uskin && mntmp != armor_to_dragon(game.uskin.otyp)) {
-        skinback((0));
+        await skinback((0));
     }
-    break_armor();
-    drop_weapon(1);
+    await break_armor();
+    await drop_weapon(1);
     find_ac();
-    /* if hiding under something and can't hide anymore, unhide now;
-       but don't auto-hide when not already hiding-under */
     if (was_hiding_under) {
-        hideunder(game.youmonst);
+        await hideunder(game.youmonst);
     }
     if (game.u.utrap && game.u.utraptype == TT_PIT) {
         set_utrap((rn2(6) + (2)), TT_PIT);
     }
     if (was_blind && !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
         set_itimeout({ get value() { return game.u.uprops[BLINDED].intrinsic; }, set value(_v) { game.u.uprops[BLINDED].intrinsic = _v; } }, 1);
-        make_blinded(0, (1));
+        await make_blinded(0, (1));
     }
-    newsym(game.u.ux, game.u.uy);
+    await newsym(game.u.ux, game.u.uy);
     if ((((game.youmonst.data).mflags1 & 4194304) != 0)) {
         /* you now know what an egg of your type looks like; [moved from
        below in case expels() -> spoteffects() drops hero onto any eggs] */
@@ -1083,77 +1048,76 @@ export function polymon(mntmp) {
            to can't-see; but might have changed from can't-see to can-see so
            override here if hero knows who u.ustuck is */
                 if ((canseemon(game.u.ustuck) || sensemon(game.u.ustuck))) {
-                    ustuckNam = strcpy(ustuckNam, Monnam(game.u.ustuck));
+                    ustuckNam = strcpy(ustuckNam, await Monnam(game.u.ustuck));
                 }
-                pline("%s can no longer contain you.", ustuckNam);
+                await pline("%s can no longer contain you.", ustuckNam);
                 expels_mesg = (0);
             }
-            expels(game.u.ustuck, game.u.ustuck.data, expels_mesg);
+            await expels(game.u.ustuck, game.u.ustuck.data, expels_mesg);
             /* FIXME? if expels() triggered rehumanize then we should
                return early */
             was_expelled = (1);
         }
     } else if (game.u.ustuck && !sticking && (sticks(game.youmonst.data) || (((game.youmonst.data).mflags1 & 1048576) != 0))) {
         if ((canseemon(game.u.ustuck) || sensemon(game.u.ustuck))) {
-            ustuckNam = strcpy(ustuckNam, Monnam(game.u.ustuck));
+            ustuckNam = strcpy(ustuckNam, await Monnam(game.u.ustuck));
         }
-        set_ustuck(null);
-        pline("%s loses its grip on you.", ustuckNam);
+        await set_ustuck(null);
+        await pline("%s loses its grip on you.", ustuckNam);
     } else if (sticking && !sticks(game.youmonst.data)) {
-        uunstick();
+        await uunstick();
     }
     if (game.u.usteed) {
         if (((game.u.usteed.data) == game.mons[PM_COCKATRICE] || (game.u.usteed.data) == game.mons[PM_CHICKATRICE]) && !(game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) && rnl(3)) {
-            pline("%s touch %s.", no_longer_petrify_resistant, mon_nam(game.u.usteed));
-            buf = sprintf(buf, "riding %s", an(pmname(game.u.usteed.data, Mgender(game.u.usteed))));
-            instapetrify(buf);
+            await pline("%s touch %s.", no_longer_petrify_resistant, await mon_nam(game.u.usteed));
+            buf = sprintf(buf, "riding %s", await an(pmname(game.u.usteed.data, Mgender(game.u.usteed))));
+            await instapetrify(buf);
         }
         if (!can_ride(game.u.usteed)) {
-            dismount_steed(DISMOUNT_POLY);
+            await dismount_steed(DISMOUNT_POLY);
         }
     }
     find_ac();
     if (((!((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) && !game.u.ustuck && !((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked) && is_pool_or_lava(game.u.ux, game.u.uy)) || ((game.u.uinwater) && !(game.u.uprops[SWIMMING].intrinsic || game.u.uprops[SWIMMING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 2) != 0))))) && !was_expelled) {
-        spoteffects((1));
+        await spoteffects((1));
     }
     if ((game.u.uprops[PASSES_WALLS].intrinsic || game.u.uprops[PASSES_WALLS].extrinsic) && game.u.utrap && (game.u.utraptype == TT_INFLOOR || game.u.utraptype == TT_BURIEDBALL)) {
         if (game.u.utraptype == TT_INFLOOR) {
-            pline_The("rock seems to no longer trap you.");
+            await pline_The("rock seems to no longer trap you.");
         } else {
-            pline_The("buried ball is no longer bound to you.");
-            buried_ball_to_freedom();
+            await pline_The("buried ball is no longer bound to you.");
+            await buried_ball_to_freedom();
         }
-        /* probably should burn webs too if PM_FIRE_ELEMENTAL */
-        reset_utrap((1));
+        await reset_utrap((1));
     } else if ((game.youmonst.data == game.mons[PM_FIRE_ELEMENTAL] || game.youmonst.data == game.mons[PM_SALAMANDER]) && game.u.utrap && game.u.utraptype == TT_LAVA) {
-        pline_The("%s now feels soothing.", hliquid("lava"));
-        reset_utrap((1));
+        await pline_The("%s now feels soothing.", hliquid("lava"));
+        await reset_utrap((1));
     }
     if ((((game.youmonst.data).mflags1 & 4) != 0) || ((game.youmonst.data).mlet == S_VORTEX || (game.youmonst.data) == game.mons[PM_AIR_ELEMENTAL]) || (((game.youmonst.data).mflags1 & 1048576) != 0)) {
         if ((game.uball != null)) {
-            You("slip out of the iron chain.");
-            unpunish();
+            await You("slip out of the iron chain.");
+            await unpunish();
         } else if (game.u.utrap && game.u.utraptype == TT_BURIEDBALL) {
-            You("slip free of the buried ball and chain.");
-            buried_ball_to_freedom();
+            await You("slip free of the buried ball and chain.");
+            await buried_ball_to_freedom();
         }
     }
     if (game.u.utrap && (game.u.utraptype == TT_WEB || game.u.utraptype == TT_BEARTRAP) && ((((game.youmonst.data).mflags1 & 4) != 0) || ((game.youmonst.data).mlet == S_VORTEX || (game.youmonst.data) == game.mons[PM_AIR_ELEMENTAL]) || (((game.youmonst.data).mflags1 & 1048576) != 0) || (game.youmonst.data.msize <= 1 && game.u.utraptype == TT_BEARTRAP))) {
-        You("are no longer stuck in the %s.", game.u.utraptype == TT_WEB ? "web" : "bear trap");
-        reset_utrap((1));
+        await You("are no longer stuck in the %s.", game.u.utraptype == TT_WEB ? "web" : "bear trap");
+        await reset_utrap((1));
     }
     if (((game.youmonst.data) == game.mons[PM_CAVE_SPIDER] || (game.youmonst.data) == game.mons[PM_GIANT_SPIDER]) && game.u.utrap && game.u.utraptype == TT_WEB) {
-        You("orient yourself on the web.");
-        reset_utrap((1));
+        await You("orient yourself on the web.");
+        await reset_utrap((1));
     }
-    check_strangling((1));
+    await check_strangling((1));
     game.disp.botl = (1);
     game.vision_full_recalc = 1;
-    see_monsters();
-    encumber_msg();
-    retouch_equipment(2);
+    await see_monsters();
+    await encumber_msg();
+    await retouch_equipment(2);
     if (!game.uarmg) {
-        selftouch(no_longer_petrify_resistant);
+        await selftouch(no_longer_petrify_resistant);
     }
     if (game.flags.verbose) {
         /* the explanation of '#monster' used to be shown sooner, but there are
@@ -1161,44 +1125,44 @@ export function polymon(mntmp) {
         let uptr = game.youmonst.data;
         let might_hide = ((((uptr).mflags1 & 256) != 0) || (((uptr).mflags1 & 128) != 0));
         if (attacktype(uptr, 12)) {
-            pline(__polymon_use_thec, __polymon_monsterc, "use your breath weapon");
+            await pline(__polymon_use_thec, __polymon_monsterc, "use your breath weapon");
         }
         if (attacktype(uptr, 10)) {
-            pline(__polymon_use_thec, __polymon_monsterc, "spit venom");
+            await pline(__polymon_use_thec, __polymon_monsterc, "spit venom");
         }
         if (uptr.mlet == S_NYMPH) {
-            pline(__polymon_use_thec, __polymon_monsterc, "remove an iron ball");
+            await pline(__polymon_use_thec, __polymon_monsterc, "remove an iron ball");
         }
         if (attacktype(uptr, 15)) {
-            pline(__polymon_use_thec, __polymon_monsterc, "gaze at monsters");
+            await pline(__polymon_use_thec, __polymon_monsterc, "gaze at monsters");
         }
         if (might_hide && ((uptr) == game.mons[PM_CAVE_SPIDER] || (uptr) == game.mons[PM_GIANT_SPIDER])) {
-            pline(__polymon_use_thec, __polymon_monsterc, "hide or to spin a web");
+            await pline(__polymon_use_thec, __polymon_monsterc, "hide or to spin a web");
         } else if (might_hide) {
-            pline(__polymon_use_thec, __polymon_monsterc, "hide");
+            await pline(__polymon_use_thec, __polymon_monsterc, "hide");
         } else if (((uptr) == game.mons[PM_CAVE_SPIDER] || (uptr) == game.mons[PM_GIANT_SPIDER])) {
-            pline(__polymon_use_thec, __polymon_monsterc, "spin a web");
+            await pline(__polymon_use_thec, __polymon_monsterc, "spin a web");
         }
         if ((((uptr).mflags2 & 4) != 0)) {
-            pline(__polymon_use_thec, __polymon_monsterc, "summon help");
+            await pline(__polymon_use_thec, __polymon_monsterc, "summon help");
         }
         if (game.u.umonnum == PM_GREMLIN) {
-            pline(__polymon_use_thec, __polymon_monsterc, "multiply in a fountain");
+            await pline(__polymon_use_thec, __polymon_monsterc, "multiply in a fountain");
         }
         if (((uptr).mlet == S_UNICORN && (((uptr).mflags2 & 536870912) != 0))) {
-            pline(__polymon_use_thec, __polymon_monsterc, "use your horn");
+            await pline(__polymon_use_thec, __polymon_monsterc, "use your horn");
         }
         if (((uptr) == game.mons[PM_MIND_FLAYER] || (uptr) == game.mons[PM_MASTER_MIND_FLAYER])) {
-            pline(__polymon_use_thec, __polymon_monsterc, "emit a mental blast");
+            await pline(__polymon_use_thec, __polymon_monsterc, "emit a mental blast");
         }
         if (uptr.msound == MS_SHRIEK) {
-            pline(__polymon_use_thec, __polymon_monsterc, "shriek");
+            await pline(__polymon_use_thec, __polymon_monsterc, "shriek");
         }
         if (((uptr).mlet == S_VAMPIRE) || ((game.youmonst).cham == PM_VAMPIRE || (game.youmonst).cham == PM_VAMPIRE_LEADER || (game.youmonst).cham == PM_VLAD_THE_IMPALER)) {
-            pline(__polymon_use_thec, __polymon_monsterc, "change shape");
+            await pline(__polymon_use_thec, __polymon_monsterc, "change shape");
         }
         if ((((uptr).mflags1 & 4194304) != 0) && game.flags.female && !(uptr == game.mons[PM_GIANT_EEL] || uptr == game.mons[PM_ELECTRIC_EEL])) {
-            pline(__polymon_use_thec, "sit", ((((uptr).mflags1 & 4194304) != 0) && (uptr).mlet == S_EEL && (((uptr).mflags1 & 2) != 0)) ? "spawn in the water" : "lay an egg");
+            await pline(__polymon_use_thec, "sit", ((((uptr).mflags1 & 4194304) != 0) && (uptr).mlet == S_EEL && (((uptr).mflags1 & 2) != 0)) ? "spawn in the water" : "lay an egg");
         }
     }
     return 1;
@@ -1244,28 +1208,16 @@ export function uasmon_maxStr() {
     return newMaxStr;
 }
 /* dropx() jacket for break_armor() */
-export function dropp(obj) {
+export async function dropp(obj) {
     let otmp = null;
     for (otmp = game.invent; otmp; otmp = otmp.nobj) {
         if (otmp == obj) {
-            /*
-     * Dropping worn armor while polymorphing might put hero into water
-     * (loss of levitation boots or water walking boots that the new
-     * form can't wear), where emergency_disrobe() could remove it from
-     * inventory.  Without this, dropx() could trigger an 'object lost'
-     * panic.  Right now, boots are the only armor which might encounter
-     * this situation, but handle it for all armor.
-     *
-     * Hypothetically, 'obj' could have merged with something (not
-     * applicable for armor) and no longer be a valid pointer, so scan
-     * inventory for it instead of trusting obj->where.
-     */
-            dropx(obj);
+            await dropx(obj);
             break;
         }
     }
 }
-export function break_armor() {
+export async function break_armor() {
     let otmp = null;
     let uptr = game.youmonst.data;
     if (breakarm(uptr)) {
@@ -1273,68 +1225,59 @@ export function break_armor() {
             if (donning(otmp)) {
                 cancel_don();
             }
-            /* for gold DSM, we don't want Armor_gone() to report that it
-               stops shining _after_ we've been told that it is destroyed */
             if (otmp.lamplit) {
-                end_burn(otmp, (0));
+                await end_burn(otmp, (0));
             }
-            You("break out of your armor!");
-            exercise(A_STR, (0));
-            /* [note: _gone() instead of _off() dates to when life-saving
-               could force fire resisting armor back on if hero burned in
-               hell (3.0, predating Gehennom); the armor isn't actually
-               gone here but also isn't available to be put back on] */
-            Armor_gone();
-            useup(otmp);
+            await You("break out of your armor!");
+            await exercise(A_STR, (0));
+            await Armor_gone();
+            await useup(otmp);
         }
         if ((otmp = game.uarmc) != null && (otmp.otyp != MUMMY_WRAPPING || !((((uptr).mflags1 & 131072) != 0) && (uptr).msize >= 1 && (uptr).msize <= 4 && !((uptr).mlet == S_GHOST) && (uptr).mlet != S_CENTAUR && (uptr) != game.mons[PM_WINGED_GARGOYLE] && (uptr) != game.mons[PM_MARILITH]))) {
             if (otmp.otyp == MUMMY_WRAPPING) {
-                /* mummy wrapping adapts to small and very big sizes */
-                /* doesn't have a clasp to break open */
-                Your("%s tears apart!", cloak_simple_name(otmp));
-                Cloak_off();
-                useup(otmp);
+                await Your("%s tears apart!", cloak_simple_name(otmp));
+                await Cloak_off();
+                await useup(otmp);
             } else if (otmp.otyp == ALCHEMY_SMOCK) {
-                pline_The("knot on your %s is pulled apart!", cloak_simple_name(otmp));
-                Cloak_off();
-                /* Glib manipulation (ends immediately) handled by Gloves_off */
-                dropp(otmp);
+                await pline_The("knot on your %s is pulled apart!", cloak_simple_name(otmp));
+                await Cloak_off();
+                await dropp(otmp);
             } else {
-                pline_The("clasp on your %s breaks open!", cloak_simple_name(otmp));
-                Cloak_off();
-                dropp(otmp);
+                await pline_The("clasp on your %s breaks open!", cloak_simple_name(otmp));
+                await Cloak_off();
+                await dropp(otmp);
             }
         }
         if (game.uarmu) {
-            Your("shirt rips to shreds!");
-            useup(game.uarmu);
+            await Your("shirt rips to shreds!");
+            await useup(game.uarmu);
         }
     } else if (sliparm(uptr)) {
         if ((otmp = game.uarm) != null && racial_exception(game.youmonst, otmp) < 1) {
             if (donning(otmp)) {
                 cancel_don();
             }
-            Your("armor falls around you!");
-            Armor_gone();
-            dropp(otmp);
+            await Your("armor falls around you!");
+            await Armor_gone();
+            await dropp(otmp);
         }
         if ((otmp = game.uarmc) != null && (otmp.otyp != MUMMY_WRAPPING || !((((uptr).mflags1 & 131072) != 0) && (uptr).msize >= 1 && (uptr).msize <= 4 && !((uptr).mlet == S_GHOST) && (uptr).mlet != S_CENTAUR && (uptr) != game.mons[PM_WINGED_GARGOYLE] && (uptr) != game.mons[PM_MARILITH]))) {
             if (((uptr).mlet == S_VORTEX || (uptr) == game.mons[PM_AIR_ELEMENTAL])) {
-                Your("%s falls, unsupported!", cloak_simple_name(otmp));
+                await Your("%s falls, unsupported!", cloak_simple_name(otmp));
             } else {
-                You("shrink out of your %s!", cloak_simple_name(otmp));
+                await You("shrink out of your %s!", cloak_simple_name(otmp));
             }
-            Cloak_off();
-            dropp(otmp);
+            await Cloak_off();
+            await dropp(otmp);
         }
         if ((otmp = game.uarmu) != null) {
             if (((uptr).mlet == S_VORTEX || (uptr) == game.mons[PM_AIR_ELEMENTAL])) {
-                You("seep right through your shirt!");
+                await You("seep right through your shirt!");
             } else {
-                You("become much too small for your shirt!");
+                await You("become much too small for your shirt!");
             }
-            setworn(null, otmp.owornmask & 64);
-            dropp(otmp);
+            await setworn(null, otmp.owornmask & 64);
+            await dropp(otmp);
         }
     }
     if ((num_horns(uptr) > 0)) {
@@ -1342,15 +1285,14 @@ export function break_armor() {
             if ((game.objects[(otmp).otyp].oc_material <= LEATHER || (otmp).otyp == RUBBER_HOSE) && !donning(otmp)) {
                 let hornbuf = '';
                 hornbuf = sprintf(hornbuf, "horn%s", (((num_horns(uptr)) == 1) ? "" : "s"));
-                /* Future possibilities: This could damage/destroy helmet */
-                Your("%s %s through %s.", hornbuf, vtense(hornbuf, "pierce"), yname(otmp));
+                await Your("%s %s through %s.", hornbuf, await vtense(hornbuf, "pierce"), await yname(otmp));
             } else {
                 if (donning(otmp)) {
                     cancel_don();
                 }
-                Your("%s falls to the %s!", helm_simple_name(otmp), surface(game.u.ux, game.u.uy));
-                Helmet_off();
-                dropp(otmp);
+                await Your("%s falls to the %s!", helm_simple_name(otmp), surface(game.u.ux, game.u.uy));
+                await Helmet_off();
+                await dropp(otmp);
             }
         }
     }
@@ -1359,24 +1301,23 @@ export function break_armor() {
             if (donning(otmp)) {
                 cancel_don();
             }
-            /* Drop weapon along with gloves */
-            You("drop your gloves%s!", game.uwep ? " and weapon" : "");
-            drop_weapon(0);
-            Gloves_off();
-            dropp(otmp);
+            await You("drop your gloves%s!", game.uwep ? " and weapon" : "");
+            await drop_weapon(0);
+            await Gloves_off();
+            await dropp(otmp);
         }
         if ((otmp = game.uarms) != null) {
-            You("can no longer hold your shield!");
-            Shield_off();
-            dropp(otmp);
+            await You("can no longer hold your shield!");
+            await Shield_off();
+            await dropp(otmp);
         }
         if ((otmp = game.uarmh) != null) {
             if (donning(otmp)) {
                 cancel_don();
             }
-            Your("%s falls to the %s!", helm_simple_name(otmp), surface(game.u.ux, game.u.uy));
-            Helmet_off();
-            dropp(otmp);
+            await Your("%s falls to the %s!", helm_simple_name(otmp), surface(game.u.ux, game.u.uy));
+            await Helmet_off();
+            await dropp(otmp);
         }
     }
     if ((((uptr).mflags1 & 8192) != 0) || ((uptr).msize < 1) || (((uptr).mflags1 & 524288) != 0) || uptr.mlet == S_CENTAUR) {
@@ -1385,12 +1326,12 @@ export function break_armor() {
                 cancel_don();
             }
             if (((uptr).mlet == S_VORTEX || (uptr) == game.mons[PM_AIR_ELEMENTAL])) {
-                Your("boots fall away!");
+                await Your("boots fall away!");
             } else {
-                Your("boots %s off your feet!", ((uptr).msize < 1) ? "slide" : "are pushed");
+                await Your("boots %s off your feet!", ((uptr).msize < 1) ? "slide" : "are pushed");
             }
-            Boots_off();
-            dropp(otmp);
+            await Boots_off();
+            await dropp(otmp);
         }
     }
     /* rings stay worn even when no hands */
@@ -1400,17 +1341,16 @@ export function break_armor() {
        but putting accessories on doesn't reject those cases [yet?]);
        amulet stays worn */
         let l = 0;
-        let eyewear = simpleonames(otmp);
+        let eyewear = await simpleonames(otmp);
         if (!strncmp(eyewear, "pair of ", l = 8)) {
             eyewear = __nh_advance_str(eyewear, l);
         }
-        Your("%s %s off!", eyewear, vtense(eyewear, "fall"));
-        /* Null: skip usual off mesg */
-        Blindf_off(null);
-        dropp(otmp);
+        await Your("%s %s off!", eyewear, await vtense(eyewear, "fall"));
+        await Blindf_off(null);
+        await dropp(otmp);
     }
 }
-export function drop_weapon(alone) {
+export async function drop_weapon(alone) {
     let otmp = null;
     let what = null;
     let which = null;
@@ -1420,44 +1360,40 @@ export function drop_weapon(alone) {
     let updateinv = (1);
     if (game.uwep) {
         if (!alone || ((((game.youmonst.data).mflags1 & 8192) != 0) || ((game.youmonst.data).msize < 1))) {
-            /* !alone check below is currently superfluous but in the
-         * future it might not be so if there are monsters which cannot
-         * wear gloves but can wield weapons
-         */
-            candropwep = canletgo(game.uwep, "");
-            candropswapwep = !game.u.twoweap || canletgo(game.uswapwep, "");
+            candropwep = await canletgo(game.uwep, "");
+            candropswapwep = !game.u.twoweap || await canletgo(game.uswapwep, "");
             if (alone) {
                 what = (candropwep && candropswapwep) ? "drop" : "release";
-                which = (game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[game.uwep.otyp].oc_subtyp <= P_SABER) ? "sword" : weapon_descr(game.uwep);
+                which = (game.uwep.oclass == WEAPON_CLASS && game.objects[game.uwep.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[game.uwep.otyp].oc_subtyp <= P_SABER) ? "sword" : await weapon_descr(game.uwep);
                 if (game.u.twoweap) {
-                    whichtoo = (game.uswapwep.oclass == WEAPON_CLASS && game.objects[game.uswapwep.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[game.uswapwep.otyp].oc_subtyp <= P_SABER) ? "sword" : weapon_descr(game.uswapwep);
+                    whichtoo = (game.uswapwep.oclass == WEAPON_CLASS && game.objects[game.uswapwep.otyp].oc_subtyp >= P_SHORT_SWORD && game.objects[game.uswapwep.otyp].oc_subtyp <= P_SABER) ? "sword" : await weapon_descr(game.uswapwep);
                     if (strcmp(which, whichtoo)) {
                         which = "weapon";
                     }
                 }
                 if (game.uwep.quan != 1 || game.u.twoweap) {
-                    which = makeplural(which);
+                    which = await makeplural(which);
                 }
-                You("find you must %s %s %s!", what, c_common_strings.c_the_your[!!strncmp(which, "corpse", 6)], which);
+                await You("find you must %s %s %s!", what, c_common_strings.c_the_your[!!strncmp(which, "corpse", 6)], which);
             }
             if (game.u.twoweap) {
                 /* if either uwep or wielded uswapwep is flagged as 'in_use'
                then don't drop it or explicitly update inventory; leave
                those actions to caller (or caller's caller, &c) */
                 otmp = game.uswapwep;
-                uswapwepgone();
+                await uswapwepgone();
                 if (otmp.in_use) {
                     updateinv = (0);
                 } else if (candropswapwep) {
-                    dropx(otmp);
+                    await dropx(otmp);
                 }
             }
             otmp = game.uwep;
-            uwepgone();
+            await uwepgone();
             if (otmp.in_use) {
                 updateinv = (0);
             } else if (candropwep) {
-                dropx(otmp);
+                await dropx(otmp);
             }
             /* [note: dropp vs dropx -- if heart of ahriman is wielded, we
                might be losing levitation by dropping it; but that won't
@@ -1467,25 +1403,25 @@ export function drop_weapon(alone) {
                 update_inventory();
             }
         } else if (!((((game.youmonst.data).mattk[0].aatyp == 254) + ((game.youmonst.data).mattk[1].aatyp == 254) + ((game.youmonst.data).mattk[2].aatyp == 254)) > 1)) {
-            untwoweapon();
+            await untwoweapon();
         }
     }
 }
 /* return to original form, usually either due to polymorph timing out
    or dying from loss of hit points while being polymorphed */
-export function rehumanize() {
+export async function rehumanize() {
     let was_flying = (((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked) != 0);
     if ((game.u.uprops[UNCHANGING].intrinsic || game.u.uprops[UNCHANGING].extrinsic)) {
         if (game.u.mh < 1) {
             /* You can't revert back while unchanging */
             game.killer.format = 2;
             game.killer.name = strcpy(game.killer.name, "killed while stuck in creature form");
-            done(DIED);
+            await done(DIED);
             return;
         } else if (game.uamul && game.uamul.otyp == AMULET_OF_UNCHANGING) {
-            Your("%s %s!", simpleonames(game.uamul), otense(game.uamul, "fail"));
-            observe_object(game.uamul);
-            discover_object((AMULET_OF_UNCHANGING), (1), (1), (1));
+            await Your("%s %s!", await simpleonames(game.uamul), await otense(game.uamul, "fail"));
+            await observe_object(game.uamul);
+            await discover_object((AMULET_OF_UNCHANGING), (1), (1), (1));
         }
     }
     /*
@@ -1493,111 +1429,106 @@ export function rehumanize() {
      * reverts to human rather than to vampire.
      */
     if ((((game.youmonst.data).mlet == S_LIGHT || (game.youmonst.data) == game.mons[PM_FLAMING_SPHERE] || (game.youmonst.data) == game.mons[PM_SHOCKING_SPHERE] || (game.youmonst.data) == game.mons[PM_BABY_GOLD_DRAGON] || (game.youmonst.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((game.youmonst.data) == game.mons[PM_FIRE_ELEMENTAL] || (game.youmonst.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) {
-        del_light_source(LS_MONSTER, monst_to_any(game.youmonst));
+        await del_light_source(LS_MONSTER, monst_to_any(game.youmonst));
     }
-    polyman("You return to %s form!", game.urace.adj);
+    await polyman("You return to %s form!", game.urace.adj);
     if (game.u.uhp < 1) {
-        /* can only happen if some bit of code reduces u.uhp
-           instead of u.mh while poly'd */
-        Your("old form was not healthy enough to survive.");
+        await Your("old form was not healthy enough to survive.");
         game.killer.name = sprintf(game.killer.name, "reverting to unhealthy %s form", game.urace.adj);
         game.killer.format = 1;
-        done(DIED);
+        await done(DIED);
     }
     nomul(0);
     game.disp.botl = (1);
     game.vision_full_recalc = 1;
-    encumber_msg();
+    await encumber_msg();
     update_inventory();
     if (was_flying && !((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked) && game.u.usteed) {
-        You("and %s return gently to the %s.", mon_nam(game.u.usteed), surface(game.u.ux, game.u.uy));
+        await You("and %s return gently to the %s.", await mon_nam(game.u.usteed), surface(game.u.ux, game.u.uy));
     }
-    retouch_equipment(2);
+    await retouch_equipment(2);
     if (!game.uarmg) {
-        selftouch(no_longer_petrify_resistant);
+        await selftouch(no_longer_petrify_resistant);
     }
 }
-export function dobreathe() {
+export async function dobreathe() {
     let mattk = null;
     if (game.u.uprops[STRANGLED].intrinsic) {
-        You_cant("breathe.  Sorry.");
+        await You_cant("breathe.  Sorry.");
         return 0;
     }
     if (game.u.uen < 15) {
-        You("don't have enough energy to breathe!");
+        await You("don't have enough energy to breathe!");
         return 0;
     }
     game.u.uen -= 15;
     game.disp.botl = (1);
-    if (!getdir(null)) {
+    if (!await getdir(null)) {
         return 2;
     }
     mattk = attacktype_fordmg(game.youmonst.data, 12, (-1));
     if (!mattk) {
-        impossible("bad breath attack?");
+        await impossible("bad breath attack?");
     } else if (!game.u.dx && !game.u.dy && !game.u.dz) {
-        ubreatheu(mattk);
+        await ubreatheu(mattk);
     } else {
-        ubuzz((20 + ((abs((mattk.adtyp) - 1) % 10))), mattk.damn);
+        await ubuzz((20 + ((abs((mattk.adtyp) - 1) % 10))), mattk.damn);
     }
     return 1;
 }
-export function dospit() {
+export async function dospit() {
     let otmp = null;
     let mattk = null;
-    if (!getdir(null)) {
+    if (!await getdir(null)) {
         return 2;
     }
     mattk = attacktype_fordmg(game.youmonst.data, 10, (-1));
     if (!mattk) {
-        impossible("bad spit attack?");
+        await impossible("bad spit attack?");
     } else {
         switch (mattk.adtyp) {
             case 11:
             case 7:
-                otmp = mksobj(BLINDING_VENOM, (1), (0));
+                otmp = await mksobj(BLINDING_VENOM, (1), (0));
                 break;
             default:
-                impossible("bad attack type in dospit");
+                await impossible("bad attack type in dospit");
                 ;
             case 8:
-                otmp = mksobj(ACID_VENOM, (1), (0));
+                otmp = await mksobj(ACID_VENOM, (1), (0));
                 break;
         }
         otmp.spe = 1;
-        throwit(otmp, 0, (0), null);
+        await throwit(otmp, 0, (0), null);
     }
     return 1;
 }
-export function doremove() {
+export async function doremove() {
     if (!(game.uball != null)) {
         if (game.u.utrap && game.u.utraptype == TT_BURIEDBALL) {
-            pline_The("ball and chain are buried firmly in the %s.", surface(game.u.ux, game.u.uy));
+            await pline_The("ball and chain are buried firmly in the %s.", surface(game.u.ux, game.u.uy));
             return 0;
         }
-        You("are not chained to anything!");
+        await You("are not chained to anything!");
         return 0;
     }
-    unpunish();
+    await unpunish();
     return 1;
 }
-export function dospinweb() {
+export async function dospinweb() {
     let x = game.u.ux;
     let y = game.u.uy;
     let ttmp = t_at(x, y);
     /* disallow webs on water, lava, air & cloud */
     let reject_terrain = is_pool_or_lava(x, y) || ((game.level.locations[x][y].typ) == AIR || (game.level.locations[x][y].typ) == CLOUD);
     if (((game.u.uprops[LEVITATION].intrinsic || game.u.uprops[LEVITATION].extrinsic) && !game.u.uprops[LEVITATION].blocked) || reject_terrain) {
-        /* [at the time this was written, it was not possible to be both a
-       webmaker and a flyer, but with the advent of amulet of flying that
-       became a possibility; at present hero can spin a web while flying] */
-        You("must be on %s ground to spin a web.", reject_terrain ? "solid" : "the");
+        await You("must be on %s ground to spin a web.", reject_terrain ? "solid" : "the");
         return 0;
     }
     if (game.u.uswallow) {
-        You("release web fluid inside %s.", mon_nam(game.u.ustuck));
+        await You("release web fluid inside %s.", await mon_nam(game.u.ustuck));
         if ((((game.u.ustuck.data).mflags1 & 262144) != 0)) {
-            expels(game.u.ustuck, game.u.ustuck.data, (1));
+            await expels(game.u.ustuck, game.u.ustuck.data, (1));
             return 0;
         }
         if (((game.u.ustuck.data).mlet == S_VORTEX || (game.u.ustuck.data) == game.mons[PM_AIR_ELEMENTAL])) {
@@ -1608,7 +1539,7 @@ export function dospinweb() {
                 }
             }
             if (i == 6) {
-                impossible("Swallower has no engulfing attack?");
+                await impossible("Swallower has no engulfing attack?");
             } else {
                 let sweep = '';
                 sweep = '';
@@ -1623,52 +1554,51 @@ export function dospinweb() {
                         sweep = strcpy(sweep, "freezes, shatters and ");
                         break;
                 }
-                pline_The("web %sis swept away!", sweep);
+                await pline_The("web %sis swept away!", sweep);
             }
             return 0;
         }
-        /* default: a nasty jelly-like creature */
-        pline_The("web dissolves into %s.", mon_nam(game.u.ustuck));
+        await pline_The("web dissolves into %s.", await mon_nam(game.u.ustuck));
         return 0;
     }
     if (game.u.utrap) {
-        You("cannot spin webs while stuck in a trap.");
+        await You("cannot spin webs while stuck in a trap.");
         return 0;
     }
-    exercise(A_DEX, (1));
+    await exercise(A_DEX, (1));
     if (ttmp) {
         switch (ttmp.ttyp) {
             case PIT:
             case SPIKED_PIT:
-                You("spin a web, covering up the pit.");
-                deltrap(ttmp);
-                bury_objs(x, y);
-                newsym(x, y);
+                await You("spin a web, covering up the pit.");
+                await deltrap(ttmp);
+                await bury_objs(x, y);
+                await newsym(x, y);
                 return 1;
             case SQKY_BOARD:
-                pline_The("squeaky board is muffled.");
-                deltrap(ttmp);
-                newsym(x, y);
+                await pline_The("squeaky board is muffled.");
+                await deltrap(ttmp);
+                await newsym(x, y);
                 return 1;
             case TELEP_TRAP:
             case LEVEL_TELEP:
             case MAGIC_PORTAL:
             case VIBRATING_SQUARE:
-                Your("webbing vanishes!");
+                await Your("webbing vanishes!");
                 return 0;
             case WEB:
-                You("make the web thicker.");
+                await You("make the web thicker.");
                 return 1;
             case HOLE:
             case TRAPDOOR:
-                You("web over the %s.", (ttmp.ttyp == TRAPDOOR) ? "trap door" : "hole");
-                deltrap(ttmp);
-                newsym(x, y);
+                await You("web over the %s.", (ttmp.ttyp == TRAPDOOR) ? "trap door" : "hole");
+                await deltrap(ttmp);
+                await newsym(x, y);
                 return 1;
             case ROLLING_BOULDER_TRAP:
-                You("spin a web, jamming the trigger.");
-                deltrap(ttmp);
-                newsym(x, y);
+                await You("spin a web, jamming the trigger.");
+                await deltrap(ttmp);
+                await newsym(x, y);
                 return 1;
             case ARROW_TRAP:
             case DART_TRAP:
@@ -1681,45 +1611,44 @@ export function dospinweb() {
             case MAGIC_TRAP:
             case ANTI_MAGIC:
             case POLY_TRAP:
-                You("have triggered a trap!");
-                dotrap(ttmp, 0);
+                await You("have triggered a trap!");
+                await dotrap(ttmp, 0);
                 return 1;
             default:
-                impossible("Webbing over trap type %d?", ttmp.ttyp);
+                await impossible("Webbing over trap type %d?", ttmp.ttyp);
                 return 0;
         }
     } else if (On_stairs(x, y)) {
-        /* cop out: don't let them hide the stairs */
-        Your("web fails to impede access to the %s.", (game.level.locations[x][y].typ == STAIRS) ? "stairs" : "ladder");
+        await Your("web fails to impede access to the %s.", (game.level.locations[x][y].typ == STAIRS) ? "stairs" : "ladder");
         return 1;
     }
-    ttmp = maketrap(x, y, WEB);
+    ttmp = await maketrap(x, y, WEB);
     if (ttmp) {
-        You("spin a web.");
+        await You("spin a web.");
         ttmp.madeby_u = 1;
-        feeltrap(ttmp);
+        await feeltrap(ttmp);
         if (in_rooms(x, y, SHOPBASE)) {
-            add_damage(x, y, 30);
+            await add_damage(x, y, 30);
         }
     }
     return 1;
 }
-export function dosummon() {
+export async function dosummon() {
     let placeholder = 0;
     if (game.u.uen < 10) {
-        You("lack the energy to send forth a call for help!");
+        await You("lack the energy to send forth a call for help!");
         return 0;
     }
     game.u.uen -= 10;
     game.disp.botl = (1);
-    You("call upon your brethren for help!");
-    exercise(A_WIS, (1));
-    if (!were_summon(game.youmonst.data, (1), { get value() { return placeholder; }, set value(_v) { placeholder = _v; } }, null)) {
-        pline("But none arrive.");
+    await You("call upon your brethren for help!");
+    await exercise(A_WIS, (1));
+    if (!await were_summon(game.youmonst.data, (1), { get value() { return placeholder; }, set value(_v) { placeholder = _v; } }, null)) {
+        await pline("But none arrive.");
     }
     return 1;
 }
-export function dogaze() {
+export async function dogaze() {
     let mtmp = null;
     let looked = 0;
     let qbuf = '';
@@ -1732,18 +1661,18 @@ export function dogaze() {
         }
     }
     if (adtyp != 25 && adtyp != 2) {
-        impossible("gaze attack %d?", adtyp);
+        await impossible("gaze attack %d?", adtyp);
         return 0;
     }
     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-        You_cant("see anything to gaze at.");
+        await You_cant("see anything to gaze at.");
         return 0;
     } else if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-        You_cant("gaze at anything you can see.");
+        await You_cant("gaze at anything you can see.");
         return 0;
     }
     if (game.u.uen < 15) {
-        You("lack the energy to use your special gaze!");
+        await You("lack the energy to use your special gaze!");
         return 0;
     }
     game.u.uen -= 15;
@@ -1755,54 +1684,51 @@ export function dogaze() {
         if (canseemon(mtmp) && ((game.viz_array[mtmp.my][mtmp.mx] & 1) != 0)) {
             looked++;
             if (((game.u.uprops[INVIS].intrinsic || game.u.uprops[INVIS].extrinsic) && !game.u.uprops[INVIS].blocked) && !(((mtmp.data).mflags1 & 16777216) != 0)) {
-                pline("%s seems not to notice your gaze.", Monnam(mtmp));
+                await pline("%s seems not to notice your gaze.", await Monnam(mtmp));
             } else if (mtmp.minvis && !(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic)) {
-                You_cant("see where to gaze at %s.", Monnam(mtmp));
+                await You_cant("see where to gaze at %s.", await Monnam(mtmp));
             } else if (((mtmp).m_ap_type & 7) == M_AP_FURNITURE || ((mtmp).m_ap_type & 7) == M_AP_OBJECT) {
                 looked--;
                 continue;
             } else if (game.flags.safe_dog && mtmp.mtame && !game.u.uprops[CONFUSION].intrinsic) {
-                You("avoid gazing at %s.", y_monnam(mtmp));
+                await You("avoid gazing at %s.", await y_monnam(mtmp));
             } else {
                 if (game.flags.confirm && mtmp.mpeaceful && !game.u.uprops[CONFUSION].intrinsic) {
-                    qbuf = sprintf(qbuf, "Really %s %s?", (adtyp == 25) ? "confuse" : "attack", mon_nam(mtmp));
-                    if (yn_function(qbuf, ynchars, 110, (1)) != 121) {
+                    qbuf = sprintf(qbuf, "Really %s %s?", (adtyp == 25) ? "confuse" : "attack", await mon_nam(mtmp));
+                    if (await yn_function(qbuf, ynchars, 110, (1)) != 121) {
                         continue;
                     }
                 }
-                setmangry(mtmp, (1));
+                await setmangry(mtmp, (1));
                 if (((mtmp).msleeping || !(mtmp).mcanmove) || mtmp.mstun || !mtmp.mcansee || !(((mtmp.data).mflags1 & 4096) == 0)) {
                     looked--;
                     continue;
                 }
                 if (adtyp == 25) {
                     if (!mtmp.mconf) {
-                        Your("gaze confuses %s!", mon_nam(mtmp));
-                    /* No reflection check for consistency with when a monster
-                 * gazes at *you*--only medusa gaze gets reflected then.
-                 */
+                        await Your("gaze confuses %s!", await mon_nam(mtmp));
                     } else {
-                        pline("%s is getting more and more confused.", Monnam(mtmp));
+                        await pline("%s is getting more and more confused.", await Monnam(mtmp));
                     }
                     mtmp.mconf = 1;
                 } else if (adtyp == 2) {
                     let dmg = d(2, 6);
                     let orig_dmg = dmg;
                     let lev = game.u.ulevel;
-                    You("attack %s with a fiery gaze!", mon_nam(mtmp));
-                    if (Resists_Elem(mtmp, FIRE_RES)) {
-                        pline_The("fire doesn't burn %s!", mon_nam(mtmp));
+                    await You("attack %s with a fiery gaze!", await mon_nam(mtmp));
+                    if (await Resists_Elem(mtmp, FIRE_RES)) {
+                        await pline_The("fire doesn't burn %s!", await mon_nam(mtmp));
                         dmg = 0;
                     }
                     if (lev > rn2(20)) {
-                        dmg += destroy_items(mtmp, 2, orig_dmg);
-                        ignite_items(mtmp.minvent);
+                        dmg += await destroy_items(mtmp, 2, orig_dmg);
+                        await ignite_items(mtmp.minvent);
                     }
                     if (dmg) {
                         mtmp.mhp -= dmg;
                     }
                     if (((mtmp).mhp < 1)) {
-                        killed(mtmp);
+                        await killed(mtmp);
                     }
                 }
                 /* For consistency with passive() in uhitm.c, this only
@@ -1813,59 +1739,49 @@ export function dogaze() {
                 }
                 if (mtmp.data == game.mons[PM_FLOATING_EYE] && !mtmp.mcan) {
                     if (!game.u.uprops[FREE_ACTION].extrinsic) {
-                        You("are frozen by %s gaze!", s_suffix(mon_nam(mtmp)));
+                        await You("are frozen by %s gaze!", s_suffix(await mon_nam(mtmp)));
                         nomul((game.u.ulevel > 6 || rn2(4)) ? -d(mtmp.m_lev + 1, mtmp.data.mattk[0].damd) : -200);
                         game.multi_reason = "frozen by a monster's gaze";
                         game.nomovemsg = null;
                         return 1;
                     } else {
-                        You("stiffen momentarily under %s gaze.", s_suffix(mon_nam(mtmp)));
+                        await You("stiffen momentarily under %s gaze.", s_suffix(await mon_nam(mtmp)));
                     }
                 }
                 if (mtmp.data == game.mons[PM_MEDUSA] && !mtmp.mcan) {
-                    /* Technically this one shouldn't affect you at all because
-                 * the Medusa gaze is an active monster attack that only
-                 * works on the monster's turn, but for it to *not* have an
-                 * effect would be too weird.
-                 */
-                    pline("Gazing at the awake %s is not a very good idea.", l_monnam(mtmp));
-                    /* as if gazing at a sleeping anything is fruitful... */
-                    urgent_pline("You turn to stone...");
+                    await pline("Gazing at the awake %s is not a very good idea.", await l_monnam(mtmp));
+                    await urgent_pline("You turn to stone...");
                     game.killer.format = 1;
                     game.killer.name = strcpy(game.killer.name, "deliberately meeting Medusa's gaze");
-                    done(STONING);
+                    await done(STONING);
                 }
             }
         }
     }
     if (!looked) {
-        You("gaze at no place in particular.");
+        await You("gaze at no place in particular.");
     }
     return 1;
 }
 /* called by domonability() for #monster */
-export function dohide() {
+export async function dohide() {
     let ismimic = game.youmonst.data.mlet == S_MIMIC;
     let on_ceiling = (((game.youmonst.data).mflags1 & 16) != 0) || ((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked);
     if (game.u.ustuck || (game.u.utrap && (game.u.utraptype != TT_PIT || on_ceiling))) {
-        /* can't hide while being held (or holding) or while trapped
-       (except for floor hiders [trapper or mimic] in pits) */
-        You_cant("hide while you're %s.", !game.u.ustuck ? "trapped" : game.u.uswallow ? ((dmgtype_fromattack((game.u.ustuck.data), 26, 11) != null) ? "swallowed" : "engulfed") : !sticks(game.youmonst.data) ? "being held" : ((((game.u.ustuck.data).mflags1 & 131072) != 0) ? "holding someone" : "holding that creature"));
+        await You_cant("hide while you're %s.", !game.u.ustuck ? "trapped" : game.u.uswallow ? ((dmgtype_fromattack((game.u.ustuck.data), 26, 11) != null) ? "swallowed" : "engulfed") : !sticks(game.youmonst.data) ? "being held" : ((((game.u.ustuck.data).mflags1 & 131072) != 0) ? "holding someone" : "holding that creature"));
         if (game.u.uundetected || (ismimic && (game.youmonst.m_ap_type & 7) != M_AP_NOTHING)) {
             /* only reach here if life-saved */
             game.u.uundetected = 0;
             game.youmonst.m_ap_type = M_AP_NOTHING;
-            newsym(game.u.ux, game.u.uy);
+            await newsym(game.u.ux, game.u.uy);
         }
         return 0;
     }
     if (game.youmonst.data.mlet == S_EEL && !is_pool(game.u.ux, game.u.uy)) {
         if (((game.level.locations[game.u.ux][game.u.uy].typ) == FOUNTAIN)) {
-            pline_The("fountain is not deep enough to hide in.");
-        /* note: hero-as-eel handling is incomplete but unnecessary;
-       such critters aren't offered the option of hiding via #monster */
+            await pline_The("fountain is not deep enough to hide in.");
         } else {
-            There("is no %s to hide in here.", hliquid("water"));
+            await There("is no %s to hide in here.", hliquid("water"));
         }
         game.u.uundetected = 0;
         return 0;
@@ -1875,7 +1791,7 @@ export function dohide() {
         let otmp = null;
         let otop = game.level.objects[game.u.ux][game.u.uy];
         if (!otop) {
-            There("is nothing to hide under here.");
+            await There("is nothing to hide under here.");
             game.u.uundetected = 0;
             return 0;
         }
@@ -1885,38 +1801,29 @@ export function dohide() {
         if (!otmp && !(game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic)) {
             /* otmp will be Null iff the entire pile consists of 'trice corpses */
             let kbuf = '';
-            let corpse_name = cxname(otop);
-            /* for the plural case, we'll say "cockatrice corpses" or
-               "chickatrice corpses" depending on the top of the pile
-               even if both types are present */
+            let corpse_name = await cxname(otop);
             if (ct == 1) {
-                corpse_name = an(corpse_name);
+                corpse_name = await an(corpse_name);
             }
-            /* no need to check poly_when_stoned(); no hide-underers can
-               turn into stone golems instead of becoming petrified */
-            pline("Hiding under %s%s is a fatal mistake...", corpse_name, (((ct) == 1) ? "" : "s"));
+            await pline("Hiding under %s%s is a fatal mistake...", corpse_name, (((ct) == 1) ? "" : "s"));
             kbuf = sprintf(kbuf, "hiding under %s%s", corpse_name, (((ct) == 1) ? "" : "s"));
-            instapetrify(kbuf);
+            await instapetrify(kbuf);
             game.u.uundetected = 0;
             return 1;
         }
     }
     if (on_ceiling && !has_ceiling(game.u.uz)) {
-        There("is nowhere to hide above you.");
+        await There("is nowhere to hide above you.");
         game.u.uundetected = 0;
         return 0;
     }
     if (((((game.youmonst.data).mflags1 & 256) != 0) && !((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked)) && ((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) || (((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))))) {
-        There("is nowhere to hide beneath you.");
+        await There("is nowhere to hide beneath you.");
         game.u.uundetected = 0;
         return 0;
     }
     if (game.u.uundetected || (ismimic && (game.youmonst.m_ap_type & 7) != M_AP_NOTHING)) {
-        /* TODO? inhibit floor hiding at furniture locations, or
-     * else make youhiding() give smarter messages at such spots.
-     */
-        /* "you are already hiding" */
-        youhiding((0), 1);
+        await youhiding((0), 1);
         return 0;
     }
     if (ismimic) {
@@ -1926,34 +1833,34 @@ export function dohide() {
     } else {
         game.u.uundetected = 1;
     }
-    newsym(game.u.ux, game.u.uy);
-    youhiding((0), 0);
+    await newsym(game.u.ux, game.u.uy);
+    await youhiding((0), 0);
     return 1;
 }
-export function dopoly() {
+export async function dopoly() {
     let savedat = game.youmonst.data;
     if (((game.youmonst.data).mlet == S_VAMPIRE) || ((game.youmonst).cham == PM_VAMPIRE || (game.youmonst).cham == PM_VAMPIRE_LEADER || (game.youmonst).cham == PM_VLAD_THE_IMPALER)) {
-        polyself(POLY_MONSTER);
+        await polyself(POLY_MONSTER);
         if (savedat != game.youmonst.data) {
-            You("transform into %s.", an(pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0))));
-            newsym(game.u.ux, game.u.uy);
+            await You("transform into %s.", await an(pmname(game.youmonst.data, (((game.u.umonnum != game.u.umonster) ? game.u.mfemale : game.flags.female) ? 1 : 0))));
+            await newsym(game.u.ux, game.u.uy);
         }
     }
     return 1;
 }
 /* #monster for hero-as-mind_flayer giving psychic blast */
-export function domindblast() {
+export async function domindblast() {
     let mtmp = null;
     let nmon = null;
     let dmg = 0;
     if (game.u.uen < 10) {
-        You("concentrate but lack the energy to maintain doing so.");
+        await You("concentrate but lack the energy to maintain doing so.");
         return 0;
     }
     game.u.uen -= 10;
     game.disp.botl = (1);
-    You("concentrate.");
-    pline("A wave of psychic energy pours out.");
+    await You("concentrate.");
+    await pline("A wave of psychic energy pours out.");
     for (mtmp = game.level.monlist; mtmp; mtmp = nmon) {
         let u_sen = 0;
         nmon = mtmp.nmon;
@@ -1972,40 +1879,36 @@ export function domindblast() {
         u_sen = ((mtmp.data) == game.mons[PM_FLOATING_EYE] || (mtmp.data) == game.mons[PM_MIND_FLAYER] || (mtmp.data) == game.mons[PM_MASTER_MIND_FLAYER]) && !mtmp.mcansee;
         if (u_sen || (((mtmp.data) == game.mons[PM_FLOATING_EYE] || (mtmp.data) == game.mons[PM_MIND_FLAYER] || (mtmp.data) == game.mons[PM_MASTER_MIND_FLAYER]) && rn2(2)) || !rn2(10)) {
             dmg = rnd(15);
-            /* wake it up first, to bring hidden monster out of hiding;
-               but in case it is currently peaceful, don't make it hostile
-               unless it will survive the psychic blast, otherwise hero
-               would avoid the penalty for killing it while peaceful */
-            wakeup(mtmp, (dmg > mtmp.mhp) ? (1) : (0));
-            You("lock in on %s %s.", s_suffix(mon_nam(mtmp)), u_sen ? "telepathy" : ((mtmp.data) == game.mons[PM_FLOATING_EYE] || (mtmp.data) == game.mons[PM_MIND_FLAYER] || (mtmp.data) == game.mons[PM_MASTER_MIND_FLAYER]) ? "latent telepathy" : "mind");
+            await wakeup(mtmp, (dmg > mtmp.mhp) ? (1) : (0));
+            await You("lock in on %s %s.", s_suffix(await mon_nam(mtmp)), u_sen ? "telepathy" : ((mtmp.data) == game.mons[PM_FLOATING_EYE] || (mtmp.data) == game.mons[PM_MIND_FLAYER] || (mtmp.data) == game.mons[PM_MASTER_MIND_FLAYER]) ? "latent telepathy" : "mind");
             mtmp.mhp -= dmg;
             if (((mtmp).mhp < 1)) {
-                killed(mtmp);
+                await killed(mtmp);
             }
         }
     }
     return 1;
 }
-export function uunstick() {
+export async function uunstick() {
     let mtmp = game.u.ustuck;
     if (!mtmp) {
-        impossible("uunstick: no ustuck?");
+        await impossible("uunstick: no ustuck?");
         return;
     }
-    set_ustuck(null);
-    pline("%s is no longer in your clutches.", Monnam(mtmp));
+    await set_ustuck(null);
+    await pline("%s is no longer in your clutches.", await Monnam(mtmp));
 }
-export function skinback(silently) {
+export async function skinback(silently) {
     if (game.uskin) {
         let old_light = arti_light_radius(game.uskin);
         if (!silently) {
-            Your("skin returns to its original form.");
+            await Your("skin returns to its original form.");
         }
         game.uarm = game.uskin;
         game.uskin = null;
         game.uarm.owornmask &= ~536870912;
         if (artifact_light(game.uarm)) {
-            maybe_adjust_light(game.uarm, old_light);
+            await maybe_adjust_light(game.uarm, old_light);
         }
     }
 }
@@ -2023,12 +1926,12 @@ const __mbodypart_spider_parts = ["pedipalp", "eye", "face", "pedipalp", "tarsus
 const __mbodypart_fish_parts = ["fin", "eye", "premaxillary", "pelvic axillary", "pelvic fin", "anal fin", "pectoral fin", "finned", "head", "peduncle", "played out", "gills", "dorsal fin", "caudal fin", "scales", "blood", "gill", "nostril", "stomach"];
 /* string terminator; assert( S_xxx != 0 ); */
 const __mbodypart_not_claws = [S_HUMAN, S_MUMMY, S_ZOMBIE, S_ANGEL, S_NYMPH, S_LEPRECHAUN, S_QUANTMECH, S_VAMPIRE, S_ORC, S_GIANT, 0];
-export function mbodypart(mon, part) {
+export async function mbodypart(mon, part) {
     /* claw attacks are overloaded in mons[]; most humanoids with
        such attacks should still reference hands rather than claws */
     let mptr = mon.data;
     if (part <= NO_PART) {
-        impossible("mbodypart: bad part %d", part);
+        await impossible("mbodypart: bad part %d", part);
         return "mystery part";
     }
     if (mptr.mlet == S_DOG || mptr.mlet == S_FELINE || mptr.mlet == S_RODENT || mptr == game.mons[PM_OWLBEAR]) {
@@ -2120,8 +2023,8 @@ export function mbodypart(mon, part) {
     }
     return __mbodypart_animal_parts[part];
 }
-export function body_part(part) {
-    return mbodypart(game.youmonst, part);
+export async function body_part(part) {
+    return await mbodypart(game.youmonst, part);
 }
 export function poly_gender() {
     /* Returns gender of polymorphed player;
@@ -2132,7 +2035,7 @@ export function poly_gender() {
     }
     return game.flags.female;
 }
-export function ugolemeffects(damtype, dam) {
+export async function ugolemeffects(damtype, dam) {
     let heal = 0;
     /* We won't bother with "slow"/"haste" since players do not
      * have a monster-specific slow/haste so there is no way to
@@ -2159,8 +2062,8 @@ export function ugolemeffects(damtype, dam) {
             game.u.mh = game.u.mhmax;
         }
         game.disp.botl = (1);
-        pline("Strangely, you feel better than before.");
-        exercise(A_STR, (1));
+        await pline("Strangely, you feel better than before.");
+        await exercise(A_STR, (1));
     }
 }
 export function armor_to_dragon(atyp) {
@@ -2239,6 +2142,103 @@ export function udeadinside() {
 /* assume hero-as-chameleon/doppelganger/sandestin doesn't change shape */
 /* resists_magm() takes wielded, worn, and carried equipment into
        into account; cheat and duplicate its monster-specific part */
+/* off -- maybe block strangling */
+/* change monster type to match new sex; disabled with
+           PM_AMOROUS_DEMON */
 /* old level is still intact (in case of lifesaving) */
+/* hpmax * rn1(4,8) / 10; 0.95*hpmax on average */
+/* retain same proportion for current HP; u.uhp * hpmax / u.uhpmax */
+/* we come directly here if experience level went to 0 or less */
+/* must have been life-saved to get here */
+/* used to be done by redist_attr() */
+/* being Stunned|Unaware doesn't negate this aspect of Poly_control */
+/* "priest" and "priestess" match the monster
+                              rather than the role; override that unless
+                              the text explicitly contains "aligned" */
+/* in wizard mode, picking own role while poly'd reverts to
+                   normal without newman()'s chance of level or sex change */
+/* dragon scales remain intact as uskin */
+/* tricky phrasing; dragon scale mail is singular, dragon
+                       scales are plural (note: we don't use "set of scales",
+                       which usually overrides the distinction, here) */
+/* if polymon fails, "you feel" message has been given
+           so don't follow up with another polymon or newman;
+           sex_change_ok left disabled here */
+/* otherwise it's undetectable */
+/* exercise used to be at the very end but only Wis was affected
+       there since the polymorph was always in effect by then */
+/* parnes@eniac.seas.upenn.edu */
+/* if hiding under something and can't hide anymore, unhide now;
+       but don't auto-hide when not already hiding-under */
+/* was holding onto u.ustuck but no longer capable of that */
+/* if expelled above, expels() already called spoteffects() */
+/* FIXME? if spoteffects() triggered rehumanize then we should
+           return early */
+/* probably should burn webs too if PM_FIRE_ELEMENTAL */
+/* this might trigger a recursive call to polymon() [stone golem
+       wielding cockatrice corpse and hit by stone-to-flesh, becomes
+       flesh golem above, now gets transformed back into stone golem;
+       fortunately neither form uses #monster] */
+/*
+     * Dropping worn armor while polymorphing might put hero into water
+     * (loss of levitation boots or water walking boots that the new
+     * form can't wear), where emergency_disrobe() could remove it from
+     * inventory.  Without this, dropx() could trigger an 'object lost'
+     * panic.  Right now, boots are the only armor which might encounter
+     * this situation, but handle it for all armor.
+     *
+     * Hypothetically, 'obj' could have merged with something (not
+     * applicable for armor) and no longer be a valid pointer, so scan
+     * inventory for it instead of trusting obj->where.
+     */
+/* for gold DSM, we don't want Armor_gone() to report that it
+               stops shining _after_ we've been told that it is destroyed */
+/* mummy wrapping adapts to small and very big sizes */
+/* doesn't have a clasp to break open */
+/* [note: _gone() instead of _off() dates to when life-saving
+               could force fire resisting armor back on if hero burned in
+               hell (3.0, predating Gehennom); the armor isn't actually
+               gone here but also isn't available to be put back on] */
+/* Future possibilities: This could damage/destroy helmet */
+/* Drop weapon along with gloves */
+/* Glib manipulation (ends immediately) handled by Gloves_off */
+/* Null: skip usual off mesg */
+/* !alone check below is currently superfluous but in the
+         * future it might not be so if there are monsters which cannot
+         * wear gloves but can wield weapons
+         */
+/* can only happen if some bit of code reduces u.uhp
+           instead of u.mh while poly'd */
+/* [at the time this was written, it was not possible to be both a
+       webmaker and a flyer, but with the advent of amulet of flying that
+       became a possibility; at present hero can spin a web while flying] */
+/* default: a nasty jelly-like creature */
+/* cop out: don't let them hide the stairs */
+/* No reflection check for consistency with when a monster
+                 * gazes at *you*--only medusa gaze gets reflected then.
+                 */
+/* Technically this one shouldn't affect you at all because
+                 * the Medusa gaze is an active monster attack that only
+                 * works on the monster's turn, but for it to *not* have an
+                 * effect would be too weird.
+                 */
+/* as if gazing at a sleeping anything is fruitful... */
+/* can't hide while being held (or holding) or while trapped
+       (except for floor hiders [trapper or mimic] in pits) */
+/* note: hero-as-eel handling is incomplete but unnecessary;
+       such critters aren't offered the option of hiding via #monster */
+/* for the plural case, we'll say "cockatrice corpses" or
+               "chickatrice corpses" depending on the top of the pile
+               even if both types are present */
+/* no need to check poly_when_stoned(); no hide-underers can
+               turn into stone golems instead of becoming petrified */
+/* TODO? inhibit floor hiding at furniture locations, or
+     * else make youhiding() give smarter messages at such spots.
+     */
+/* "you are already hiding" */
+/* wake it up first, to bring hidden monster out of hiding;
+               but in case it is currently peaceful, don't make it hostile
+               unless it will survive the psychic blast, otherwise hero
+               would avoid the penalty for killing it while peaceful */
 /* for other parts, use animal_parts[] below */
 /* living, including demons */

@@ -113,7 +113,7 @@ export function poly_when_stoned(ptr) {
 }
 /* is 'mon' (possibly youmonst) protected against damage type 'adtype' via
    wielded weapon or worn dragon scales? [or by virtue of being a dragon?] */
-export function defended(mon, adtyp) {
+export async function defended(mon, adtyp) {
     let o = null;
     let otemp = { nobj: null, v: { v_nexthere: null, v_ocontainer: null, v_ocarry: null }, cobj: null, o_id: 0, ox: 0, oy: 0, otyp: 0, owt: 0, quan: 0, spe: 0, oclass: 0, invlet: 0, oartifact: 0, where: 0, timed: 0, cursed: 0, blessed: 0, unpaid: 0, no_charge: 0, recharged: 0, lamplit: 0, known: 0, dknown: 0, bknown: 0, rknown: 0, cknown: 0, lknown: 0, tknown: 0, nomerge: 0, oeroded: 0, oeroded2: 0, oerodeproof: 0, olocked: 0, obroken: 0, otrapped: 0, globby: 0, greased: 0, in_use: 0, bypass: 0, pickup_prev: 0, ghostly: 0, how_lost: 0, named_how: 0, corpsenm: 0, usecount: 0, oeaten: 0, age: 0, owornmask: 0, lua_ref_cnt: 0, omigr_from_dnum: 0, omigr_from_dlevel: 0, oextra: null };
     let mndx = 0;
@@ -139,8 +139,7 @@ export function defended(mon, adtyp) {
            the rest of otemp's fields */
         o = otemp;
     } else {
-        /* ordinary case: not an adult dragon */
-        o = is_you ? game.uarm : which_armor(mon, 1);
+        o = is_you ? game.uarm : await which_armor(mon, 1);
     }
     /* is 'mon' wearing dragon scales that protect against 'adtyp'? */
     if (o && (((o).otyp >= GRAY_DRAGON_SCALES && (o).otyp <= YELLOW_DRAGON_SCALES) || ((o).otyp >= GRAY_DRAGON_SCALE_MAIL && (o).otyp <= YELLOW_DRAGON_SCALE_MAIL)) && defends(adtyp, o)) {
@@ -150,7 +149,7 @@ export function defended(mon, adtyp) {
 }
 /* returns True if monster resists particular elemental damage;
    handles 'carry' effects of artifacts as well as worn/wielded items */
-export function Resists_Elem(mon, propindx) {
+export async function Resists_Elem(mon, propindx) {
     let o = null;
     let slotmask = 0;
     let is_you = (mon == game.youmonst);
@@ -183,12 +182,12 @@ export function Resists_Elem(mon, propindx) {
         case ANTIMAGIC:
             return resists_magm(mon);
         case DRAIN_RES:
-            return resists_drli(mon);
+            return await resists_drli(mon);
         case BLND_RES:
-            return resists_blnd(mon);
+            return await resists_blnd(mon);
         /* M_SEEN_REFL has no corresponding AD_foo type */
         default:
-            impossible("Resists_Elem(%d), unexpected property type", propindx);
+            await impossible("Resists_Elem(%d), unexpected property type", propindx);
             return (0);
     }
     if (is_you ? u_resist : ((((mon).data.mresists | (mon).mextrinsics | (mon).mintrinsics) & rsstmask) != 0)) {
@@ -217,13 +216,12 @@ export function Resists_Elem(mon, propindx) {
     return (0);
 }
 /* returns True if monster is drain-life resistant */
-export function resists_drli(mon) {
+export async function resists_drli(mon) {
     let ptr = mon.data;
     if ((((ptr).mflags2 & 2) != 0) || (((ptr).mflags2 & 256) != 0) || (((ptr).mflags2 & 4) != 0) || (mon == game.youmonst && game.u.ulycn >= LOW_PM) || ptr == game.mons[PM_DEATH] || ((mon).cham == PM_VAMPIRE || (mon).cham == PM_VAMPIRE_LEADER || (mon).cham == PM_VLAD_THE_IMPALER)) {
         return (1);
     }
-    /* is_were() doesn't handle hero in human form */
-    return defended(mon, 15);
+    return await defended(mon, 15);
 }
 /* True if monster is magic-missile (actually, general magic) resistant */
 export function resists_magm(mon) {
@@ -255,7 +253,7 @@ export function resists_magm(mon) {
     return (0);
 }
 /* True if monster is resistant to light-induced blindness */
-export function resists_blnd(mon) {
+export async function resists_blnd(mon) {
     let ptr = mon.data;
     let is_you = (mon == game.youmonst);
     if (is_you ? (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || (game.multi < 0 && (unconscious() || is_fainted()))) : (mon.mblinded || !mon.mcansee || !(((ptr).mflags1 & 4096) == 0) || mon.msleeping)) {
@@ -271,7 +269,7 @@ export function resists_blnd(mon) {
         return (1);
     }
     if (is_you && (game.u.uprops[BLND_RES].intrinsic || game.u.uprops[BLND_RES].extrinsic)) {
-        impossible("'Blnd_resist' but not resists_blnd()?");
+        await impossible("'Blnd_resist' but not resists_blnd()?");
         return (1);
     }
     return (0);
@@ -300,7 +298,7 @@ export function resists_blnd_by_arti(mon) {
 */
 /* NULL == no specific aggressor */
 /* aatyp == AT_WEAP, AT_SPIT */
-export function can_blnd(magr, mdef, aatyp, obj) {
+export async function can_blnd(magr, mdef, aatyp, obj) {
     let is_you = (mdef == game.youmonst);
     let check_visor = (0);
     let o = null;
@@ -329,8 +327,7 @@ export function can_blnd(magr, mdef, aatyp, obj) {
             if (magr && magr.mcan) {
                 return (0);
             }
-            /* light-based attacks may be cancelled or resisted */
-            return !resists_blnd(mdef);
+            return !await resists_blnd(mdef);
         case 254:
         case 10:
         case 0:
@@ -385,7 +382,7 @@ export function can_blnd(magr, mdef, aatyp, obj) {
         /* check if wearing a visor (only checked if visor might help) */
         o = (mdef == game.youmonst) ? game.invent : mdef.minvent;
         for (; o; o = o.nobj) {
-            if ((o.owornmask & 4) && objdescr_is(o, "visored helmet")) {
+            if ((o.owornmask & 4) && await objdescr_is(o, "visored helmet")) {
                 return (0);
             }
         }
@@ -528,7 +525,7 @@ export function can_chant(mtmp) {
     return (1);
 }
 /* True if mon is vulnerable to strangulation */
-export function can_be_strangled(mon) {
+export async function can_be_strangled(mon) {
     let mamul = null;
     let nonbreathing = 0;
     let nobrainer = 0;
@@ -549,9 +546,7 @@ export function can_be_strangled(mon) {
         nonbreathing = (game.u.uprops[MAGICAL_BREATHING].intrinsic || game.u.uprops[MAGICAL_BREATHING].extrinsic || (((game.youmonst.data).mflags1 & 1024) != 0));
     } else {
         nobrainer = (((mon.data).mflags1 & 65536) != 0);
-        /* monsters don't wear amulets of magical breathing,
-           so second part doesn't achieve anything useful... */
-        nonbreathing = ((((mon.data).mflags1 & 1024) != 0) || ((mamul = which_armor(mon, 65536)) != null && (mamul.otyp == AMULET_OF_MAGICAL_BREATHING)));
+        nonbreathing = ((((mon.data).mflags1 & 1024) != 0) || ((mamul = await which_armor(mon, 65536)) != null && (mamul.otyp == AMULET_OF_MAGICAL_BREATHING)));
     }
     return (!nobrainer || !nonbreathing);
 }
@@ -624,7 +619,7 @@ export function dmgtype(ptr, dtyp) {
 }
 /* returns the maximum damage a defender can do to the attacker via
    a passive defense */
-export function max_passive_dmg(mdef, magr) {
+export async function max_passive_dmg(mdef, magr) {
     let i = 0;
     let dmg = 0;
     let multi2 = 0;
@@ -654,7 +649,7 @@ export function max_passive_dmg(mdef, magr) {
             adtyp = mdef.data.mattk[i].adtyp;
             if ((adtyp == 2 && ((magr.data) == game.mons[PM_PAPER_GOLEM] || (magr.data) == game.mons[PM_STRAW_GOLEM])) || (adtyp == 34 && ((magr.data) == game.mons[PM_WOOD_GOLEM] || (magr.data) == game.mons[PM_LEATHER_GOLEM])) || (adtyp == 24 && ((magr.data) == game.mons[PM_IRON_GOLEM]))) {
                 dmg = magr.mhp;
-            } else if ((adtyp == 8 && !Resists_Elem(magr, ACID_RES)) || (adtyp == 3 && !Resists_Elem(magr, COLD_RES)) || (adtyp == 2 && !Resists_Elem(magr, FIRE_RES)) || (adtyp == 6 && !Resists_Elem(magr, SHOCK_RES)) || adtyp == 0) {
+            } else if ((adtyp == 8 && !await Resists_Elem(magr, ACID_RES)) || (adtyp == 3 && !await Resists_Elem(magr, COLD_RES)) || (adtyp == 2 && !await Resists_Elem(magr, FIRE_RES)) || (adtyp == 6 && !await Resists_Elem(magr, SHOCK_RES)) || adtyp == 0) {
                 dmg = mdef.data.mattk[i].damn;
                 if (!dmg) {
                     dmg = mdef.data.mlevel + 1;
@@ -799,8 +794,8 @@ export function same_race(pm1, pm2) {
 // struct alt_spl: { name, pm_val, genderhint }
 /* figure out what type of monster a user-supplied string is specifying;
    ignore anything past the monster name */
-export function name_to_mon(in_str, gender_name_var) {
-    return name_to_monplus(in_str, null, gender_name_var);
+export async function name_to_mon(in_str, gender_name_var) {
+    return await name_to_monplus(in_str, null, gender_name_var);
 }
 /* figure out what type of monster a user-supplied string is specifying;
    return a pointer to whatever is past the monster name--necessary if
@@ -823,7 +818,7 @@ export function name_to_mon(in_str, gender_name_var) {
 /* Hyphenated names -- it would be nice to handle these via
                fuzzymatch() but it isn't able to ignore trailing stuff */
 const __name_to_monplus_names = [{ name: "grey dragon", pm_val: PM_GRAY_DRAGON, genderhint: NEUTRAL }, { name: "baby grey dragon", pm_val: PM_BABY_GRAY_DRAGON, genderhint: NEUTRAL }, { name: "grey unicorn", pm_val: PM_GRAY_UNICORN, genderhint: NEUTRAL }, { name: "grey ooze", pm_val: PM_GRAY_OOZE, genderhint: NEUTRAL }, { name: "gray-elf", pm_val: PM_GREY_ELF, genderhint: NEUTRAL }, { name: "mindflayer", pm_val: PM_MIND_FLAYER, genderhint: NEUTRAL }, { name: "master mindflayer", pm_val: PM_MASTER_MIND_FLAYER, genderhint: NEUTRAL }, { name: "aligned priest", pm_val: PM_ALIGNED_CLERIC, genderhint: MALE }, { name: "aligned priestess", pm_val: PM_ALIGNED_CLERIC, genderhint: FEMALE }, { name: "high priest", pm_val: PM_HIGH_CLERIC, genderhint: MALE }, { name: "high priestess", pm_val: PM_HIGH_CLERIC, genderhint: FEMALE }, { name: "master of thief", pm_val: PM_MASTER_OF_THIEVES, genderhint: NEUTRAL }, { name: "master thief", pm_val: PM_MASTER_OF_THIEVES, genderhint: NEUTRAL }, { name: "master of assassin", pm_val: PM_MASTER_ASSASSIN, genderhint: NEUTRAL }, { name: "master-lich", pm_val: PM_MASTER_LICH, genderhint: NEUTRAL }, { name: "masterlich", pm_val: PM_MASTER_LICH, genderhint: NEUTRAL }, { name: "invisible stalker", pm_val: PM_STALKER, genderhint: NEUTRAL }, { name: "high-elf", pm_val: PM_ELVEN_MONARCH, genderhint: NEUTRAL }, { name: "wood-elf", pm_val: PM_WOODLAND_ELF, genderhint: NEUTRAL }, { name: "wood elf", pm_val: PM_WOODLAND_ELF, genderhint: NEUTRAL }, { name: "woodland nymph", pm_val: PM_WOOD_NYMPH, genderhint: NEUTRAL }, { name: "halfling", pm_val: PM_HOBBIT, genderhint: NEUTRAL }, { name: "genie", pm_val: PM_DJINNI, genderhint: NEUTRAL }, { name: "human wererat", pm_val: PM_HUMAN_WERERAT, genderhint: NEUTRAL }, { name: "human werejackal", pm_val: PM_HUMAN_WEREJACKAL, genderhint: NEUTRAL }, { name: "human werewolf", pm_val: PM_HUMAN_WEREWOLF, genderhint: NEUTRAL }, { name: "rat wererat", pm_val: PM_WERERAT, genderhint: NEUTRAL }, { name: "jackal werejackal", pm_val: PM_WEREJACKAL, genderhint: NEUTRAL }, { name: "wolf werewolf", pm_val: PM_WEREWOLF, genderhint: NEUTRAL }, { name: "ki rin", pm_val: PM_KI_RIN, genderhint: NEUTRAL }, { name: "kirin", pm_val: PM_KI_RIN, genderhint: NEUTRAL }, { name: "uruk hai", pm_val: PM_URUK_HAI, genderhint: NEUTRAL }, { name: "orc captain", pm_val: PM_ORC_CAPTAIN, genderhint: NEUTRAL }, { name: "woodland elf", pm_val: PM_WOODLAND_ELF, genderhint: NEUTRAL }, { name: "green elf", pm_val: PM_GREEN_ELF, genderhint: NEUTRAL }, { name: "grey elf", pm_val: PM_GREY_ELF, genderhint: NEUTRAL }, { name: "gray elf", pm_val: PM_GREY_ELF, genderhint: NEUTRAL }, { name: "elf lady", pm_val: PM_ELF_NOBLE, genderhint: FEMALE }, { name: "elf lord", pm_val: PM_ELF_NOBLE, genderhint: MALE }, { name: "elf noble", pm_val: PM_ELF_NOBLE, genderhint: NEUTRAL }, { name: "olog hai", pm_val: PM_OLOG_HAI, genderhint: NEUTRAL }, { name: "arch lich", pm_val: PM_ARCH_LICH, genderhint: NEUTRAL }, { name: "archlich", pm_val: PM_ARCH_LICH, genderhint: NEUTRAL }, { name: "incubi", pm_val: PM_AMOROUS_DEMON, genderhint: MALE }, { name: "succubi", pm_val: PM_AMOROUS_DEMON, genderhint: FEMALE }, { name: "violet fungi", pm_val: PM_VIOLET_FUNGUS, genderhint: NEUTRAL }, { name: "homunculi", pm_val: PM_HOMUNCULUS, genderhint: NEUTRAL }, { name: "baluchitheria", pm_val: PM_BALUCHITHERIUM, genderhint: NEUTRAL }, { name: "lurkers above", pm_val: PM_LURKER_ABOVE, genderhint: NEUTRAL }, { name: "cavemen", pm_val: PM_CAVE_DWELLER, genderhint: MALE }, { name: "cavewomen", pm_val: PM_CAVE_DWELLER, genderhint: FEMALE }, { name: "watchmen", pm_val: PM_WATCHMAN, genderhint: NEUTRAL }, { name: "djinn", pm_val: PM_DJINNI, genderhint: NEUTRAL }, { name: "mumakil", pm_val: PM_MUMAK, genderhint: NEUTRAL }, { name: "erinyes", pm_val: PM_ERINYS, genderhint: NEUTRAL }, { name: null, pm_val: NON_PM, genderhint: NEUTRAL }];
-export function name_to_monplus(in_str, remainder_p, gender_name_var) {
+export async function name_to_monplus(in_str, remainder_p, gender_name_var) {
     let i = 0;
     let mntmp = NON_PM;
     let s = null;
@@ -862,16 +857,8 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
         for (let __nhi_namep = 0; (namep = __name_to_monplus_names[__nhi_namep]) && (namep.name); __nhi_namep++) {
             len = strlen(namep.name);
             if (!strncmpi(str, namep.name, len) && (!__nh_char_at0(__nh_advance_str(str, len)) || __nh_char_at0(__nh_advance_str(str, len)) == 32 || __nh_char_at0(__nh_advance_str(str, len)) == 39)) {
-                /* force full word (which could conceivably be possessive) */
                 if (remainder_p) {
-                    /* C: in_str + ((str + len) - buf) — a POINTER DIFFERENCE.  JS
-                       string subtraction is NaN, so the remainder came back
-                       garbage and readobjnam's d.bp/d.dn went empty after any
-                       monster-name match (the seed0360/0398 wish cluster,
-                       project_wish_state_corruption).  str is a suffix of the
-                       in_str copy, so (str+len)-buf == strlen(in_str) -
-                       strlen(str) + len. */
-                    remainder_p.value = __nh_advance_str(in_str, strlen(in_str) - strlen(str) + len);
+                    remainder_p.value = __nh_advance_str(in_str, strlen(in_str) - strlen(str) + len); /* C ptr-diff: (str+len)-buf */
                 }
                 if (gender_name_var) {
                     gender_name_var.value = namep.genderhint;
@@ -905,13 +892,11 @@ export function name_to_monplus(in_str, remainder_p, gender_name_var) {
             break;
         }
     }
-    /* FIXME: some titles have gender; title_to_mon() doesn't propagate it */
     if (mntmp == NON_PM) {
-        mntmp = title_to_mon(str, null, { get value() { return len; }, set value(_v) { len = _v; } });
+        mntmp = await title_to_mon(str, null, { get value() { return len; }, set value(_v) { len = _v; } });
     }
     if (len && remainder_p) {
-        /* C pointer difference — see comment at the first site. */
-        remainder_p.value = __nh_advance_str(in_str, strlen(in_str) - strlen(str) + len);
+        remainder_p.value = __nh_advance_str(in_str, strlen(in_str) - strlen(str) + len); /* C ptr-diff: (str+len)-buf */
     }
     if (gender_name_var && matchgend != -1) {
         /* don't override with neuter if caller has already specified male
@@ -933,7 +918,7 @@ const __name_to_monclass_falsematch = ["an", "the", "or", "other", "or other", n
 /* matches specific monster (overly restrictive) */
 /* some plausible guesses which need help */
 const __name_to_monclass_truematch = [{ name: "long worm", pm_val: PM_LONG_WORM, genderhint: NEUTRAL }, { name: "demon", pm_val: -S_DEMON, genderhint: NEUTRAL }, { name: "devil", pm_val: -S_DEMON, genderhint: NEUTRAL }, { name: "bug", pm_val: -S_XAN, genderhint: NEUTRAL }, { name: "fish", pm_val: -S_EEL, genderhint: NEUTRAL }, { name: null, pm_val: NON_PM, genderhint: NEUTRAL }];
-export function name_to_monclass(in_str, mndx_p) {
+export async function name_to_monclass(in_str, mndx_p) {
     /* Single letters are matched against def_monsyms[].sym; words
        or phrases are first matched against def_monsyms[].explain
        to check class description; if not found there, then against
@@ -971,8 +956,7 @@ export function name_to_monclass(in_str, mndx_p) {
         if (!strncmpi((in_str), ("long"), -1)) {
             return 0;
         }
-        /* avoid false whole-word match with "long worm tail" */
-        in_str = makesingular(in_str);
+        in_str = await makesingular(in_str);
         for (i = 0; __name_to_monclass_falsematch[i]; i++) {
             if (!strncmpi((in_str), (__name_to_monclass_falsematch[i]), -1)) {
                 return 0;
@@ -998,8 +982,7 @@ export function name_to_monclass(in_str, mndx_p) {
                 return i;
             }
         }
-        /* check individual species names */
-        i = name_to_mon(in_str, null);
+        i = await name_to_mon(in_str, null);
         if (i != NON_PM) {
             if (mndx_p) {
                 mndx_p.value = i;
@@ -1370,7 +1353,16 @@ export function get_atkdam_type(adtyp) {
     return adtyp;
 }
 /*mondata.c*/
+/* ordinary case: not an adult dragon */
+/* is_were() doesn't handle hero in human form */
+/* light-based attacks may be cancelled or resisted */
 /* rust monsters and some puddings can destroy bars */
+/* monsters don't wear amulets of magical breathing,
+           so second part doesn't achieve anything useful... */
 /* special cases of humanoids that cannot wear suits */
+/* force full word (which could conceivably be possessive) */
+/* FIXME: some titles have gender; title_to_mon() doesn't propagate it */
 /* be careful with "ies"; "priest", "zombies" */
 /* luckily no monster names end in fe or ve with ves plurals */
+/* avoid false whole-word match with "long worm tail" */
+/* check individual species names */

@@ -7,6 +7,7 @@ import { game } from '../gstate.js';
 import { free } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, You_feel, Your, pline, verbalize } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, atoi, strcat, strchr, strcmp, strcpy } from '../c2js-runtime/string.js';
 import { get_mleash, m_unleash, next_to_u } from './apply.js';
@@ -65,10 +66,10 @@ export function m_blocks_teleporting(mtmp) {
     return (0);
 }
 /* teleporting is prevented on this level for this monster? */
-export function noteleport_level(mon) {
+export async function noteleport_level(mon) {
     /* demon court in Gehennom prevent others from teleporting */
     if (In_hell(game.u.uz) && !(((((mon.data).mflags2 & 256) != 0) && (((mon.data).mflags2 & 1024) != 0)) || ((((mon.data).mflags2 & 256) != 0) && (((mon.data).mflags2 & 2048) != 0)))) {
-        if (get_iter_mons(m_blocks_teleporting)) {
+        if (await get_iter_mons(m_blocks_teleporting)) {
             return (1);
         }
     }
@@ -215,19 +216,19 @@ export function goodpos(x, y, mtmp, gpflags) {
  * If there is more than one valid position in the ring, choose one randomly.
  * Return TRUE and the position chosen when successful, FALSE otherwise.
  */
-export function enexto(cc, xx, yy, mdat) {
+export async function enexto(cc, xx, yy, mdat) {
     fnEnter("enexto", "teleport.c", 0);
-    return (enexto_core(cc, xx, yy, mdat, 8388608) || enexto_core(cc, xx, yy, mdat, 0));
+    return (await enexto_core(cc, xx, yy, mdat, 8388608) || await enexto_core(cc, xx, yy, mdat, 0));
 }
-export function enexto_gpflags(cc, xx, yy, mdat, entflags) {
-    return (enexto_core(cc, xx, yy, mdat, 8388608 | entflags) || enexto_core(cc, xx, yy, mdat, entflags));
+export async function enexto_gpflags(cc, xx, yy, mdat, entflags) {
+    return (await enexto_core(cc, xx, yy, mdat, 8388608 | entflags) || await enexto_core(cc, xx, yy, mdat, entflags));
 }
 /* output; <cc.x,cc.y> as close as feasible to <xx,yy> */
 /* input coordinates */
 /* type of monster; affects whether water or
                              * lava or boulder spots will be considered */
 /* flags for goodpos() */
-export function enexto_core(cc, xx, yy, mdat, entflags) {
+export async function enexto_core(cc, xx, yy, mdat, entflags) {
     fnEnter("enexto_core", "teleport.c", 0);
     /* enough room for every location */
     let candy = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
@@ -240,7 +241,7 @@ export function enexto_core(cc, xx, yy, mdat, entflags) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/teleport.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("enexto() called with null mdat");
+                await pline("enexto() called with null mdat");
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -252,10 +253,7 @@ export function enexto_core(cc, xx, yy, mdat, entflags) {
     Object.assign(fakemon, cg.zeromonst);
     set_mon_data(fakemon, mdat);
     traceCheckpoint('enexto_core.start', { xx, yy, gpflags: entflags });
-    /* gather candidate coordinates within 3 steps, those 1 step away in
-       random order first, then those 2 steps away in random order, then 3;
-       this will usually find a good spot without scanning the whole map */
-    nearcandyct = collect_coords(candy, xx, yy, 3, 0, null);
+    nearcandyct = await collect_coords(candy, xx, yy, 3, 0, null);
     for (i = 0; i < nearcandyct; ++i) {
         cc.x = candy[i].x; cc.y = candy[i].y;
         const __ok = goodpos(cc.x, cc.y, fakemon, entflags);
@@ -265,10 +263,7 @@ export function enexto_core(cc, xx, yy, mdat, entflags) {
             return (1);
         }
     }
-    /* didn't find a spot; gather coordinates for the whole map except
-       for <xx,yy> itself, ordered in expanding distance from <xx,yy>
-       (subsets of equal distance grouped together with order randomized) */
-    allcandyct = collect_coords(candy, xx, yy, 0, 0, null);
+    allcandyct = await collect_coords(candy, xx, yy, 0, 0, null);
     for (i = nearcandyct; i < allcandyct; ++i) {
         cc.x = candy[i].x; cc.y = candy[i].y;
         if (goodpos(cc.x, cc.y, fakemon, entflags)) {
@@ -284,7 +279,7 @@ export function enexto_core(cc, xx, yy, mdat, entflags) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/teleport.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("enexto(\"%s\",%d,%d,0x%08lx) failed", mdat.pmnames[NEUTRAL], xx, yy, entflags);
+            await pline("enexto(\"%s\",%d,%d,0x%08lx) failed", mdat.pmnames[NEUTRAL], xx, yy, entflags);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -340,7 +335,7 @@ export function tele_jump_ok(x1, y1, x2, y2) {
     }
     return (1);
 }
-export function teleok(x, y, trapok) {
+export async function teleok(x, y, trapok) {
     if (!trapok) {
         /* allow teleportation onto vibrating square, it's not a real trap;
            also allow pits and holes if levitating or flying */
@@ -362,20 +357,20 @@ export function teleok(x, y, trapok) {
     if (!tele_jump_ok(game.u.ux, game.u.uy, x, y)) {
         return (0);
     }
-    if (!in_out_region(x, y)) {
+    if (!await in_out_region(x, y)) {
         return (0);
     }
     return (1);
 }
-export function teleds(nux, nuy, teleds_flags) {
+export async function teleds(nux, nuy, teleds_flags) {
     let was_swallowed = 0;
     let ball_active = 0;
     let ball_still_in_range = (0);
     let allow_drag = (teleds_flags & 1) != 0;
     let is_teleport = (teleds_flags & 2) != 0;
-    let vault_guard = vault_occupied(game.u.urooms) ? findgd() : null;
+    let vault_guard = vault_occupied(game.u.urooms) ? await findgd() : null;
     if (game.u.utraptype == TT_BURIEDBALL) {
-        buried_ball_to_punishment();
+        await buried_ball_to_punishment();
     }
     ball_active = ((game.uball != null) && game.uball.where != 0);
     if (!ball_active || near_capacity() > SLT_ENCUMBER || distmin(game.u.ux, game.u.uy, nux, nuy) > 1) {
@@ -400,16 +395,16 @@ export function teleds(nux, nuy, teleds_flags) {
         if (!((game.uball).where == 3) && distmin(nux, nuy, game.uball.ox, game.uball.oy) <= 2) {
             ball_still_in_range = (1);
         } else if (!allow_drag) {
-            unplacebc();
+            await unplacebc();
         }
     }
-    reset_utrap((0));
+    await reset_utrap((0));
     /* set_ustuck(Null) clears uswallow */
     was_swallowed = game.u.uswallow;
-    set_ustuck(null);
+    await set_ustuck(null);
     game.u.ux0 = game.u.ux;
     game.u.uy0 = game.u.uy;
-    if (!hideunder(game.youmonst) && game.youmonst.data.mlet == S_MIMIC) {
+    if (!await hideunder(game.youmonst) && game.youmonst.data.mlet == S_MIMIC) {
         /* don't have to move the ball */
         /* mimics stop being unnoticed */
         game.youmonst.m_ap_type = M_AP_NOTHING;
@@ -421,7 +416,7 @@ export function teleds(nux, nuy, teleds_flags) {
             ball_active = (1);
             ball_still_in_range = allow_drag = (0);
         }
-        docrt();
+        await docrt();
     }
     if (ball_active && (ball_still_in_range || allow_drag)) {
         let bc_control = 0;
@@ -430,52 +425,43 @@ export function teleds(nux, nuy, teleds_flags) {
         let chainx = 0;
         let chainy = 0;
         let cause_delay = 0;
-        if (drag_ball(nux, nuy, { get value() { return bc_control; }, set value(_v) { bc_control = _v; } }, { get value() { return ballx; }, set value(_v) { ballx = _v; } }, { get value() { return bally; }, set value(_v) { bally = _v; } }, { get value() { return chainx; }, set value(_v) { chainx = _v; } }, { get value() { return chainy; }, set value(_v) { chainy = _v; } }, { get value() { return cause_delay; }, set value(_v) { cause_delay = _v; } }, allow_drag)) {
-            move_bc(0, bc_control, ballx, bally, chainx, chainy);
+        if (await drag_ball(nux, nuy, { get value() { return bc_control; }, set value(_v) { bc_control = _v; } }, { get value() { return ballx; }, set value(_v) { ballx = _v; } }, { get value() { return bally; }, set value(_v) { bally = _v; } }, { get value() { return chainx; }, set value(_v) { chainx = _v; } }, { get value() { return chainy; }, set value(_v) { chainy = _v; } }, { get value() { return cause_delay; }, set value(_v) { cause_delay = _v; } }, allow_drag)) {
+            await move_bc(0, bc_control, ballx, bally, chainx, chainy);
         } else {
             /* dragging fails if hero is encumbered beyond 'burdened' */
             /* uball might've been cleared via drag_ball -> spoteffects ->
                dotrap -> magic trap unpunishment */
             ball_active = ((game.uball != null) && game.uball.where != 0);
             if (ball_active) {
-                unplacebc();
+                await unplacebc();
             }
         }
     }
-    /* must set u.ux, u.uy after drag_ball(), which may need to know
-       the old position if allow_drag is true... */
-    /* set u.<x,y>, usteed-><mx,my>; cliparound() */
-    u_on_newpos(nux, nuy);
-    fill_pit(game.u.ux0, game.u.uy0);
+    await u_on_newpos(nux, nuy);
+    await fill_pit(game.u.ux0, game.u.uy0);
     if (ball_active && game.uchain && game.uchain.where == 0) {
-        placebc();
+        await placebc();
     }
     /* put back the ball&chain if they were taken off map */
     update_player_regions();
-    /*
-     *  Make sure the hero disappears from the old location.  This will
-     *  not happen if she is teleported within sight of her previous
-     *  location.  Force a full vision recalculation because the hero
-     *  is now in a new location.
-     */
-    newsym(game.u.ux0, game.u.uy0);
-    see_monsters();
+    await newsym(game.u.ux0, game.u.uy0);
+    await see_monsters();
     game.vision_full_recalc = 1;
     nomul(0);
     do {
         game.a11y.mon_notices_blocked++;
     } while (0);
-    vision_recalc(0);
+    await vision_recalc(0);
     /* this used to take place sooner, but if a --More-- prompt was issued
        then the old map display was shown instead of the new one */
     if (is_teleport && game.flags.verbose) {
-        You("materialize in %s location!", (nux == game.u.ux0 && nuy == game.u.uy0) ? "the same" : "a different");
+        await You("materialize in %s location!", (nux == game.u.ux0 && nuy == game.u.uy0) ? "the same" : "a different");
     }
     /* if terrain type changes, levitation or flying might become blocked
        or unblocked; might issue message, so do this after map+vision has
        been updated for new location instead of right after u_on_newpos() */
     if (game.level.locations[game.u.ux][game.u.uy].typ != game.level.locations[game.u.ux0][game.u.uy0].typ) {
-        switch_terrain();
+        await switch_terrain();
     }
     if (vault_guard) {
         /* sequencing issue:  we want guard's alarm, if any, to occur before
@@ -485,22 +471,20 @@ export function teleds(nux, nuy, teleds_flags) {
         let save_urooms = '';
         save_urooms = strcpy(save_urooms, game.u.urooms);
         strcpy(game.u.urooms, in_rooms(game.u.ux, game.u.uy, VAULT));
-        /* if hero has left vault, make guard notice */
         if (!vault_occupied(game.u.urooms)) {
-            uleftvault(vault_guard);
+            await uleftvault(vault_guard);
         }
         strcpy(game.u.urooms, save_urooms);
     }
-    /* possible shop entry message comes after guard's shrill whistle */
-    spoteffects((1));
-    invocation_message();
+    await spoteffects((1));
+    await invocation_message();
     do {
         if (--game.a11y.mon_notices_blocked < 0) {
-            impossible("mon_notices_blocked<0");
+            await impossible("mon_notices_blocked<0");
             game.a11y.mon_notices_blocked = 0;
         }
     } while (0);
-    notice_all_mons((1));
+    await notice_all_mons((1));
     return;
 }
 /* make a list of coordinates in expanding distance from <cx,cy>;
@@ -517,7 +501,7 @@ export function teleds(nux, nuy, teleds_flags) {
                              * skip_mons: reject occupied spots;
                              * skip_inaccs: reject !ZAP_POS() spots */
 /* if Null, no filtering */
-export function collect_coords(ccc, cx, cy, maxradius, cc_flags, filter) {
+export async function collect_coords(ccc, cx, cy, maxradius, cc_flags, filter) {
     let cccIdx = 0;
     let passccIdx = 0;
     let x = 0;
@@ -619,14 +603,14 @@ export function collect_coords(ccc, cx, cy, maxradius, cc_flags, filter) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/teleport.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("collect_coords(,%d,%d,%d,,)=%d", cx, cy, maxradius, result);
+            await pline("collect_coords(,%d,%d,%d,,)=%d", cx, cy, maxradius, result);
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
     return result;
 }
 /* [try to] teleport hero to a safe spot */
-export function safe_teleds(teleds_flags) {
+export async function safe_teleds(teleds_flags) {
     let nux = 0;
     let nuy = 0;
     let cc_flags = 0;
@@ -649,8 +633,8 @@ export function safe_teleds(teleds_flags) {
      */
         nux = rnd(80 - 1);
         nuy = rn2(21);
-        if (teleok(nux, nuy, (0))) {
-            teleds(nux, nuy, teleds_flags);
+        if (await teleok(nux, nuy, (0))) {
+            await teleds(nux, nuy, teleds_flags);
             return (1);
         }
     }
@@ -660,38 +644,37 @@ export function safe_teleds(teleds_flags) {
     if (!(game.u.uprops[PASSES_WALLS].intrinsic || game.u.uprops[PASSES_WALLS].extrinsic)) {
         cc_flags |= 16;
     }
-    candycount = collect_coords(candy, game.u.ux, game.u.uy, 0, cc_flags, null);
+    candycount = await collect_coords(candy, game.u.ux, game.u.uy, 0, cc_flags, null);
     backupspot.x = backupspot.y = 0;
     for (tcnt = 0; tcnt < candycount; ++tcnt) {
         /* skip trap locations via teleok(,,FALSE) but remember first
        encountered trap spot that is acceptable to teleok(,,TRUE) */
         nux = candy[tcnt].x , nuy = candy[tcnt].y;
-        if (teleok(nux, nuy, (0))) {
-            teleds(nux, nuy, teleds_flags);
+        if (await teleok(nux, nuy, (0))) {
+            await teleds(nux, nuy, teleds_flags);
             return (1);
         }
-        if (!backupspot.x && t_at(nux, nuy) && teleok(nux, nuy, (1))) {
+        if (!backupspot.x && t_at(nux, nuy) && await teleok(nux, nuy, (1))) {
             backupspot.x = nux , backupspot.y = nuy;
         }
     }
     if (backupspot.x) {
-        /* no non-trap spot found; if we skipped a viable trap spot, use it */
-        teleds(backupspot.x, backupspot.y, teleds_flags);
+        await teleds(backupspot.x, backupspot.y, teleds_flags);
         return (1);
     }
     return (0);
 }
-export function vault_tele() {
+export async function vault_tele() {
     let croom = search_special(VAULT);
     let c = { x: 0, y: 0 };
-    if (croom && somexyspace(croom, c) && teleok(c.x, c.y, (0))) {
-        teleds(c.x, c.y, 2);
+    if (croom && somexyspace(croom, c) && await teleok(c.x, c.y, (0))) {
+        await teleds(c.x, c.y, 2);
         /* this is obviously a teleport scroll */
         return;
     }
-    tele();
+    await tele();
 }
-export function teleport_pet(mtmp, force_it) {
+export async function teleport_pet(mtmp, force_it) {
     let otmp = null;
     if (mtmp == game.u.usteed) {
         return (0);
@@ -699,30 +682,30 @@ export function teleport_pet(mtmp, force_it) {
     if (mtmp.mleashed) {
         otmp = get_mleash(mtmp);
         if (!otmp) {
-            impossible("%s is leashed, without a leash.", Monnam(mtmp));
-            m_unleash(mtmp, (0));
+            await impossible("%s is leashed, without a leash.", await Monnam(mtmp));
+            await m_unleash(mtmp, (0));
             return (1);
         }
         if (otmp.cursed && !force_it) {
-            yelp(mtmp);
+            await yelp(mtmp);
             return (0);
         } else {
             release_it: {
-                Your("leash goes slack.");
+                await Your("leash goes slack.");
             }
-            m_unleash(mtmp, (0));
+            await m_unleash(mtmp, (0));
             return (1);
         }
     }
     return (1);
 }
 /* teleport to random pet, if valid location next to it */
-export function tele_to_rnd_pet() {
+export async function tele_to_rnd_pet() {
     let mtmp = null;
     let pet = null;
     let cnt = 0;
-    if (noteleport_level(game.youmonst)) {
-        impossible("%s", "attempt to teleport hero to be near a pet on no-teleport level");
+    if (await noteleport_level(game.youmonst)) {
+        await impossible("%s", "attempt to teleport hero to be near a pet on no-teleport level");
         return;
     }
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
@@ -736,35 +719,32 @@ export function tele_to_rnd_pet() {
     if (pet && !(dist2(((pet).mx), ((pet).my), game.u.ux, game.u.uy) <= 2)) {
         let tx = pet.mx + rn2(3) - 1;
         let ty = pet.my + rn2(3) - 1;
-        if (isok(tx, ty) && teleok(tx, ty, (0))) {
-            teleds(tx, ty, 2);
+        if (isok(tx, ty) && await teleok(tx, ty, (0))) {
+            await teleds(tx, ty, 2);
         }
     }
 }
 /* teleport the hero via some method other than scroll of teleport */
-export function tele() {
-    scrolltele(null);
+export async function tele() {
+    await scrolltele(null);
 }
 /* teleport the hero; usually discover scroll of teleportation if via scroll */
-export function scrolltele(scroll) {
+export async function scrolltele(scroll) {
     let cc = { x: 0, y: 0 };
-    if (noteleport_level(game.youmonst) && !game.flags.debug) {
-        /* Disable teleportation in stronghold && Vlad's Tower */
-        pline("A mysterious force prevents you from teleporting!");
+    if (await noteleport_level(game.youmonst) && !game.flags.debug) {
+        await pline("A mysterious force prevents you from teleporting!");
         if (scroll) {
-            learnscroll(scroll);
+            await learnscroll(scroll);
         }
         return;
     }
     /* don't show trap if "Sorry..." */
     if (!(game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked)) {
-        make_blinded(0, (0));
+        await make_blinded(0, (0));
     }
     if ((game.u.uhave.amulet || On_W_tower_level(game.u.uz)) && !rn2(3)) {
-        You_feel("disoriented for a moment.");
-        /* don't discover the scroll [at least not yet for wizard override];
-           disorientation doesn't reveal that this is a teleport attempt */
-        if (!game.flags.debug || yn_function("Override?", ynchars, 110, (1)) != 121) {
+        await You_feel("disoriented for a moment.");
+        if (!game.flags.debug || await yn_function("Override?", ynchars, 110, (1)) != 121) {
             /* if in Knox and the requested level > 0, stay put.
          * we let negative values requests fall into the "heaven" loop.
          */
@@ -773,16 +753,16 @@ export function scrolltele(scroll) {
     }
     if ((((game.u.uprops[TELEPORT_CONTROL].intrinsic || game.u.uprops[TELEPORT_CONTROL].extrinsic) || (scroll && scroll.blessed)) && !game.u.uprops[STUNNED].intrinsic) || game.flags.debug) {
         if (unconscious()) {
-            pline("Being unconscious, you cannot control your teleport.");
+            await pline("Being unconscious, you cannot control your teleport.");
         } else {
             let whobuf = '';
             whobuf = strcpy(whobuf, "you");
             if (game.u.usteed) {
-                whobuf = __nh_buf_append(whobuf, sprintf('', " and %s", mon_nam(game.u.usteed)));
+                whobuf = __nh_buf_append(whobuf, sprintf('', " and %s", await mon_nam(game.u.usteed)));
             }
-            pline("Where do %s want to be teleported?", whobuf);
+            await pline("Where do %s want to be teleported?", whobuf);
             if (scroll) {
-                learnscroll(scroll);
+                await learnscroll(scroll);
             }
             cc.x = game.u.ux;
             cc.y = game.u.uy;
@@ -791,30 +771,23 @@ export function scrolltele(scroll) {
                  * pre-suggest this coordinate. */
                 Object.assign(cc, game.iflags.travelcc);
             }
-            if (getpos(cc, (1), "the desired position") < 0) {
+            if (await getpos(cc, (1), "the desired position") < 0) {
                 return;
             }
-            if (teleok(cc.x, cc.y, (0))) {
-                /* possible extensions: introduce a small error if
-               magic power is low; allow transfer to solid rock */
-                /* for scroll, discover it regardless of destination */
-                teleds(cc.x, cc.y, 2);
+            if (await teleok(cc.x, cc.y, (0))) {
+                await teleds(cc.x, cc.y, 2);
                 if (((game.iflags.travelcc.x) == game.u.ux && (game.iflags.travelcc.y) == game.u.uy)) {
                     game.iflags.travelcc.x = game.iflags.travelcc.y = 0;
                 }
                 return;
             }
-            pline("Sorry...");
+            await pline("Sorry...");
         }
     }
-    /* we used to suppress discovery if hero teleported to a nearby
-       spot which was already within view, but now there is always a
-       "materialize" message regardless of how far you teleported so
-       discovery of scroll type is unconditional */
     if (scroll) {
-        learnscroll(scroll);
+        await learnscroll(scroll);
     }
-    safe_teleds(2);
+    await safe_teleds(2);
 }
 /* the #teleport command; 'm ^T' == choose among several teleport modes */
 /*
@@ -834,16 +807,15 @@ export function scrolltele(scroll) {
              * (or poly-form) requirement which might make normal ^T fail.
              */
 const __dotelecmd_tports = [{ menulet: 110, menudesc: "normal ^T on demand; no spell, obey restrictions" }, { menulet: 115, menudesc: "via spellcast; no intrinsic teleport" }, { menulet: 116, menudesc: "try ^T without having it; no spell" }, { menulet: 119, menudesc: "debug mode; ignore restrictions" }];
-export function dotelecmd() {
+export async function dotelecmd() {
     let save_HTele = 0;
     let save_ETele = 0;
     let res = 0;
     let added = 0;
     let hidden = 0;
     let ignore_restrictions = (0);
-    /* normal mode; ignore 'm' prefix if it was given */
     if (!game.flags.debug) {
-        return dotele((0)) ? 1 : 0;
+        return await dotele((0)) ? 1 : 0;
     }
     added = hidden = 0;
     save_HTele = game.u.uprops[TELEPORT].intrinsic , save_ETele = game.u.uprops[TELEPORT].extrinsic;
@@ -851,20 +823,20 @@ export function dotelecmd() {
         ignore_restrictions = (1);
     } else {
         let picks = null;
-        let any = 0;
+        let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
         let win = 0;
         let i = 0;
         let tmode = 0;
         let clr = 8;
         win = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(win, 0);
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         for (i = 0; i < (Math.trunc(4 /* sizeof(const struct tporttypes [4]) */ / 1 /* sizeof(const struct tporttypes) */)); ++i) {
             any.a_int = __dotelecmd_tports[i].menulet;
-            add_menu(win, nul_glyphinfo, any, any.a_int, 0, 0, clr, __dotelecmd_tports[i].menudesc, (__dotelecmd_tports[i].menulet == 119) ? 1 : 0);
+            await add_menu(win, nul_glyphinfo, any, any.a_int, 0, 0, clr, __dotelecmd_tports[i].menudesc, (__dotelecmd_tports[i].menulet == 119) ? 1 : 0);
         }
         (game.windowprocs.win_end_menu)(win, "Which way do you want to teleport?");
-        i = select_menu(win, 1, picks);
+        i = await select_menu(win, 1, picks);
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (i > 0) {
             tmode = picks[0].item.a_int;
@@ -882,35 +854,31 @@ export function dotelecmd() {
         switch (tmode) {
             case 110:
                 game.u.uprops[TELEPORT].intrinsic |= 536870912;
-                /* confer intrinsic teleportation */
-                hidden = tport_spell(1);
+                hidden = await tport_spell(1);
                 break;
             case 115:
                 game.u.uprops[TELEPORT].intrinsic = game.u.uprops[TELEPORT].extrinsic = 0;
-                added = tport_spell(2);
+                added = await tport_spell(2);
                 break;
             case 116:
                 game.u.uprops[TELEPORT].intrinsic = game.u.uprops[TELEPORT].extrinsic = 0;
-                hidden = tport_spell(1);
+                hidden = await tport_spell(1);
                 break;
             case 119:
                 ignore_restrictions = (1);
                 break;
         }
     }
-    /* if dotele() can be fatal, final disclosure might lie about
-       intrinsic teleportation; we should be able to live with that
-       since the menu finagling is only applicable in wizard mode */
-    res = dotele(ignore_restrictions);
+    res = await dotele(ignore_restrictions);
     game.u.uprops[TELEPORT].intrinsic = save_HTele;
     game.u.uprops[TELEPORT].extrinsic = save_ETele;
     if (added != 0 || hidden != 0) {
-        tport_spell(added + hidden - 0);
+        await tport_spell(added + hidden - 0);
     }
     return res ? 1 : 0;
 }
 /* True: wizard mode ^T */
-export function dotele(break_the_rules) {
+export async function dotele(break_the_rules) {
     let trap = null;
     let cantdoit = null;
     let trap_once = (0);
@@ -920,8 +888,8 @@ export function dotele(break_the_rules) {
     }
     if (trap) {
         if (trap.ttyp == LEVEL_TELEP && trap.tseen) {
-            if (yn_function("There is a level teleporter here. Trigger it?", ynchars, 110, (1)) == 121) {
-                level_tele_trap(trap, 1);
+            if (await yn_function("There is a level teleporter here. Trigger it?", ynchars, 110, (1)) == 121) {
+                await level_tele_trap(trap, 1);
                 /* deliberate jumping will always take time even if it doesn't
                  * work */
                 /* this failure in spelleffects() also uses the move */
@@ -934,16 +902,16 @@ export function dotele(break_the_rules) {
             /* trap may get deleted, save this */
             trap_once = trap.once;
             if (trap.once) {
-                pline("This is a vault teleport, usable once only.");
-                if (yn_function("Jump in?", ynchars, 110, (1)) == 110) {
+                await pline("This is a vault teleport, usable once only.");
+                if (await yn_function("Jump in?", ynchars, 110, (1)) == 110) {
                     trap = null;
                 } else {
-                    deltrap(trap);
-                    newsym(game.u.ux, game.u.uy);
+                    await deltrap(trap);
+                    await newsym(game.u.ux, game.u.uy);
                 }
             }
             if (trap) {
-                You("%s onto the teleportation trap.", u_locomotion("jump"));
+                await You("%s onto the teleportation trap.", u_locomotion("jump"));
             }
         } else {
             trap = null;
@@ -958,7 +926,7 @@ export function dotele(break_the_rules) {
             /* casting isn't inhibited by being Stunned (...it ought to be) */
             castit = (knownsp >= spe_Fresh && !game.u.uprops[CONFUSION].intrinsic);
             if (!castit && !break_the_rules) {
-                You("%s.", (!(game.u.uprops[TELEPORT].intrinsic || game.u.uprops[TELEPORT].extrinsic) ? ((knownsp != spe_Unknown) ? "can't cast that spell" : "don't know that spell") : "are not able to teleport at will"));
+                await You("%s.", (!(game.u.uprops[TELEPORT].intrinsic || game.u.uprops[TELEPORT].extrinsic) ? ((knownsp != spe_Unknown) ? "can't cast that spell" : "don't know that spell") : "are not able to teleport at will"));
                 return 0;
             }
         }
@@ -985,15 +953,14 @@ export function dotele(break_the_rules) {
             cantdoit = "lack the energy";
         }
         if (cantdoit) {
-            You("%s %s.", cantdoit, castit ? "for a teleport spell" : "to teleport");
+            await You("%s %s.", cantdoit, castit ? "for a teleport spell" : "to teleport");
             return 0;
-        } else if (check_capacity("Your concentration falters from carrying so much.")) {
+        } else if (await check_capacity("Your concentration falters from carrying so much.")) {
             return 1;
         }
         if (castit) {
-            /* energy cost is deducted in spelleffects() */
-            exercise(A_WIS, (1));
-            if ((spelleffects(SPE_TELEPORT_AWAY, (1), (0)) & 1)) {
+            await exercise(A_WIS, (1));
+            if ((await spelleffects(SPE_TELEPORT_AWAY, (1), (0)) & 1)) {
                 return 1;
             } else if (!break_the_rules) {
                 return 0;
@@ -1004,29 +971,27 @@ export function dotele(break_the_rules) {
             game.disp.botl = (1);
         }
     }
-    if (next_to_u()) {
+    if (await next_to_u()) {
         if (trap && trap_once) {
-            vault_tele();
+            await vault_tele();
         } else if (trap && isok(trap.launch.x, trap.launch.y)) {
-            /* could not find some other place to put mtmp; the level must
-                 * be nearly or completely full */
-            teleds(trap.launch.x, trap.launch.y, 2);
+            await teleds(trap.launch.x, trap.launch.y, 2);
         } else {
             game.iflags.travelcc.x = game.iflags.travelcc.y = 0;
-            tele();
+            await tele();
         }
-        next_to_u();
+        await next_to_u();
     } else {
-        You("%s", c_common_strings.c_shudder_for_moment);
+        await You("%s", c_common_strings.c_shudder_for_moment);
         return 0;
     }
     if (!trap) {
-        morehungry(100);
+        await morehungry(100);
     }
     return 1;
 }
 const __level_tele_get_there_from = "get there from %s.";
-export function level_tele() {
+export async function level_tele() {
     let newlev = 0;
     let newlevel = { dnum: 0, dlevel: 0 };
     /* when surviving dest of -N */
@@ -1043,7 +1008,7 @@ export function level_tele() {
         return;
     }
     if ((game.u.uhave.amulet || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) || ((game.u.uz).dnum == (game.dungeon_topology.d_sokoban_dnum))) && !game.flags.debug) {
-        You_feel("very disoriented for a moment.");
+        await You_feel("very disoriented for a moment.");
         return;
     }
     let __do_random_levtport = false;
@@ -1073,14 +1038,12 @@ export function level_tele() {
                             the previous input was invalid so don't use it
                             as getlin()'s preloaded default answer */
             buf = '';
-            /* Hand-port: getlin returns the collected line for
-               string bufs (§23.239 convention) — rebind. */
-            buf = getlin(qbuf, buf);
+            buf = await getlin(qbuf, buf);
             if (!strcmp(buf, "*")) {
                 __do_random_levtport = true;
                 break levtport_pick;
             } else if (game.u.uprops[CONFUSION].intrinsic && rnl(5)) {
-                pline("Oops...");
+                await pline("Oops...");
                 __do_random_levtport = true;
                 break levtport_pick;
             } else if (!strcmp(buf, "\x1b")) {
@@ -1093,7 +1056,7 @@ export function level_tele() {
                 }
                 destlev = 0;
                 destdnum = 0;
-                newlev = print_dungeon((1), { get value() { return destlev; }, set value(_v) { destlev = _v; } }, { get value() { return destdnum; }, set value(_v) { destdnum = _v; } });
+                newlev = await print_dungeon((1), { get value() { return destlev; }, set value(_v) { destlev = _v; } }, { get value() { return destdnum; }, set value(_v) { destdnum = _v; } });
                 if (!newlev) {
                     return;
                 }
@@ -1101,16 +1064,13 @@ export function level_tele() {
                 newlevel.dlevel = destlev;
                 if (((newlevel).dnum == (game.dungeon_topology.d_astral_level).dnum) && !((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
                     let amu = null;
-                    if (!game.u.uhave.amulet && (amu = mksobj(AMULET_OF_YENDOR, (1), (0))) != null) {
-                        /* ordinarily we'd use hold_another_object()
-                           for something like this, but we don't want
-                           fumbling or already full pack to interfere */
-                        amu = addinv(amu);
-                        prinv("Endgame prerequisite:", amu, 0);
+                    if (!game.u.uhave.amulet && (amu = await mksobj(AMULET_OF_YENDOR, (1), (0))) != null) {
+                        amu = await addinv(amu);
+                        await prinv("Endgame prerequisite:", amu, 0);
                     }
                 }
                 force_dest = (1);
-            } else if ((newlev = lev_by_name(buf)) == 0) {
+            } else if ((newlev = await lev_by_name(buf)) == 0) {
                 newlev = atoi(buf);
             }
         } while (!newlev && !digit(__nh_char_at0(buf)) && (__nh_char_at0(buf) != 45 || !digit(__nh_char_at0(__nh_advance_str(buf, 1)))) && trycnt < 10);
@@ -1119,24 +1079,24 @@ export function level_tele() {
             if (trycnt >= 10) {
                 /* TODO Phase 5+: goto random_levtport (label not in scope of break) */
             }
-            if (yn_function("Go to Nowhere.  Are you sure?", ynqchars, 113, (1)) != 121) {
+            if (await yn_function("Go to Nowhere.  Are you sure?", ynqchars, 113, (1)) != 121) {
                 return;
             }
-            You("%s in agony as your body begins to warp...", ((game.youmonst.data).msound == MS_SILENT) ? "writhe" : "scream");
-            (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
-            You("cease to exist.");
+            await You("%s in agony as your body begins to warp...", ((game.youmonst.data).msound == MS_SILENT) ? "writhe" : "scream");
+            await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+            await You("cease to exist.");
             if (game.invent) {
-                Your("possessions land on the %s with a thud.", surface(game.u.ux, game.u.uy));
+                await Your("possessions land on the %s with a thud.", surface(game.u.ux, game.u.uy));
             }
             game.killer.format = 2;
             game.killer.name = strcpy(game.killer.name, "committed suicide");
-            done(DIED);
-            pline("An energized cloud of dust begins to coalesce.");
-            Your("body rematerializes%s.", game.invent ? ", and you gather up all your possessions" : "");
+            await done(DIED);
+            await pline("An energized cloud of dust begins to coalesce.");
+            await Your("body rematerializes%s.", game.invent ? ", and you gather up all your possessions" : "");
             return;
         }
         if (single_level_branch(game.u.uz) && newlev > 0 && !force_dest) {
-            You("%s", c_common_strings.c_shudder_for_moment);
+            await You("%s", c_common_strings.c_shudder_for_moment);
             return;
         }
         /* if in Quest, the player sees "Home 1", etc., on the status
@@ -1155,21 +1115,21 @@ export function level_tele() {
         }
         newlev = random_teleport_level();
         if (newlev == depth(game.u.uz)) {
-            You("%s", c_common_strings.c_shudder_for_moment);
+            await You("%s", c_common_strings.c_shudder_for_moment);
             return;
         }
     }
     if (game.u.utrap && game.u.utraptype == TT_BURIEDBALL) {
-        buried_ball_to_punishment();
+        await buried_ball_to_punishment();
     }
-    if (!next_to_u() && !force_dest) {
-        You("%s", c_common_strings.c_shudder_for_moment);
+    if (!await next_to_u() && !force_dest) {
+        await You("%s", c_common_strings.c_shudder_for_moment);
         return;
     }
     if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
         let llimit = dunlevs_in_dungeon(game.u.uz);
         if (newlev >= 0 || newlev <= -llimit) {
-            You_cant(__level_tele_get_there_from, "here");
+            await You_cant(__level_tele_get_there_from, "here");
             return;
         }
         newlevel.dnum = game.u.uz.dnum;
@@ -1179,33 +1139,29 @@ export function level_tele() {
     }
     game.killer.name = '';
     if (game.iflags.debug_fuzzer && newlev < 0) {
-        newlev = random_teleport_level();
-        if (newlev == depth(game.u.uz)) {
-            You("%s", c_common_strings.c_shudder_for_moment);
-            return;
-        }
+        /* TODO Phase 5+: goto random_levtport (label not in scope of break) */
     }
     if (newlev < 0 && !force_dest) {
         if (game.u.ushops0) {
             /* take unpaid inventory items off of shop bills */
             game.in_mklev = (1);
-            u_left_shop(game.u.ushops0, (1));
+            await u_left_shop(game.u.ushops0, (1));
             game.u.ushops0 = '';
             game.u.ushops = '';
             game.in_mklev = (0);
         }
         if (newlev <= -10) {
-            You("arrive in heaven.");
+            await You("arrive in heaven.");
             ;
-            verbalize("Thou art early, but we'll admit thee.");
+            await verbalize("Thou art early, but we'll admit thee.");
             game.killer.format = 2;
             game.killer.name = strcpy(game.killer.name, "went to heaven prematurely");
         } else if (newlev == -9) {
-            You_feel("deliriously happy.");
-            pline("(In fact, you're on Cloud 9!)");
-            (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
+            await You_feel("deliriously happy.");
+            await pline("(In fact, you're on Cloud 9!)");
+            await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (0));
         } else {
-            You("are now high above the clouds...");
+            await You("are now high above the clouds...");
         }
         if (game.killer.name[0]) {
             ;
@@ -1215,8 +1171,8 @@ export function level_tele() {
         } else if (((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked)) {
             escape_by_flying = "fly down to the ground";
         } else {
-            pline("Unfortunately, you don't know how to fly.");
-            You("plummet a few thousand feet to your death.");
+            await pline("Unfortunately, you don't know how to fly.");
+            await You("plummet a few thousand feet to your death.");
             game.killer.name = sprintf(game.killer.name, "teleported out of the dungeon and fell to %s death", (genders[game.flags.female ? 1 : 0].his));
             game.killer.format = 2;
         }
@@ -1229,16 +1185,15 @@ export function level_tele() {
         Object.assign(lsav, game.u.uz);
         game.u.uz.dnum = 0;
         game.u.uz.dlevel = (newlev <= -10) ? -10 : 0;
-        done(DIED);
+        await done(DIED);
         /* can only get here via life-saving (or declining to die in
            explore|debug mode); the hero has now left the dungeon... */
         escape_by_flying = "find yourself back on the surface";
         /* restore u.uz so escape code works */
-        game.u.uz = lsav;
+        Object.assign(game.u.uz, lsav);
     }
     if (escape_by_flying) {
-        /* calls done(ESCAPED) if newlevel==0 */
-        You("%s.", escape_by_flying);
+        await You("%s.", escape_by_flying);
         /* [dlevel used to be set to 1, but it doesn't make sense to
             teleport out of the dungeon and float or fly down to the
             surface but then actually arrive back inside the dungeon] */
@@ -1261,19 +1216,15 @@ export function level_tele() {
          * the last level of Gehennom is forbidden.
          */
             newlev = deepest - 1;
-            pline("Sorry...");
+            await pline("Sorry...");
         }
         /* no teleporting out of quest dungeon */
         if (In_quest(game.u.uz) && newlev < depth((game.dungeon_topology.d_qstart_level))) {
             newlev = depth((game.dungeon_topology.d_qstart_level));
         }
-        /* the player thinks of levels purely in logical terms, so
-         * we must translate newlev to a number relative to the
-         * current dungeon.
-         */
-        get_level(newlevel, newlev);
+        await get_level(newlevel, newlev);
         if (on_level(newlevel, game.u.uz) && newlev != depth(game.u.uz)) {
-            You_cant(__level_tele_get_there_from, (newlev > deepest) ? "anywhere" : "here");
+            await You_cant(__level_tele_get_there_from, (newlev > deepest) ? "anywhere" : "here");
             return;
         }
     }
@@ -1287,15 +1238,15 @@ export function level_tele() {
        call it something, we can't defer until the end of the turn */
     schedule_goto(newlevel, UTOTYPE_NONE, null, game.flags.verbose ? "You materialize on a different level!" : null);
 }
-export function domagicportal(ttmp) {
+export async function domagicportal(ttmp) {
     let target_level = { dnum: 0, dlevel: 0 };
     let totype = 0;
     let stunmsg = null;
     if (game.u.utrap && game.u.utraptype == TT_BURIEDBALL) {
-        buried_ball_to_punishment();
+        await buried_ball_to_punishment();
     }
-    if (!next_to_u()) {
-        You("%s", c_common_strings.c_shudder_for_moment);
+    if (!await next_to_u()) {
+        await You("%s", c_common_strings.c_shudder_for_moment);
         return;
     }
     /* if landed from another portal, do nothing */
@@ -1303,13 +1254,9 @@ export function domagicportal(ttmp) {
     if (!on_level(game.u.uz, game.u.uz0)) {
         return;
     }
-    You("activated a magic portal!");
+    await You("activated a magic portal!");
     if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && !game.u.uhave.amulet) {
-        /* prevent the poor shnook, whose amulet was stolen while in
-     * the endgame, from accidently triggering the portal to the
-     * next level, and thus losing the game
-     */
-        You_feel("dizzy for a moment, but nothing happens...");
+        await You_feel("dizzy for a moment, but nothing happens...");
         return;
     }
     Object.assign(target_level, ttmp.dst);
@@ -1321,12 +1268,13 @@ export function domagicportal(ttmp) {
     } else {
         totype = UTOTYPE_PORTAL;
         stunmsg = !game.u.uprops[STUNNED].intrinsic ? "You feel slightly dizzy." : "You feel dizzier.";
-        make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + 3, (0));
+        await make_stunned((game.u.uprops[STUNNED].intrinsic & 16777215) + 3, (0));
     }
     schedule_goto(target_level, totype, stunmsg, null);
 }
 let __tele_trap_in_tele_trap = (0);
-export function tele_trap(trap) {
+__nh_register_static(() => { __tele_trap_in_tele_trap = (0); });
+export async function tele_trap(trap) {
     /* a fixed-destination teleport trap could theoretically place hero onto a
      * second teleport trap; prevent the recursive call from spoteffects() from
      * triggering the trap at the destination */
@@ -1334,39 +1282,39 @@ export function tele_trap(trap) {
         return;
     }
     __tele_trap_in_tele_trap = (1);
-    if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) || (game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) || noteleport_level(game.youmonst)) {
+    if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) || (game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) || await noteleport_level(game.youmonst)) {
         if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic)) {
-            shieldeff(game.u.ux, game.u.uy);
+            await shieldeff(game.u.ux, game.u.uy);
         }
-        You_feel("a wrenching sensation.");
-    } else if (!next_to_u()) {
-        You("%s", c_common_strings.c_shudder_for_moment);
+        await You_feel("a wrenching sensation.");
+    } else if (!await next_to_u()) {
+        await You("%s", c_common_strings.c_shudder_for_moment);
     } else if (trap.once) {
-        deltrap(trap);
-        newsym(game.u.ux, game.u.uy);
-        vault_tele();
+        await deltrap(trap);
+        await newsym(game.u.ux, game.u.uy);
+        await vault_tele();
     } else if (isok(trap.launch.x, trap.launch.y)) {
         let cc = { x: 0, y: 0 };
         let mtmp = (game.level.monsters[trap.launch.x][trap.launch.y]);
         settrack();
         if (mtmp) {
-            if (!enexto(cc, mtmp.mx, mtmp.my, mtmp.data)) {
-                You("%s", c_common_strings.c_shudder_for_moment);
+            if (!await enexto(cc, mtmp.mx, mtmp.my, mtmp.data)) {
+                await You("%s", c_common_strings.c_shudder_for_moment);
             } else {
-                rloc_to(mtmp, cc.x, cc.y);
+                await rloc_to(mtmp, cc.x, cc.y);
                 /* no longer a monster at dest */
                 mtmp = null;
             }
         }
         if (!mtmp) {
-            teleds(trap.launch.x, trap.launch.y, 2);
+            await teleds(trap.launch.x, trap.launch.y, 2);
         }
     } else {
-        tele();
+        await tele();
     }
     __tele_trap_in_tele_trap = (0);
 }
-export function level_tele_trap(trap, trflags) {
+export async function level_tele_trap(trap, trflags) {
     let verbbuf = '';
     let intentional = (0);
     if ((trflags & (32 | 1)) != 0) {
@@ -1375,28 +1323,28 @@ export function level_tele_trap(trap, trflags) {
     } else {
         verbbuf = sprintf(verbbuf, "%s onto", u_locomotion("step"));
     }
-    You("%s a level teleport trap!", verbbuf);
+    await You("%s a level teleport trap!", verbbuf);
     if ((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) && !intentional) {
-        shieldeff(game.u.ux, game.u.uy);
+        await shieldeff(game.u.ux, game.u.uy);
     }
     if (((game.u.uprops[ANTIMAGIC].intrinsic || game.u.uprops[ANTIMAGIC].extrinsic) && !intentional) || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
-        You_feel("a wrenching sensation.");
+        await You_feel("a wrenching sensation.");
         return;
     }
-    deltrap(trap);
-    newsym(game.u.ux, game.u.uy);
-    level_tele();
+    await deltrap(trap);
+    await newsym(game.u.ux, game.u.uy);
+    await level_tele();
     if ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) || (game.u.uprops[TELEPORT_CONTROL].intrinsic || game.u.uprops[TELEPORT_CONTROL].extrinsic)) {
-        You("briefly feel %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "oriented" : "centered");
+        await You("briefly feel %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "oriented" : "centered");
     } else {
-        You_feel("%sdisoriented.", game.u.uprops[CONFUSION].intrinsic ? "even more " : "");
+        await You_feel("%sdisoriented.", game.u.uprops[CONFUSION].intrinsic ? "even more " : "");
     }
     /* magic portal traversal causes brief Stun; for level teleport, use
        confusion instead, and only when hero lacks control; do this after
        processing the level teleportation attempt because being confused
        can affect the outcome ("Oops" result) */
     if (!(game.u.uprops[TELEPORT_CONTROL].intrinsic || game.u.uprops[TELEPORT_CONTROL].extrinsic)) {
-        make_confused((game.u.uprops[CONFUSION].intrinsic & 16777215) + 3, (0));
+        await make_confused((game.u.uprops[CONFUSION].intrinsic & 16777215) + 3, (0));
     }
 }
 /* check whether monster can arrive at location <x,y> via Tport (or fall) */
@@ -1456,7 +1404,7 @@ export function rloc_pos_ok(x, y, mtmp) {
  * a value because mtmp is a migrating_mon.  Worm tails are always
  * placed randomly around the head of the worm.
  */
-export function rloc_to_core(mtmp, x, y, rlocflags) {
+export async function rloc_to_core(mtmp, x, y, rlocflags) {
     let oldx = mtmp.mx;
     let oldy = mtmp.my;
     let resident_shk = mtmp.isshk && inhishop(mtmp);
@@ -1473,7 +1421,7 @@ export function rloc_to_core(mtmp, x, y, rlocflags) {
             if (((game.viz_array[y][x] & 1) != 0) || sensemon(mtmp)) {
                 telemsg = (1);
             } else {
-                pline("%s vanishes!", Monnam(mtmp));
+                await pline("%s vanishes!", await Monnam(mtmp));
             }
             /* avoid "It suddenly appears!" for a STRAT_APPEARMSG monster
                that has just teleported away if we won't see it after this
@@ -1482,29 +1430,29 @@ export function rloc_to_core(mtmp, x, y, rlocflags) {
             appearmsg = (0);
         }
         if (mtmp.wormno) {
-            remove_worm(mtmp);
+            await remove_worm(mtmp);
         } else {
             game.level.monsters[oldx][oldy] = null;
-            newsym(oldx, oldy);
+            await newsym(oldx, oldy);
         }
     }
     mon_track_clear(mtmp);
-    place_monster(mtmp, x, y);
-    update_monster_region(mtmp);
+    await place_monster(mtmp, x, y);
+    await update_monster_region(mtmp);
     if (mtmp.wormno) {
-        place_worm_tail_randomly(mtmp, x, y);
+        await place_worm_tail_randomly(mtmp, x, y);
     }
     if (game.u.ustuck == mtmp) {
         if (game.u.uswallow) {
-            u_on_newpos(mtmp.mx, mtmp.my);
-            check_special_room((0));
-            docrt();
+            await u_on_newpos(mtmp.mx, mtmp.my);
+            await check_special_room((0));
+            await docrt();
         } else if (!(dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) <= 2)) {
-            unstuck(mtmp);
+            await unstuck(mtmp);
         }
     }
-    maybe_unhide_at(x, y);
-    newsym(x, y);
+    await maybe_unhide_at(x, y);
+    await newsym(x, y);
     set_apparxy(mtmp);
     if (domsg && ((canseemon(mtmp) || sensemon(mtmp)) || appearmsg || mtmp == game.u.ustuck)) {
         let du = dist2((x), (y), game.u.ux, game.u.uy);
@@ -1514,28 +1462,23 @@ export function rloc_to_core(mtmp, x, y, rlocflags) {
         set_msg_xy(x, y);
         mtmp.mstrategy &= ~2147483648;
         if (mtmp == game.u.ustuck && !((game.u.ux0) == game.u.ux && (game.u.uy0) == game.u.uy)) {
-            You("and %s teleport together.", mon_nam(mtmp));
+            await You("and %s teleport together.", await mon_nam(mtmp));
         } else if (telemsg && (((game.viz_array[y][x] & 1) != 0) || sensemon(mtmp))) {
-            pline("%s vanishes and reappears%s.", Monnam(mtmp), next ? next : nearu ? nearu : ((olddu = dist2((oldx), (oldy), game.u.ux, game.u.uy)) == du) ? "" : (du < olddu) ? " closer to you" : " farther away");
+            await pline("%s vanishes and reappears%s.", await Monnam(mtmp), next ? next : nearu ? nearu : ((olddu = dist2((oldx), (oldy), game.u.ux, game.u.uy)) == du) ? "" : (du < olddu) ? " closer to you" : " farther away");
         } else {
-            pline("%s %s%s%s!", appearmsg ? Amonnam(mtmp) : Monnam(mtmp), appearmsg ? "suddenly " : "", !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "appears" : "arrives", next ? next : nearu ? nearu : "");
+            await pline("%s %s%s%s!", appearmsg ? await Amonnam(mtmp) : await Monnam(mtmp), appearmsg ? "suddenly " : "", !((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "appears" : "arrives", next ? next : nearu ? nearu : "");
         }
         /* wand discovery only happens if a messaage is delivered (bug?);
            if spell or q.mechanic attack or artifact #invoke for banish
            then current_wand will be Null */
         if (game.current_wand && game.current_wand.otyp == WAN_TELEPORTATION) {
-            discover_object((WAN_TELEPORTATION), (1), (1), (1));
+            await discover_object((WAN_TELEPORTATION), (1), (1), (1));
         }
     }
-    /* shopkeepers will only teleport if you zap them with a wand of
-       teleportation or if they've been transformed into a jumpy monster;
-       the latter only happens if you've attacked them with polymorph
-       [FIXME? or they've been hit by a genetic engineer, which won't
-       necessarily be due to Conflict by hero] */
     if (resident_shk && !inhishop(mtmp)) {
-        make_angry_shk(mtmp, oldx, oldy);
+        await make_angry_shk(mtmp, oldx, oldy);
     }
-    if (mtmp.minvent && !costly_spot(x, y)) {
+    if (mtmp.minvent && !await costly_spot(x, y)) {
         /* if a monster carrying shop goods teleports out of the shop, blame
        it on the hero; chance of an unpaid item is vanishingly small, but
        no_charge is easily possible and needs to be cleared if not in shop;
@@ -1543,30 +1486,28 @@ export function rloc_to_core(mtmp, x, y, rlocflags) {
        mtmp teleports from one shop into another, no_charge status sticks
        and an item on the first shk's bill stays there */
         let otmp = null;
-        let shkp = find_objowner(mtmp.minvent, oldx, oldy);
+        let shkp = await find_objowner(mtmp.minvent, oldx, oldy);
         let peaceful = !shkp || shkp.mpeaceful;
         for (otmp = mtmp.minvent; otmp; otmp = otmp.nobj) {
             if (otmp.no_charge) {
                 otmp.no_charge = 0;
-            } else if (shkp && onshopbill(otmp, shkp, (1))) {
-                stolen_value(otmp, oldx, oldy, peaceful, (0));
+            } else if (shkp && await onshopbill(otmp, shkp, (1))) {
+                await stolen_value(otmp, oldx, oldy, peaceful, (0));
             }
         }
     }
-    /* if hero is busy, maybe stop occupation */
     if (game.occupation) {
-        dochugw(mtmp, (0));
+        await dochugw(mtmp, (0));
     }
-    /* trapped monster teleported away */
     if (mtmp.mtrapped && !mtmp.wormno) {
-        mintrap(mtmp, 0);
+        await mintrap(mtmp, 0);
     }
 }
-export function rloc_to(mtmp, x, y) {
-    rloc_to_core(mtmp, x, y, 4);
+export async function rloc_to(mtmp, x, y) {
+    await rloc_to_core(mtmp, x, y, 4);
 }
-export function rloc_to_flag(mtmp, x, y, rlocflags) {
-    rloc_to_core(mtmp, x, y, rlocflags);
+export async function rloc_to_flag(mtmp, x, y, rlocflags) {
+    await rloc_to_core(mtmp, x, y, rlocflags);
 }
 export function stairway_find_forwiz(isladder, up) {
     let stway = game.stairs;
@@ -1578,7 +1519,7 @@ export function stairway_find_forwiz(isladder, up) {
 /* place a monster at a random location, typically due to teleport;
    return TRUE if successful, FALSE if not; rlocflags is RLOC_foo flags */
 /* mtmp->mx==0 implies migrating monster arrival */
-export function rloc(mtmp, rlocflags) {
+export async function rloc(mtmp, rlocflags) {
     let cc = { x: 0, y: 0 };
     let backupcc = { x: 0, y: 0 };
     let candy = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
@@ -1591,13 +1532,13 @@ export function rloc(mtmp, rlocflags) {
     let candycount = 0;
     found_xy: {
         if (mtmp == game.u.usteed) {
-            tele();
+            await tele();
             return (1);
         }
         if (mtmp.iswiz && mtmp.mx) {
             /* Wizard, not just arriving */
             let stway = null;
-            if (!In_W_tower(game.u.ux, game.u.uy, game.u.uz)) {
+            if (!await In_W_tower(game.u.ux, game.u.uy, game.u.uz)) {
                 stway = stairway_find_forwiz((0), (1));
             } else if (!stairway_find_forwiz((1), (0))) {
                 stway = stairway_find_forwiz((1), (1));
@@ -1617,7 +1558,7 @@ export function rloc(mtmp, rlocflags) {
             /* wizard-mode player can choose destination by setting 'montelecontrol'
        option; ignored if/when this is arrival of a migrating monster */
             cc.x = mtmp.mx , cc.y = mtmp.my;
-            if (control_mon_tele(mtmp, cc, rlocflags, (1))) {
+            if (await control_mon_tele(mtmp, cc, rlocflags, (1))) {
                 x = cc.x , y = cc.y;
                 break found_xy;
             }
@@ -1643,7 +1584,7 @@ export function rloc(mtmp, rlocflags) {
         if (!(((mtmp.data).mflags1 & 8) != 0)) {
             cc_flags |= 16;
         }
-        candycount = collect_coords(candy, Math.trunc(80 / 2), Math.trunc(21 / 2), 0, cc_flags, null);
+        candycount = await collect_coords(candy, Math.trunc(80 / 2), Math.trunc(21 / 2), 0, cc_flags, null);
         backupcc.x = backupcc.y = 0;
         for (i = 0; i < candycount; ++i) {
             if ((j = rn2(candycount - i)) > 0) {
@@ -1660,24 +1601,19 @@ export function rloc(mtmp, rlocflags) {
             }
         }
         if (!backupcc.x) {
-            /* we didn't find any spot acceptable to rloc_pos_ok() which avoids
-       'onscary' and honors teleport regions, but if we did find a spot
-       that was acceptable to goodpos() (which ignores 'onscary' and
-       teleport regions) we'll use that; otherwise give up */
-            /* level either full of monsters or somehow faulty */
             if ((rlocflags & 1) != 0) {
-                impossible("rloc(): couldn't relocate monster");
+                await impossible("rloc(): couldn't relocate monster");
             }
             return (0);
         }
         x = backupcc.x , y = backupcc.y;
     }
-    rloc_to_core(mtmp, x, y, rlocflags);
+    await rloc_to_core(mtmp, x, y, rlocflags);
     return (1);
 }
 /* let wizard-mode player choose a teleporting monster's destination */
 /* input: default spot; output: player selected spot */
-export function control_mon_tele(mon, cc_p, rlocflags, via_rloc) {
+export async function control_mon_tele(mon, cc_p, rlocflags, via_rloc) {
     let tcbuf = '';
     if (!isok(cc_p.x, cc_p.y)) {
         cc_p.x = mon.mx , cc_p.y = mon.my;
@@ -1688,85 +1624,74 @@ export function control_mon_tele(mon, cc_p, rlocflags, via_rloc) {
     if (!game.flags.debug || !game.iflags.mon_telecontrol) {
         return (0);
     }
-    pline("Teleport %s @ <%d,%d> where?", noit_mon_nam(mon), mon.mx, mon.my);
-    tcbuf = sprintf(tcbuf, "where to teleport %s", noit_mon_nam(mon));
-    if (getpos(cc_p, (0), tcbuf) >= 0 && !((cc_p.x) == game.u.ux && (cc_p.y) == game.u.uy)) {
+    await pline("Teleport %s @ <%d,%d> where?", await noit_mon_nam(mon), mon.mx, mon.my);
+    tcbuf = sprintf(tcbuf, "where to teleport %s", await noit_mon_nam(mon));
+    if (await getpos(cc_p, (0), tcbuf) >= 0 && !((cc_p.x) == game.u.ux && (cc_p.y) == game.u.uy)) {
         /* getpos '?' will show "Move the cursor to <where to teleport Foo>:" */
         if (via_rloc ? rloc_pos_ok(cc_p.x, cc_p.y, mon) : goodpos(cc_p.x, cc_p.y, mon, rlocflags)) {
             return (1);
         }
         if (!game.iflags.debug_fuzzer) {
             tcbuf = sprintf(tcbuf, "<%d,%d> is not considered viable; force anyway?", mon.mx, mon.my);
-            if (yn_function(tcbuf, ynchars, 110, (1)) == 121) {
+            if (await yn_function(tcbuf, ynchars, 110, (1)) == 121) {
                 return (1);
             }
         }
     }
-    pline("%s destination.", via_rloc ? "Picking random" : "Using derived");
+    await pline("%s destination.", via_rloc ? "Picking random" : "Using derived");
     return (0);
 }
-export function mvault_tele(mtmp) {
+export async function mvault_tele(mtmp) {
     let croom = search_special(VAULT);
     let c = { x: 0, y: 0 };
     if (croom && somexyspace(croom, c) && goodpos(c.x, c.y, mtmp, 0)) {
-        rloc_to(mtmp, c.x, c.y);
+        await rloc_to(mtmp, c.x, c.y);
         return;
     }
-    rloc(mtmp, 0);
+    await rloc(mtmp, 0);
 }
-export function tele_restrict(mon) {
-    if (noteleport_level(mon)) {
+export async function tele_restrict(mon) {
+    if (await noteleport_level(mon)) {
         if (canseemon(mon)) {
-            pline("A mysterious force prevents %s from teleporting!", mon_nam(mon));
+            await pline("A mysterious force prevents %s from teleporting!", await mon_nam(mon));
         }
         return (1);
     }
     return (0);
 }
-export function mtele_trap(mtmp, trap, in_sight) {
+export async function mtele_trap(mtmp, trap, in_sight) {
     let monname = null;
-    /* don't print feedback here: a monster stepping on a trap and not
-       teleporting from it isn't visible */
-    if (noteleport_level(mtmp)) {
+    if (await noteleport_level(mtmp)) {
         return;
     }
-    if (teleport_pet(mtmp, (0))) {
-        /* save name with pre-movement visibility */
-        monname = Monnam(mtmp);
+    if (await teleport_pet(mtmp, (0))) {
+        monname = await Monnam(mtmp);
         if (trap.once) {
-            mvault_tele(mtmp);
+            await mvault_tele(mtmp);
         } else if (isok(trap.launch.x, trap.launch.y)) {
             if (!((game.level.monsters[trap.launch.x][trap.launch.y]) || ((trap.launch.x) == game.u.ux && (trap.launch.y) == game.u.uy))) {
-                /* Note: don't remove the trap if a vault.  Other-
-         * wise the monster will be stuck there, since
-         * the guard isn't going to come for it...
-         */
-                /* monster teleporting onto hero's or another monster's spot does
-             * not work the same as hero teleporting onto monster's spot where
-             * the incoming monster displaces the resident to the nearest
-             * possible space - instead it just doesn't work. */
-                rloc_to_core(mtmp, trap.launch.x, trap.launch.y, 2);
+                await rloc_to_core(mtmp, trap.launch.x, trap.launch.y, 2);
             }
         } else {
-            rloc(mtmp, 0);
+            await rloc(mtmp, 0);
         }
         if (in_sight) {
             if (canseemon(mtmp)) {
-                pline("%s seems disoriented.", monname);
+                await pline("%s seems disoriented.", monname);
             } else {
-                pline("%s suddenly disappears!", monname);
+                await pline("%s suddenly disappears!", monname);
             }
-            seetrap(trap);
+            await seetrap(trap);
         }
     }
 }
 /* return Trap_Effect_Finished if still on level, Trap_Moved_Mon if not */
-export function mlevel_tele_trap(mtmp, trap, force_it, in_sight) {
+export async function mlevel_tele_trap(mtmp, trap, force_it, in_sight) {
     let tt = (trap ? trap.ttyp : NO_TRAP);
     if (mtmp == game.u.ustuck) {
         return Trap_Effect_Finished;
     }
-    if (teleport_pet(mtmp, force_it)) {
+    if (await teleport_pet(mtmp, force_it)) {
         let tolevel = { dnum: 0, dlevel: 0 };
         let migrate_typ = 0;
         if (((tt) == HOLE || (tt) == TRAPDOOR)) {
@@ -1774,7 +1699,7 @@ export function mlevel_tele_trap(mtmp, trap, force_it, in_sight) {
                 assign_level(tolevel, (game.dungeon_topology.d_valley_level));
             } else if (Is_botlevel(game.u.uz)) {
                 if (in_sight && trap.tseen) {
-                    pline_mon(mtmp, "%s avoids the %s.", Monnam(mtmp), (tt == HOLE) ? "hole" : "trap");
+                    await pline_mon(mtmp, "%s avoids the %s.", await Monnam(mtmp), (tt == HOLE) ? "hole" : "trap");
                 }
                 return Trap_Effect_Finished;
             } else {
@@ -1784,8 +1709,8 @@ export function mlevel_tele_trap(mtmp, trap, force_it, in_sight) {
         } else if (tt == MAGIC_PORTAL) {
             if (((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) && (mon_has_amulet(mtmp) || is_home_elemental(mtmp.data) || rn2(7))) {
                 if (in_sight && mtmp.data.mlet != S_ELEMENTAL) {
-                    pline_mon(mtmp, "%s seems to shimmer for a moment.", Monnam(mtmp));
-                    seetrap(trap);
+                    await pline_mon(mtmp, "%s seems to shimmer for a moment.", await Monnam(mtmp));
+                    await seetrap(trap);
                 }
                 return Trap_Effect_Finished;
             } else {
@@ -1795,12 +1720,8 @@ export function mlevel_tele_trap(mtmp, trap, force_it, in_sight) {
         } else if (tt == LEVEL_TELEP || tt == NO_TRAP) {
             let nlev = 0;
             if (mon_has_amulet(mtmp) || ((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum) || (tt == NO_TRAP && onscary(0, 0, mtmp))) {
-                /* NO_TRAP is used when forcing a monster off the level;
-                   onscary(0,0,) is true for the Wizard, Riders, lawful
-                   minions, Angels of any alignment, shopkeeper or priest
-                   currently inside his or her own special room */
                 if (in_sight) {
-                    pline_mon(mtmp, "%s seems very disoriented for a moment.", Monnam(mtmp));
+                    await pline_mon(mtmp, "%s seems very disoriented for a moment.", await Monnam(mtmp));
                 }
                 return Trap_Effect_Finished;
             }
@@ -1814,32 +1735,32 @@ export function mlevel_tele_trap(mtmp, trap, force_it, in_sight) {
                 nlev = random_teleport_level();
                 if (nlev == depth(game.u.uz)) {
                     if (in_sight) {
-                        pline_mon(mtmp, "%s shudders for a moment.", Monnam(mtmp));
+                        await pline_mon(mtmp, "%s shudders for a moment.", await Monnam(mtmp));
                     }
                     return Trap_Effect_Finished;
                 }
-                get_level(tolevel, nlev);
+                await get_level(tolevel, nlev);
             }
         } else {
-            impossible("mlevel_tele_trap: unexpected trap type (%d)", tt);
+            await impossible("mlevel_tele_trap: unexpected trap type (%d)", tt);
             return Trap_Effect_Finished;
         }
         if (in_sight) {
-            pline_mon(mtmp, "Suddenly, %s %s.", mon_nam(mtmp), (tt == HOLE) ? "falls into a hole" : (tt == TRAPDOOR) ? "falls through a trap door" : "disappears out of sight");
+            await pline_mon(mtmp, "Suddenly, %s %s.", await mon_nam(mtmp), (tt == HOLE) ? "falls into a hole" : (tt == TRAPDOOR) ? "falls through a trap door" : "disappears out of sight");
             if (trap) {
-                seetrap(trap);
+                await seetrap(trap);
             }
         }
         if (((tt) >= TELEP_TRAP && (tt) <= MAGIC_PORTAL) && !(((mtmp.data).mflags1 & 67108864) != 0)) {
             mtmp.mconf = 1;
         }
-        migrate_to_level(mtmp, ledger_no(tolevel), migrate_typ, null);
+        await migrate_to_level(mtmp, ledger_no(tolevel), migrate_typ, null);
         return Trap_Moved_Mon;
     }
     return Trap_Effect_Finished;
 }
 /* place object randomly, returns False if it's gone (eg broken) */
-export function rloco(obj) {
+export async function rloco(obj) {
     let tx = 0;
     let ty = 0;
     let otx = 0;
@@ -1847,11 +1768,11 @@ export function rloco(obj) {
     let restricted_fall = 0;
     let try_limit = 4000;
     if (obj.otyp == CORPSE && ((game.mons[obj.corpsenm]) == game.mons[PM_DEATH] || (game.mons[obj.corpsenm]) == game.mons[PM_FAMINE] || (game.mons[obj.corpsenm]) == game.mons[PM_PESTILENCE])) {
-        if (revive_corpse(obj)) {
+        if (await revive_corpse(obj)) {
             return (0);
         }
     }
-    obj_extract_self(obj);
+    await obj_extract_self(obj);
     otx = obj.ox;
     oty = obj.oy;
     restricted_fall = (otx == 0 && game.dndest.lx);
@@ -1862,20 +1783,16 @@ export function rloco(obj) {
             break;
         }
     } while (!goodpos(tx, ty, null, 0) || (restricted_fall && (!((tx) >= (game.dndest.lx) && (tx) <= (game.dndest.hx) && (ty) >= (game.dndest.ly) && (ty) <= (game.dndest.hy)) || (game.dndest.nlx && ((tx) >= (game.dndest.nlx) && (tx) <= (game.dndest.nhx) && (ty) >= (game.dndest.nly) && (ty) <= (game.dndest.nhy))))) || (game.dndest.nlx && On_W_tower_level(game.u.uz) && ((tx) >= (game.dndest.nlx) && (tx) <= (game.dndest.nhx) && (ty) >= (game.dndest.nly) && (ty) <= (game.dndest.nhy)) != ((otx) >= (game.dndest.nlx) && (otx) <= (game.dndest.nhx) && (oty) >= (game.dndest.nly) && (oty) <= (game.dndest.nhy))));
-    if (flooreffects(obj, tx, ty, "fall")) {
-        /* on the Wizard Tower levels, objects inside should
-                stay inside and objects outside should stay outside */
-        /* update old location (if any) since flooreffects() couldn't;
-           unblock_point() for boulder handled by obj_extract_self() */
+    if (await flooreffects(obj, tx, ty, "fall")) {
         if (!(otx == 0 && oty == 0)) {
-            newsym(otx, oty);
+            await newsym(otx, oty);
         }
         return (0);
     } else if (otx == 0 && oty == 0) {
         ;
     } else {
-        let shkp = find_objowner(obj, otx, oty);
-        let objinshop = shkp && costly_spot(otx, oty);
+        let shkp = await find_objowner(obj, otx, oty);
+        let objinshop = shkp && await costly_spot(otx, oty);
         let onboundary = shkp && costly_adjacent(shkp, otx, oty);
         if (objinshop || (obj.unpaid && onboundary)) {
             /* fell through a trap door; no update of old loc needed */
@@ -1890,24 +1807,22 @@ export function rloco(obj) {
             let h = in_rooms(game.u.ux, game.u.uy, SHOPBASE);
             let oo = in_rooms(otx, oty, 0);
             let hinshop = h && strchr(in_rooms(shkp.mx, shkp.my, 0), h);
-            if (hinshop && costly_spot(tx, ty) && oo && strchr(in_rooms(tx, ty, 0), oo)) {
-                /* verify that it's the same shop */
+            if (hinshop && await costly_spot(tx, ty) && oo && strchr(in_rooms(tx, ty, 0), oo)) {
                 if (obj.unpaid) {
-                    subfrombill(obj, shkp);
+                    await subfrombill(obj, shkp);
                 }
             } else if (hinshop && costly_adjacent(shkp, tx, ty) && oo && strchr(in_rooms(tx, ty, 0), oo)) {
                 if (!obj.unpaid) {
-                    addtobill(obj, (0), (0), (0));
+                    await addtobill(obj, (0), (0), (0));
                 }
             } else {
-                stolen_value(obj, otx, oty, (0), (0));
+                await stolen_value(obj, otx, oty, (0), (0));
             }
         }
-        newsym(otx, oty);
+        await newsym(otx, oty);
     }
-    place_object(obj, tx, ty);
-    /* note: block_point() for boulder handled by place_object() */
-    newsym(tx, ty);
+    await place_object(obj, tx, ty);
+    await newsym(tx, ty);
     return (1);
 }
 /* Returns an absolute depth */
@@ -1983,40 +1898,57 @@ export function random_teleport_level() {
 }
 /* you teleport a monster (via wand, spell, or poly'd q.mechanic attack);
    return false iff the attempt fails */
-export function u_teleport_mon(mtmp, give_feedback) {
+export async function u_teleport_mon(mtmp, give_feedback) {
     let cc = { x: 0, y: 0 };
     if (game.level.flags.stasis_until >= game.moves) {
         if (give_feedback) {
-            pline("A mysterious force prevents you teleporting %s!", mon_nam(mtmp));
+            await pline("A mysterious force prevents you teleporting %s!", await mon_nam(mtmp));
         }
         return (0);
     } else if (mtmp.ispriest && in_rooms(mtmp.mx, mtmp.my, TEMPLE)) {
         if (give_feedback) {
-            pline("%s resists your magic!", Monnam(mtmp));
+            await pline("%s resists your magic!", await Monnam(mtmp));
         }
         return (0);
-    } else if ((game.u.uswallow && (game.u.ustuck == (mtmp))) && noteleport_level(mtmp)) {
+    } else if ((game.u.uswallow && (game.u.ustuck == (mtmp))) && await noteleport_level(mtmp)) {
         if (give_feedback) {
-            You("are no longer inside %s!", mon_nam(mtmp));
+            await You("are no longer inside %s!", await mon_nam(mtmp));
         }
-        unstuck(mtmp);
-        if (!rloc(mtmp, 2)) {
-            m_into_limbo(mtmp);
+        await unstuck(mtmp);
+        if (!await rloc(mtmp, 2)) {
+            await m_into_limbo(mtmp);
         }
-    } else if ((((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE]) || (((mtmp.data).mflags1 & 67108864) != 0)) && rn2(13) && enexto(cc, game.u.ux, game.u.uy, mtmp.data)) {
-        rloc_to(mtmp, cc.x, cc.y);
+    } else if ((((mtmp.data) == game.mons[PM_DEATH] || (mtmp.data) == game.mons[PM_FAMINE] || (mtmp.data) == game.mons[PM_PESTILENCE]) || (((mtmp.data).mflags1 & 67108864) != 0)) && rn2(13) && await enexto(cc, game.u.ux, game.u.uy, mtmp.data)) {
+        await rloc_to(mtmp, cc.x, cc.y);
     } else {
-        if (!rloc(mtmp, 2)) {
+        if (!await rloc(mtmp, 2)) {
             return (0);
         }
     }
     return (1);
 }
 /*teleport.c*/
+/* gather candidate coordinates within 3 steps, those 1 step away in
+       random order first, then those 2 steps away in random order, then 3;
+       this will usually find a good spot without scanning the whole map */
+/* didn't find a spot; gather coordinates for the whole map except
+       for <xx,yy> itself, ordered in expanding distance from <xx,yy>
+       (subsets of equal distance grouped together with order randomized) */
 /* skip first 'nearcandyct' spots, they have already been rejected;
        they will occur in different random order but same overall total */
 /* to match placebc() below */
+/* must set u.ux, u.uy after drag_ball(), which may need to know
+       the old position if allow_drag is true... */
+/* set u.<x,y>, usteed-><mx,my>; cliparound() */
+/*
+     *  Make sure the hero disappears from the old location.  This will
+     *  not happen if she is teleported within sight of her previous
+     *  location.  Force a full vision recalculation because the hero
+     *  is now in a new location.
+     */
+/* if hero has left vault, make guard notice */
 /* reset prior to spoteffects() */
+/* possible shop entry message comes after guard's shrill whistle */
 /* swap [k] with [0] when k is 1..n-1 */
 /* passcc[0] has reached its final place    */
 /*
@@ -2063,5 +1995,69 @@ export function u_teleport_mon(mtmp, give_feedback) {
      *  rest of the map.
      */
 /* and become exempt from further shuffling */
+/* no non-trap spot found; if we skipped a viable trap spot, use it */
+/* Disable teleportation in stronghold && Vlad's Tower */
+/* don't discover the scroll [at least not yet for wizard override];
+           disorientation doesn't reveal that this is a teleport attempt */
+/* possible extensions: introduce a small error if
+               magic power is low; allow transfer to solid rock */
+/* for scroll, discover it regardless of destination */
+/* we used to suppress discovery if hero teleported to a nearby
+       spot which was already within view, but now there is always a
+       "materialize" message regardless of how far you teleported so
+       discovery of scroll type is unconditional */
+/* normal mode; ignore 'm' prefix if it was given */
+/* confer intrinsic teleportation */
+/* if dotele() can be fatal, final disclosure might lie about
+       intrinsic teleportation; we should be able to live with that
+       since the menu finagling is only applicable in wizard mode */
 /* can't both be non-NOOP so addition will yield the non-NOOP one */
+/* energy cost is deducted in spelleffects() */
+/* ordinarily we'd use hold_another_object()
+                           for something like this, but we don't want
+                           fumbling or already full pack to interfere */
 /* you're now effectively out of the shop */
+/* calls done(ESCAPED) if newlevel==0 */
+/* the player thinks of levels purely in logical terms, so
+         * we must translate newlev to a number relative to the
+         * current dungeon.
+         */
+/* prevent the poor shnook, whose amulet was stolen while in
+     * the endgame, from accidently triggering the portal to the
+     * next level, and thus losing the game
+     */
+/* could not find some other place to put mtmp; the level must
+                 * be nearly or completely full */
+/* shopkeepers will only teleport if you zap them with a wand of
+       teleportation or if they've been transformed into a jumpy monster;
+       the latter only happens if you've attacked them with polymorph
+       [FIXME? or they've been hit by a genetic engineer, which won't
+       necessarily be due to Conflict by hero] */
+/* if hero is busy, maybe stop occupation */
+/* trapped monster teleported away */
+/* we didn't find any spot acceptable to rloc_pos_ok() which avoids
+       'onscary' and honors teleport regions, but if we did find a spot
+       that was acceptable to goodpos() (which ignores 'onscary' and
+       teleport regions) we'll use that; otherwise give up */
+/* level either full of monsters or somehow faulty */
+/* don't print feedback here: a monster stepping on a trap and not
+       teleporting from it isn't visible */
+/* save name with pre-movement visibility */
+/* Note: don't remove the trap if a vault.  Other-
+         * wise the monster will be stuck there, since
+         * the guard isn't going to come for it...
+         */
+/* monster teleporting onto hero's or another monster's spot does
+             * not work the same as hero teleporting onto monster's spot where
+             * the incoming monster displaces the resident to the nearest
+             * possible space - instead it just doesn't work. */
+/* NO_TRAP is used when forcing a monster off the level;
+                   onscary(0,0,) is true for the Wizard, Riders, lawful
+                   minions, Angels of any alignment, shopkeeper or priest
+                   currently inside his or her own special room */
+/* on the Wizard Tower levels, objects inside should
+                stay inside and objects outside should stay outside */
+/* update old location (if any) since flooreffects() couldn't;
+           unblock_point() for boulder handled by obj_extract_self() */
+/* verify that it's the same shop */
+/* note: block_point() for boulder handled by place_object() */

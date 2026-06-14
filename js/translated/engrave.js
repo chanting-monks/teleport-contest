@@ -71,12 +71,10 @@ import { learnwand, zapnodir, zappable } from './zap.js';
 /* Present tense of engraving type */
 /* Where the engraving is (ie dust/floor/...) */
 /* # of nonspace chars of new engraving text */
-export function random_engraving(outbuf, pristine_copy) {
+export async function random_engraving(outbuf, pristine_copy) {
     let rumor = null;
-    /* a random engraving may come from the "rumors" file,
-       or from the "engrave" file (formerly in an array here) */
-    if (!rn2(4) || !(rumor = getrumor(0, pristine_copy, (1))) || !__nh_char_at0(rumor)) {
-        get_rnd_text("engrave", pristine_copy, rn2, 60);
+    if (!rn2(4) || !(rumor = await getrumor(0, pristine_copy, (1))) || !__nh_char_at0(rumor)) {
+        await get_rnd_text("engrave", pristine_copy, rn2, 60);
     }
     outbuf = strcpy(outbuf, pristine_copy);
     wipeout_text(outbuf, (Math.trunc(strlen(outbuf) / 4)), 0);
@@ -178,8 +176,8 @@ export function can_reach_floor(check_pit) {
     return (1);
 }
 /* give a message after caller has determined that hero can't reach */
-export function cant_reach_floor(x, y, up, check_pit, wand_engraving) {
-    pline("%s can't reach the %s.", wand_engraving ? "The wand does nothing more, and the tip of the wand" : "You", up ? ceiling(x, y) : (check_pit && can_reach_floor((0))) ? "bottom of the pit" : surface(x, y));
+export async function cant_reach_floor(x, y, up, check_pit, wand_engraving) {
+    await pline("%s can't reach the %s.", wand_engraving ? "The wand does nothing more, and the tip of the wand" : "You", up ? ceiling(x, y) : (check_pit && can_reach_floor((0))) ? "bottom of the pit" : surface(x, y));
 }
 export function engr_at(x, y) {
     let ep = game.head_engr;
@@ -207,18 +205,18 @@ export function sengr_at(s, x, y, strict) {
     }
     return (null);
 }
-export function u_wipe_engr(cnt) {
+export async function u_wipe_engr(cnt) {
     if (can_reach_floor((1))) {
-        wipe_engr_at(game.u.ux, game.u.uy, cnt, (0));
+        await wipe_engr_at(game.u.ux, game.u.uy, cnt, (0));
     }
 }
-export function wipe_engr_at(x, y, cnt, magical) {
+export async function wipe_engr_at(x, y, cnt, magical) {
     let ep = engr_at(x, y);
     if (ep && ep.engr_type != 6 && !ep.nowipeout) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/engrave.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("asked to erode %d characters", cnt);
+                await pline("asked to erode %d characters", cnt);
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -229,7 +227,7 @@ export function wipe_engr_at(x, y, cnt, magical) {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/engrave.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("actually eroding %d characters", cnt);
+                        await pline("actually eroding %d characters", cnt);
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
@@ -239,7 +237,7 @@ export function wipe_engr_at(x, y, cnt, magical) {
                 ep.engr_txt[actual_text]++;
             }
             if (!ep.engr_txt[actual_text][0]) {
-                del_engr(ep);
+                await del_engr(ep);
             }
         }
     }
@@ -265,7 +263,7 @@ export function engr_can_be_felt(ep) {
     }
     return canfeel;
 }
-export function read_engr_at(x, y) {
+export async function read_engr_at(x, y) {
     let ep = engr_at(x, y);
     let eloc = surface(x, y);
     let sensed = 0;
@@ -284,36 +282,36 @@ export function read_engr_at(x, y) {
              * "It says... `See you next Wednesday.'" -- Thriller
              */
                     sensed = 1;
-                    pline("%s is written here in the %s.", c_common_strings.c_Something, is_ice(x, y) ? "frost" : "dust");
+                    await pline("%s is written here in the %s.", c_common_strings.c_Something, is_ice(x, y) ? "frost" : "dust");
                 }
                 break;
             case 2:
             case 6:
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || can_reach_floor((1))) {
                     sensed = 1;
-                    pline("%s is engraved here on the %s.", c_common_strings.c_Something, eloc);
+                    await pline("%s is engraved here on the %s.", c_common_strings.c_Something, eloc);
                 }
                 break;
             case 3:
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || can_reach_floor((1))) {
                     sensed = 1;
-                    pline("Some text has been %s into the %s here.", is_ice(x, y) ? "melted" : "burned", eloc);
+                    await pline("Some text has been %s into the %s here.", is_ice(x, y) ? "melted" : "burned", eloc);
                 }
                 break;
             case 4:
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                     sensed = 1;
-                    pline("There's some graffiti on the %s here.", eloc);
+                    await pline("There's some graffiti on the %s here.", eloc);
                 }
                 break;
             case 5:
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                     sensed = 1;
-                    You_see("a message scrawled in blood here.");
+                    await You_see("a message scrawled in blood here.");
                 }
                 break;
             default:
-                impossible("%s is written in a very strange way.", c_common_strings.c_Something);
+                await impossible("%s is written in a very strange way.", c_common_strings.c_Something);
                 sensed = 1;
         }
         if (sensed) {
@@ -328,7 +326,7 @@ export function read_engr_at(x, y) {
             if (elen > maxelen) {
                 /* sizeof "literal" counts terminating \0 */
                 buf = strncpy(buf, ep.engr_txt[actual_text], maxelen);
-                buf[maxelen] = 0;
+                buf = __nh_char_write(buf, maxelen, 0);
                 et = buf;
                 elen = maxelen;
             } else {
@@ -339,7 +337,7 @@ export function read_engr_at(x, y) {
                 /* only skip if punctuation is original, not degraded char */
                 endpunct = ".";
             }
-            You("%s: \"%s\"%s", (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) ? "feel the words" : "read", et, endpunct);
+            await You("%s: \"%s\"%s", (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) ? "feel the words" : "read", et, endpunct);
             ep.engr_txt[remembered_text] = strcpy(ep.engr_txt[remembered_text], ep.engr_txt[actual_text]);
             ep.eread = 1;
             ep.erevealed = 1;
@@ -349,7 +347,7 @@ export function read_engr_at(x, y) {
         }
     }
 }
-export function make_engr_at(x, y, s, pristine_s, e_time, e_type) {
+export async function make_engr_at(x, y, s, pristine_s, e_time, e_type) {
     {
         // Minimal JS-friendly make_engr_at: build an engr object
         // with engr_txt as 3 char-arrays, link into head_engr.
@@ -366,7 +364,7 @@ export function make_engr_at(x, y, s, pristine_s, e_time, e_type) {
         };
         const __sStr = Array.isArray(s) ? ((() => { let __r=''; for (let __i=0; __i<s.length && s[__i]; __i++) __r += String.fromCharCode(s[__i]); return __r; })()) : (typeof s === 'string' ? s : '');
         let __oldEp = engr_at(x, y);
-        if (__oldEp) del_engr(__oldEp);
+        if (__oldEp) await del_engr(__oldEp);
         const __ep = {
             nxt_engr: game.head_engr,
             engr_x: x, engr_y: y,
@@ -381,7 +379,7 @@ export function make_engr_at(x, y, s, pristine_s, e_time, e_type) {
             if (game.in_mklev) {
                 __ep.guardobjects = 1;
             } else {
-                exercise(A_WIS, (1));
+                await exercise(A_WIS, (1));
             }
         }
         return;
@@ -389,17 +387,17 @@ export function make_engr_at(x, y, s, pristine_s, e_time, e_type) {
     // eslint-disable-next-line no-unreachable
     let i = 0;
     let ep = null;
-    let smem = Strlen_(s, "make_engr_at", 417) + 1;
+    let smem = await Strlen_(s, "make_engr_at", 417) + 1;
     let havepristine = (0);
     if (pristine_s != (null)) {
-        let prmem = Strlen_(pristine_s, "make_engr_at", 421) + 1;
+        let prmem = await Strlen_(pristine_s, "make_engr_at", 421) + 1;
         if (prmem > smem) {
             smem = prmem;
         }
         havepristine = (1);
     }
     if ((ep = engr_at(x, y)) != null) {
-        del_engr(ep);
+        await del_engr(ep);
     }
     ep = alloc((smem * 3) + 1 /* sizeof(struct engr) */);
     memset(ep, 0, (smem * 3) + 1 /* sizeof(struct engr) */);
@@ -419,11 +417,8 @@ export function make_engr_at(x, y, s, pristine_s, e_time, e_type) {
     if (!strcmp(s, "Elbereth")) {
         if (game.in_mklev) {
             ep.guardobjects = 1;
-        /* engraving "Elbereth":  if done when making a level, it creates
-           an old-style Elbereth that deters monsters when any objects are
-           present; otherwise (done by the player), exercises wisdom */
         } else {
-            exercise(A_WIS, (1));
+            await exercise(A_WIS, (1));
         }
     }
     ep.engr_time = e_time;
@@ -434,10 +429,10 @@ export function make_engr_at(x, y, s, pristine_s, e_time, e_type) {
     ep.engr_alloc = smem * 3;
 }
 /* delete any engraving at location <x,y> */
-export function del_engr_at(x, y) {
+export async function del_engr_at(x, y) {
     let ep = engr_at(x, y);
     if (ep) {
-        del_engr(ep);
+        await del_engr(ep);
     }
 }
 /*
@@ -464,38 +459,36 @@ export function stylus_ok(obj) {
     return GETOBJ_DOWNPLAY;
 }
 /* can hero engrave at all (at their location)? */
-export function u_can_engrave() {
+export async function u_can_engrave() {
     let levtyp = ((game.level.locations[game.u.ux][game.u.uy].typ == DRAWBRIDGE_UP) ? db_under_typ(game.level.locations[game.u.ux][game.u.uy].flags) : game.level.locations[game.u.ux][game.u.uy].typ);
     if (game.u.uswallow) {
         /* Note: for amorphous engulfers, writing attempt is allowed here
            but yields the 'jello' result in doengrave() */
         if ((((game.u.ustuck.data).mflags1 & 262144) != 0)) {
-            pline("What would you write?  \"Jonah was here\"?");
+            await pline("What would you write?  \"Jonah was here\"?");
             return (0);
         } else if (((game.u.ustuck.data).mlet == S_VORTEX || (game.u.ustuck.data) == game.mons[PM_AIR_ELEMENTAL])) {
-            cant_reach_floor(game.u.ux, game.u.uy, (0), (0), (0));
+            await cant_reach_floor(game.u.ux, game.u.uy, (0), (0), (0));
             return (0);
         }
     } else if (is_lava(game.u.ux, game.u.uy)) {
-        You_cant("write on the %s!", surface(game.u.ux, game.u.uy));
+        await You_cant("write on the %s!", surface(game.u.ux, game.u.uy));
         return (0);
     } else if (is_pool(game.u.ux, game.u.uy) || ((levtyp) == FOUNTAIN)) {
-        You_cant("write on the %s!", surface(game.u.ux, game.u.uy));
+        await You_cant("write on the %s!", surface(game.u.ux, game.u.uy));
         return (0);
     } else if (((levtyp) == AIR || (levtyp) == CLOUD)) {
-        /* airlevel or inside bubble on waterlevel */
-        You_cant("write in %s!", (levtyp == CLOUD) ? "cloud vapor" : "thin air");
+        await You_cant("write in %s!", (levtyp == CLOUD) ? "cloud vapor" : "thin air");
         return (0);
     } else if (!((levtyp) >= DOOR)) {
-        /* stone, tree, wall, secret corridor, pool, lava, bars */
-        You_cant("write here.");
+        await You_cant("write here.");
         return (0);
     }
     if (((((game.youmonst.data).mflags1 & 8192) != 0) || ((game.youmonst.data).msize < 1))) {
-        You_cant("even hold anything!");
+        await You_cant("even hold anything!");
         return (0);
     }
-    if (check_capacity(null)) {
+    if (await check_capacity(null)) {
         return (0);
     }
     return (1);
@@ -516,11 +509,11 @@ export function doengrave_ctx_init(de) {
     de.oetype = 0;
     de.otmp = null;
     de.oep = engr_at(game.u.ux, game.u.uy);
-    de.buf[0] = 0;
-    de.ebuf[0] = 0;
-    de.fbuf[0] = 0;
-    de.qbuf[0] = 0;
-    de.post_engr_text[0] = 0;
+    de.buf = '';
+    de.ebuf = '';
+    de.fbuf = '';
+    de.qbuf = '';
+    de.post_engr_text = '';
     de.writer = null;
     if (de.oep) {
         de.oetype = de.oep.engr_type;
@@ -532,7 +525,7 @@ export function doengrave_ctx_init(de) {
     de.frosted = is_ice(game.u.ux, game.u.uy);
 }
 /* special engraving effects for WAND objects */
-export function doengrave_sfx_item_WAN(de) {
+export async function doengrave_sfx_item_WAN(de) {
     switch (de.otmp.otyp) {
         default:
             break;
@@ -542,7 +535,7 @@ export function doengrave_sfx_item_WAN(de) {
         case WAN_CREATE_MONSTER:
         case WAN_WISHING:
         case WAN_ENLIGHTENMENT:
-            zapnodir(de.otmp);
+            await zapnodir(de.otmp);
             break;
         /* If wand is "IMMEDIATE", remember to affect the
          * previous engraving even if turning to dust.
@@ -564,7 +557,7 @@ export function doengrave_sfx_item_WAN(de) {
             if (de.oep) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                     de.type = 0;
-                    random_engraving(de.buf, de.ebuf);
+                    await random_engraving(de.buf, de.ebuf);
                 } else {
                     /* keep the same type so that feels don't
                    change and only the text is altered,
@@ -609,7 +602,7 @@ export function doengrave_sfx_item_WAN(de) {
         case WAN_MAKE_INVISIBLE:
             if (de.oep && de.oep.engr_type != 6) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    pline_The("engraving on the %s vanishes!", surface(game.u.ux, game.u.uy));
+                    await pline_The("engraving on the %s vanishes!", surface(game.u.ux, game.u.uy));
                 }
                 de.dengr = (1);
             }
@@ -617,7 +610,7 @@ export function doengrave_sfx_item_WAN(de) {
         case WAN_TELEPORTATION:
             if (de.oep && de.oep.engr_type != 6) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    pline_The("engraving on the %s vanishes!", surface(game.u.ux, game.u.uy));
+                    await pline_The("engraving on the %s vanishes!", surface(game.u.ux, game.u.uy));
                 }
                 de.teleengr = (1);
             }
@@ -627,7 +620,7 @@ export function doengrave_sfx_item_WAN(de) {
             de.type = 2;
             if (!game.objects[de.otmp.otyp].oc_name_known) {
                 if (game.flags.verbose) {
-                    pline("This %s is a wand of digging!", xname(de.otmp));
+                    await pline("This %s is a wand of digging!", await xname(de.otmp));
                 }
                 de.doknown = (1);
             }
@@ -638,7 +631,7 @@ export function doengrave_sfx_item_WAN(de) {
             de.type = 3;
             if (!game.objects[de.otmp.otyp].oc_name_known) {
                 if (game.flags.verbose) {
-                    pline("This %s is a wand of fire!", xname(de.otmp));
+                    await pline("This %s is a wand of fire!", await xname(de.otmp));
                 }
                 de.doknown = (1);
             }
@@ -649,7 +642,7 @@ export function doengrave_sfx_item_WAN(de) {
             de.type = 3;
             if (!game.objects[de.otmp.otyp].oc_name_known) {
                 if (game.flags.verbose) {
-                    pline("This %s is a wand of lightning!", xname(de.otmp));
+                    await pline("This %s is a wand of lightning!", await xname(de.otmp));
                 }
                 de.doknown = (1);
             }
@@ -663,7 +656,7 @@ export function doengrave_sfx_item_WAN(de) {
     }
 }
 /* special engraving effects for all objects */
-export function doengrave_sfx_item(de) {
+export async function doengrave_sfx_item(de) {
     switch (de.otmp.oclass) {
         default:
         case AMULET_CLASS:
@@ -690,31 +683,24 @@ export function doengrave_sfx_item(de) {
         /* Objects too large to engrave with */
         case BALL_CLASS:
         case ROCK_CLASS:
-            You_cant("engrave with such a large object!");
+            await You_cant("engrave with such a large object!");
             de.ptext = (0);
             break;
         /* Objects too silly to engrave with */
         case FOOD_CLASS:
         case SCROLL_CLASS:
         case SPBOOK_CLASS:
-            pline("%s would get %s.", Yname2(de.otmp), de.frosted ? "all frosty" : "too dirty");
+            await pline("%s would get %s.", await Yname2(de.otmp), de.frosted ? "all frosty" : "too dirty");
             de.ptext = (0);
             break;
         /* This should mean fingers */
         case RANDOM_CLASS:
             break;
         case WAND_CLASS:
-            if (zappable(de.otmp)) {
-                /* The charge is removed from the wand before prompting for
-     * the engraving text, because all kinds of setup decisions
-     * and pre-engraving messages are based upon knowing what type
-     * of engraving the wand is going to do.  Also, the player
-     * will have potentially seen "You wrest .." message, and
-     * therefore will know they are using a charge.
-     */
-                check_unpaid(de.otmp);
+            if (await zappable(de.otmp)) {
+                await check_unpaid(de.otmp);
                 if (de.otmp.cursed && !rn2(100)) {
-                    wand_explode(de.otmp, 0);
+                    await wand_explode(de.otmp, 0);
                     de.ret = 1;
                     return (0);
                 }
@@ -724,18 +710,14 @@ export function doengrave_sfx_item(de) {
                     /* use "early exit" below, return 1 */
                     de.ptext = (0);
                 }
-                doengrave_sfx_item_WAN(de);
+                await doengrave_sfx_item_WAN(de);
             } else {
                 de.ptext = (0);
                 if (can_reach_floor((1))) {
                     if (de.otmp.spe < 0) {
                         de.zapwand = (1);
-                    /* give feedback here if we won't be getting the
-               "can't reach floor" message below */
-                    /* cancelled wand turns to dust */
-                    /* empty wand just doesn't write */
                     } else {
-                        pline_The("wand is too worn out to engrave.");
+                        await pline_The("wand is too worn out to engrave.");
                     }
                 }
             }
@@ -744,12 +726,10 @@ export function doengrave_sfx_item(de) {
             if (is_art(de.otmp, ART_FIRE_BRAND)) {
                 de.type = 3;
             } else if ((de.otmp.oclass == WEAPON_CLASS && game.objects[de.otmp.otyp].oc_subtyp >= P_DAGGER && game.objects[de.otmp.otyp].oc_subtyp <= P_SABER)) {
-                /* if non-blade or welded or too dull, engraving type stays set
-               to DUST; feedback for that is only given for bladed weapons */
                 if (welded(de.otmp)) {
-                    pline("%s can only scratch the %s.", Yname2(de.otmp), surface(game.u.ux, game.u.uy));
+                    await pline("%s can only scratch the %s.", await Yname2(de.otmp), surface(game.u.ux, game.u.uy));
                 } else if (de.otmp.spe <= -3) {
-                    pline("%s too dull for engraving.", Yobjnam2(de.otmp, "are"));
+                    await pline("%s too dull for engraving.", await Yobjnam2(de.otmp, "are"));
                 } else {
                     de.type = 2;
                 }
@@ -757,14 +737,14 @@ export function doengrave_sfx_item(de) {
             break;
         case TOOL_CLASS:
             if (de.otmp == game.ublindf) {
-                pline("That is a bit difficult to engrave with, don't you think?");
+                await pline("That is a bit difficult to engrave with, don't you think?");
                 de.ret = 4;
                 return (0);
             }
             switch (de.otmp.otyp) {
                 case MAGIC_MARKER:
                     if (de.otmp.spe <= 0) {
-                        Your("marker has dried out.");
+                        await Your("marker has dried out.");
                     } else {
                         de.type = 4;
                     }
@@ -775,19 +755,19 @@ export function doengrave_sfx_item(de) {
                         if (de.oep.engr_type == 1 || de.oep.engr_type == 5 || de.oep.engr_type == 4) {
                             /* Can't really engrave with a towel */
                             if (((de.otmp).otyp == TOWEL && (de.otmp).spe > 0)) {
-                                dry_a_towel(de.otmp, -1, (1));
+                                await dry_a_towel(de.otmp, -1, (1));
                             }
                             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                                You("wipe out the message here.");
+                                await You("wipe out the message here.");
                             } else {
-                                pline("%s %s.", Yobjnam2(de.otmp, "get"), de.frosted ? "frosty" : "dusty");
+                                await pline("%s %s.", await Yobjnam2(de.otmp, "get"), de.frosted ? "frosty" : "dusty");
                             }
                             de.dengr = (1);
                         } else {
-                            pline("%s can't wipe out this engraving.", Yname2(de.otmp));
+                            await pline("%s can't wipe out this engraving.", await Yname2(de.otmp));
                         }
                     } else {
-                        pline("%s %s.", Yobjnam2(de.otmp, "get"), de.frosted ? "frosty" : "dusty");
+                        await pline("%s %s.", await Yobjnam2(de.otmp, "get"), de.frosted ? "frosty" : "dusty");
                     }
                     break;
                 default:
@@ -795,10 +775,10 @@ export function doengrave_sfx_item(de) {
             }
             break;
         case VENOM_CLASS:
-            pline("Writing a poison pen letter?");
+            await pline("Writing a poison pen letter?");
             break;
         case ILLOBJ_CLASS:
-            impossible("You're engraving with an illegal object!");
+            await impossible("You're engraving with an illegal object!");
             break;
     }
     return (1);
@@ -857,7 +837,7 @@ export function doengrave_ctx_verb(de) {
  * moonstone  -  6      (orthoclase)    * amber      -  2-2.5
  */
 /* the #engrave command */
-export function doengrave() {
+export async function doengrave() {
     let sp = null;
     let de = null;
     let retval = 0;
@@ -865,70 +845,60 @@ export function doengrave() {
     doengr_exit: {
         /* Place holder for space count of engr text */
         initial_msg_given = (0);
-        /* Can the adventurer engrave at all? */
-        if (!u_can_engrave()) {
+        if (!await u_can_engrave()) {
             return 4;
         }
         de = alloc(1 /* sizeof(struct _doengrave_ctx) */);
         doengrave_ctx_init(de);
         game.multi = 0;
         game.nomovemsg = null;
-        /* One may write with finger, or weapon, or wand, or..., or...
-     * Edited by GAN 10/20/86 so as not to change weapon wielded.
-     */
-        de.otmp = getobj("write with", stylus_ok, 2);
+        de.otmp = await getobj("write with", stylus_ok, 2);
         if (!de.otmp) {
             /* otmp == &hands_obj if fingers */
             de.ret = 2;
             break doengr_exit;
         }
         if (de.otmp == game.hands_obj) {
-            strcat(strcpy(de.fbuf, "your "), body_part(FINGERTIP));
+            strcat(strcpy(de.fbuf, "your "), await body_part(FINGERTIP));
             de.writer = de.fbuf;
         } else {
-            de.writer = yname(de.otmp);
+            de.writer = await yname(de.otmp);
         }
         if (!freehand() && de.otmp != game.uwep && !de.otmp.owornmask) {
-            /* There's no reason you should be able to write with a wand
-     * while both your hands are tied up.
-     */
-            You("have no free %s to write with!", body_part(HAND));
+            await You("have no free %s to write with!", await body_part(HAND));
             break doengr_exit;
         }
         if (de.jello) {
-            You("tickle %s with %s.", mon_nam(game.u.ustuck), de.writer);
-            Your("message dissolves...");
+            await You("tickle %s with %s.", await mon_nam(game.u.ustuck), de.writer);
+            await Your("message dissolves...");
             break doengr_exit;
         }
         if (!can_reach_floor((1))) {
             if (de.otmp.oclass != WAND_CLASS) {
-                cant_reach_floor(game.u.ux, game.u.uy, (0), (1), (0));
+                await cant_reach_floor(game.u.ux, game.u.uy, (0), (1), (0));
                 break doengr_exit;
             } else {
-                You("gesture, with your wand, towards the %s below you.", surface(game.u.ux, game.u.uy));
+                await You("gesture, with your wand, towards the %s below you.", surface(game.u.ux, game.u.uy));
                 initial_msg_given = (1);
             }
         }
         if (((game.level.locations[game.u.ux][game.u.uy].typ) == ALTAR)) {
             if (!initial_msg_given) {
-                You("make a motion towards the altar with %s.", de.writer);
+                await You("make a motion towards the altar with %s.", de.writer);
             }
-            altar_wrath(game.u.ux, game.u.uy);
+            await altar_wrath(game.u.ux, game.u.uy);
             break doengr_exit;
         }
         if (((game.level.locations[game.u.ux][game.u.uy].typ) == GRAVE)) {
             if (de.otmp == game.hands_obj) {
-                You("would only make a small smudge on the %s.", surface(game.u.ux, game.u.uy));
+                await You("would only make a small smudge on the %s.", surface(game.u.ux, game.u.uy));
                 break doengr_exit;
             } else if (!game.level.locations[game.u.ux][game.u.uy].horizontal) {
-                /* disturb the grave: summon a ghoul, same as sometimes
-               happens when kicking; sets levl[ux][uy]->disturbed so
-               that it'll only happen once */
-                disturb_grave(game.u.ux, game.u.uy);
+                await disturb_grave(game.u.ux, game.u.uy);
                 break doengr_exit;
             }
         }
-        if (!doengrave_sfx_item(de)) {
+        if (!await doengrave_sfx_item(de)) {
             break doengr_exit;
         }
         if (((game.level.locations[game.u.ux][game.u.uy].typ) == GRAVE)) {
@@ -938,41 +908,35 @@ export function doengrave() {
                 de.type = 1;
                 de.dengr = (0);
                 de.teleengr = (0);
-                de.buf[0] = 0;
+                de.buf = '';
             }
         }
         if (de.doknown) {
-            /*
-     * End of implement setup
-     */
-            learnwand(de.otmp);
+            await learnwand(de.otmp);
             if (game.objects[de.otmp.otyp].oc_name_known) {
-                more_experienced(0, 10);
+                await more_experienced(0, 10);
             }
         }
         if (de.teleengr) {
-            rloc_engr(de.oep);
+            await rloc_engr(de.oep);
             de.oep.eread = 0;
             de.oep.erevealed = 0;
             de.disprefresh = (1);
             de.oep = null;
         }
         if (de.dengr) {
-            /* ASCII '!' thru '~'
-                                        (excludes ' ' and DEL) */
-            /* Previous engraving is overwritten */
-            del_engr(de.oep);
+            await del_engr(de.oep);
             de.oep = null;
             de.disprefresh = (1);
         }
         if (de.buf) {
             /* Something has changed the engraving here */
             let tmp_ep = null;
-            make_engr_at(game.u.ux, game.u.uy, de.buf, de.ebuf, game.moves, de.type);
+            await make_engr_at(game.u.ux, game.u.uy, de.buf, de.ebuf, game.moves, de.type);
             tmp_ep = engr_at(game.u.ux, game.u.uy);
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                 if (tmp_ep != null) {
-                    pline_The("engraving now reads: \"%s\".", de.buf);
+                    await pline_The("engraving now reads: \"%s\".", de.buf);
                     tmp_ep.eread = 1;
                     tmp_ep.erevealed = 1;
                     de.disprefresh = (1);
@@ -981,18 +945,18 @@ export function doengrave() {
             de.ptext = (0);
         }
         if (de.zapwand && (de.otmp.spe < 0)) {
-            pline("%s %sturns to dust.", The(xname(de.otmp)), ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "" : "glows violently, then ");
+            await pline("%s %sturns to dust.", await The(await xname(de.otmp)), ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) ? "" : "glows violently, then ");
             if (!((game.level.locations[game.u.ux][game.u.uy].typ) == GRAVE)) {
-                You("are not going to get anywhere trying to write in the %s with your dust.", de.frosted ? "frost" : "dust");
+                await You("are not going to get anywhere trying to write in the %s with your dust.", de.frosted ? "frost" : "dust");
             }
-            useup(de.otmp);
+            await useup(de.otmp);
             de.otmp = null;
             de.ptext = (0);
         }
         if (!de.ptext) {
             /* Early exit for some implements. */
             if (de.otmp && de.otmp.oclass == WAND_CLASS && !can_reach_floor((1))) {
-                cant_reach_floor(game.u.ux, game.u.uy, (0), (1), (1));
+                await cant_reach_floor(game.u.ux, game.u.uy, (0), (1), (1));
             }
             de.ret = 1;
             break doengr_exit;
@@ -1007,17 +971,17 @@ export function doengrave() {
                 /* Give player the choice to add to engraving. */
                 c = 121;
             } else if (de.type == de.oep.engr_type && (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || de.oep.engr_type == 3 || de.oep.engr_type == 2)) {
-                c = yn_function("Do you want to add to the current engraving?", ynqchars, 121, (1));
+                c = await yn_function("Do you want to add to the current engraving?", ynqchars, 121, (1));
                 if (c == 113) {
-                    pline("%s", c_common_strings.c_Never_mind);
+                    await pline("%s", c_common_strings.c_Never_mind);
                     break doengr_exit;
                 }
             }
             if (c == 110 || ((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
                 if (de.oep.engr_type == 1 || de.oep.engr_type == 5 || de.oep.engr_type == 4) {
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        You("wipe out the message that was %s here.", (de.oep.engr_type == 1) ? (de.frosted ? "written in the frost" : "written in the dust") : (de.oep.engr_type == 5) ? "scrawled in blood" : "written");
-                        del_engr(de.oep);
+                        await You("wipe out the message that was %s here.", (de.oep.engr_type == 1) ? (de.frosted ? "written in the frost" : "written in the dust") : (de.oep.engr_type == 5) ? "scrawled in blood" : "written");
+                        await del_engr(de.oep);
                         de.oep = null;
                         de.disprefresh = (1);
                     } else {
@@ -1025,17 +989,17 @@ export function doengrave() {
                         de.eow = (1);
                     }
                 } else if (de.type == 1 || de.type == 4 || de.type == 5) {
-                    You("cannot wipe out the message that is %s the %s here.", (de.oep.engr_type == 3) ? (de.frosted ? "melted into" : "burned into") : "engraved in", surface(game.u.ux, game.u.uy));
+                    await You("cannot wipe out the message that is %s the %s here.", (de.oep.engr_type == 3) ? (de.frosted ? "melted into" : "burned into") : "engraved in", surface(game.u.ux, game.u.uy));
                     de.ret = 1;
                     break doengr_exit;
                 } else if (de.type != de.oep.engr_type || c == 110) {
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || can_reach_floor((1))) {
-                        You("will overwrite the current message.");
+                        await You("will overwrite the current message.");
                     }
                     de.eow = (1);
                 }
-            } else if (de.oep && Strlen_(de.oep.engr_txt[actual_text], "doengrave", 1163) >= 256 - 1) {
-                There("is no room to add anything else here.");
+            } else if (de.oep && await Strlen_(de.oep.engr_txt[actual_text], "doengrave", 1163) >= 256 - 1) {
+                await There("is no room to add anything else here.");
                 de.ret = 1;
                 break doengr_exit;
             }
@@ -1043,14 +1007,13 @@ export function doengrave() {
         de.eloc = surface(game.u.ux, game.u.uy);
         de.adding = (de.oep && !de.eow);
         doengrave_ctx_verb(de);
-        /* Tell adventurer what is going on */
         if (de.otmp != game.hands_obj) {
-            You("%s the %s with %s%s.", de.everb, de.eloc, (de.type == 2 && de.otmp.quan > 1) ? "1 of " : "", doname(de.otmp));
+            await You("%s the %s with %s%s.", de.everb, de.eloc, (de.type == 2 && de.otmp.quan > 1) ? "1 of " : "", await doname(de.otmp));
         } else {
-            You("%s the %s with your %s.", de.everb, de.eloc, body_part(FINGERTIP));
+            await You("%s the %s with your %s.", de.everb, de.eloc, await body_part(FINGERTIP));
         }
         de.qbuf = sprintf(de.qbuf, "What do you want to %s the %s here?", de.everb, de.eloc);
-        getlin(de.qbuf, de.ebuf);
+        de.ebuf = await getlin(de.qbuf, de.ebuf);
         /* convert tabs to spaces and condense consecutive spaces to one */
         de.ebuf = mungspaces(de.ebuf);
         /* Count the actual # of chars engraved not including spaces */
@@ -1063,12 +1026,12 @@ export function doengrave() {
         if (de.len == 0 || strchr(de.ebuf, 27)) {
             if (de.zapwand) {
                 if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                    pline("%s, then %s.", Tobjnam(de.otmp, "glow"), otense(de.otmp, "fade"));
+                    await pline("%s, then %s.", await Tobjnam(de.otmp, "glow"), await otense(de.otmp, "fade"));
                 }
                 de.ret = 1;
                 break doengr_exit;
             } else {
-                pline("%s", c_common_strings.c_Never_mind);
+                await pline("%s", c_common_strings.c_Never_mind);
                 break doengr_exit;
             }
         }
@@ -1089,7 +1052,7 @@ export function doengrave() {
             }
         }
         if (de.eow) {
-            del_engr(de.oep);
+            await del_engr(de.oep);
             de.oep = null;
             de.disprefresh = (1);
         }
@@ -1102,27 +1065,25 @@ export function doengrave() {
         game.context.engraving.actionct = 0;
         set_occupation(engrave, "engraving", 0);
         if (de.post_engr_text[0]) {
-            pline("%s", de.post_engr_text);
+            await pline("%s", de.post_engr_text);
         }
-        if (de.doblind && !resists_blnd(game.youmonst)) {
-            You("are blinded by the flash!");
-            make_blinded(rnd(50), (0));
+        if (de.doblind && !await resists_blnd(game.youmonst)) {
+            await You("are blinded by the flash!");
+            await make_blinded(rnd(50), (0));
             if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                Your("%s", c_common_strings.c_vision_clears);
+                await Your("%s", c_common_strings.c_vision_clears);
             }
         }
     }
-    /* Engraving will always take at least one action via being run as an
-       occupation, so do not count this setup as taking time. */
     if (de.disprefresh) {
-        newsym(game.u.ux, game.u.uy);
+        await newsym(game.u.ux, game.u.uy);
     }
     retval = de.ret;
     free(de);
     return retval;
 }
 /* occupation callback for engraving some text */
-export function engrave() {
+export async function engrave() {
     let oep = null;
     let buf = '';
     let finishverb = null;
@@ -1142,7 +1103,7 @@ export function engrave() {
     let i = 0;
     let space_left = 0;
     if (game.context.engraving.pos.x != game.u.ux || game.context.engraving.pos.y != game.u.uy) {
-        You("are unable to continue engraving.");
+        await You("are unable to continue engraving.");
         return 0;
     }
     if (game.context.engraving.stylus == game.hands_obj) {
@@ -1156,7 +1117,7 @@ export function engrave() {
             }
         }
         if (!stylus) {
-            You("are unable to continue engraving.");
+            await You("are unable to continue engraving.");
             return 0;
         }
     }
@@ -1164,9 +1125,9 @@ export function engrave() {
     marker = (stylus && stylus.otyp == MAGIC_MARKER && game.context.engraving.type == 4);
     game.context.engraving.actionct++;
     if (dulling_wep && !(stylus.oclass == WEAPON_CLASS && game.objects[stylus.otyp].oc_subtyp >= P_DAGGER && game.objects[stylus.otyp].oc_subtyp <= P_SABER)) {
-        impossible("carving with non-bladed weapon");
+        await impossible("carving with non-bladed weapon");
     } else if (game.context.engraving.type == 4 && !marker) {
-        impossible("making graffiti with non-marker stylus");
+        await impossible("making graffiti with non-marker stylus");
     }
     if (carving && stylus && (dulling_wep || stylus.oclass == RING_CLASS || stylus.oclass == GEM_CLASS)) {
         rate = 1;
@@ -1185,40 +1146,22 @@ export function engrave() {
         let splitstack = (0);
         let dulled = (0);
         if (stylus.quan > 1) {
-            /* 'dulling_wep' guarantees that 'stylus' is a weapon which is
-           not welded to the hero's hand(s) */
             if (firsttime) {
-                pline("One of %s gets dull.", yname(stylus));
+                await pline("One of %s gets dull.", await yname(stylus));
             }
-            stylus = game.context.engraving.stylus = splitobj(stylus, 1);
+            stylus = game.context.engraving.stylus = await splitobj(stylus, 1);
             /* if stack is wielded or quivered, the split-off one isn't */
             stylus.owornmask = 0;
             splitstack = (1);
         } else {
-            /* normal case: stylus->quan==1 */
             if (firsttime) {
-                pline("%s gets dull.", Yname2(stylus));
+                await pline("%s gets dull.", await Yname2(stylus));
             }
         }
         if (game.context.engraving.actionct % 2 == 1) {
             if (stylus.spe <= -3) {
                 if (firsttime) {
-                    /* Dull the weapon at a rate of -1 enchantment per 2 characters,
-         * rounding down.
-         * The number of characters obtainable given starting enchantment:
-         * -2 => 3, -1 => 5, 0 => 7, +1 => 9, +2 => 11
-         * Note: this does not allow a +0 anything (except an athame) to
-         * engrave "Elbereth" all at once.
-         * However, you can engrave "Elb", then "ere", then "th", by taking
-         * advantage of the rounding down. */
-                    /* deduct a point on 1st, 3rd, 5th, ... turns, unless this is the
-             * last character being engraved (a rather convoluted way to round
-             * down), but always deduct a point on the 1st turn to prevent
-             * zero-cost engravings.
-             * Check for truncation *before* deducting a point - otherwise,
-             * attempting to e.g. engrave 3 characters with a -2 weapon will
-             * stop at the 1st. */
-                    impossible("<= -3 weapon valid for engraving");
+                    await impossible("<= -3 weapon valid for engraving");
                 }
                 truncate = (1);
             } else if (__nh_char_at0(endc) || game.context.engraving.actionct == 1) {
@@ -1227,28 +1170,25 @@ export function engrave() {
             }
         }
         if (splitstack) {
-            obj_extract_self(stylus);
-            stylus = hold_another_object(stylus, "You drop one %s!", doname(stylus), (null));
+            await obj_extract_self(stylus);
+            stylus = await hold_another_object(stylus, "You drop one %s!", await doname(stylus), (null));
             ((stylus));
         } else if (dulled && stylus.known) {
-            /* reflect change in stylus->spe; not needed for splitstack
-               since hold_another_object() does this */
-            prinv((null), stylus, 1);
+            await prinv((null), stylus, 1);
             update_inventory();
         }
     } else if (marker) {
         /* Prevent infinite graffiti */
         let ink_cost = ((Math.trunc(rate / 2)) > (1) ? (Math.trunc(rate / 2)) : (1));
         if (stylus.spe < ink_cost) {
-            impossible("overly dry marker valid for graffiti?");
+            await impossible("overly dry marker valid for graffiti?");
             ink_cost = stylus.spe;
             truncate = (1);
         }
         stylus.spe -= ink_cost;
         update_inventory();
         if (stylus.spe == 0) {
-            /* can't engrave any further; truncate the string */
-            Your("marker dries out.");
+            await Your("marker dries out.");
             truncate = (1);
         }
     }
@@ -1281,7 +1221,7 @@ export function engrave() {
     }
     space_left = (256 /* sizeof(char [256]) */ - strlen(buf) - 1);
     if ((game.context.engraving.nextc.length - endc.length) > space_left) {
-        You("run out of room to write.");
+        await You("run out of room to write.");
         endc = __nh_advance_str(game.context.engraving.nextc, space_left);
         truncate = (1);
     }
@@ -1289,14 +1229,14 @@ export function engrave() {
         /* If the stylus did wear out mid-engraving, truncate the input so that we
      * can't go any further. */
         void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
-        You("are only able to write \"%s\".", game.context.engraving.text);
+        await You("are only able to write \"%s\".", game.context.engraving.text);
     } else {
         /* input was not truncated; stylus may still have worn out on the last
          * character, though */
         truncate = (0);
     }
     buf = strncat(buf, game.context.engraving.nextc, ((space_left) < ((game.context.engraving.nextc.length - endc.length)) ? (space_left) : ((game.context.engraving.nextc.length - endc.length))));
-    make_engr_at(game.u.ux, game.u.uy, buf, null, game.moves - game.multi, game.context.engraving.type);
+    await make_engr_at(game.u.ux, game.u.uy, buf, null, game.moves - game.multi, game.context.engraving.type);
     oep = engr_at(game.u.ux, game.u.uy);
     if (oep) {
         oep.eread = 1;
@@ -1305,26 +1245,22 @@ export function engrave() {
     if (__nh_char_at0(endc)) {
         game.context.engraving.nextc = endc;
         if (neweng) {
-            newsym(game.context.engraving.pos.x, game.context.engraving.pos.y);
+            await newsym(game.context.engraving.pos.x, game.context.engraving.pos.y);
         }
         /* not yet finished this turn */
         return 1;
     } else {
         if (truncate) {
-            /* actions that happen after the engraving is finished go here */
-            /* Now that "You are only able to write 'foo'" also prints at the
-             * end of engraving, this might be redundant. */
-            You("cannot write any more.");
+            await You("cannot write any more.");
         } else if (!firsttime) {
-            /* only print this if engraving took multiple actions */
-            You("finish %s.", finishverb);
+            await You("finish %s.", finishverb);
         }
-        game.context.engraving.text[0] = 0;
+        game.context.engraving.text = '';
         game.context.engraving.nextc = null;
         game.context.engraving.stylus = null;
     }
     if (neweng) {
-        newsym(game.context.engraving.pos.x, game.context.engraving.pos.y);
+        await newsym(game.context.engraving.pos.x, game.context.engraving.pos.y);
     }
     return 0;
 }
@@ -1347,23 +1283,23 @@ export function forget_engravings() {
         ep.erevealed = ep.eread = 0;
     }
 }
-export function engraving_sanity_check() {
+export async function engraving_sanity_check() {
     let ep = null;
     let levtyp = 0;
     if (game.head_engr && ((((((game.dungeon_topology.d_air_level)).dlevel || ((game.dungeon_topology.d_air_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_air_level)))) || (((((game.dungeon_topology.d_water_level)).dlevel || ((game.dungeon_topology.d_water_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_water_level)))))) {
-        impossible("engraving sanity: on plane of air/water");
+        await impossible("engraving sanity: on plane of air/water");
         return;
     }
     for (ep = game.head_engr; ep; ep = ep.nxt_engr) {
         let x = ep.engr_x;
         let y = ep.engr_y;
         if (!isok(x, y)) {
-            impossible("engraving sanity: !isok <%i,%i>", x, y);
+            await impossible("engraving sanity: !isok <%i,%i>", x, y);
             continue;
         }
         levtyp = ((game.level.locations[x][y].typ == DRAWBRIDGE_UP) ? db_under_typ(game.level.locations[x][y].flags) : game.level.locations[x][y].typ);
         if (is_pool_or_lava(x, y) || ((levtyp) == AIR || (levtyp) == CLOUD) || !((levtyp) >= DOOR)) {
-            impossible("engraving sanity: illegal surface (%d: \"%s\")", levtyp, surface(x, y));
+            await impossible("engraving sanity: illegal surface (%d: \"%s\")", levtyp, surface(x, y));
             continue;
         }
     }
@@ -1444,7 +1380,7 @@ export function engr_stats(hdrfmt, hdrbuf, count, size) {
         size.value += 1 /* sizeof(struct engr) */ + ep.engr_alloc;
     }
 }
-export function del_engr(ep) {
+export async function del_engr(ep) {
     if (ep == game.head_engr) {
         game.head_engr = ep.nxt_engr;
     } else {
@@ -1456,14 +1392,14 @@ export function del_engr(ep) {
             }
         }
         if (!ept) {
-            impossible("Error in del_engr?");
+            await impossible("Error in del_engr?");
             return;
         }
     }
     free((ep));
 }
 /* randomly relocate an engraving */
-export function rloc_engr(ep) {
+export async function rloc_engr(ep) {
     let tx = 0;
     let ty = 0;
     let tryct = 200;
@@ -1476,54 +1412,52 @@ export function rloc_engr(ep) {
     } while (engr_at(tx, ty) || !goodpos(tx, ty, null, 0));
     ep.engr_x = tx;
     ep.engr_y = ty;
-    /* caller took care of the old location */
-    newsym(tx, ty);
+    await newsym(tx, ty);
 }
 /* Create a headstone at the given location.
  * The caller is responsible for newsym(x, y).
  */
-export function make_grave(x, y, str) {
+export async function make_grave(x, y, str) {
     let buf = '';
     /* Can we put a grave here? */
     if ((game.level.locations[x][y].typ != ROOM && game.level.locations[x][y].typ != GRAVE) || t_at(x, y)) {
         return;
     }
-    if (!set_levltyp(x, y, GRAVE)) {
+    if (!await set_levltyp(x, y, GRAVE)) {
         return;
     }
-    del_engr_at(x, y);
+    await del_engr_at(x, y);
     if (!str) {
-        str = get_rnd_text("epitaph", buf, rn2, 60);
+        str = await get_rnd_text("epitaph", buf, rn2, 60);
     }
-    make_engr_at(x, y, str, null, 0, 6);
+    await make_engr_at(x, y, str, null, 0, 6);
     return;
 }
 /* called when kicking or engraving on a grave's headstone */
-export function disturb_grave(x, y) {
+export async function disturb_grave(x, y) {
     let lev = game.level.locations[x][y];
     if (!((lev.typ) == GRAVE)) {
-        impossible("Disturbing grave that isn't a grave? (%d)", lev.typ);
+        await impossible("Disturbing grave that isn't a grave? (%d)", lev.typ);
     } else if (lev.horizontal) {
-        impossible("Disturbing already disturbed grave?");
+        await impossible("Disturbing already disturbed grave?");
     } else {
-        You("disturb the undead!");
+        await You("disturb the undead!");
         lev.horizontal = 1;
-        makemon(game.mons[PM_GHOUL], x, y, 0);
-        exercise(A_WIS, (0));
+        await makemon(game.mons[PM_GHOUL], x, y, 0);
+        await exercise(A_WIS, (0));
     }
 }
-export function see_engraving(ep) {
-    newsym(ep.engr_x, ep.engr_y);
+export async function see_engraving(ep) {
+    await newsym(ep.engr_x, ep.engr_y);
 }
 /* like see_engravings() but overrides vision, but only for some types
    of engravings that can be felt  [this isn't actually used anywhere?] */
-export function feel_engraving(ep) {
+export async function feel_engraving(ep) {
     if (engr_can_be_felt(ep)) {
         ep.eread = 1;
         ep.erevealed = 1;
-        map_engraving(ep, 1);
-        /* in case it's beneath something, redisplay the something */
-        newsym(ep.engr_x, ep.engr_y);
+        await map_engraving(ep, 1);
+        await newsym(ep.engr_x, ep.engr_y);
     }
 }
 const blind_writing = [[68, 102, 109, 105, 98, 101, 34, 69, 123, 113, 101, 109, 114, 0, 0, 0, 0, 0, 0, 0, 0], [81, 103, 96, 122, 127, 33, 64, 113, 107, 113, 111, 103, 99, 0, 0, 0, 0, 0, 0, 0, 0], [73, 109, 115, 105, 98, 101, 34, 76, 97, 124, 109, 103, 36, 66, 127, 105, 108, 119, 103, 126, 0], [75, 109, 108, 102, 48, 76, 107, 104, 124, 127, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [81, 103, 112, 122, 127, 111, 103, 104, 100, 113, 33, 79, 107, 109, 126, 114, 0, 0, 0, 0, 0], [76, 99, 118, 97, 113, 33, 72, 107, 123, 117, 103, 99, 36, 69, 101, 107, 107, 101, 0, 0, 0], [76, 103, 104, 107, 120, 104, 109, 118, 122, 117, 33, 79, 113, 122, 117, 111, 119, 0, 0, 0, 0], [68, 102, 109, 124, 120, 33, 80, 101, 102, 101, 108, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [68, 102, 115, 105, 98, 101, 34, 86, 125, 99, 105, 118, 107, 102, 0, 0, 0, 0, 0, 0, 0]];
@@ -1532,7 +1466,73 @@ export function blengr() {
 }
 /* !SFCTOOL */
 /*engrave.c*/
+/* a random engraving may come from the "rumors" file,
+       or from the "engrave" file (formerly in an array here) */
 /* rub out unreadable & small punctuation marks */
+/* engraving "Elbereth":  if done when making a level, it creates
+           an old-style Elbereth that deters monsters when any objects are
+           present; otherwise (done by the player), exercises wisdom */
+/* airlevel or inside bubble on waterlevel */
+/* stone, tree, wall, secret corridor, pool, lava, bars */
+/* The charge is removed from the wand before prompting for
+     * the engraving text, because all kinds of setup decisions
+     * and pre-engraving messages are based upon knowing what type
+     * of engraving the wand is going to do.  Also, the player
+     * will have potentially seen "You wrest .." message, and
+     * therefore will know they are using a charge.
+     */
+/* give feedback here if we won't be getting the
+               "can't reach floor" message below */
+/* cancelled wand turns to dust */
+/* empty wand just doesn't write */
+/* if non-blade or welded or too dull, engraving type stays set
+               to DUST; feedback for that is only given for bladed weapons */
 /* this used to be ``if (wizard)'' and fall through to ILLOBJ_CLASS
            for normal play, but splash of venom isn't "illegal" because it
            could occur in normal play via wizard mode bones */
+/* Can the adventurer engrave at all? */
+/* One may write with finger, or weapon, or wand, or..., or...
+     * Edited by GAN 10/20/86 so as not to change weapon wielded.
+     */
+/* There's no reason you should be able to write with a wand
+     * while both your hands are tied up.
+     */
+/* disturb the grave: summon a ghoul, same as sometimes
+               happens when kicking; sets levl[ux][uy]->disturbed so
+               that it'll only happen once */
+/*
+     * End of implement setup
+     */
+/* Tell adventurer what is going on */
+/* ASCII '!' thru '~'
+                                        (excludes ' ' and DEL) */
+/* Previous engraving is overwritten */
+/* Engraving will always take at least one action via being run as an
+       occupation, so do not count this setup as taking time. */
+/* 'dulling_wep' guarantees that 'stylus' is a weapon which is
+           not welded to the hero's hand(s) */
+/* normal case: stylus->quan==1 */
+/* Dull the weapon at a rate of -1 enchantment per 2 characters,
+         * rounding down.
+         * The number of characters obtainable given starting enchantment:
+         * -2 => 3, -1 => 5, 0 => 7, +1 => 9, +2 => 11
+         * Note: this does not allow a +0 anything (except an athame) to
+         * engrave "Elbereth" all at once.
+         * However, you can engrave "Elb", then "ere", then "th", by taking
+         * advantage of the rounding down. */
+/* deduct a point on 1st, 3rd, 5th, ... turns, unless this is the
+             * last character being engraved (a rather convoluted way to round
+             * down), but always deduct a point on the 1st turn to prevent
+             * zero-cost engravings.
+             * Check for truncation *before* deducting a point - otherwise,
+             * attempting to e.g. engrave 3 characters with a -2 weapon will
+             * stop at the 1st. */
+/* reflect change in stylus->spe; not needed for splitstack
+               since hold_another_object() does this */
+/* can't engrave any further; truncate the string */
+/* actions that happen after the engraving is finished go here */
+/* Now that "You are only able to write 'foo'" also prints at the
+             * end of engraving, this might be redundant. */
+/* only print this if engraving took multiple actions */
+/* caller took care of the old location */
+/* in case it's beneath something, redisplay the something */

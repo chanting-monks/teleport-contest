@@ -7,7 +7,7 @@ import { abs, sgn } from '../c2js-runtime/math.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_hear, pline } from '../c2js-runtime/pline.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { strcpy, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_char_at0, __nh_char_write, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { artifact_light, is_art, set_artifact_intrinsic } from './artifact.js';
 import { c_color_names, c_common_strings } from './decl.js';
 import { canseemon, newsym } from './display.js';
@@ -65,7 +65,7 @@ export function recalc_telepat_range() {
     }
 }
 /* Updated to use the extrinsic and blocked fields. */
-export function setworn(obj, mask) {
+export async function setworn(obj, mask) {
     let wp = null;
     let oobj = null;
     let p = 0;
@@ -77,7 +77,7 @@ export function setworn(obj, mask) {
             if (wp.w_mask & mask) {
                 oobj = (wp.w_obj);
                 if (oobj && !(oobj.owornmask & wp.w_mask)) {
-                    impossible("Setworn: mask=0x%08lx.", wp.w_mask);
+                    await impossible("Setworn: mask=0x%08lx.", wp.w_mask);
                 }
                 if (oobj) {
                     if (game.u.twoweap && (oobj.owornmask & (256 | 1024))) {
@@ -97,7 +97,7 @@ export function setworn(obj, mask) {
                             game.u.uprops[p].blocked &= ~wp.w_mask;
                         }
                         if (oobj.oartifact) {
-                            set_artifact_intrinsic(oobj, 0, mask);
+                            await set_artifact_intrinsic(oobj, 0, mask);
                         }
                     }
                     /* in case wearing or removal is in progress or removal
@@ -121,7 +121,7 @@ export function setworn(obj, mask) {
                             }
                         }
                         if (obj.oartifact) {
-                            set_artifact_intrinsic(obj, 1, mask);
+                            await set_artifact_intrinsic(obj, 1, mask);
                         }
                     }
                 }
@@ -141,7 +141,7 @@ export function setworn(obj, mask) {
 }
 /* called e.g. when obj is destroyed */
 /* Updated to use the extrinsic and blocked fields. */
-export function setnotworn(obj) {
+export async function setnotworn(obj) {
     let wp = null;
     let p = 0;
     let unworn = 0;
@@ -165,7 +165,7 @@ export function setnotworn(obj) {
             /* remove this extrinsic from seenres */
             obj.owornmask &= ~wp.w_mask;
             if (obj.oartifact) {
-                set_artifact_intrinsic(obj, 0, wp.w_mask);
+                await set_artifact_intrinsic(obj, 0, wp.w_mask);
             }
             if ((p = ((obj.otyp == MUMMY_WRAPPING && ((wp.w_mask) & 2) != 0) ? INVIS : (obj.otyp == CORNUTHAUM && ((wp.w_mask) & 4) != 0 && !(game.urole.mnum == (PM_WIZARD))) ? CLAIRVOYANT : (is_art(obj, ART_EYES_OF_THE_OVERWORLD) && ((wp.w_mask) & 524288) != 0) ? BLINDED : 0)) != 0) {
                 game.u.uprops[p].blocked &= ~wp.w_mask;
@@ -330,7 +330,7 @@ export function wearslot(obj) {
     return res;
 }
 /* for 'sanity_check' option, called by you_sanity_check() */
-export function check_wornmask_slots() {
+export async function check_wornmask_slots() {
     /* we'll skip ball and chain here--they warrant separate sanity check */
     let whybuf = '';
     let wp = null;
@@ -358,8 +358,8 @@ export function check_wornmask_slots() {
             } else if ((o.owornmask & ~(m | (4096 | 8192 | 1048576 | 2097152 | 4194304))) != 0) {
                 whybuf = sprintf(whybuf, "%s wrong bit set in owornmask [0x%08lx]", wp.w_what, o.owornmask);
             }
-            if (whybuf[0]) {
-                impossible("Worn-slot insanity: %s.", whybuf);
+            if (__nh_char_at0(whybuf)) {
+                await impossible("Worn-slot insanity: %s.", whybuf);
             }
         }
         for (otmp = game.invent; otmp; otmp = otmp.nobj) {
@@ -368,27 +368,26 @@ export function check_wornmask_slots() {
            'o' is Null or not; [sanity_check_worn(mkobj.c) for object by
            object checking will most likely have already caught this] */
             if (otmp != o && (otmp.owornmask & m) != 0 && (m != 1 || otmp != game.uskin || (otmp.owornmask & 536870912) == 0)) {
-                whybuf = sprintf(whybuf, "%s [0x%08lx] has %s mask 0x%08lx bit set", simpleonames(otmp), otmp.owornmask, wp.w_what, m);
-                impossible("Worn-slot insanity: %s.", whybuf);
+                whybuf = sprintf(whybuf, "%s [0x%08lx] has %s mask 0x%08lx bit set", await simpleonames(otmp), otmp.owornmask, wp.w_what, m);
+                await impossible("Worn-slot insanity: %s.", whybuf);
             }
         }
     }
     return;
 }
-export function mon_set_minvis(mon, cursed_potion) {
+export async function mon_set_minvis(mon, cursed_potion) {
     mon.perminvis = !cursed_potion ? 1 : 0;
     if (!mon.invis_blkd) {
         mon.minvis = mon.perminvis;
-        /* call stackobj() if we ever drop anything that can merge */
-        newsym(mon.mx, mon.my);
+        await newsym(mon.mx, mon.my);
         if (mon.wormno) {
-            see_wsegs(mon);
+            await see_wsegs(mon);
         }
     }
 }
 /* positive => increase speed, negative => decrease */
 /* item to make known if effect can be seen */
-export function mon_adjust_speed(mon, adjust, obj) {
+export async function mon_adjust_speed(mon, adjust, obj) {
     let otmp = null;
     let give_msg = !game.in_mklev;
     let petrify = (0);
@@ -448,19 +447,16 @@ export function mon_adjust_speed(mon, adjust, obj) {
         /* fast to slow (skipping intermediate state) or vice versa */
         let howmuch = (mon.mspeed + oldspeed == 2 + 1) ? "much " : "";
         if (petrify) {
-            /* mimic the player's petrification countdown; "slowing down"
-               even if fast movement rate retained via worn speed boots */
             if (game.flags.verbose) {
-                pline_mon(mon, "%s is slowing down.", Monnam(mon));
+                await pline_mon(mon, "%s is slowing down.", await Monnam(mon));
             }
         } else if (adjust > 0 || mon.mspeed == 2) {
-            pline_mon(mon, "%s is suddenly moving %sfaster.", Monnam(mon), howmuch);
+            await pline_mon(mon, "%s is suddenly moving %sfaster.", await Monnam(mon), howmuch);
         } else {
-            pline_mon(mon, "%s seems to be moving %sslower.", Monnam(mon), howmuch);
+            await pline_mon(mon, "%s seems to be moving %sslower.", await Monnam(mon), howmuch);
         }
-        /* might discover an object if we see the speed change happen */
         if (obj != null) {
-            learnwand(obj);
+            await learnwand(obj);
         }
     }
 }
@@ -472,7 +468,7 @@ export function mon_adjust_speed(mon, adjust, obj) {
    [TODO: handle alternate properties conferred by dragon scales/mail] */
 /* armor put on or taken off; might be magical variety */
 /* armor being worn or taken off */
-export function update_mon_extrinsics(mon, obj, on, silently) {
+export async function update_mon_extrinsics(mon, obj, on, silently) {
     let __goto_maybe_blocks = (0);
     let unseen = 0;
     let mask = 0;
@@ -499,7 +495,7 @@ export function update_mon_extrinsics(mon, obj, on, silently) {
                             if (silently) {
                                 game.in_mklev = (1);
                             }
-                            mon_adjust_speed(mon, 0, obj);
+                            await mon_adjust_speed(mon, 0, obj);
                             game.in_mklev = save_in_mklev;
                             break;
                         }
@@ -538,7 +534,7 @@ export function update_mon_extrinsics(mon, obj, on, silently) {
                             if (silently) {
                                 game.in_mklev = (1);
                             }
-                            mon_adjust_speed(mon, 0, obj);
+                            await mon_adjust_speed(mon, 0, obj);
                             game.in_mklev = save_in_mklev;
                             break;
                         }
@@ -603,11 +599,11 @@ export function update_mon_extrinsics(mon, obj, on, silently) {
                 break;
         }
         if (!on && mon == game.u.usteed && obj.otyp == SADDLE) {
-            dismount_steed(DISMOUNT_FELL);
+            await dismount_steed(DISMOUNT_FELL);
         }
         /* if couldn't see it but now can, or vice versa, update display */
         if (!silently && (unseen ^ !canseemon(mon))) {
-            newsym(mon.mx, mon.my);
+            await newsym(mon.mx, mon.my);
         }
         break;
     }
@@ -650,7 +646,7 @@ export function find_mac(mon) {
  * players to influence what gets worn.  Putting on a shirt underneath
  * already worn body armor is too obviously buggy...
  */
-export function m_dowear(mon, creation) {
+export async function m_dowear(mon, creation) {
     let can_wear_armor = 0;
     /* Note the restrictions here are the same as in dowear in do_wear.c
      * except for the additional restriction on intelligence.  (Players
@@ -664,38 +660,38 @@ export function m_dowear(mon, creation) {
     if ((((mon.data).mflags1 & 65536) != 0) && (!creation || (mon.data.mlet != S_MUMMY && mon.data != game.mons[PM_SKELETON]))) {
         return;
     }
-    m_dowear_type(mon, 65536, creation, (0));
+    await m_dowear_type(mon, 65536, creation, (0));
     can_wear_armor = !(breakarm(mon.data) || sliparm(mon.data));
     /* can't put on shirt if already wearing suit */
     if (can_wear_armor && !(mon.misc_worn_check & 1)) {
-        m_dowear_type(mon, 64, creation, (0));
+        await m_dowear_type(mon, 64, creation, (0));
     }
     /* WrappingAllowed() makes any size between small and huge eligible;
        treating small as a special case allows hobbits, gnomes, and
        kobolds to wear all cloaks; large and huge allows giants and such
        to wear mummy wrappings but not other cloaks */
     if (can_wear_armor || ((((mon.data).mflags1 & 131072) != 0) && (mon.data).msize >= 1 && (mon.data).msize <= 4 && !((mon.data).mlet == S_GHOST) && (mon.data).mlet != S_CENTAUR && (mon.data) != game.mons[PM_WINGED_GARGOYLE] && (mon.data) != game.mons[PM_MARILITH])) {
-        m_dowear_type(mon, 2, creation, (0));
+        await m_dowear_type(mon, 2, creation, (0));
     }
-    m_dowear_type(mon, 4, creation, (0));
+    await m_dowear_type(mon, 4, creation, (0));
     if (!((mon).mw) || !((((mon).mw).oclass == WEAPON_CLASS || ((mon).mw).oclass == TOOL_CLASS) && game.objects[((mon).mw).otyp].oc_big)) {
-        m_dowear_type(mon, 8, creation, (0));
+        await m_dowear_type(mon, 8, creation, (0));
     }
-    m_dowear_type(mon, 16, creation, (0));
+    await m_dowear_type(mon, 16, creation, (0));
     if (!(((mon.data).mflags1 & 524288) != 0) && mon.data.mlet != S_CENTAUR) {
-        m_dowear_type(mon, 32, creation, (0));
+        await m_dowear_type(mon, 32, creation, (0));
     }
     if (can_wear_armor) {
-        m_dowear_type(mon, 1, creation, (0));
+        await m_dowear_type(mon, 1, creation, (0));
     } else {
-        m_dowear_type(mon, 1, creation, (1));
+        await m_dowear_type(mon, 1, creation, (1));
     }
 }
 /* wornmask value */
 /* no wear messages when mon is being created */
 /* small monsters that are allowed for player
                               * races (gnomes) can wear suits */
-export function m_dowear_type(mon, flag, creation, racialexception) {
+export async function m_dowear_type(mon, flag, creation, racialexception) {
     let old = null;
     let best = null;
     let obj = null;
@@ -713,10 +709,8 @@ export function m_dowear_type(mon, flag, creation, racialexception) {
         if (mon.mfrozen) {
             return;
         }
-        nambuf = strcpy(nambuf, (game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic) ? Monnam(mon) : mon_nam(mon));
-        /* probably putting previous item on */
-        /* Get a copy of monster's name before altering its visibility */
-        old = which_armor(mon, flag);
+        nambuf = strcpy(nambuf, (game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic) ? await Monnam(mon) : await mon_nam(mon));
+        old = await which_armor(mon, flag);
         if (old && old.cursed) {
             return;
         }
@@ -838,15 +832,13 @@ export function m_dowear_type(mon, flag, creation, racialexception) {
             let buf = '';
             let oldarm = '';
             let newarm = '';
-            /* "<Mon> [removes <oldarm> and ]puts on <newarm>."
-               uses accessory verbs for armor but we can live with that */
             if (old) {
-                oldarm = strcpy(oldarm, distant_name(old, doname));
+                oldarm = strcpy(oldarm, await distant_name(old, doname));
                 buf = nh_snprintf("m_dowear_type", 932, buf, 256 /* sizeof(char [256]) */, " removes %s and", oldarm);
             } else {
                 (oldarm = '', buf = '');
             }
-            newarm = strcpy(newarm, distant_name(best, doname));
+            newarm = strcpy(newarm, await distant_name(best, doname));
             if (!strncmpi((newarm), (oldarm), -1)) {
                 /* a monster will swap an item of the same type as the one it
                is replacing when the enchantment is better;
@@ -859,11 +851,11 @@ export function m_dowear_type(mon, flag, creation, racialexception) {
                 } else if (!strncmpi(newarm, "an ", 3)) {
                     newarm = strsubst(newarm, "an ", "another ");
                 }
-                newarm[256 - 1] = 0;
+                newarm = __nh_char_write(newarm, 256 - 1, 0);
             }
-            pline_mon(mon, "%s%s puts on %s.", Monnam(mon), buf, newarm);
+            await pline_mon(mon, "%s%s puts on %s.", await Monnam(mon), buf, newarm);
             if (autocurse) {
-                pline("%s %s %s %s for a moment.", s_suffix(Monnam(mon)), simpleonames(best), otense(best, "glow"), hcolor(c_color_names.c_black));
+                await pline("%s %s %s %s for a moment.", s_suffix(await Monnam(mon)), await simpleonames(best), await otense(best, "glow"), hcolor(c_color_names.c_black));
             }
         }
         m_delay += game.objects[best.otyp].oc_delay;
@@ -873,51 +865,44 @@ export function m_dowear_type(mon, flag, creation, racialexception) {
         }
     }
     if (old) {
-        update_mon_extrinsics(mon, old, (0), creation);
+        await update_mon_extrinsics(mon, old, (0), creation);
         /* owornmask was cleared above but artifact_light() expects it */
         old.owornmask = oldmask;
         if (old.lamplit && artifact_light(old)) {
-            end_burn(old, (0));
+            await end_burn(old, (0));
         }
         old.owornmask = 0;
     }
     mon.misc_worn_check |= flag;
     best.owornmask |= flag;
     if (autocurse) {
-        curse(best);
+        await curse(best);
     }
     if (artifact_light(best) && !best.lamplit) {
-        begin_burn(best, (0));
-        vision_recalc(1);
+        await begin_burn(best, (0));
+        await vision_recalc(1);
         if (!creation && best.lamplit && ((game.viz_array[mon.my][mon.mx] & 2) != 0)) {
             let adesc = arti_light_description(best);
             if (sawmon) {
-                pline("%s %s to shine %s.", Yname2(best), otense(best, "begin"), adesc);
+                await pline("%s %s to shine %s.", await Yname2(best), await otense(best, "begin"), adesc);
             } else if (canseemon(mon)) {
-                pline("%s %s shining %s.", Yname2(best), otense(best, "are"), adesc);
+                await pline("%s %s shining %s.", await Yname2(best), await otense(best, "are"), adesc);
             } else if (sawloc) {
-                pline("%s begins to shine %s.", c_common_strings.c_Something, adesc);
-            /* could already see monster */
-            /* didn't see it until new light */
-            /* saw location but not invisible monster */
-            /* didn't see location until new light */
+                await pline("%s begins to shine %s.", c_common_strings.c_Something, adesc);
             } else {
-                pline("%s is shining %s.", c_common_strings.c_Something, adesc);
+                await pline("%s is shining %s.", c_common_strings.c_Something, adesc);
             }
         }
     }
-    update_mon_extrinsics(mon, best, (1), creation);
+    await update_mon_extrinsics(mon, best, (1), creation);
     if (!creation && (sawmon ^ canseemon(mon))) {
         if (mon.minvis && !(game.u.uprops[SEE_INVIS].intrinsic || game.u.uprops[SEE_INVIS].extrinsic)) {
-            /* if couldn't see it but now can, or vice versa */
-            pline("Suddenly you cannot see %s.", nambuf);
-            /* } else if (!mon->minvis) {
-         *     pline("%s suddenly appears!", Amonnam(mon)); */
-            discover_object((best.otyp), (1), (1), (1));
+            await pline("Suddenly you cannot see %s.", nambuf);
+            await discover_object((best.otyp), (1), (1), (1));
         }
     }
 }
-export function which_armor(mon, flag) {
+export async function which_armor(mon, flag) {
     if (mon == game.youmonst) {
         switch (flag) {
             case 1:
@@ -935,7 +920,7 @@ export function which_armor(mon, flag) {
             case 64:
                 return game.uarmu;
             default:
-                impossible("bad flag in which_armor");
+                await impossible("bad flag in which_armor");
                 return null;
         }
     } else {
@@ -949,13 +934,13 @@ export function which_armor(mon, flag) {
     }
 }
 /* remove an item of armor and then drop it */
-export function m_lose_armor(mon, obj, polyspot) {
-    extract_from_minvent(mon, obj, (1), (0));
-    place_object(obj, mon.mx, mon.my);
+export async function m_lose_armor(mon, obj, polyspot) {
+    await extract_from_minvent(mon, obj, (1), (0));
+    await place_object(obj, mon.mx, mon.my);
     if (polyspot) {
         bypass_obj(obj);
     }
-    newsym(mon.mx, mon.my);
+    await newsym(mon.mx, mon.my);
 }
 /* clear bypass bits for an object chain, plus contents if applicable */
 export function clear_bypass(objchn) {
@@ -1066,7 +1051,7 @@ export function nxt_unbypassed_loot(lootarray, listhead) {
     }
     return obj;
 }
-export function mon_break_armor(mon, polyspot) {
+export async function mon_break_armor(mon, polyspot) {
     let otmp = null;
     let mdat = mon.data;
     let vis = ((game.viz_array[mon.my][mon.mx] & 2) != 0);
@@ -1075,126 +1060,120 @@ export function mon_break_armor(mon, polyspot) {
     let pronoun = (genders[pronoun_gender(mon, 2)].him);
     let ppronoun = (genders[pronoun_gender(mon, 2)].his);
     if (breakarm(mdat)) {
-        if ((otmp = which_armor(mon, 1)) != null) {
+        if ((otmp = await which_armor(mon, 1)) != null) {
             if ((((otmp).otyp >= GRAY_DRAGON_SCALES && (otmp).otyp <= YELLOW_DRAGON_SCALES) && mdat == game.mons[PM_GRAY_DRAGON + (otmp).otyp - GRAY_DRAGON_SCALES]) || (((otmp).otyp >= GRAY_DRAGON_SCALE_MAIL && (otmp).otyp <= YELLOW_DRAGON_SCALE_MAIL) && mdat == game.mons[PM_GRAY_DRAGON + (otmp).otyp - GRAY_DRAGON_SCALE_MAIL])) {
                 ;
             } else {
                 ;
                 if (vis) {
-                    pline_mon(mon, "%s breaks out of %s armor!", Monnam(mon), ppronoun);
+                    await pline_mon(mon, "%s breaks out of %s armor!", await Monnam(mon), ppronoun);
                 } else {
-                    You_hear("a cracking sound.");
+                    await You_hear("a cracking sound.");
                 }
             }
-            m_useup(mon, otmp);
+            await m_useup(mon, otmp);
         }
-        if ((otmp = which_armor(mon, 2)) != null && (otmp.otyp != MUMMY_WRAPPING || !((((mdat).mflags1 & 131072) != 0) && (mdat).msize >= 1 && (mdat).msize <= 4 && !((mdat).mlet == S_GHOST) && (mdat).mlet != S_CENTAUR && (mdat) != game.mons[PM_WINGED_GARGOYLE] && (mdat) != game.mons[PM_MARILITH]))) {
+        if ((otmp = await which_armor(mon, 2)) != null && (otmp.otyp != MUMMY_WRAPPING || !((((mdat).mflags1 & 131072) != 0) && (mdat).msize >= 1 && (mdat).msize <= 4 && !((mdat).mlet == S_GHOST) && (mdat).mlet != S_CENTAUR && (mdat) != game.mons[PM_WINGED_GARGOYLE] && (mdat) != game.mons[PM_MARILITH]))) {
             if (otmp.oartifact) {
-                /* no message here;
-                     "the dragon merges with his scaly armor" is odd
-                     and the monster's previous form is already gone */
-                /* mummy wrapping adapts to small and very big sizes */
                 if (vis) {
-                    pline_mon(mon, "%s %s falls off!", s_suffix(Monnam(mon)), cloak_simple_name(otmp));
+                    await pline_mon(mon, "%s %s falls off!", s_suffix(await Monnam(mon)), cloak_simple_name(otmp));
                 }
-                m_lose_armor(mon, otmp, polyspot);
+                await m_lose_armor(mon, otmp, polyspot);
             } else {
                 ;
                 if (vis) {
-                    pline_mon(mon, "%s %s tears apart!", s_suffix(Monnam(mon)), cloak_simple_name(otmp));
+                    await pline_mon(mon, "%s %s tears apart!", s_suffix(await Monnam(mon)), cloak_simple_name(otmp));
                 } else {
-                    You_hear("a ripping sound.");
+                    await You_hear("a ripping sound.");
                 }
-                m_useup(mon, otmp);
+                await m_useup(mon, otmp);
             }
         }
-        if ((otmp = which_armor(mon, 64)) != null) {
+        if ((otmp = await which_armor(mon, 64)) != null) {
             if (vis) {
-                pline_mon(mon, "%s shirt rips to shreds!", s_suffix(Monnam(mon)));
+                await pline_mon(mon, "%s shirt rips to shreds!", s_suffix(await Monnam(mon)));
             } else {
-                You_hear("a ripping sound.");
+                await You_hear("a ripping sound.");
             }
-            m_useup(mon, otmp);
+            await m_useup(mon, otmp);
         }
     } else if (sliparm(mdat)) {
         /* sliparm checks whirly, noncorporeal, and small or under */
         let passes_thru_clothes = !(mdat.msize <= 1);
-        if ((otmp = which_armor(mon, 1)) != null) {
+        if ((otmp = await which_armor(mon, 1)) != null) {
             ;
             if (vis) {
-                pline_mon(mon, "%s armor falls around %s!", s_suffix(Monnam(mon)), pronoun);
+                await pline_mon(mon, "%s armor falls around %s!", s_suffix(await Monnam(mon)), pronoun);
             } else {
-                You_hear("a thud.");
+                await You_hear("a thud.");
             }
-            m_lose_armor(mon, otmp, polyspot);
+            await m_lose_armor(mon, otmp, polyspot);
         }
-        if ((otmp = which_armor(mon, 2)) != null && (otmp.otyp != MUMMY_WRAPPING || !((((mdat).mflags1 & 131072) != 0) && (mdat).msize >= 1 && (mdat).msize <= 4 && !((mdat).mlet == S_GHOST) && (mdat).mlet != S_CENTAUR && (mdat) != game.mons[PM_WINGED_GARGOYLE] && (mdat) != game.mons[PM_MARILITH]))) {
+        if ((otmp = await which_armor(mon, 2)) != null && (otmp.otyp != MUMMY_WRAPPING || !((((mdat).mflags1 & 131072) != 0) && (mdat).msize >= 1 && (mdat).msize <= 4 && !((mdat).mlet == S_GHOST) && (mdat).mlet != S_CENTAUR && (mdat) != game.mons[PM_WINGED_GARGOYLE] && (mdat) != game.mons[PM_MARILITH]))) {
             if (vis) {
                 if (((mon.data).mlet == S_VORTEX || (mon.data) == game.mons[PM_AIR_ELEMENTAL])) {
-                    pline_mon(mon, "%s %s falls, unsupported!", s_suffix(Monnam(mon)), cloak_simple_name(otmp));
+                    await pline_mon(mon, "%s %s falls, unsupported!", s_suffix(await Monnam(mon)), cloak_simple_name(otmp));
                 } else {
-                    pline_mon(mon, "%s shrinks out of %s %s!", Monnam(mon), ppronoun, cloak_simple_name(otmp));
+                    await pline_mon(mon, "%s shrinks out of %s %s!", await Monnam(mon), ppronoun, cloak_simple_name(otmp));
                 }
             }
-            m_lose_armor(mon, otmp, polyspot);
+            await m_lose_armor(mon, otmp, polyspot);
         }
-        if ((otmp = which_armor(mon, 64)) != null) {
+        if ((otmp = await which_armor(mon, 64)) != null) {
             if (vis) {
                 if (passes_thru_clothes) {
-                    pline_mon(mon, "%s seeps right through %s shirt!", Monnam(mon), ppronoun);
+                    await pline_mon(mon, "%s seeps right through %s shirt!", await Monnam(mon), ppronoun);
                 } else {
-                    pline_mon(mon, "%s becomes much too small for %s shirt!", Monnam(mon), ppronoun);
+                    await pline_mon(mon, "%s becomes much too small for %s shirt!", await Monnam(mon), ppronoun);
                 }
             }
-            m_lose_armor(mon, otmp, polyspot);
+            await m_lose_armor(mon, otmp, polyspot);
         }
     }
     if (handless_or_tiny) {
-        if ((otmp = which_armor(mon, 16)) != null) {
-            /* [caller needs to handle weapon checks] */
+        if ((otmp = await which_armor(mon, 16)) != null) {
             if (vis) {
-                pline_mon(mon, "%s drops %s gloves%s!", Monnam(mon), ppronoun, ((mon).mw) ? " and weapon" : "");
+                await pline_mon(mon, "%s drops %s gloves%s!", await Monnam(mon), ppronoun, ((mon).mw) ? " and weapon" : "");
             }
-            m_lose_armor(mon, otmp, polyspot);
+            await m_lose_armor(mon, otmp, polyspot);
         }
-        if ((otmp = which_armor(mon, 8)) != null) {
+        if ((otmp = await which_armor(mon, 8)) != null) {
             ;
             if (vis) {
-                pline_mon(mon, "%s can no longer hold %s shield!", Monnam(mon), ppronoun);
+                await pline_mon(mon, "%s can no longer hold %s shield!", await Monnam(mon), ppronoun);
             } else {
-                You_hear("a clank.");
+                await You_hear("a clank.");
             }
-            m_lose_armor(mon, otmp, polyspot);
+            await m_lose_armor(mon, otmp, polyspot);
         }
     }
     if (handless_or_tiny || (num_horns(mdat) > 0)) {
-        if ((otmp = which_armor(mon, 4)) != null && (handless_or_tiny || !(game.objects[(otmp).otyp].oc_material <= LEATHER || (otmp).otyp == RUBBER_HOSE))) {
-            /* flimsy test for horns matches polyself handling */
+        if ((otmp = await which_armor(mon, 4)) != null && (handless_or_tiny || !(game.objects[(otmp).otyp].oc_material <= LEATHER || (otmp).otyp == RUBBER_HOSE))) {
             if (vis) {
-                pline_mon(mon, "%s helmet falls to the %s!", s_suffix(Monnam(mon)), surface(mon.mx, mon.my));
+                await pline_mon(mon, "%s helmet falls to the %s!", s_suffix(await Monnam(mon)), surface(mon.mx, mon.my));
             } else {
-                You_hear("a clank.");
+                await You_hear("a clank.");
             }
-            m_lose_armor(mon, otmp, polyspot);
+            await m_lose_armor(mon, otmp, polyspot);
         }
     }
     if (handless_or_tiny || (((mdat).mflags1 & 524288) != 0) || mdat.mlet == S_CENTAUR) {
-        if ((otmp = which_armor(mon, 32)) != null) {
+        if ((otmp = await which_armor(mon, 32)) != null) {
             if (vis) {
                 if (((mon.data).mlet == S_VORTEX || (mon.data) == game.mons[PM_AIR_ELEMENTAL])) {
-                    pline_mon(mon, "%s boots fall away!", s_suffix(Monnam(mon)));
+                    await pline_mon(mon, "%s boots fall away!", s_suffix(await Monnam(mon)));
                 } else {
-                    pline_mon(mon, "%s boots %s off %s feet!", s_suffix(Monnam(mon)), ((mdat).msize < 1) ? "slide" : "are pushed", ppronoun);
+                    await pline_mon(mon, "%s boots %s off %s feet!", s_suffix(await Monnam(mon)), ((mdat).msize < 1) ? "slide" : "are pushed", ppronoun);
                 }
             }
-            m_lose_armor(mon, otmp, polyspot);
+            await m_lose_armor(mon, otmp, polyspot);
         }
     }
     if (!can_saddle(mon)) {
-        if ((otmp = which_armor(mon, 1048576)) != null) {
-            m_lose_armor(mon, otmp, polyspot);
+        if ((otmp = await which_armor(mon, 1048576)) != null) {
+            await m_lose_armor(mon, otmp, polyspot);
             if (vis) {
-                pline_mon(mon, "%s saddle falls off.", s_suffix(Monnam(mon)));
+                await pline_mon(mon, "%s saddle falls off.", s_suffix(await Monnam(mon)));
             }
         }
         if (mon == game.u.usteed) {
@@ -1202,14 +1181,14 @@ export function mon_break_armor(mon, polyspot) {
         }
     }
     if (noride || (mon == game.u.usteed && !can_ride(mon))) {
-        You("can no longer ride %s.", mon_nam(mon));
+        await You("can no longer ride %s.", await mon_nam(mon));
         if (((game.u.usteed.data) == game.mons[PM_COCKATRICE] || (game.u.usteed.data) == game.mons[PM_CHICKATRICE]) && !(game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) && rnl(3)) {
             let buf = '';
-            You("touch %s.", mon_nam(game.u.usteed));
-            buf = sprintf(buf, "falling off %s", an(pmname(game.u.usteed.data, Mgender(game.u.usteed))));
-            instapetrify(buf);
+            await You("touch %s.", await mon_nam(game.u.usteed));
+            buf = sprintf(buf, "falling off %s", await an(pmname(game.u.usteed.data, Mgender(game.u.usteed))));
+            await instapetrify(buf);
         }
-        dismount_steed(DISMOUNT_FELL);
+        await dismount_steed(DISMOUNT_FELL);
     }
     return;
 }
@@ -1247,38 +1226,31 @@ export function racial_exception(mon, obj) {
 /* whether to call update_mon_extrinsics */
 /* doesn't affect all possible messages,
                              * just update_mon_extrinsics's */
-export function extract_from_minvent(mon, obj, do_extrinsics, silently) {
+export async function extract_from_minvent(mon, obj, do_extrinsics, silently) {
     let unwornmask = obj.owornmask;
     if (obj.where != 4) {
-        /*
-     * At its core this is just obj_extract_self(), but it also handles
-     * any updates that need to happen if the gear is equipped or in
-     * some other sort of state that needs handling.
-     * Note that like obj_extract_self(), this leaves obj free.
-     */
-        impossible("extract_from_minvent called on object not in minvent");
+        await impossible("extract_from_minvent called on object not in minvent");
         return;
     }
     /* handle gold dragon scales/scale-mail (lit when worn) before clearing
        obj->owornmask because artifact_light() expects that to be W_ARM */
     if ((unwornmask & 1) != 0 && obj.lamplit && artifact_light(obj)) {
-        end_burn(obj, (0));
+        await end_burn(obj, (0));
     }
-    obj_extract_self(obj);
+    await obj_extract_self(obj);
     obj.owornmask = 0;
     if (unwornmask) {
         if (!((mon).mhp < 1) && do_extrinsics) {
-            update_mon_extrinsics(mon, obj, (0), silently);
+            await update_mon_extrinsics(mon, obj, (0), silently);
         }
         mon.misc_worn_check &= ~unwornmask;
         /* give monster a chance to wear other equipment on its next
            move instead of waiting until it picks something up */
         check_gear_next_turn(mon);
     }
-    obj_no_longer_held(obj);
+    await obj_no_longer_held(obj);
     if (unwornmask & 256) {
-        /* unwields and sets weapon_check to NEED_WEAPON */
-        mwepgone(mon);
+        await mwepgone(mon);
     }
 }
 /*worn.c*/
@@ -1291,4 +1263,32 @@ export function extract_from_minvent(mon, obj, do_extrinsics, silently) {
                    give a false complaint about item other than uarm having
                    W_ARM bit set if we didn't screen it out here */
 /* take away intrinsic speed but don't reduce normal speed */
+/* mimic the player's petrification countdown; "slowing down"
+               even if fast movement rate retained via worn speed boots */
+/* might discover an object if we see the speed change happen */
+/* probably putting previous item on */
+/* Get a copy of monster's name before altering its visibility */
 /* life-saving or reflection; use it */
+/* "<Mon> [removes <oldarm> and ]puts on <newarm>."
+               uses accessory verbs for armor but we can live with that */
+/* could already see monster */
+/* didn't see it until new light */
+/* saw location but not invisible monster */
+/* didn't see location until new light */
+/* if couldn't see it but now can, or vice versa */
+/* } else if (!mon->minvis) {
+         *     pline("%s suddenly appears!", Amonnam(mon)); */
+/* call stackobj() if we ever drop anything that can merge */
+/* no message here;
+                     "the dragon merges with his scaly armor" is odd
+                     and the monster's previous form is already gone */
+/* mummy wrapping adapts to small and very big sizes */
+/* [caller needs to handle weapon checks] */
+/* flimsy test for horns matches polyself handling */
+/*
+     * At its core this is just obj_extract_self(), but it also handles
+     * any updates that need to happen if the gear is equipped or in
+     * some other sort of state that needs handling.
+     * Note that like obj_extract_self(), this leaves obj free.
+     */
+/* unwields and sets weapon_check to NEED_WEAPON */

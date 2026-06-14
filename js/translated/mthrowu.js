@@ -6,6 +6,7 @@ import { game } from '../gstate.js';
 import { abs, sgn } from '../c2js-runtime/math.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, You_hear, Your, pline, pline_The } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
 import { strcat, strcpy, strncmpi } from '../c2js-runtime/string.js';
 import { stop_occupation } from './allmain.js';
@@ -74,7 +75,7 @@ export function m_has_launcher_and_ammo(mtmp) {
    missile thrown or shot by a monster) */
 /* pseudo-level used when deciding whether to hit hero's AC */
 /* if null, then format `*objp' */
-export function thitu(tlev, dam, objp, name) {
+export async function thitu(tlev, dam, objp, name) {
     let obj = objp ? objp.value : null;
     let onm = null;
     let knm = null;
@@ -86,10 +87,10 @@ export function thitu(tlev, dam, objp, name) {
     let knmbuf = '';
     if (!name) {
         if (!obj) {
-            panic("thitu: name & obj both null?");
+            await panic("thitu: name & obj both null?");
         }
-        name = strcpy(onmbuf, (obj.quan > 1) ? doname(obj) : mshot_xname(obj));
-        knm = strcpy(knmbuf, killer_xname(obj));
+        name = strcpy(onmbuf, (obj.quan > 1) ? await doname(obj) : await mshot_xname(obj));
+        knm = strcpy(knmbuf, await killer_xname(obj));
         /* killer_name supplies "an" if warranted */
         kprefix = 1;
     } else {
@@ -99,55 +100,47 @@ export function thitu(tlev, dam, objp, name) {
             kprefix = 1;
         }
     }
-    onm = (obj && obj_is_pname(obj)) ? the(name) : (obj && obj.quan > 1) ? name : an(name);
+    onm = (obj && obj_is_pname(obj)) ? await the(name) : (obj && obj.quan > 1) ? name : await an(name);
     is_acid = (obj && obj.otyp == ACID_VENOM);
     if (game.u.uac + tlev <= (dieroll = rnd(20))) {
         ++game.mesg_given;
         if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || !game.flags.verbose) {
-            pline("It misses.");
+            await pline("It misses.");
         } else if (game.u.uac + tlev <= dieroll - 2) {
             if (onm != onmbuf) {
                 onmbuf = strcpy(onmbuf, onm);
             }
-            /* [modifiable buffer for upstart()] */
-            pline("%s %s you.", upstart(onmbuf), vtense(onmbuf, "miss"));
+            await pline("%s %s you.", upstart(onmbuf), await vtense(onmbuf, "miss"));
         } else {
-            You("are almost hit by %s.", onm);
+            await You("are almost hit by %s.", onm);
         }
         return 0;
     } else {
         if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) || !game.flags.verbose) {
-            You("are hit%s", exclam(dam));
+            await You("are hit%s", exclam(dam));
         } else {
-            You("are hit by %s%s", onm, exclam(dam));
+            await You("are hit by %s%s", onm, exclam(dam));
         }
         if (is_acid && (game.u.uprops[ACID_RES].intrinsic || game.u.uprops[ACID_RES].extrinsic)) {
-            pline("It doesn't seem to hurt you.");
+            await pline("It doesn't seem to hurt you.");
             monstseesu(M_SEEN_ACID);
         } else if (obj && ((game.objects[(obj).otyp].oc_material == GEMSTONE || (game.objects[(obj).otyp].oc_material == MINERAL)) && (obj).oclass != RING_CLASS) && ((((game.youmonst.data).mflags1 & 8) != 0) && !(((game.youmonst.data).mflags1 & 1048576) != 0))) {
-            /* use 'named' as an approximation for "hitting from above";
-               we avoid "passes through you" for horizontal flight path
-               because missile stops and that wording would suggest that
-               it should keep going */
-            pline("It %s you.", named ? "passes harmlessly through" : "doesn't harm");
+            await pline("It %s you.", named ? "passes harmlessly through" : "doesn't harm");
         } else if (obj && obj.oclass == POTION_CLASS) {
-            /* an explosion which scatters objects might hit hero with one
-               (potions deliberately thrown at hero are handled by m_throw) */
-            potionhit(game.youmonst, obj, 3);
+            await potionhit(game.youmonst, obj, 3);
             /* potionhit() uses up the potion */
             objp.value = obj = null;
         } else {
             if (obj && game.objects[obj.otyp].oc_material == SILVER && (game.u.ulycn >= LOW_PM || hates_silver(game.youmonst.data))) {
-                /* extra damage already applied by dmgval() */
-                pline_The("silver sears your flesh!");
-                exercise(A_CON, (0));
+                await pline_The("silver sears your flesh!");
+                await exercise(A_CON, (0));
             }
             if (is_acid) {
-                pline("It burns!");
+                await pline("It burns!");
                 monstunseesu(M_SEEN_ACID);
             }
-            losehp(dam, knm, kprefix);
-            exercise(A_STR, (0));
+            await losehp(dam, knm, kprefix);
+            await exercise(A_STR, (0));
         }
         return 1;
     }
@@ -156,7 +149,7 @@ export function thitu(tlev, dam, objp, name) {
  * dothrow.c (for consistency). --KAA
  * Returns FALSE if object still exists (not destroyed).
  */
-export function drop_throw(obj, ohit, x, y) {
+export async function drop_throw(obj, ohit, x, y) {
     let broken = 0;
     if (obj.otyp == CREAM_PIE || obj.oclass == VENOM_CLASS || (ohit && obj.otyp == EGG)) {
         broken = (1);
@@ -164,22 +157,22 @@ export function drop_throw(obj, ohit, x, y) {
         broken = (ohit && should_mulch_missile(obj));
     }
     if (broken) {
-        delobj(obj);
+        await delobj(obj);
     } else {
-        if (down_gate(x, y) != -1) {
-            broken = ship_object(obj, x, y, (0));
+        if (await down_gate(x, y) != -1) {
+            broken = await ship_object(obj, x, y, (0));
         }
         if (!broken) {
             let mtmp = (game.level.monsters[x][y]);
-            if (!(broken = flooreffects(obj, x, y, "fall"))) {
-                place_object(obj, x, y);
+            if (!(broken = await flooreffects(obj, x, y, "fall"))) {
+                await place_object(obj, x, y);
                 if (!mtmp && ((x) == game.u.ux && (y) == game.u.uy)) {
                     mtmp = game.youmonst;
                 }
                 if (mtmp && ohit) {
-                    passive_obj(mtmp, obj, null);
+                    await passive_obj(mtmp, obj, null);
                 }
-                stackobj(obj);
+                await stackobj(obj);
             }
         }
     }
@@ -189,7 +182,7 @@ export function drop_throw(obj, ohit, x, y) {
 }
 /* calculate multishot volley count for mtmp throwing otmp (if not ammo) or
    shooting otmp with mwep (if otmp is ammo and mwep appropriate launcher) */
-export function monmulti(mtmp, otmp, mwep) {
+export async function monmulti(mtmp, otmp, mwep) {
     let multishot = 1;
     if (otmp.quan > 1 && (((otmp.oclass == WEAPON_CLASS || otmp.oclass == GEM_CLASS) && game.objects[otmp.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[otmp.otyp].oc_subtyp <= -P_BOW) ? ((mwep) && game.objects[(otmp).otyp].oc_subtyp == -game.objects[(mwep).otyp].oc_subtyp) : otmp.oclass == WEAPON_CLASS) && !mtmp.mconf) {
         /* no point checking if there's only 1 */
@@ -217,7 +210,7 @@ export function monmulti(mtmp, otmp, mwep) {
         }
         /* 1/3 of launcher enchantment */
         if ((((otmp.oclass == WEAPON_CLASS || otmp.oclass == GEM_CLASS) && game.objects[otmp.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[otmp.otyp].oc_subtyp <= -P_BOW) && ((mwep) && game.objects[(otmp).otyp].oc_subtyp == -game.objects[(mwep).otyp].oc_subtyp)) && mwep.spe > 1) {
-            multishot += rounddiv(mwep.spe, 3);
+            multishot += await rounddiv(mwep.spe, 3);
         }
         multishot = rnd(multishot);
         multishot += multishot_class_bonus(((mtmp.data).pmidx), otmp, mwep);
@@ -234,10 +227,10 @@ export function monmulti(mtmp, otmp, mwep) {
     return multishot;
 }
 /* mtmp throws otmp, or shoots otmp with mwep, at hero or at monster mtarg */
-export function monshoot(mtmp, otmp, mwep) {
+export async function monshoot(mtmp, otmp, mwep) {
     let mtarg = game.mtarget;
     let dm = distmin(mtmp.mx, mtmp.my, mtarg ? mtarg.mx : mtmp.mux, mtarg ? mtarg.my : mtmp.muy);
-    let multishot = monmulti(mtmp, otmp, mwep);
+    let multishot = await monmulti(mtmp, otmp, mwep);
     if (canseemon(mtmp)) {
         /*
      * Caller must have called linedup() to set up <gt.tbx, gt.tby>.
@@ -246,18 +239,18 @@ export function monshoot(mtmp, otmp, mwep) {
         let onmbuf = '';
         let trgbuf = '';
         if (multishot > 1) {
-            onmbuf = sprintf(onmbuf, "%d %s", multishot, xname(otmp));
+            onmbuf = sprintf(onmbuf, "%d %s", multishot, await xname(otmp));
             /* "N arrows"; multishot > 1 implies otmp->quan > 1, so
                xname()'s result will already be pluralized */
             onm = onmbuf;
         } else {
-            onm = singular(otmp, xname);
-            onm = obj_is_pname(otmp) ? the(onm) : an(onm);
+            onm = await singular(otmp, xname);
+            onm = obj_is_pname(otmp) ? await the(onm) : await an(onm);
         }
         game.m_shot.s = (((otmp.oclass == WEAPON_CLASS || otmp.oclass == GEM_CLASS) && game.objects[otmp.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[otmp.otyp].oc_subtyp <= -P_BOW) && ((mwep) && game.objects[(otmp).otyp].oc_subtyp == -game.objects[(mwep).otyp].oc_subtyp)) ? (1) : (0);
-        trgbuf = strcpy(trgbuf, mtarg ? some_mon_nam(mtarg) : "");
+        trgbuf = strcpy(trgbuf, mtarg ? await some_mon_nam(mtarg) : "");
         set_msg_xy(mtmp.mx, mtmp.my);
-        pline("%s %s %s%s%s!", Monnam(mtmp), game.m_shot.s ? "shoots" : "throws", onm, mtarg ? " at " : "", trgbuf);
+        await pline("%s %s %s%s%s!", await Monnam(mtmp), game.m_shot.s ? "shoots" : "throws", onm, mtarg ? " at " : "", trgbuf);
         game.m_shot.o = otmp.otyp;
     } else {
         /* don't give multishot feedback */
@@ -265,7 +258,7 @@ export function monshoot(mtmp, otmp, mwep) {
     }
     game.m_shot.n = multishot;
     for (game.m_shot.i = 1; game.m_shot.i <= game.m_shot.n; game.m_shot.i++) {
-        m_throw(mtmp, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby), dm, otmp);
+        await m_throw(mtmp, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby), dm, otmp);
         /* conceptually all N missiles are in flight at once, but
            if mtmp gets killed (shot kills adjacent gas spore and
            triggers explosion, perhaps), inventory will be dropped
@@ -288,7 +281,7 @@ export function monshoot(mtmp, otmp, mwep) {
                          * use -1 to signify to keep going even after hit,
                          * unless it's gone (for rolling_boulder_traps) */
 /* give messages even when you can't see what happened */
-export function ohitmon(mtmp, otmp, range, verbose) {
+export async function ohitmon(mtmp, otmp, range, verbose) {
     let damage = 0;
     let tmp = 0;
     let vis = 0;
@@ -299,9 +292,9 @@ export function ohitmon(mtmp, otmp, range, verbose) {
     ismimic = ((mtmp).m_ap_type & 7) && ((mtmp).m_ap_type & 7) != M_AP_MONSTER;
     vis = ((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0);
     if (vis) {
-        observe_object(otmp);
+        await observe_object(otmp);
     }
-    tmp = 5 + find_mac(mtmp) + omon_adj(mtmp, otmp, (0));
+    tmp = 5 + find_mac(mtmp) + await omon_adj(mtmp, otmp, (0));
     if (game.marcher && game.mtarget == mtmp) {
         /* High level monsters will be more likely to hit */
         /* This check applies only if this monster is the target
@@ -310,47 +303,43 @@ export function ohitmon(mtmp, otmp, range, verbose) {
             tmp += game.marcher.m_lev - 5;
         }
         if (mon_launcher && mon_launcher.oartifact) {
-            tmp += spec_abon(mon_launcher, mtmp);
+            tmp += await spec_abon(mon_launcher, mtmp);
         }
     }
     if (tmp < rnd(20)) {
         if (!ismimic) {
             if (vis) {
-                miss(distant_name(otmp, mshot_xname), mtmp);
+                await miss(await distant_name(otmp, mshot_xname), mtmp);
             } else if (verbose && !game.mtarget) {
-                pline("It is missed.");
+                await pline("It is missed.");
             }
         }
         if (!range) {
-            /* Last position; object drops */
-            drop_throw(otmp, 0, mtmp.mx, mtmp.my);
+            await drop_throw(otmp, 0, mtmp.mx, mtmp.my);
             return 1;
         }
     } else if (otmp.oclass == POTION_CLASS) {
-        /* can't use this because we don't have the attacker */
         if (ismimic) {
-            seemimic(mtmp);
+            await seemimic(mtmp);
         }
         mtmp.msleeping = 0;
-        /* probably thrown by a monster rather than 'other', but the
-           distinction only matters when hitting the hero */
-        potionhit(mtmp, otmp, 3);
+        await potionhit(mtmp, otmp, 3);
         return 1;
     } else {
         let material = game.objects[otmp.otyp].oc_material;
         let harmless = (((game.objects[(otmp).otyp].oc_material == GEMSTONE || (game.objects[(otmp).otyp].oc_material == MINERAL)) && (otmp).oclass != RING_CLASS) && ((((mtmp.data).mflags1 & 8) != 0) && !(((mtmp.data).mflags1 & 1048576) != 0)));
-        damage = dmgval(otmp, mtmp);
-        if (otmp.otyp == ACID_VENOM && Resists_Elem(mtmp, ACID_RES)) {
+        damage = await dmgval(otmp, mtmp);
+        if (otmp.otyp == ACID_VENOM && await Resists_Elem(mtmp, ACID_RES)) {
             damage = 0;
         }
         if (ismimic) {
-            seemimic(mtmp);
+            await seemimic(mtmp);
         }
         mtmp.msleeping = 0;
         ;
         if (vis) {
             if (otmp.otyp == EGG) {
-                pline("Splat!  %s is hit with %s egg!", Monnam(mtmp), otmp.known ? an(game.mons[otmp.corpsenm].pmnames[NEUTRAL]) : "an");
+                await pline("Splat!  %s is hit with %s egg!", await Monnam(mtmp), otmp.known ? await an(game.mons[otmp.corpsenm].pmnames[NEUTRAL]) : "an");
             } else {
                 let how = '';
                 if (!harmless) {
@@ -358,22 +347,22 @@ export function ohitmon(mtmp, otmp, range, verbose) {
                 } else {
                     how = sprintf(how, " but passes harmlessly through %.9s.", (genders[pronoun_gender(mtmp, 2)].him));
                 }
-                hit(distant_name(otmp, mshot_xname), mtmp, how);
+                await hit(await distant_name(otmp, mshot_xname), mtmp, how);
             }
         } else if (verbose && !game.mtarget) {
-            pline("%s%s is hit%s", (otmp.otyp == EGG) ? "Splat!  " : "", Monnam(mtmp), exclam(damage));
+            await pline("%s%s is hit%s", (otmp.otyp == EGG) ? "Splat!  " : "", await Monnam(mtmp), exclam(damage));
         }
         if (otmp.otrapped && ((otmp.oclass == WEAPON_CLASS && game.objects[otmp.otyp].oc_subtyp >= -P_SHURIKEN && game.objects[otmp.otyp].oc_subtyp <= -P_BOW) || permapoisoned(otmp))) {
-            if (Resists_Elem(mtmp, POISON_RES)) {
+            if (await Resists_Elem(mtmp, POISON_RES)) {
                 if (vis) {
-                    pline_The("poison doesn't seem to affect %s.", mon_nam(mtmp));
+                    await pline_The("poison doesn't seem to affect %s.", await mon_nam(mtmp));
                 }
             } else {
                 if (rn2(30)) {
                     damage += rnd(6);
                 } else {
                     if (vis) {
-                        pline_The("poison was deadly...");
+                        await pline_The("poison was deadly...");
                     }
                     damage = mtmp.mhp;
                 }
@@ -382,35 +371,34 @@ export function ohitmon(mtmp, otmp, range, verbose) {
         if (material == SILVER && mon_hates_silver(mtmp)) {
             let flesh = (!((mtmp.data).mlet == S_GHOST) && !(((mtmp.data).mflags1 & 4) != 0));
             if (vis) {
-                /* note: extra silver damage is handled by dmgval() */
-                let m_name = mon_nam(mtmp);
+                let m_name = await mon_nam(mtmp);
                 /* s_suffix returns a modifiable buffer */
                 if (flesh) {
                     m_name = strcat(s_suffix(m_name), " flesh");
                 }
-                pline_The("silver sears %s!", m_name);
+                await pline_The("silver sears %s!", m_name);
             } else if (verbose && !game.mtarget) {
-                pline("%s is seared!", flesh ? "Its flesh" : "It");
+                await pline("%s is seared!", flesh ? "Its flesh" : "It");
             }
         }
         if (otmp.otyp == ACID_VENOM && ((game.viz_array[mtmp.my][mtmp.mx] & 2) != 0)) {
-            if (Resists_Elem(mtmp, ACID_RES)) {
+            if (await Resists_Elem(mtmp, ACID_RES)) {
                 if (vis || (verbose && !game.mtarget)) {
-                    pline("%s is unaffected.", Monnam(mtmp));
+                    await pline("%s is unaffected.", await Monnam(mtmp));
                 }
             } else {
                 if (vis) {
-                    pline_The("%s burns %s!", hliquid("acid"), mon_nam(mtmp));
+                    await pline_The("%s burns %s!", hliquid("acid"), await mon_nam(mtmp));
                 } else if (verbose && !game.mtarget) {
-                    pline("It is burned!");
+                    await pline("It is burned!");
                 }
             }
         }
         if (otmp.otyp == EGG && ((game.mons[otmp.corpsenm]) == game.mons[PM_COCKATRICE] || (game.mons[otmp.corpsenm]) == game.mons[PM_CHICKATRICE])) {
-            if (!munstone(mtmp, (0))) {
-                minstapetrify(mtmp, (0));
+            if (!await munstone(mtmp, (0))) {
+                await minstapetrify(mtmp, (0));
             }
-            if (Resists_Elem(mtmp, STONE_RES)) {
+            if (await Resists_Elem(mtmp, STONE_RES)) {
                 damage = 0;
             }
         }
@@ -419,21 +407,18 @@ export function ohitmon(mtmp, otmp, range, verbose) {
             mtmp.mhp -= damage;
             if (((mtmp).mhp < 1)) {
                 if (vis || (verbose && !game.mtarget)) {
-                    pline("%s is %s!", Monnam(mtmp), (((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) || ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER) || !(canseemon(mtmp) || sensemon(mtmp))) ? "destroyed" : "killed");
+                    await pline("%s is %s!", await Monnam(mtmp), (((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) || ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER) || !(canseemon(mtmp) || sensemon(mtmp))) ? "destroyed" : "killed");
                 }
                 if (!game.context.mon_moving && (otmp.otyp != BOULDER || range >= 0 || otmp.otrapped)) {
-                    xkilled(mtmp, 1);
-                /* don't blame hero for unknown rolling boulder trap */
+                    await xkilled(mtmp, 1);
                 } else {
-                    mondied(mtmp);
+                    await mondied(mtmp);
                 }
             }
         }
-        if (!((mtmp).mhp < 1) && can_blnd(null, mtmp, ((otmp.otyp == BLINDING_VENOM) ? 10 : 254), otmp)) {
-            /* blinding venom and cream pie do 0 damage, but verify
-           that the target is still alive anyway */
+        if (!((mtmp).mhp < 1) && await can_blnd(null, mtmp, ((otmp.otyp == BLINDING_VENOM) ? 10 : 254), otmp)) {
             if (vis && mtmp.mcansee) {
-                pline("%s is blinded by %s.", Monnam(mtmp), the((otmp.oclass == VENOM_CLASS) ? "venom" : (otmp.otyp == CREAM_PIE) ? "pie" : xname(otmp)));
+                await pline("%s is blinded by %s.", await Monnam(mtmp), await the((otmp.oclass == VENOM_CLASS) ? "venom" : (otmp.otyp == CREAM_PIE) ? "pie" : await xname(otmp)));
             }
             mtmp.mcansee = 0;
             tmp = mtmp.mblinded + rnd(25) + 20;
@@ -443,16 +428,11 @@ export function ohitmon(mtmp, otmp, range, verbose) {
             mtmp.mblinded = tmp;
         }
         if (!((mtmp).mhp < 1) && !game.context.mon_moving) {
-            setmangry(mtmp, (1));
+            await setmangry(mtmp, (1));
         }
-        objgone = drop_throw(otmp, 1, game.bhitpos.x, game.bhitpos.y);
+        objgone = await drop_throw(otmp, 1, game.bhitpos.x, game.bhitpos.y);
         if (!objgone && range == -1) {
-            /* shorten object name to reduce redundancy in the
-                   two message [first via hit() above] sequence:
-                   "The {splash of venom,cream pie} hits <mon>."
-                   "<Mon> is blinded by the {venom,pie}." */
-            /* free it for motion again */
-            obj_extract_self(otmp);
+            await obj_extract_self(otmp);
             return (0);
         }
         return (1);
@@ -461,31 +441,30 @@ export function ohitmon(mtmp, otmp, range, verbose) {
 }
 /* hero catches gem thrown by mon iff poly'd into unicorn; might drop it */
 /* caller has verified gem->oclass */
-export function ucatchgem(gem, mon) {
+export async function ucatchgem(gem, mon) {
     if (gem.otyp <= LAST_GLASS_GEM && ((game.youmonst.data).mlet == S_UNICORN && (((game.youmonst.data).mflags2 & 536870912) != 0))) {
-        /* won't catch rock or gray stone; catch (then drop) worthless glass */
-        let gem_xname = xname(gem);
-        let mon_s_name = s_suffix(mon_nam(mon));
+        let gem_xname = await xname(gem);
+        let mon_s_name = s_suffix(await mon_nam(mon));
         if (gem.otyp >= FIRST_GLASS_GEM) {
-            You("catch the %s.", gem_xname);
-            You("are not interested in %s junk.", mon_s_name);
-            discover_object((gem.otyp), (1), (1), (1));
-            dropy(gem);
+            await You("catch the %s.", gem_xname);
+            await You("are not interested in %s junk.", mon_s_name);
+            await discover_object((gem.otyp), (1), (1), (1));
+            await dropy(gem);
         } else {
-            You("accept %s gift in the spirit in which it was intended.", mon_s_name);
-            hold_another_object(gem, "You catch, but drop, %s.", gem_xname, "You catch:");
+            await You("accept %s gift in the spirit in which it was intended.", mon_s_name);
+            await hold_another_object(gem, "You catch, but drop, %s.", gem_xname, "You catch:");
         }
         return (1);
     }
     return (0);
 }
 /* hero may catch thrown obj. it is added to inventory, if possible */
-export function u_catch_thrown_obj(otmp) {
+export async function u_catch_thrown_obj(otmp) {
     let catch_chance = 100 - (acurr(A_DEX)) - (((game.urole.mnum == (PM_MONK)) || (game.urole.mnum == (PM_ROGUE))) ? 20 : 0);
     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !game.u.uprops[CONFUSION].intrinsic && !game.u.uprops[STUNNED].intrinsic && !(game.u.uprops[FUMBLING].intrinsic || game.u.uprops[FUMBLING].extrinsic) && otmp.oclass != VENOM_CLASS && !(((game.youmonst.data).mflags1 & 8192) != 0) && freehand() && calc_capacity(otmp.owt) <= SLT_ENCUMBER && !rn2(catch_chance)) {
         let buf = '';
-        buf = nh_snprintf("u_catch_thrown_obj", 544, buf, 256, "You catch the %s!", simpleonames(otmp));
-        hold_another_object(otmp, "You catch, but drop, the %s.", simpleonames(otmp), buf);
+        buf = nh_snprintf("u_catch_thrown_obj", 544, buf, 256, "You catch the %s!", await simpleonames(otmp));
+        await hold_another_object(otmp, "You catch, but drop, the %s.", await simpleonames(otmp), buf);
         return (1);
     }
     return (0);
@@ -502,7 +481,7 @@ export function u_catch_thrown_obj(otmp) {
 /* direction */
 /* maximum distance */
 /* missile (or stack providing it) */
-export function m_throw(mon, x, y, dx, dy, range, obj) {
+export async function m_throw(mon, x, y, dx, dy, range, obj) {
     let mtmp = null;
     let singleobj = null;
     let forcehit = 0;
@@ -518,26 +497,15 @@ export function m_throw(mon, x, y, dx, dy, range, obj) {
     /* reset potentially stale value */
     game.notonhead = (0);
     if (obj.quan == 1) {
-        /*
-         * Remove object from minvent.  This cannot be done later on;
-         * what if the player dies before then, leaving the monster
-         * with 0 daggers?  (This caused the infamous 2^32-1 orcish
-         * dagger bug).
-         *
-         * VENOM is not in minvent--it should already be OBJ_FREE.
-         * The extract below does nothing.
-         */
-        /* not possibly_unwield(), which checks the object's location,
-           not its existence */
         if (((mon).mw) == obj) {
-            setmnotwielded(mon, obj);
+            await setmnotwielded(mon, obj);
         }
-        obj_extract_self(obj);
+        await obj_extract_self(obj);
         singleobj = obj;
         obj = null;
     } else {
-        singleobj = splitobj(obj, 1);
-        obj_extract_self(singleobj);
+        singleobj = await splitobj(obj, 1);
+        await obj_extract_self(singleobj);
     }
     /* global pointer for missile object in OBJ_FREE state */
     game.thrownobj = singleobj;
@@ -549,51 +517,29 @@ export function m_throw(mon, x, y, dx, dy, range, obj) {
     if ((singleobj.cursed || singleobj.greased) && (dx || dy) && !rn2(7)) {
         if (canseemon(mon) && game.flags.verbose) {
             if (((singleobj.oclass == WEAPON_CLASS || singleobj.oclass == GEM_CLASS) && game.objects[singleobj.otyp].oc_subtyp >= -P_CROSSBOW && game.objects[singleobj.otyp].oc_subtyp <= -P_BOW)) {
-                pline("%s misfires!", Monnam(mon));
+                await pline("%s misfires!", await Monnam(mon));
             } else {
-                pline("%s as %s throws it!", Tobjnam(singleobj, "slip"), mon_nam(mon));
+                await pline("%s as %s throws it!", await Tobjnam(singleobj, "slip"), await mon_nam(mon));
             }
         }
         dx = rn2(3) - 1;
         dy = rn2(3) - 1;
         if (!dx && !dy) {
-            /* check validity of new direction */
-            drop_throw(singleobj, 0, game.bhitpos.x, game.bhitpos.y);
+            await drop_throw(singleobj, 0, game.bhitpos.x, game.bhitpos.y);
             return;
         }
     }
-    if ((!isok(game.bhitpos.x + dx, game.bhitpos.y + dy) || ((game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ) < POOL) || closed_door(game.bhitpos.x + dx, game.bhitpos.y + dy) || (game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ == IRONBARS && hits_bars(singleobj, game.bhitpos.x, game.bhitpos.y, game.bhitpos.x + dx, game.bhitpos.y + dy, (((1)) ? 0 : 0), 0)) || (!((1)) && ((game.level.locations[game.bhitpos.x][game.bhitpos.y].typ) == SINK)))) {
-        drop_throw(singleobj, 0, game.bhitpos.x, game.bhitpos.y);
+    if ((!isok(game.bhitpos.x + dx, game.bhitpos.y + dy) || ((game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ) < POOL) || closed_door(game.bhitpos.x + dx, game.bhitpos.y + dy) || (game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ == IRONBARS && await hits_bars(singleobj, game.bhitpos.x, game.bhitpos.y, game.bhitpos.x + dx, game.bhitpos.y + dy, (((1)) ? 0 : 0), 0)) || (!((1)) && ((game.level.locations[game.bhitpos.x][game.bhitpos.y].typ) == SINK)))) {
+        await drop_throw(singleobj, 0, game.bhitpos.x, game.bhitpos.y);
         return;
     }
     /* a 'missile misses' message has not yet been shown */
     game.mesg_given = 0;
     if (sym) {
         if (!tethered_weapon) {
-            /* Note: drop_throw may destroy singleobj.  Since obj must be destroyed
-     * early to avoid the dagger bug, anyone who modifies this code should
-     * be careful not to use either one after it's been freed.
-     */
-            tmp_at((-4), (((singleobj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((singleobj).corpsenm + ((((singleobj).spe & 3) == 1) ? (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((singleobj).otyp == CORPSE) ? (((singleobj).corpsenm + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(singleobj).dknown && ((singleobj).oclass == POTION_CLASS || ((singleobj).otyp >= FIRST_REAL_GEM && ((singleobj).otyp <= LAST_GLASS_GEM)) || ((singleobj).otyp >= FIRST_SPELL && ((singleobj).otyp <= LAST_SPELL)))) ? (((singleobj).oclass + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((singleobj).otyp + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
+            await tmp_at((-4), (((singleobj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((singleobj).corpsenm + ((((singleobj).spe & 3) == 1) ? (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((singleobj).otyp == CORPSE) ? (((singleobj).corpsenm + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(singleobj).dknown && ((singleobj).oclass == POTION_CLASS || ((singleobj).otyp >= FIRST_REAL_GEM && ((singleobj).otyp <= LAST_GLASS_GEM)) || ((singleobj).otyp >= FIRST_SPELL && ((singleobj).otyp <= LAST_SPELL)))) ? (((singleobj).oclass + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((singleobj).otyp + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
         } else {
-            /*
-             * Considerations for a tethered object based on throwit()/bhit() :
-             * - wall of water/lava will stop items, and triggers return.
-             * - iron bars will stop items, and triggers return.
-             * - pass harmlessly through shades.
-             * X stops forward motion at hit monster/hero, triggers return.
-             * - closed door will stop item's forward motion, triggers return.
-             * - sinks stop forward motion, triggers fall, then return.
-             * - object can get tangled in a web, no return (tether snaps?).
-             * On return:
-             * X rn2(100) chance of returning to thrower's location.
-             * X if impaired and rn2(100) == 0,
-             *      -50/50 chance of landing on the ground.
-             *      -50/50 chance of hitting the thrower and causing
-             *       rnd(3) damage.
-             *
-             */
-            tmp_at((-3), (((singleobj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((singleobj).corpsenm + ((((singleobj).spe & 3) == 1) ? (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((singleobj).otyp == CORPSE) ? (((singleobj).corpsenm + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(singleobj).dknown && ((singleobj).oclass == POTION_CLASS || ((singleobj).otyp >= FIRST_REAL_GEM && ((singleobj).otyp <= LAST_GLASS_GEM)) || ((singleobj).otyp >= FIRST_SPELL && ((singleobj).otyp <= LAST_SPELL)))) ? (((singleobj).oclass + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((singleobj).otyp + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
+            await tmp_at((-3), (((singleobj).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((singleobj).corpsenm + ((((singleobj).spe & 3) == 1) ? (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((singleobj).otyp == CORPSE) ? (((singleobj).corpsenm + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(singleobj).dknown && ((singleobj).oclass == POTION_CLASS || ((singleobj).otyp >= FIRST_REAL_GEM && ((singleobj).otyp <= LAST_GLASS_GEM)) || ((singleobj).otyp >= FIRST_SPELL && ((singleobj).otyp <= LAST_SPELL)))) ? (((singleobj).oclass + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((singleobj).otyp + (((singleobj).where == 1 && ((game.otg_otmp = game.level.objects[(singleobj).ox][(singleobj).oy].v.v_nexthere) != null) && ((singleobj).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
         }
     }
     while (range-- > 0) {
@@ -601,50 +547,49 @@ export function m_throw(mon, x, y, dx, dy, range, obj) {
         singleobj.ox = game.bhitpos.x += dx;
         singleobj.oy = game.bhitpos.y += dy;
         if (((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0)) {
-            observe_object(singleobj);
+            await observe_object(singleobj);
         }
         mtmp = (game.level.monsters[game.bhitpos.x][game.bhitpos.y]);
-        if (mtmp && shade_miss(mon, mtmp, singleobj, (1), (1))) {
+        if (mtmp && await shade_miss(mon, mtmp, singleobj, (1), (1))) {
             /* if mtmp is a shade and missile passes harmlessly through it,
                give message and skip it in order to keep going */
             mtmp = null;
         } else if (mtmp) {
-            if (ohitmon(mtmp, singleobj, range, (1))) {
+            if (await ohitmon(mtmp, singleobj, range, (1))) {
                 break;
             }
         } else if (((game.bhitpos.x) == game.u.ux && (game.bhitpos.y) == game.u.uy)) {
             if (game.multi) {
                 nomul(0);
             }
-            /* hero might be poly'd into a unicorn */
-            if (singleobj.oclass == GEM_CLASS && ucatchgem(singleobj, mon)) {
+            if (singleobj.oclass == GEM_CLASS && await ucatchgem(singleobj, mon)) {
                 break;
             }
-            if (!tethered_weapon && u_catch_thrown_obj(singleobj)) {
+            if (!tethered_weapon && await u_catch_thrown_obj(singleobj)) {
                 break;
             }
             if (singleobj.oclass == POTION_CLASS) {
-                potionhit(game.youmonst, singleobj, 2);
+                await potionhit(game.youmonst, singleobj, 2);
                 break;
             }
             oldumort = game.u.umortality;
             switch (singleobj.otyp) {
                 case EGG:
                     if (!((game.mons[singleobj.corpsenm]) == game.mons[PM_COCKATRICE] || (game.mons[singleobj.corpsenm]) == game.mons[PM_CHICKATRICE])) {
-                        impossible("monster throwing egg type %d", singleobj.corpsenm);
+                        await impossible("monster throwing egg type %d", singleobj.corpsenm);
                         hitu = 0;
                         break;
                     }
                     ;
                 case CREAM_PIE:
                 case BLINDING_VENOM:
-                    hitu = thitu(8, 0, { get value() { return singleobj; }, set value(_v) { singleobj = _v; } }, null);
+                    hitu = await thitu(8, 0, { get value() { return singleobj; }, set value(_v) { singleobj = _v; } }, null);
                     break;
                 default:
 {
                         let dam = 0;
                         let hitv = 0;
-                        dam = dmgval(singleobj, game.youmonst);
+                        dam = await dmgval(singleobj, game.youmonst);
                         hitv = 3 - distmin(game.u.ux, game.u.uy, mon.mx, mon.my);
                         if (hitv < -4) {
                             hitv = -4;
@@ -669,47 +614,47 @@ export function m_throw(mon, x, y, dx, dy, range, obj) {
                         if (singleobj.otyp != ACID_VENOM) {
                             dam = (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dam) + 1) / 2)) : (dam));
                         }
-                        hitu = thitu(hitv, dam, { get value() { return singleobj; }, set value(_v) { singleobj = _v; } }, null);
+                        hitu = await thitu(hitv, dam, { get value() { return singleobj; }, set value(_v) { singleobj = _v; } }, null);
                     }
             }
             if (hitu && singleobj.otrapped && ((singleobj.oclass == WEAPON_CLASS && game.objects[singleobj.otyp].oc_subtyp >= -P_SHURIKEN && game.objects[singleobj.otyp].oc_subtyp <= -P_BOW) || permapoisoned(singleobj))) {
                 let onmbuf = '';
                 let knmbuf = '';
-                onmbuf = strcpy(onmbuf, xname(singleobj));
-                knmbuf = strcpy(knmbuf, killer_xname(singleobj));
-                poisoned(onmbuf, A_STR, knmbuf, (game.u.umortality > oldumort) ? 0 : 10, (1));
+                onmbuf = strcpy(onmbuf, await xname(singleobj));
+                knmbuf = strcpy(knmbuf, await killer_xname(singleobj));
+                await poisoned(onmbuf, A_STR, knmbuf, (game.u.umortality > oldumort) ? 0 : 10, (1));
             }
-            if (hitu && can_blnd(null, game.youmonst, ((singleobj.otyp == BLINDING_VENOM) ? 10 : 254), singleobj)) {
+            if (hitu && await can_blnd(null, game.youmonst, ((singleobj.otyp == BLINDING_VENOM) ? 10 : 254), singleobj)) {
                 /* if damage triggered life-saving,
                             poison is limited to attrib loss */
                 blindinc = rnd(25);
                 if (singleobj.otyp == CREAM_PIE) {
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        pline("Yecch!  You've been creamed.");
+                        await pline("Yecch!  You've been creamed.");
                     } else {
-                        pline("There's %s sticky all over your %s.", c_common_strings.c_something, body_part(FACE));
+                        await pline("There's %s sticky all over your %s.", c_common_strings.c_something, await body_part(FACE));
                     }
                 } else if (singleobj.otyp == BLINDING_VENOM) {
-                    let eyes = body_part(EYE);
+                    let eyes = await body_part(EYE);
                     if ((!(((game.youmonst.data).mflags1 & 4096) == 0) ? 0 : ((game.youmonst.data) == game.mons[PM_CYCLOPS] || (game.youmonst.data) == game.mons[PM_FLOATING_EYE]) ? 1 : 2) != 1) {
-                        eyes = makeplural(eyes);
+                        eyes = await makeplural(eyes);
                     }
                     if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-                        pline_The("venom blinds you.");
+                        await pline_The("venom blinds you.");
                     } else {
-                        Your("%s %s.", eyes, vtense(eyes, "sting"));
+                        await Your("%s %s.", eyes, await vtense(eyes, "sting"));
                     }
                 }
             }
             if (hitu && singleobj.otyp == EGG) {
-                if (!game.u.uprops[STONED].intrinsic && !(game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) && !(poly_when_stoned(game.youmonst.data) && polymon(PM_STONE_GOLEM))) {
-                    make_stoned(5, null, 1, "");
+                if (!game.u.uprops[STONED].intrinsic && !(game.u.uprops[STONE_RES].intrinsic || game.u.uprops[STONE_RES].extrinsic) && !(poly_when_stoned(game.youmonst.data) && await polymon(PM_STONE_GOLEM))) {
+                    await make_stoned(5, null, 1, "");
                 }
             }
-            stop_occupation();
+            await stop_occupation();
             if (hitu) {
                 if (!tethered_weapon) {
-                    drop_throw(singleobj, hitu, game.u.ux, game.u.uy);
+                    await drop_throw(singleobj, hitu, game.u.ux, game.u.uy);
                 } else {
                     /* ready for return journey */
                     return_flightpath = (1);
@@ -718,48 +663,48 @@ export function m_throw(mon, x, y, dx, dy, range, obj) {
             }
         }
         forcehit = !rn2(5);
-        if (!range || (!isok(game.bhitpos.x + dx, game.bhitpos.y + dy) || ((game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ) < POOL) || closed_door(game.bhitpos.x + dx, game.bhitpos.y + dy) || (game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ == IRONBARS && hits_bars(singleobj, game.bhitpos.x, game.bhitpos.y, game.bhitpos.x + dx, game.bhitpos.y + dy, (((0)) ? 0 : forcehit), 0)) || (!((0)) && ((game.level.locations[game.bhitpos.x][game.bhitpos.y].typ) == SINK)))) {
+        if (!range || (!isok(game.bhitpos.x + dx, game.bhitpos.y + dy) || ((game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ) < POOL) || closed_door(game.bhitpos.x + dx, game.bhitpos.y + dy) || (game.level.locations[game.bhitpos.x + dx][game.bhitpos.y + dy].typ == IRONBARS && await hits_bars(singleobj, game.bhitpos.x, game.bhitpos.y, game.bhitpos.x + dx, game.bhitpos.y + dy, (((0)) ? 0 : forcehit), 0)) || (!((0)) && ((game.level.locations[game.bhitpos.x][game.bhitpos.y].typ) == SINK)))) {
             if (singleobj) {
                 /* hits_bars might have destroyed it */
                 /* note: pline(The(missile)) rather than pline_The(missile)
                    in order to get "Grimtooth" rather than "The Grimtooth" */
                 if (range && ((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0) && ((game.level.locations[game.bhitpos.x][game.bhitpos.y].typ) == SINK)) {
-                    pline("%s %s onto the sink.", The(mshot_xname(singleobj)), otense(singleobj, (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "plop" : "drop"));
+                    await pline("%s %s onto the sink.", await The(await mshot_xname(singleobj)), await otense(singleobj, (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "plop" : "drop"));
                 } else if (game.m_shot.n > 1 && (!game.mesg_given || game.bhitpos.x != game.u.ux || game.bhitpos.y != game.u.uy) && (((game.viz_array[game.bhitpos.y][game.bhitpos.x] & 2) != 0) || (game.marcher && canseemon(game.marcher)))) {
-                    pline("%s misses.", The(mshot_xname(singleobj)));
+                    await pline("%s misses.", await The(await mshot_xname(singleobj)));
                 }
                 if (!tethered_weapon) {
-                    drop_throw(singleobj, 0, game.bhitpos.x, game.bhitpos.y);
+                    await drop_throw(singleobj, 0, game.bhitpos.x, game.bhitpos.y);
                 } else {
                     return_flightpath = (1);
                 }
             }
             break;
         }
-        tmp_at(game.bhitpos.x, game.bhitpos.y);
+        await tmp_at(game.bhitpos.x, game.bhitpos.y);
         (game.windowprocs.win_delay_output)();
     }
-    tmp_at(game.bhitpos.x, game.bhitpos.y);
+    await tmp_at(game.bhitpos.x, game.bhitpos.y);
     (game.windowprocs.win_delay_output)();
     if (arw && return_flightpath) {
-        return_from_mtoss(mon, singleobj, tethered_weapon);
-    /* mon could be DEADMONSTER now */
+        await return_from_mtoss(mon, singleobj, tethered_weapon);
     } else {
-        tmp_at((-7), 0);
+        await tmp_at((-7), 0);
     }
     game.mesg_given = 0;
     if (blindinc) {
         game.u.ucreamed += blindinc;
-        make_blinded((game.u.uprops[BLINDED].intrinsic & 16777215) + blindinc, (0));
+        await make_blinded((game.u.uprops[BLINDED].intrinsic & 16777215) + blindinc, (0));
         if (!((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
-            Your("%s", c_common_strings.c_vision_clears);
+            await Your("%s", c_common_strings.c_vision_clears);
         }
     }
     game.thrownobj = null;
     return;
 }
 let __return_from_mtoss_do_not_annoy = 0;
-export function return_from_mtoss(magr, otmp, tethered_weapon) {
+__nh_register_static(() => { __return_from_mtoss_do_not_annoy = 0; });
+export async function return_from_mtoss(magr, otmp, tethered_weapon) {
     let impaired = (magr.mconf || magr.mstun || magr.mblinded);
     let notcaught = (0);
     let hits_thrower = (0);
@@ -769,39 +714,37 @@ export function return_from_mtoss(magr, otmp, tethered_weapon) {
     let dmg = 0;
     if (otmp && made_it_back) {
         if (tethered_weapon) {
-            /* it made it back to thrower's location */
-            tmp_at((-7), (-1));
+            await tmp_at((-7), (-1));
         } else {
             let dx = sgn(x - magr.mx);
             let dy = sgn(y - magr.my);
             if (x != magr.mx || y != magr.my) {
-                tmp_at((-4), (((otmp).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((otmp).corpsenm + ((((otmp).spe & 3) == 1) ? (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((otmp).otyp == CORPSE) ? (((otmp).corpsenm + (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(otmp).dknown && ((otmp).oclass == POTION_CLASS || ((otmp).otyp >= FIRST_REAL_GEM && ((otmp).otyp <= LAST_GLASS_GEM)) || ((otmp).otyp >= FIRST_SPELL && ((otmp).otyp <= LAST_SPELL)))) ? (((otmp).oclass + (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((otmp).otyp + (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
+                await tmp_at((-4), (((otmp).otyp == STATUE) ? (((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? ((((rn2_on_display_rng)(NUMMONS))) + ((!(rn2_on_display_rng)(2)) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF)) : ((otmp).corpsenm + ((((otmp).spe & 3) == 1) ? (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_FEM_PILETOP_OFF : GLYPH_STATUE_FEM_OFF) : (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_STATUE_MALE_PILETOP_OFF : GLYPH_STATUE_MALE_OFF)))) : ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) ? (((game.otg_temp = ((rn2_on_display_rng)(NUM_OBJECTS - FIRST_OBJECT) + FIRST_OBJECT)) == CORPSE) ? (((rn2_on_display_rng)(NUMMONS)) + GLYPH_BODY_OFF) : (game.otg_temp + GLYPH_OBJ_OFF)) : ((otmp).otyp == CORPSE) ? (((otmp).corpsenm + (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_BODY_PILETOP_OFF : GLYPH_BODY_OFF))) : (!(otmp).dknown && ((otmp).oclass == POTION_CLASS || ((otmp).otyp >= FIRST_REAL_GEM && ((otmp).otyp <= LAST_GLASS_GEM)) || ((otmp).otyp >= FIRST_SPELL && ((otmp).otyp <= LAST_SPELL)))) ? (((otmp).oclass + (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF))) : (((otmp).otyp + (((otmp).where == 1 && ((game.otg_otmp = game.level.objects[(otmp).ox][(otmp).oy].v.v_nexthere) != null) && ((otmp).otyp != BOULDER || game.otg_otmp.otyp == BOULDER)) ? GLYPH_OBJ_PILETOP_OFF : GLYPH_OBJ_OFF)))));
                 while (isok(x, y) && (x != magr.mx || y != magr.my)) {
-                    tmp_at(x, y);
+                    await tmp_at(x, y);
                     (game.windowprocs.win_delay_output)();
                     x -= dx;
                     y -= dy;
                 }
-                tmp_at((-7), 0);
+                await tmp_at((-7), 0);
             }
         }
         x = magr.mx;
         y = magr.my;
         if (!impaired && rn2(100)) {
             if (!__return_from_mtoss_do_not_annoy || (game.moves - __return_from_mtoss_do_not_annoy) > 500) {
-                /* FIXME: this should be moved to struct g (gd these days) */
-                pline("%s to %s %s!", Tobjnam(otmp, "return"), s_suffix(mon_nam(magr)), mbodypart(magr, HAND));
+                await pline("%s to %s %s!", await Tobjnam(otmp, "return"), s_suffix(await mon_nam(magr)), await mbodypart(magr, HAND));
                 __return_from_mtoss_do_not_annoy = game.moves;
             }
             if (otmp) {
-                add_to_minv(magr, otmp);
+                await add_to_minv(magr, otmp);
                 if (tethered_weapon) {
                     magr.mw = otmp;
                     otmp.owornmask |= 256;
                 }
             }
             if (((game.viz_array[y][x] & 2) != 0)) {
-                newsym(x, y);
+                await newsym(x, y);
             }
         } else {
             /* msg future-proofing only */
@@ -809,56 +752,54 @@ export function return_from_mtoss(magr, otmp, tethered_weapon) {
             dmg = rn2(2);
             if (!dmg) {
                 if (canseemon(magr)) {
-                    pline("%s back to %s, landing %s %s %s.", Tobjnam(otmp, "return"), mon_nam(magr), mlevitating ? "beneath" : "at", (genders[pronoun_gender(magr, 2)].his), makeplural(mbodypart(magr, FOOT)));
+                    await pline("%s back to %s, landing %s %s %s.", await Tobjnam(otmp, "return"), await mon_nam(magr), mlevitating ? "beneath" : "at", (genders[pronoun_gender(magr, 2)].his), await makeplural(await mbodypart(magr, FOOT)));
                 } else if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                    You_hear("%s land near %s.", c_common_strings.c_Something, mon_nam(magr));
+                    await You_hear("%s land near %s.", c_common_strings.c_Something, await mon_nam(magr));
                 }
             } else {
                 dmg += rnd(3);
                 if (canseemon(magr)) {
-                    pline("%s back toward %s, hitting %s %s!", Tobjnam(otmp, "fly"), mon_nam(magr), (genders[pronoun_gender(magr, 2)].his), body_part(ARM));
+                    await pline("%s back toward %s, hitting %s %s!", await Tobjnam(otmp, "fly"), await mon_nam(magr), (genders[pronoun_gender(magr, 2)].his), await body_part(ARM));
                 } else if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
-                    You_hear("%s hit %s with a thud!", c_common_strings.c_something, mon_nam(magr));
+                    await You_hear("%s hit %s with a thud!", c_common_strings.c_something, await mon_nam(magr));
                 }
                 hits_thrower = (1);
             }
             notcaught = (1);
         }
     } else {
-        /* it didn't make it back to thrower's location */
         if (tethered_weapon) {
-            tmp_at((-7), 0);
+            await tmp_at((-7), 0);
         }
-        You_hear("a loud snap!");
+        await You_hear("a loud snap!");
         notcaught = (1);
     }
     if (otmp) {
         if (hits_thrower) {
             if (otmp.oartifact) {
-                artifact_hit(null, magr, otmp, { get value() { return dmg; }, set value(_v) { dmg = _v; } }, 0);
+                await artifact_hit(null, magr, otmp, { get value() { return dmg; }, set value(_v) { dmg = _v; } }, 0);
             }
             magr.mhp -= dmg;
             if (((magr).mhp < 1)) {
-                monkilled(magr, (canseemon(magr) || sensemon(magr)) ? "" : null, 0);
+                await monkilled(magr, (canseemon(magr) || sensemon(magr)) ? "" : null, 0);
             }
         }
         if (notcaught) {
-            snuff_candle(otmp);
-            if (!ship_object(otmp, x, y, (0))) {
-                if (flooreffects(otmp, x, y, "drop")) {
+            await snuff_candle(otmp);
+            if (!await ship_object(otmp, x, y, (0))) {
+                if (await flooreffects(otmp, x, y, "drop")) {
                     if (((game.viz_array[y][x] & 2) != 0)) {
-                        newsym(x, y);
+                        await newsym(x, y);
                     }
                     return;
                 }
-                place_object(otmp, x, y);
-                stackobj(otmp);
+                await place_object(otmp, x, y);
+                await stackobj(otmp);
             }
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && !(game.u.uinwater)) {
                 if (is_pool(x, y) || (is_lava(x, y) && !is_flammable(otmp))) {
                     ;
-                    /* Some sound effects when item lands in water or lava */
-                    pline((weight(otmp) > 9) ? "Splash!" : "Plop!");
+                    await pline((await weight(otmp) > 9) ? "Splash!" : "Plop!");
                 }
             }
             if (obj_sheds_light(otmp)) {
@@ -867,11 +808,11 @@ export function return_from_mtoss(magr, otmp, tethered_weapon) {
         }
     }
     if (((game.viz_array[y][x] & 2) != 0)) {
-        newsym(x, y);
+        await newsym(x, y);
     }
 }
 /* Monster throws item at another monster */
-export function thrwmm(mtmp, mtarg) {
+export async function thrwmm(mtmp, mtarg) {
     let otmp = null;
     let mwep = null;
     let x = 0;
@@ -881,12 +822,11 @@ export function thrwmm(mtmp, mtarg) {
         /* Polearms won't be applied by monsters against other monsters */
         /* Rearranged beginning so monsters can use polearms not in a line */
         mtmp.weapon_check = NEED_RANGED_WEAPON;
-        /* mon_wield_item resets weapon_check as appropriate */
-        if (mon_wield_item(mtmp) != 0) {
+        if (await mon_wield_item(mtmp) != 0) {
             return 0;
         }
     }
-    otmp = select_rwep(mtmp);
+    otmp = await select_rwep(mtmp);
     if (!otmp) {
         return 0;
     }
@@ -902,8 +842,7 @@ export function thrwmm(mtmp, mtarg) {
             }
             game.mtarget = mtarg;
             game.marcher = mtmp;
-            /* multishot shooting or throwing */
-            monshoot(mtmp, otmp, mwep);
+            await monshoot(mtmp, otmp, mwep);
             game.marcher = game.mtarget = null;
             nomul(0);
             return 1;
@@ -912,15 +851,15 @@ export function thrwmm(mtmp, mtarg) {
     return 0;
 }
 /* monster spits substance at monster */
-export function spitmm(mtmp, mattk, mtarg) {
+export async function spitmm(mtmp, mattk, mtarg) {
     let otmp = null;
     if (mtmp.mcan) {
         if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf) && dist2(((mtmp).mx), ((mtmp).my), game.u.ux, game.u.uy) < 8 * 8) {
             if ((canseemon(mtmp) || sensemon(mtmp))) {
-                pline("A dry rattle comes from %s throat.", s_suffix(mon_nam(mtmp)));
+                await pline("A dry rattle comes from %s throat.", s_suffix(await mon_nam(mtmp)));
             } else {
                 ;
-                You_hear("a dry rattle nearby.");
+                await You_hear("a dry rattle nearby.");
             }
         }
         return 0;
@@ -932,23 +871,23 @@ export function spitmm(mtmp, mattk, mtarg) {
         switch (mattk.adtyp) {
             case 11:
             case 7:
-                otmp = mksobj(BLINDING_VENOM, (1), (0));
+                otmp = await mksobj(BLINDING_VENOM, (1), (0));
                 break;
             default:
-                impossible("bad attack type in spitmm");
+                await impossible("bad attack type in spitmm");
                 ;
             case 8:
-                otmp = mksobj(ACID_VENOM, (1), (0));
+                otmp = await mksobj(ACID_VENOM, (1), (0));
                 break;
         }
         if (!rn2(8 - distmin(mtmp.mx, mtmp.my, tx, ty))) {
             if (canseemon(mtmp)) {
-                pline("%s spits venom!", Monnam(mtmp));
+                await pline("%s spits venom!", await Monnam(mtmp));
             }
             if (!utarg) {
                 game.mtarget = mtarg;
             }
-            m_throw(mtmp, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby), distmin(mtmp.mx, mtmp.my, tx, ty), otmp);
+            await m_throw(mtmp, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby), distmin(mtmp.mx, mtmp.my, tx, ty), otmp);
             game.mtarget = null;
             nomul(0);
             if (mtmp.mtame && !mtmp.isminion) {
@@ -962,8 +901,8 @@ export function spitmm(mtmp, mattk, mtarg) {
             }
             return 1;
         } else {
-            obj_extract_self(otmp);
-            obfree(otmp, null);
+            await obj_extract_self(otmp);
+            await obfree(otmp, null);
         }
     }
     return 0;
@@ -978,17 +917,17 @@ export function breathwep_name(typ) {
     return breathwep[(abs((typ) - 1) % 10)];
 }
 /* monster breathes at monster (ranged) */
-export function breamm(mtmp, mattk, mtarg) {
+export async function breamm(mtmp, mattk, mtarg) {
     let typ = get_atkdam_type(mattk.adtyp);
     let utarget = (mtarg == game.youmonst);
     if (m_lined_up(mtarg, mtmp)) {
         if (mtmp.mcan) {
             if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
                 if (canseemon(mtmp)) {
-                    pline("%s coughs.", Monnam(mtmp));
+                    await pline("%s coughs.", await Monnam(mtmp));
                 } else {
                     ;
-                    You_hear("a cough.");
+                    await You_hear("a cough.");
                 }
             }
             return 0;
@@ -1001,10 +940,10 @@ export function breamm(mtmp, mattk, mtarg) {
         if (!mtmp.mspec_used && rn2(3)) {
             if (((typ) >= 1 && (typ) <= 10)) {
                 if (canseemon(mtmp)) {
-                    pline("%s breathes %s!", Monnam(mtmp), breathwep_name(typ));
+                    await pline("%s breathes %s!", await Monnam(mtmp), breathwep_name(typ));
                 }
                 game.buzzer = mtmp;
-                dobuzz((-20 - ((abs((typ) - 1) % 10))), mattk.damn, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby), utarget, utarget, (0));
+                await dobuzz((-20 - ((abs((typ) - 1) % 10))), mattk.damn, mtmp.mx, mtmp.my, sgn(game.tbx), sgn(game.tby), utarget, utarget, (0));
                 game.buzzer = null;
                 nomul(0);
                 /* breath runs out sometimes. Also, give monster some
@@ -1025,7 +964,7 @@ export function breamm(mtmp, mattk, mtarg) {
                     }
                 }
             } else {
-                impossible("Breath weapon %d used", typ - 1);
+                await impossible("Breath weapon %d used", typ - 1);
             }
         } else {
             return 0;
@@ -1034,21 +973,21 @@ export function breamm(mtmp, mattk, mtarg) {
     return 1;
 }
 /* remove an entire item from a monster's inventory; destroy that item */
-export function m_useupall(mon, obj) {
-    extract_from_minvent(mon, obj, (1), (0));
-    obfree(obj, null);
+export async function m_useupall(mon, obj) {
+    await extract_from_minvent(mon, obj, (1), (0));
+    await obfree(obj, null);
 }
 /* remove one instance of an item from a monster's inventory */
-export function m_useup(mon, obj) {
+export async function m_useup(mon, obj) {
     if (obj.quan > 1) {
         obj.quan--;
-        obj.owt = weight(obj);
+        obj.owt = await weight(obj);
     } else {
-        m_useupall(mon, obj);
+        await m_useupall(mon, obj);
     }
 }
 /* monster attempts ranged weapon attack against player */
-export function thrwmu(mtmp) {
+export async function thrwmu(mtmp) {
     let otmp = null;
     let mwep = null;
     let x = 0;
@@ -1059,11 +998,11 @@ export function thrwmu(mtmp) {
     let always_toss = (0);
     if (mtmp.weapon_check == NEED_WEAPON || !((mtmp).mw)) {
         mtmp.weapon_check = NEED_RANGED_WEAPON;
-        if (mon_wield_item(mtmp) != 0) {
+        if (await mon_wield_item(mtmp) != 0) {
             return;
         }
     }
-    otmp = select_rwep(mtmp);
+    otmp = await select_rwep(mtmp);
     if (!otmp) {
         return;
     }
@@ -1094,11 +1033,10 @@ export function thrwmu(mtmp) {
             return;
         }
         if (canseemon(mtmp)) {
-            /* Out of range, or intervening wall */
-            onm = xname(otmp);
-            pline_mon(mtmp, "%s %s %s.", Monnam(mtmp), mswings_verb(otmp, (rang <= 2) ? (1) : (0)), obj_is_pname(otmp) ? the(onm) : an(onm));
+            onm = await xname(otmp);
+            await pline_mon(mtmp, "%s %s %s.", await Monnam(mtmp), mswings_verb(otmp, (rang <= 2) ? (1) : (0)), obj_is_pname(otmp) ? await the(onm) : await an(onm));
         }
-        dam = dmgval(otmp, game.youmonst);
+        dam = await dmgval(otmp, game.youmonst);
         hitv = 3 - distmin(game.u.ux, game.u.uy, mtmp.mx, mtmp.my);
         if (hitv < -4) {
             hitv = -4;
@@ -1110,8 +1048,8 @@ export function thrwmu(mtmp) {
         if (dam < 1) {
             dam = 1;
         }
-        thitu(hitv, (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dam) + 1) / 2)) : (dam)), { get value() { return otmp; }, set value(_v) { otmp = _v; } }, null);
-        stop_occupation();
+        await thitu(hitv, (((game.u.uprops[HALF_PHDAM].intrinsic || game.u.uprops[HALF_PHDAM].extrinsic)) ? (Math.trunc(((dam) + 1) / 2)) : (dam)), { get value() { return otmp; }, set value(_v) { otmp = _v; } }, null);
+        await stop_occupation();
         return;
     } else if ((arw = autoreturn_weapon(otmp)) != null && !mwelded(otmp)) {
         rang = dist2(mtmp.mx, mtmp.my, mtmp.mux, mtmp.muy);
@@ -1131,16 +1069,16 @@ export function thrwmu(mtmp) {
         return;
     }
     mwep = ((mtmp).mw);
-    monshoot(mtmp, otmp, mwep);
+    await monshoot(mtmp, otmp, mwep);
     nomul(0);
 }
 /* monster spits substance at you */
-export function spitmu(mtmp, mattk) {
-    return spitmm(mtmp, mattk, game.youmonst);
+export async function spitmu(mtmp, mattk) {
+    return await spitmm(mtmp, mattk, game.youmonst);
 }
 /* monster breathes at you (ranged) */
-export function breamu(mtmp, mattk) {
-    return breamm(mtmp, mattk, game.youmonst);
+export async function breamu(mtmp, mattk) {
+    return await breamm(mtmp, mattk, game.youmonst);
 }
 /* return TRUE if terrain at x,y blocks linedup checks */
 export function blocking_terrain(x, y) {
@@ -1248,33 +1186,33 @@ export function m_carrying(mtmp, type) {
 /* adjacent spot where bars are located */
 /* breakage control */
 let __hit_bars_se = [se_zero_invalid, se_bars_whang, se_bars_whap, se_bars_flapp, se_bars_clink, se_bars_clonk];
+__nh_register_static(() => { __hit_bars_se = [se_zero_invalid, se_bars_whang, se_bars_whap, se_bars_flapp, se_bars_clink, se_bars_clonk]; });
 const __hit_bars_barsounds = ["", "Whang", "Whap", "Flapp", "Clink", "Clonk"];
-export function hit_bars(objp, objx, objy, barsx, barsy, breakflags) {
+export async function hit_bars(objp, objx, objy, barsx, barsy, breakflags) {
     let otmp = objp.value;
     let obj_type = otmp.otyp;
     let nodissolve = (game.level.locations[barsx][barsy].flags & 8) != 0;
     let your_fault = (breakflags & 1) != 0;
     let melee_attk = (breakflags & 16) != 0;
     let noise = 0;
-    if (your_fault ? hero_breaks(otmp, objx, objy, breakflags) : breaks(otmp, objx, objy)) {
+    if (your_fault ? await hero_breaks(otmp, objx, objy, breakflags) : await breaks(otmp, objx, objy)) {
         objp.value = null;
         if (obj_type == POT_ACID) {
             if (((game.viz_array[barsy][barsx] & 2) != 0) && !nodissolve) {
-                /* breakage makes its own noises */
-                pline_The("iron bars are dissolved!");
+                await pline_The("iron bars are dissolved!");
             } else {
                 ;
-                You_hear((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "angry snakes!" : "a hissing noise.");
+                await You_hear((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "angry snakes!" : "a hissing noise.");
             }
             if (!nodissolve) {
-                dissolve_bars(barsx, barsy);
+                await dissolve_bars(barsx, barsy);
             }
         }
     } else {
         if (!(game.u.uprops[DEAF].intrinsic || game.u.uprops[DEAF].extrinsic || game.u.uroleplay.deaf)) {
             let bsindx = (obj_type == BOULDER || obj_type == HEAVY_IRON_BALL) ? 1 : harmless_missile(otmp) ? 2 : (game.objects[(otmp).otyp].oc_material <= LEATHER || (otmp).otyp == RUBBER_HOSE) ? 3 : (otmp.oclass == COIN_CLASS || game.objects[obj_type].oc_material == GOLD || game.objects[obj_type].oc_material == SILVER) ? 4 : (Math.trunc(6 /* sizeof(const char *const [6]) */ / 1 /* sizeof(const char *const) */)) - 1;
             ;
-            pline("%s!", __hit_bars_barsounds[bsindx]);
+            await pline("%s!", __hit_bars_barsounds[bsindx]);
             ((__hit_bars_se[bsindx]));
         }
         if (!(harmless_missile(otmp) || (game.objects[(otmp).otyp].oc_material <= LEATHER || (otmp).otyp == RUBBER_HOSE))) {
@@ -1289,13 +1227,13 @@ export function hit_bars(objp, objx, objy, barsx, barsy, breakflags) {
                break those when 'chance' is _lower_; acurrstr(): 3..25 */
             let chance = (melee_attk ? 40 : 60) - acurrstr() - spe;
             if (!rn2(((2) > (chance) ? (2) : (chance)))) {
-                You("break the bars apart!");
-                dissolve_bars(barsx, barsy);
+                await You("break the bars apart!");
+                await dissolve_bars(barsx, barsy);
                 noise = noise * 2;
             }
         }
         if (noise) {
-            wake_nearto(barsx, barsy, noise);
+            await wake_nearto(barsx, barsy, noise);
         }
     }
 }
@@ -1305,7 +1243,7 @@ export function hit_bars(objp, objx, objy, barsx, barsy, breakflags) {
                            * fit through */
 /* 1==hero, 0=other, -1==just check whether it
                            * will pass through */
-export function hits_bars(obj_p, x, y, barsx, barsy, always_hit, whodidit) {
+export async function hits_bars(obj_p, x, y, barsx, barsy, always_hit, whodidit) {
     let otmp = obj_p;
     let obj_type = otmp.otyp;
     let hits = always_hit;
@@ -1346,11 +1284,76 @@ export function hits_bars(obj_p, x, y, barsx, barsy, always_hit, whodidit) {
         }
     }
     if (hits && whodidit != -1) {
-        hit_bars(obj_p, x, y, barsx, barsy, (whodidit == 1) ? 1 : 0);
+        await hit_bars(obj_p, x, y, barsx, barsy, (whodidit == 1) ? 1 : 0);
     }
     return hits;
 }
 /*mthrowu.c*/
+/* [modifiable buffer for upstart()] */
+/* use 'named' as an approximation for "hitting from above";
+               we avoid "passes through you" for horizontal flight path
+               because missile stops and that wording would suggest that
+               it should keep going */
+/* an explosion which scatters objects might hit hero with one
+               (potions deliberately thrown at hero are handled by m_throw) */
+/* extra damage already applied by dmgval() */
 /* fake players treated as skilled (regardless of role limits) */
 /* cancel pending shots (perhaps ought to give a message here
                since we gave one above about throwing/shooting N missiles) */
+/* Last position; object drops */
+/* probably thrown by a monster rather than 'other', but the
+           distinction only matters when hitting the hero */
+/* can't use this because we don't have the attacker */
+/* note: extra silver damage is handled by dmgval() */
+/* don't blame hero for unknown rolling boulder trap */
+/* blinding venom and cream pie do 0 damage, but verify
+           that the target is still alive anyway */
+/* shorten object name to reduce redundancy in the
+                   two message [first via hit() above] sequence:
+                   "The {splash of venom,cream pie} hits <mon>."
+                   "<Mon> is blinded by the {venom,pie}." */
+/* free it for motion again */
+/* won't catch rock or gray stone; catch (then drop) worthless glass */
+/*
+         * Remove object from minvent.  This cannot be done later on;
+         * what if the player dies before then, leaving the monster
+         * with 0 daggers?  (This caused the infamous 2^32-1 orcish
+         * dagger bug).
+         *
+         * VENOM is not in minvent--it should already be OBJ_FREE.
+         * The extract below does nothing.
+         */
+/* not possibly_unwield(), which checks the object's location,
+           not its existence */
+/* check validity of new direction */
+/* Note: drop_throw may destroy singleobj.  Since obj must be destroyed
+     * early to avoid the dagger bug, anyone who modifies this code should
+     * be careful not to use either one after it's been freed.
+     */
+/*
+             * Considerations for a tethered object based on throwit()/bhit() :
+             * - wall of water/lava will stop items, and triggers return.
+             * - iron bars will stop items, and triggers return.
+             * - pass harmlessly through shades.
+             * X stops forward motion at hit monster/hero, triggers return.
+             * - closed door will stop item's forward motion, triggers return.
+             * - sinks stop forward motion, triggers fall, then return.
+             * - object can get tangled in a web, no return (tether snaps?).
+             * On return:
+             * X rn2(100) chance of returning to thrower's location.
+             * X if impaired and rn2(100) == 0,
+             *      -50/50 chance of landing on the ground.
+             *      -50/50 chance of hitting the thrower and causing
+             *       rnd(3) damage.
+             *
+             */
+/* hero might be poly'd into a unicorn */
+/* mon could be DEADMONSTER now */
+/* it made it back to thrower's location */
+/* FIXME: this should be moved to struct g (gd these days) */
+/* it didn't make it back to thrower's location */
+/* Some sound effects when item lands in water or lava */
+/* mon_wield_item resets weapon_check as appropriate */
+/* multishot shooting or throwing */
+/* Out of range, or intervening wall */
+/* breakage makes its own noises */

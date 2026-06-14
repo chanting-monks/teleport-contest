@@ -5,7 +5,7 @@ import { memcpy } from '../c2js-runtime/memory.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_cant, Your, pline, pline_The } from '../c2js-runtime/pline.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_advance_str, strcpy, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, strcpy, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { exercise } from './attrib.js';
 import { dropx } from './do.js';
 import { fingers_or_gloves } from './do_wear.js';
@@ -25,7 +25,7 @@ import { getlin } from './windows.js';
 /*
  * returns base cost of a scroll or a spellbook
  */
-export function cost(otmp) {
+export async function cost(otmp) {
     if (otmp.oclass == SPBOOK_CLASS) {
         return (10 * game.objects[otmp.otyp].oc_oc2);
     }
@@ -62,7 +62,7 @@ export function cost(otmp) {
             return 30;
         case SCR_BLANK_PAPER:
         default:
-            impossible("You can't write such a weird scroll!");
+            await impossible("You can't write such a weird scroll!");
     }
     return 1000;
 }
@@ -77,7 +77,7 @@ export function write_ok(obj) {
     return GETOBJ_DOWNPLAY;
 }
 /* write -- applying a magic marker */
-export function dowrite(pen) {
+export async function dowrite(pen) {
     let paper = null;
     let namebuf = '';
     let __nh_nm_idx = 0;
@@ -98,17 +98,18 @@ export function dowrite(pen) {
     let spell_knowledge = 0;
     found: {
         namebuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        __nh_nm_idx = 0;
         by_descr = (0);
         if ((((game.youmonst.data).mflags1 & 8192) != 0)) {
-            You("need hands to be able to write!");
+            await You("need hands to be able to write!");
             return 0;
         } else if (game.u.uprops[GLIB].intrinsic) {
-            pline("%s from your %s.", Tobjnam(pen, "slip"), fingers_or_gloves((0)));
-            dropx(pen);
+            await pline("%s from your %s.", await Tobjnam(pen, "slip"), await fingers_or_gloves((0)));
+            await dropx(pen);
             /* try to avoid complaint about dead assignment */
             return 1;
         }
-        paper = getobj("write on", write_ok, 0);
+        paper = await getobj("write on", write_ok, 0);
         if (!paper) {
             return 2;
         }
@@ -117,26 +118,25 @@ export function dowrite(pen) {
         typeword = (paper.otyp == SPE_NOVEL) ? "book" : (paper.oclass == SPBOOK_CLASS) ? "spellbook" : "scroll";
         if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked)) {
             if (!paper.dknown) {
-                You("don't know whether that %s is blank or not.", typeword);
+                await You("don't know whether that %s is blank or not.", typeword);
                 return 0;
             } else if (paper.oclass == SPBOOK_CLASS) {
-                /* can't write a magic book while blind */
-                pline("%s can't create braille text.", upstart(ysimple_name(pen)));
+                await pline("%s can't create braille text.", upstart(await ysimple_name(pen)));
                 return 0;
             }
         }
-        observe_object(paper);
+        await observe_object(paper);
         if (paper.otyp != SCR_BLANK_PAPER && paper.otyp != SPE_BLANK_PAPER) {
-            pline("That %s is not blank!", typeword);
-            exercise(A_WIS, (0));
+            await pline("That %s is not blank!", typeword);
+            await exercise(A_WIS, (0));
             return 1;
         }
-        discover_object((SCR_BLANK_PAPER), (1), (1), (1));
+        await discover_object((SCR_BLANK_PAPER), (1), (1), (1));
         qbuf = sprintf(qbuf, "What type of %s do you want to write?", typeword);
-        getlin(qbuf, namebuf);
+        namebuf = await getlin(qbuf, namebuf);
         /* remove any excess whitespace */
         namebuf = mungspaces(namebuf);
-        if (namebuf[0] == 27 || !namebuf[0]) {
+        if (__nh_char_at0(namebuf) == 27 || !__nh_char_at0(namebuf)) {
             return 1;
         }
         __nh_nm_idx = 0;
@@ -210,68 +210,63 @@ export function dowrite(pen) {
             i = deferred;
             break found;
         }
-        There("is no such %s!", typeword);
+        await There("is no such %s!", typeword);
         return 1;
     }
     if (i == SCR_BLANK_PAPER || i == SPE_BLANK_PAPER) {
-        You_cant("write that!");
-        pline("It's obscene!");
+        await You_cant("write that!");
+        await pline("It's obscene!");
         return 1;
     } else if (i == SPE_NOVEL) {
         let fanfic = !rn2(3);
         let tearup = !rn2(3);
         if (!fanfic) {
-            You("%s to write the Great Yendorian Novel, but %s inspiration.", !tearup ? "prepare" : "try", !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "lack" : "have too much");
+            await You("%s to write the Great Yendorian Novel, but %s inspiration.", !tearup ? "prepare" : "try", !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "lack" : "have too much");
         } else {
-            You("%sproduce really %s fan-fiction.", !tearup ? "start to " : "", !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "lame" : "awesome");
+            await You("%sproduce really %s fan-fiction.", !tearup ? "start to " : "", !(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "lame" : "awesome");
         }
         if (!tearup) {
-            You("give up on the idea.");
+            await You("give up on the idea.");
         } else {
-            You("tear it up.");
-            /* use up old scroll / spellbook */
-            useup(paper);
+            await You("tear it up.");
+            await useup(paper);
         }
         return 1;
     } else if (i == SPE_BOOK_OF_THE_DEAD) {
-        pline("No mere dungeon adventurer could write that.");
+        await pline("No mere dungeon adventurer could write that.");
         return 1;
     } else if (by_descr && paper.oclass == SPBOOK_CLASS && !game.objects[i].oc_name_known) {
-        /* can't write unknown spellbooks by description */
-        pline("Unfortunately you don't have enough information to go on.");
+        await pline("Unfortunately you don't have enough information to go on.");
         return 1;
     }
     if (!game.u.uconduct.literate++) {
-        livelog_printf(32, "became literate by writing %s", an(typeword));
+        livelog_printf(32, "became literate by writing %s", await an(typeword));
     }
-    new_obj = mksobj(i, (0), (0));
+    new_obj = await mksobj(i, (0), (0));
     new_obj.bknown = (paper.bknown && pen.bknown);
-    /* shk imposes a flat rate per use, not based on actual charges used */
-    check_unpaid(pen);
-    /* see if there's enough ink */
-    basecost = cost(new_obj);
+    await check_unpaid(pen);
+    basecost = await cost(new_obj);
     if (pen.spe < Math.trunc(basecost / 2)) {
-        Your("marker is too dry to write that!");
-        obfree(new_obj, null);
+        await Your("marker is too dry to write that!");
+        await obfree(new_obj, null);
         return 1;
     }
     /* we're really going to write now, so calculate cost
      */
     actualcost = (rn2(Math.trunc(basecost / 2)) + (Math.trunc(basecost / 2)));
     curseval = bcsign(pen) + bcsign(paper);
-    exercise(A_WIS, (1));
+    await exercise(A_WIS, (1));
     if (pen.spe < actualcost) {
         pen.spe = 0;
-        Your("marker dries out!");
+        await Your("marker dries out!");
         if (paper.oclass == SPBOOK_CLASS) {
-            /* scrolls disappear, spellbooks don't */
-            pline_The("spellbook is left unfinished and your writing fades.");
+            await pline_The("spellbook is left unfinished and your writing fades.");
             update_inventory();
         } else {
-            pline_The("scroll is now useless and disappears!");
-            useup(paper);
+            await pline_The("scroll is now useless and disappears!");
+            await useup(paper);
         }
-        obfree(new_obj, null);
+        await obfree(new_obj, null);
         return 1;
     }
     pen.spe -= actualcost;
@@ -302,13 +297,9 @@ export function dowrite(pen) {
         spell_knowledge = spe_Unknown;
     }
     if (!game.objects[new_obj.otyp].oc_name_known && !(by_descr && game.objects[new_obj.otyp].oc_encountered) && spell_knowledge != spe_Fresh && rnl((((game.urole.mnum == (PM_WIZARD)) && paper.oclass != SPBOOK_CLASS) || spell_knowledge == spe_GoingStale) ? 5 : 15)) {
-        /* if known, then either by-name or by-descr works */
-        /* else if named, then only by-descr works */
-        /* else fresh knowledge of the spell works */
-        /* and Luck might override after previous checks have failed */
-        You("%s to write that.", by_descr ? "fail" : "don't know how");
+        await You("%s to write that.", by_descr ? "fail" : "don't know how");
         if (paper.oclass == SPBOOK_CLASS) {
-            You("write in your best handwriting:  \"My Diary\", but it quickly fades.");
+            await You("write in your best handwriting:  \"My Diary\", but it quickly fades.");
             update_inventory();
         } else {
             if (by_descr) {
@@ -317,29 +308,21 @@ export function dowrite(pen) {
             } else {
                 namebuf = sprintf(namebuf, "%s was here!", game.plname);
             }
-            You("write \"%s\" and the scroll disappears.", namebuf);
-            useup(paper);
+            await You("write \"%s\" and the scroll disappears.", namebuf);
+            await useup(paper);
         }
-        obfree(new_obj, null);
+        await obfree(new_obj, null);
         return 1;
     }
     if (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && rnl(3)) {
-        /* can write scrolls when blind, but requires luck too;
-       attempts to write books when blind are caught above */
-        /* writing while blind usually fails regardless of
-           whether the target scroll is known; even if we
-           have passed the write-an-unknown scroll test
-           above we can still fail this one, so it's doubly
-           hard to write an unknown scroll while blind */
-        You("fail to write the scroll correctly and it disappears.");
-        useup(paper);
-        obfree(new_obj, null);
+        await You("fail to write the scroll correctly and it disappears.");
+        await useup(paper);
+        await obfree(new_obj, null);
         return 1;
     }
-    useup(paper);
+    await useup(paper);
     if (new_obj.oclass == SPBOOK_CLASS) {
-        /* acknowledge the change in the object's description... */
-        pline_The("spellbook warps strangely, then turns %s.", new_book_description(new_obj.otyp, namebuf));
+        await pline_The("spellbook warps strangely, then turns %s.", new_book_description(new_obj.otyp, namebuf));
     }
     new_obj.blessed = (curseval > 0);
     new_obj.cursed = (curseval < 0);
@@ -353,9 +336,9 @@ export function dowrite(pen) {
        but if writing by description, the description is always known */
     new_obj.dknown = (0);
     if (game.objects[new_obj.otyp].oc_name_known || by_descr) {
-        observe_object(new_obj);
+        await observe_object(new_obj);
     }
-    new_obj = hold_another_object(new_obj, "Oops!  %s out of your grasp!", The(aobjnam(new_obj, "slip")), null);
+    new_obj = await hold_another_object(new_obj, "Oops!  %s out of your grasp!", await The(await aobjnam(new_obj, "slip")), null);
     ((new_obj));
     return 1;
 }
@@ -374,14 +357,32 @@ export function new_book_description(booktype, outbuf) {
     let descr = null;
     let __nh_comp_p_idx = 0;
     descr = (game.obj_descr[(game.objects[booktype]).oc_descr_idx].oc_descr);
-    for (__nh_comp_p_idx = 0; __new_book_description_compositions[__nh_comp_p_idx]; ++__nh_comp_p_idx) {
-        if (!strncmpi((descr), (__new_book_description_compositions[__nh_comp_p_idx]), -1)) {
+    for (__nh_comp_p_idx = 0; __nh_char_at0(__nh_advance_str(__new_book_description_compositions, __nh_comp_p_idx)); ++__nh_comp_p_idx) {
+        if (!strncmpi((descr), (__nh_char_at0(__nh_advance_str(__new_book_description_compositions, __nh_comp_p_idx))), -1)) {
             break;
         }
     }
-    outbuf = sprintf(outbuf, "%s%s", __new_book_description_compositions[__nh_comp_p_idx] ? "into " : "", descr);
+    outbuf = sprintf(outbuf, "%s%s", __nh_char_at0(__nh_advance_str(__new_book_description_compositions, __nh_comp_p_idx)) ? "into " : "", descr);
     return outbuf;
 }
 /*write.c*/
+/* can't write a magic book while blind */
+/* can't write unknown spellbooks by description */
+/* shk imposes a flat rate per use, not based on actual charges used */
+/* see if there's enough ink */
+/* scrolls disappear, spellbooks don't */
+/* if known, then either by-name or by-descr works */
+/* else if named, then only by-descr works */
+/* else fresh knowledge of the spell works */
+/* and Luck might override after previous checks have failed */
+/* can write scrolls when blind, but requires luck too;
+       attempts to write books when blind are caught above */
+/* writing while blind usually fails regardless of
+           whether the target scroll is known; even if we
+           have passed the write-an-unknown scroll test
+           above we can still fail this one, so it's doubly
+           hard to write an unknown scroll while blind */
+/* use up old scroll / spellbook */
+/* acknowledge the change in the object's description... */
 /* 0: delivered in-game via external event (or randomly for fake mail);
            1: from bones or wishing; 2: written with marker */

@@ -7,6 +7,7 @@ import { game } from '../gstate.js';
 import { abs, sgn } from '../c2js-runtime/math.js';
 import { impossible } from '../c2js-runtime/panic.js';
 import { You, You_feel, Your, pline, pline_The } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { sprintf } from '../c2js-runtime/stdio.js';
 import { __nh_advance_str, __nh_char_at0, nh_strchr_truncate, strcmp, strcpy, strlen, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { confers_luck, is_art, retouch_equipment, what_gives } from './artifact.js';
@@ -58,7 +59,7 @@ const hum_abil = [{ ulevel: 0, ability: null, gainstr: null, losestr: null }];
 /* which characteristic */
 /* amount of change */
 /* positive => no message, zero => message, and */
-export function adjattrib(ndx, incr, msgflg) {
+export async function adjattrib(ndx, incr, msgflg) {
     /* negative => conditional (msg if change made) */
     let old_acurr = 0;
     let old_abase = 0;
@@ -71,7 +72,7 @@ export function adjattrib(ndx, incr, msgflg) {
     }
     if ((ndx == A_INT || ndx == A_WIS) && game.uarmh && game.uarmh.otyp == DUNCE_CAP) {
         if (msgflg == 0) {
-            Your("cap constricts briefly, then relaxes again.");
+            await Your("cap constricts briefly, then relaxes again.");
         }
         return (0);
     }
@@ -121,11 +122,9 @@ export function adjattrib(ndx, incr, msgflg) {
     if ((acurr(ndx)) == old_acurr) {
         if (msgflg == 0 && game.flags.verbose) {
             if ((game.u.acurr.a[ndx]) == old_abase && (game.u.amax.a[ndx]) == old_amax) {
-                pline("You're %s as %s as you can get.", abonflg ? "currently" : "already", attrstr);
+                await pline("You're %s as %s as you can get.", abonflg ? "currently" : "already", attrstr);
             } else {
-                /* current stayed the same but base value changed, or
-                   base is at minimum and reduction caused max to drop */
-                Your("innate %s has %s.", attrname[ndx], (incr > 0) ? "improved" : "declined");
+                await Your("innate %s has %s.", attrname[ndx], (incr > 0) ? "improved" : "declined");
             }
         }
         return (0);
@@ -137,15 +136,15 @@ export function adjattrib(ndx, incr, msgflg) {
     /* status line needs updating */
     game.disp.botl = (1);
     if (msgflg <= 0) {
-        You_feel("%s%s!", (incr > 1 || incr < -1) ? "very " : "", attrstr);
+        await You_feel("%s%s!", (incr > 1 || incr < -1) ? "very " : "", attrstr);
     }
     if (game.program_state.in_moveloop && (ndx == A_STR || ndx == A_CON)) {
-        encumber_msg();
+        await encumber_msg();
     }
     return (1);
 }
 /* strength gain */
-export function gainstr(otmp, incr, givemsg) {
+export async function gainstr(otmp, incr, givemsg) {
     let num = incr;
     if (!num) {
         if ((game.u.acurr.a[A_STR]) < 18) {
@@ -156,10 +155,10 @@ export function gainstr(otmp, incr, givemsg) {
             num = 1;
         }
     }
-    adjattrib(A_STR, (otmp && otmp.cursed) ? -num : num, givemsg ? -1 : 1);
+    await adjattrib(A_STR, (otmp && otmp.cursed) ? -num : num, givemsg ? -1 : 1);
 }
 /* strength loss, may kill you; cause may be poison or monster like 'a' */
-export function losestr(num, knam, k_format) {
+export async function losestr(num, knam, k_format) {
     let uhpmin = minuhpmax(1);
     let olduhpmax = game.u.uhpmax;
     let ustr = (game.u.acurr.a[A_STR]) - num;
@@ -167,7 +166,7 @@ export function losestr(num, knam, k_format) {
     let dmg = 0;
     let waspolyd = (game.u.umonnum != game.u.umonster);
     if (num <= 0 || (game.u.acurr.a[A_STR]) < (game.urace.attrmin[A_STR])) {
-        impossible("losestr: %d - %d", (game.u.acurr.a[A_STR]), num);
+        await impossible("losestr: %d - %d", (game.u.acurr.a[A_STR]), num);
         return;
     }
     dmg = 0;
@@ -184,7 +183,7 @@ export function losestr(num, knam, k_format) {
             knam = "terminal frailty";
             k_format = 1;
         }
-        losehp(dmg, knam, k_format);
+        await losehp(dmg, knam, k_format);
         if ((game.u.umonnum != game.u.umonster)) {
             /* when still poly'd, reduce you-as-monst maxHP; never below 1 */
             setuhpmax(((game.u.mhmax - dmg) > (1) ? (game.u.mhmax - dmg) : (1)), (0));
@@ -203,13 +202,13 @@ export function losestr(num, knam, k_format) {
     /* 'num' could have been reduced to 0 in the minimum strength loop;
        '(Upolyd || !waspolyd)' is True unless damage caused rehumanization */
     if (num > 0 && ((game.u.umonnum != game.u.umonster) || !waspolyd)) {
-        adjattrib(A_STR, -num, 1);
+        await adjattrib(A_STR, -num, 1);
     }
 }
 /* combined strength loss and damage from some poisons */
-export function poison_strdmg(strloss, dmg, knam, k_format) {
-    losestr(strloss, knam, k_format);
-    losehp(dmg, knam, k_format);
+export async function poison_strdmg(strloss, dmg, knam, k_format) {
+    await losestr(strloss, knam, k_format);
+    await losehp(dmg, knam, k_format);
 }
 // struct poison_effect_message: { delivery_func, effect_msg }
 const poiseff = [{ delivery_func: You_feel, effect_msg: "weaker" }, { delivery_func: Your, effect_msg: "brain is on fire" }, { delivery_func: Your, effect_msg: "judgement is impaired" }, { delivery_func: Your, effect_msg: "muscles won't obey you" }, { delivery_func: You_feel, effect_msg: "very sick" }, { delivery_func: You, effect_msg: "break out in hives" }];
@@ -244,7 +243,7 @@ export function poisontell(typ, exclaim) {
 /* for score+log file if fatal */
 /* if fatal is 0, limit damage to adjattrib */
 /* thrown weapons are less deadly */
-export function poisoned(reason, typ, pkiller, fatal, thrown_weapon) {
+export async function poisoned(reason, typ, pkiller, fatal, thrown_weapon) {
     let i = 0;
     let loss = 0;
     let kprefix = 0;
@@ -254,23 +253,21 @@ export function poisoned(reason, typ, pkiller, fatal, thrown_weapon) {
        "blast" has given a "blast of poison gas" message; "poison arrow",
        "poison dart", etc have implicitly given poison messages too... */
         let plural = (__nh_char_at0(__nh_advance_str(reason, strlen(reason) - 1)) == 115) ? 1 : 0;
-        /* avoid "The" Orcus's sting was poisoned... */
-        pline("%s%s %s poisoned!", ((__ctype_b_loc())[((__nh_char_at0(reason)))] & _ISupper) ? "" : "The ", reason, plural ? "were" : "was");
+        await pline("%s%s %s poisoned!", ((__ctype_b_loc())[((__nh_char_at0(reason)))] & _ISupper) ? "" : "The ", reason, plural ? "were" : "was");
     }
     if ((game.u.uprops[POISON_RES].intrinsic || game.u.uprops[POISON_RES].extrinsic)) {
         if (blast) {
-            shieldeff(game.u.ux, game.u.uy);
+            await shieldeff(game.u.ux, game.u.uy);
         }
-        pline_The("poison doesn't seem to affect you.");
+        await pline_The("poison doesn't seem to affect you.");
         return;
     }
-    /* suppress killer prefix if it already has one */
-    i = name_to_mon(pkiller, null);
+    i = await name_to_mon(pkiller, null);
     if (((i) >= LOW_PM && (i) < NUMMONS) && (game.mons[i].geno & 4096)) {
         /*[ does this need a plural check too? ]*/
         kprefix = 1;
         if (!(((game.mons[i]).mflags2 & 524288) != 0)) {
-            pkiller = the(pkiller);
+            pkiller = await the(pkiller);
         }
     } else if (!strncmpi(pkiller, "the ", 4) || !strncmpi(pkiller, "an ", 3) || !strncmpi(pkiller, "a ", 2)) {
         kprefix = 1;
@@ -286,18 +283,18 @@ export function poisoned(reason, typ, pkiller, fatal, thrown_weapon) {
         if (game.u.uhp <= loss) {
             game.u.uhp = -1;
             game.disp.botl = (1);
-            pline_The("poison was deadly...");
+            await pline_The("poison was deadly...");
         } else {
             /* survived, but with severe reaction */
             let olduhp = game.u.uhp;
             let newuhpmax = game.u.uhpmax - (Math.trunc(loss / 2));
             setuhpmax(((newuhpmax) > (minuhpmax(3)) ? (newuhpmax) : (minuhpmax(3))), (1));
             loss = adjuhploss(loss, olduhp);
-            losehp(loss, pkiller, kprefix);
-            if (adjattrib(A_CON, (typ != A_CON) ? -1 : -3, (1))) {
+            await losehp(loss, pkiller, kprefix);
+            if (await adjattrib(A_CON, (typ != A_CON) ? -1 : -3, (1))) {
                 poisontell(A_CON, (1));
             }
-            if (typ != A_CON && adjattrib(typ, -3, 1)) {
+            if (typ != A_CON && await adjattrib(typ, -3, 1)) {
                 poisontell(typ, (1));
             }
         }
@@ -308,23 +305,21 @@ export function poisoned(reason, typ, pkiller, fatal, thrown_weapon) {
         if ((blast || cloud) && (game.ublindf && game.ublindf.otyp == TOWEL && game.ublindf.spe > 0)) {
             loss = Math.trunc((loss + 1) / 2);
         }
-        losehp(loss, pkiller, kprefix);
+        await losehp(loss, pkiller, kprefix);
     } else {
         /* attribute loss; if typ is A_STR, reduction in current and
            maximum HP will occur once strength has dropped down to 3 */
         loss = (thrown_weapon || !fatal) ? 1 : d(2, 2);
-        /* check that a stat change was made */
-        if (adjattrib(typ, -loss, 1)) {
+        if (await adjattrib(typ, -loss, 1)) {
             poisontell(typ, (1));
         }
     }
     if (game.u.uhp < 1) {
         game.killer.format = kprefix;
         game.killer.name = strcpy(game.killer.name, pkiller);
-        /* "Poisoned by a poisoned ___" is redundant */
-        done(strstri(pkiller, "poison") ? DIED : POISONING);
+        await done(strstri(pkiller, "poison") ? DIED : POISONING);
     }
-    encumber_msg();
+    await encumber_msg();
 }
 export function change_luck(n) {
     game.u.uluck += n;
@@ -363,7 +358,7 @@ export function set_moreluck() {
     }
 }
 /* (not used) */
-export function restore_attrib() {
+export async function restore_attrib() {
     let i = 0;
     let equilibrium = 0;
     ;
@@ -391,15 +386,15 @@ export function restore_attrib() {
         }
     }
     if (game.disp.botl) {
-        encumber_msg();
+        await encumber_msg();
     }
 }
 /* tune value for exercise gains */
-export function exercise(i, inc_or_dec) {
+export async function exercise(i, inc_or_dec) {
     do {
         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
             let save_plnmsg = game.iflags.last_msg;
-            pline("Exercise:");
+            await pline("Exercise:");
             game.iflags.last_msg = save_plnmsg;
         }
     } while (0);
@@ -415,64 +410,64 @@ export function exercise(i, inc_or_dec) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("%s, %s AEXE = %d", (i == A_STR) ? "Str" : (i == A_WIS) ? "Wis" : (i == A_DEX) ? "Dex" : "Con", (inc_or_dec) ? "inc" : "dec", (game.u.aexe.a[i]));
+                await pline("%s, %s AEXE = %d", (i == A_STR) ? "Str" : (i == A_WIS) ? "Wis" : (i == A_DEX) ? "Dex" : "Con", (inc_or_dec) ? "inc" : "dec", (game.u.aexe.a[i]));
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
     }
     if (game.moves > 0 && (i == A_STR || i == A_CON)) {
-        encumber_msg();
+        await encumber_msg();
     }
 }
-export function exerper() {
+export async function exerper() {
     if (!(game.moves % 10)) {
         let hs = (game.u.uhunger > 1000) ? SATIATED : (game.u.uhunger > 150) ? NOT_HUNGRY : (game.u.uhunger > 50) ? HUNGRY : (game.u.uhunger > 0) ? WEAK : FAINTING;
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("exerper: Hunger checks");
+                await pline("exerper: Hunger checks");
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
         switch (hs) {
             case SATIATED:
-                exercise(A_DEX, (0));
+                await exercise(A_DEX, (0));
                 if ((game.urole.mnum == (PM_MONK))) {
-                    exercise(A_WIS, (0));
+                    await exercise(A_WIS, (0));
                 }
                 break;
             case NOT_HUNGRY:
-                exercise(A_CON, (1));
+                await exercise(A_CON, (1));
                 break;
             case WEAK:
-                exercise(A_STR, (0));
+                await exercise(A_STR, (0));
                 if ((game.urole.mnum == (PM_MONK))) {
-                    exercise(A_WIS, (1));
+                    await exercise(A_WIS, (1));
                 }
                 break;
             case FAINTING:
             case FAINTED:
-                exercise(A_CON, (0));
+                await exercise(A_CON, (0));
                 break;
         }
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("exerper: Encumber checks");
+                await pline("exerper: Encumber checks");
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
         switch (near_capacity()) {
             case MOD_ENCUMBER:
-                exercise(A_STR, (1));
+                await exercise(A_STR, (1));
                 break;
             case HVY_ENCUMBER:
-                exercise(A_STR, (1));
-                exercise(A_DEX, (0));
+                await exercise(A_STR, (1));
+                await exercise(A_DEX, (0));
                 break;
             case EXT_ENCUMBER:
-                exercise(A_DEX, (0));
-                exercise(A_CON, (0));
+                await exercise(A_DEX, (0));
+                await exercise(A_CON, (0));
                 break;
         }
     }
@@ -480,24 +475,24 @@ export function exerper() {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("exerper: Status checks");
+                await pline("exerper: Status checks");
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
         if ((game.u.uprops[CLAIRVOYANT].intrinsic & ((67108864 | 33554432 | 16777216) | 16777215)) && !game.u.uprops[CLAIRVOYANT].blocked) {
-            exercise(A_WIS, (1));
+            await exercise(A_WIS, (1));
         }
         if (game.u.uprops[REGENERATION].intrinsic) {
-            exercise(A_STR, (1));
+            await exercise(A_STR, (1));
         }
         if (game.u.uprops[SICK].intrinsic || game.u.uprops[VOMITING].intrinsic) {
-            exercise(A_CON, (0));
+            await exercise(A_CON, (0));
         }
         if (game.u.uprops[CONFUSION].intrinsic || (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
-            exercise(A_WIS, (0));
+            await exercise(A_WIS, (0));
         }
         if (((game.u.uprops[WOUNDED_LEGS].intrinsic || game.u.uprops[WOUNDED_LEGS].extrinsic) && !game.u.usteed) || (game.u.uprops[FUMBLING].intrinsic || game.u.uprops[FUMBLING].extrinsic) || game.u.uprops[STUNNED].intrinsic) {
-            exercise(A_DEX, (0));
+            await exercise(A_DEX, (0));
         }
     }
 }
@@ -510,19 +505,18 @@ const exertext = [["exercising diligently", "exercising properly"], [null, null]
 /* Dex */
 /* Con */
 /* Cha */
-export function exerchk() {
+export async function exerchk() {
     let i = 0;
     let ax = 0;
     let mod_val = 0;
     let lolim = 0;
     let hilim = 0;
-    /*  Check out the periodic accumulations */
-    exerper();
+    await exerper();
     if (game.moves >= game.context.next_attrib_check) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("exerchk: ready to test. multi = %ld.", game.multi);
+                await pline("exerchk: ready to test. multi = %ld.", game.multi);
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -531,7 +525,7 @@ export function exerchk() {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("exerchk: testing.");
+                await pline("exerchk: testing.");
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -573,7 +567,7 @@ export function exerchk() {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("exerchk: testing %s (%d).", (i == A_STR) ? "Str" : (i == A_INT) ? "Int?" : (i == A_WIS) ? "Wis" : (i == A_DEX) ? "Dex" : (i == A_CON) ? "Con" : (i == A_CHA) ? "Cha?" : "???", ax);
+                        await pline("exerchk: testing %s (%d).", (i == A_STR) ? "Str" : (i == A_INT) ? "Int?" : (i == A_WIS) ? "Wis" : (i == A_DEX) ? "Dex" : (i == A_CON) ? "Con" : (i == A_CHA) ? "Cha?" : "???", ax);
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
@@ -589,22 +583,20 @@ export function exerchk() {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("exerchk: changing %d.", i);
+                        await pline("exerchk: changing %d.", i);
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
-                if (adjattrib(i, mod_val, -1)) {
+                if (await adjattrib(i, mod_val, -1)) {
                     do {
                         if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                             let save_plnmsg = game.iflags.last_msg;
-                            pline("exerchk: changed %d.", i);
+                            await pline("exerchk: changed %d.", i);
                             game.iflags.last_msg = save_plnmsg;
                         }
                     } while (0);
                     (game.u.aexe.a[i]) = ax = 0;
-                    /* if you actually changed an attrib - zero accumulation */
-                    /* then print an explanation */
-                    You("%s %s.", (mod_val > 0) ? "must have been" : "haven't been", exertext[i][(mod_val > 0) ? 0 : 1]);
+                    await You("%s %s.", (mod_val > 0) ? "must have been" : "haven't been", exertext[i][(mod_val > 0) ? 0 : 1]);
                 }
             }
             (game.u.aexe.a[i]) = (Math.trunc(abs(ax) / 2)) * mod_val;
@@ -613,7 +605,7 @@ export function exerchk() {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/attrib.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("exerchk: next check at %ld.", game.context.next_attrib_check);
+                await pline("exerchk: next check at %ld.", game.context.next_attrib_check);
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -691,25 +683,25 @@ export function redist_attr() {
     }
 }
 /* apply minor variation to attributes */
-export function vary_init_attr() {
+export async function vary_init_attr() {
     let i = 0;
     for (i = 0; i < A_MAX; i++) {
         if (!rn2(20)) {
             let xd = rn2(7) - 2;
-            adjattrib(i, xd, (1));
+            await adjattrib(i, xd, (1));
             if ((game.u.acurr.a[i]) < (game.u.amax.a[i])) {
                 (game.u.amax.a[i]) = (game.u.acurr.a[i]);
             }
         }
     }
 }
-export function postadjabil(slot) {
+export async function postadjabil(slot) {
     /* initializing hero; don't attempt screen update yet */
     if (!game.u.ulevel) {
         return;
     }
     if (slot === game.u.uprops[WARNING] || slot === game.u.uprops[SEE_INVIS]) {
-        see_monsters();
+        await see_monsters();
     }
 }
 export function role_abil(r) {
@@ -799,8 +791,9 @@ export function is_innate(propidx) {
 }
 /* special cases can have negative values */
 let __from_what_buf = '';
+__nh_register_static(() => { __from_what_buf = ''; });
 const __from_what_because_of = " because of %s";
-export function from_what(propidx) {
+export async function from_what(propidx) {
     __from_what_buf = '';
     if (game.flags.debug) {
         if (propidx >= 0) {
@@ -837,13 +830,13 @@ export function from_what(propidx) {
             } else if (innateness == 5) {
                 __from_what_buf = strcpy(__from_what_buf, " from your creature form");
             } else if (propidx == FAST && ((game.u.uprops[FAST].intrinsic & ~(67108864 | 33554432 | 16777216)) || game.u.uprops[FAST].extrinsic)) {
-                __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, ((game.u.uprops[FAST].intrinsic & 16777215) != 0) ? "a potion or spell" : ((game.u.uprops[FAST].extrinsic & 32) != 0 && game.uarmf.dknown && game.objects[game.uarmf.otyp].oc_name_known) ? ysimple_name(game.uarmf) : game.u.uprops[FAST].extrinsic ? "worn equipment" : c_common_strings.c_something);
+                __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, ((game.u.uprops[FAST].intrinsic & 16777215) != 0) ? "a potion or spell" : ((game.u.uprops[FAST].extrinsic & 32) != 0 && game.uarmf.dknown && game.objects[game.uarmf.otyp].oc_name_known) ? await ysimple_name(game.uarmf) : game.u.uprops[FAST].extrinsic ? "worn equipment" : c_common_strings.c_something);
             } else if (game.flags.debug && (obj = what_gives({ get value() { return game.u.uprops[propidx].extrinsic; }, set value(_v) { game.u.uprops[propidx].extrinsic = _v; } })) != null) {
-                __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, obj.oartifact ? bare_artifactname(obj) : ysimple_name(obj));
+                __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, obj.oartifact ? await bare_artifactname(obj) : await ysimple_name(obj));
             } else if (propidx == BLINDED && (game.u.uprops[BLINDED].extrinsic && !(game.u.uprops[BLINDED].intrinsic && !game.u.uprops[BLINDED].blocked))) {
-                __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, ysimple_name(game.ublindf));
+                __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, await ysimple_name(game.ublindf));
             } else if (propidx == BLINDED && game.u.ucreamed && (game.u.uprops[BLINDED].intrinsic & 16777215) == game.u.ucreamed && !game.u.uprops[BLINDED].extrinsic && !(game.u.uprops[BLINDED].intrinsic & ~16777215)) {
-                __from_what_buf = sprintf(__from_what_buf, "due to goop covering your %s", body_part(FACE));
+                __from_what_buf = sprintf(__from_what_buf, "due to goop covering your %s", await body_part(FACE));
             }
             /* remove some verbosity and/or redundancy */
             if ((p = strstri(__from_what_buf, " pair of ")) != null) {
@@ -857,17 +850,17 @@ export function from_what(propidx) {
                replace this with what_blocks() comparable to what_gives() */
                 case BLINDED:
                     if (game.u.uprops[BLINDED].blocked && is_art(game.ublindf, ART_EYES_OF_THE_OVERWORLD)) {
-                        __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, bare_artifactname(game.ublindf));
+                        __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, await bare_artifactname(game.ublindf));
                     }
                     break;
                 case INVIS:
                     if (game.u.uprops[INVIS].blocked & 2) {
-                        __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, ysimple_name(game.uarmc));
+                        __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, await ysimple_name(game.uarmc));
                     }
                     break;
                 case CLAIRVOYANT:
                     if (game.flags.debug && (game.u.uprops[CLAIRVOYANT].blocked & 4)) {
-                        __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, ysimple_name(game.uarmh));
+                        __from_what_buf = sprintf(__from_what_buf, __from_what_because_of, await ysimple_name(game.uarmh));
                     }
                     break;
             }
@@ -875,7 +868,7 @@ export function from_what(propidx) {
     }
     return __from_what_buf;
 }
-export function adjabil(oldlevel, newlevel) {
+export async function adjabil(oldlevel, newlevel) {
     let prevabil = 0;
     let mask = 16777216;
     let abilArr = role_abil((game.urole.mnum));
@@ -916,29 +909,29 @@ export function adjabil(oldlevel, newlevel) {
             }
             if (!(slot.intrinsic & (67108864 | 33554432 | 16777216) & ~mask)) {
                 if (entry.gainstr) {
-                    You_feel("%s!", entry.gainstr);
+                    await You_feel("%s!", entry.gainstr);
                 }
             }
         } else if (oldlevel >= entry.ulevel && newlevel < entry.ulevel) {
             slot.intrinsic &= ~mask;
             if (!(slot.intrinsic & (67108864 | 33554432 | 16777216))) {
                 if (entry.losestr) {
-                    You_feel("%s!", entry.losestr);
+                    await You_feel("%s!", entry.losestr);
                 } else if (entry.gainstr) {
-                    You_feel("less %s!", entry.gainstr);
+                    await You_feel("less %s!", entry.gainstr);
                 }
             }
         }
         if (prevabil != slot.intrinsic) {
-            postadjabil(slot);
+            await postadjabil(slot);
         }
         abilIdx++;
     }
     if (oldlevel > 0) {
         if (newlevel > oldlevel) {
-            add_weapon_skill(newlevel - oldlevel);
+            await add_weapon_skill(newlevel - oldlevel);
         } else {
-            lose_weapon_skill(oldlevel - newlevel);
+            await lose_weapon_skill(oldlevel - newlevel);
         }
     }
 }
@@ -1183,7 +1176,7 @@ export function adjalign(n) {
 }
 /* change hero's alignment type, possibly losing use of artifacts */
 /* A_CG_CONVERT, A_CG_HELM_ON, or A_CG_HELM_OFF */
-export function uchangealign(newalign, reason) {
+export async function uchangealign(newalign, reason) {
     let oldalign = game.u.ualign.type;
     game.u.ublessed = 0;
     game.disp.botl = (1);
@@ -1194,30 +1187,36 @@ export function uchangealign(newalign, reason) {
         if (!game.uarmh || game.uarmh.otyp != HELM_OF_OPPOSITE_ALIGNMENT) {
             game.u.ualign.type = game.u.ualignbase[0];
         }
-        You("have a %ssense of a new direction.", (game.u.ualign.type != oldalign) ? "sudden " : "");
+        await You("have a %ssense of a new direction.", (game.u.ualign.type != oldalign) ? "sudden " : "");
     } else {
         /* putting on or taking off a helm of opposite alignment */
         game.u.ualign.type = newalign;
         if (reason == A_CG_HELM_ON) {
             /* for abuse -- record will be cleared shortly */
             adjalign(-7);
-            Your("mind oscillates %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "wildly" : "briefly");
-            make_confused((rn2(2) + (3)), (0));
+            await Your("mind oscillates %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "wildly" : "briefly");
+            await make_confused((rn2(2) + (3)), (0));
             if ((((((game.dungeon_topology.d_astral_level)).dlevel || ((game.dungeon_topology.d_astral_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_astral_level)))) || (rn2(50) < game.u.ualign.abuse)) {
-                summon_furies((((((game.dungeon_topology.d_astral_level)).dlevel || ((game.dungeon_topology.d_astral_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_astral_level)))) ? 0 : 1);
+                await summon_furies((((((game.dungeon_topology.d_astral_level)).dlevel || ((game.dungeon_topology.d_astral_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_astral_level)))) ? 0 : 1);
             }
             /* don't livelog taking it back off */
             livelog_printf(512, "used a helm to turn %s", aligns[1 - newalign].adj);
         } else if (reason == A_CG_HELM_OFF) {
-            Your("mind is %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "much of a muchness" : "back in sync with your body");
+            await Your("mind is %s.", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "much of a muchness" : "back in sync with your body");
         }
     }
     if (game.u.ualign.type != oldalign) {
         game.u.ualign.record = 0;
-        retouch_equipment(0);
+        await retouch_equipment(0);
     }
 }
 /*attrib.c*/
+/* current stayed the same but base value changed, or
+                   base is at minimum and reduction caused max to drop */
+/* avoid "The" Orcus's sting was poisoned... */
+/* suppress killer prefix if it already has one */
+/* check that a stat change was made */
+/* "Poisoned by a poisoned ___" is redundant */
 /*
          *      Law of diminishing returns (Part I):
          *
@@ -1227,6 +1226,9 @@ export function uchangealign(newalign, reason) {
          *
          *      Note: *YES* ACURR is the right one to use.
          */
+/*  Check out the periodic accumulations */
+/* if you actually changed an attrib - zero accumulation */
+/* then print an explanation */
 /* this used to be ``AEXE(i) /= 2'' but that would produce
                platform-dependent rounding/truncation for negative vals */
 /* wearing the Eyes of the Overworld overrides blindness */

@@ -136,17 +136,14 @@ export function initworm(worm, wseg_count) {
  *  Get rid of all worm segments on and following the given pointer curr.
  *  The display may or may not need to be updated as we free the segments.
  */
-export function toss_wsegs(curr, display_update) {
+export async function toss_wsegs(curr, display_update) {
     let nxtseg = null;
     while (curr) {
         nxtseg = curr.nseg;
         if (curr.wx) {
             game.level.monsters[curr.wx][curr.wy] = null;
-            /* remove from level.monsters[][];
-           need to check curr->wx for genocided while migrating_mon */
-            /* update screen before deallocation */
             if (display_update) {
-                newsym(curr.wx, curr.wy);
+                await newsym(curr.wx, curr.wy);
             }
         }
         free((curr));
@@ -160,7 +157,7 @@ export function toss_wsegs(curr, display_update) {
  *  Remove the tail segment of the worm (the starting segment of the list).
  */
 /* worm number */
-export function shrink_worm(wnum) {
+export async function shrink_worm(wnum) {
     let seg = null;
     if (game.wtails[wnum] == game.wheads[wnum]) {
         return;
@@ -168,7 +165,7 @@ export function shrink_worm(wnum) {
     seg = game.wtails[wnum];
     game.wtails[wnum] = seg.nseg;
     seg.nseg = null;
-    toss_wsegs(seg, (1));
+    await toss_wsegs(seg, (1));
 }
 /*
  *  worm_move()
@@ -177,7 +174,7 @@ export function shrink_worm(wnum) {
  *
  *  Move the worm.  Maybe grow.
  */
-export function worm_move(worm) {
+export async function worm_move(worm) {
     let seg = null;
     let new_seg = null;
     let wnum = worm.wormno;
@@ -186,7 +183,7 @@ export function worm_move(worm) {
      */
     seg = game.wheads[wnum];
     game.level.monsters[seg.wx][seg.wy] = worm;
-    newsym(seg.wx, seg.wy);
+    await newsym(seg.wx, seg.wy);
     /*
      *  Create a new dummy segment head and place it at the end of the list.
      */
@@ -252,12 +249,7 @@ export function worm_move(worm) {
             }
         }
     } else {
-        /* The worm doesn't grow, so the last segment goes away.
-           (Done after inserting an extra segment at the head, so it
-           isn't getting smaller here, just changing location without
-           having to move any of the intermediate segments.) */
-        /* If this is the tail segment, then the worm just loses it. */
-        shrink_worm(wnum);
+        await shrink_worm(wnum);
     }
 }
 /*
@@ -267,8 +259,8 @@ export function worm_move(worm) {
  *
  *  The worm doesn't move, so it should shrink.
  */
-export function worm_nomove(worm) {
-    shrink_worm(worm.wormno);
+export async function worm_nomove(worm) {
+    await shrink_worm(worm.wormno);
     if (worm.mhp > count_wsegs(worm)) {
         /* 2..4, average 3; note: mhpmax not changed! */
         worm.mhp -= d(2, 2);
@@ -285,20 +277,14 @@ export function worm_nomove(worm) {
  *
  *  Should only be called when mon->wormno is non-zero.
  */
-export function wormgone(worm) {
+export async function wormgone(worm) {
     let wnum = worm.wormno;
-    /* note: continuing with wnum==0 runs to completion */
     if (!wnum) {
-        impossible("wormgone: wormno is 0");
+        await impossible("wormgone: wormno is 0");
     }
     /* still a long worm but doesn't grow/shrink anymore */
     worm.wormno = 0;
-    /*
-     *  This will also remove the real monster (ie 'w') from the its
-     *  position in level.monsters[][].  (That happens when removing
-     *  the hidden tail segment which is co-located with the head.)
-     */
-    toss_wsegs(game.wtails[wnum], (1));
+    await toss_wsegs(game.wtails[wnum], (1));
     (game.wtails[wnum] = null, game.wheads[wnum] = null);
     game.wgrowtime[wnum] = 0;
     /* we don't expect to encounter this here but check for it anyway;
@@ -318,7 +304,7 @@ export function wormgone(worm) {
  *  Returns 1 if the worm dies (poly'd hero with passive counter-attack)
  *  or 0 if it doesn't.
  */
-export function wormhitu(worm) {
+export async function wormhitu(worm) {
     let wnum = worm.wormno;
     let seg = null;
     /*  This does not work right now because mattacku() thinks that the head
@@ -331,7 +317,7 @@ export function wormhitu(worm) {
      */
     for (seg = game.wtails[wnum]; seg != game.wheads[wnum]; seg = seg.nseg) {
         if (dist2((seg.wx), (seg.wy), game.u.ux, game.u.uy) < 3) {
-            if (mattacku(worm)) {
+            if (await mattacku(worm)) {
                 return 1;
             }
         }
@@ -347,7 +333,7 @@ export function wormhitu(worm) {
  *  that both halves will survive.
  */
 /* hit is by wielded blade or axe or by thrown axe */
-export function cutworm(worm, x, y, cuttier) {
+export async function cutworm(worm, x, y, cuttier) {
     let curr = null;
     let new_tail = null;
     let new_worm = null;
@@ -375,12 +361,12 @@ export function cutworm(worm, x, y, cuttier) {
     while ((curr.wx != x) || (curr.wy != y)) {
         curr = curr.nseg;
         if (!curr) {
-            impossible("cutworm: no segment at (%d,%d)", x, y);
+            await impossible("cutworm: no segment at (%d,%d)", x, y);
             return;
         }
     }
     if (curr == game.wtails[wnum]) {
-        shrink_worm(wnum);
+        await shrink_worm(wnum);
         return;
     }
     /*
@@ -400,11 +386,7 @@ export function cutworm(worm, x, y, cuttier) {
     new_wnum = (worm.m_lev >= 3 && !rn2(3)) ? get_wormno() : 0;
     if (new_wnum) {
         game.level.monsters[x][y] = null;
-        /* clone_mon puts new head here */
-        /* clone_mon() will fail if enough long worms have been
-           created to have them be marked as extinct or if the hit
-           that cut the current one has dropped it down to 1 HP */
-        new_worm = clone_mon(worm, x, y);
+        new_worm = await clone_mon(worm, x, y);
     }
     if (!new_worm) {
         game.level.monsters[x][y] = worm;
@@ -412,12 +394,12 @@ export function cutworm(worm, x, y, cuttier) {
             /* Sometimes the tail end dies. */
             /* place the "head" segment back */
             if ((canseemon(worm) || sensemon(worm))) {
-                pline("Part of %s tail has been cut off.", s_suffix(mon_nam(worm)));
+                await pline("Part of %s tail has been cut off.", s_suffix(await mon_nam(worm)));
             }
         } else {
-            You("cut part of the tail off of %s.", mon_nam(worm));
+            await You("cut part of the tail off of %s.", await mon_nam(worm));
         }
-        toss_wsegs(new_tail, (1));
+        await toss_wsegs(new_tail, (1));
         if (worm.mhp > 1) {
             worm.mhp = Math.trunc(worm.mhp / 2);
         }
@@ -443,12 +425,11 @@ export function cutworm(worm, x, y, cuttier) {
     game.wheads[new_wnum] = curr;
     /* trying to call initworm().       */
     game.wgrowtime[new_wnum] = 0;
-    /* Place the new monster at all the segment locations. */
-    place_wsegs(new_worm, worm);
+    await place_wsegs(new_worm, worm);
     if (game.context.mon_moving) {
-        pline("%s is cut in half.", Monnam(worm));
+        await pline("%s is cut in half.", await Monnam(worm));
     } else {
-        You("cut %s in half.", mon_nam(worm));
+        await You("cut %s in half.", await mon_nam(worm));
     }
 }
 /*
@@ -458,10 +439,10 @@ export function cutworm(worm, x, y, cuttier) {
  *  from see_monster() in display.c or when a monster goes minvis.  It
  *  is located here for modularity.
  */
-export function see_wsegs(worm) {
+export async function see_wsegs(worm) {
     let curr = game.wtails[worm.wormno];
     while (curr != game.wheads[worm.wormno]) {
-        newsym(curr.wx, curr.wy);
+        await newsym(curr.wx, curr.wy);
         curr = curr.nseg;
     }
 }
@@ -470,13 +451,13 @@ export function see_wsegs(worm) {
  *
  *  Display all of the segments of the given worm for detection.
  */
-export function detect_wsegs(worm, use_detection_glyph) {
+export async function detect_wsegs(worm, use_detection_glyph) {
     let num = 0;
     let curr = game.wtails[worm.wormno];
     let what_tail = ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? ((rn2_on_display_rng)(NUMMONS)) : PM_LONG_WORM_TAIL);
     while (curr != game.wheads[worm.wormno]) {
         num = use_detection_glyph ? ((what_tail) + (((worm.female ? FEMALE : MALE) == MALE) ? GLYPH_DETECT_MALE_OFF : GLYPH_DETECT_FEM_OFF)) : worm.mtame ? ((what_tail) + (((worm.female ? FEMALE : MALE) == MALE) ? GLYPH_PET_MALE_OFF : GLYPH_PET_FEM_OFF)) : ((what_tail) + (((worm.female ? FEMALE : MALE) == MALE) ? GLYPH_MON_MALE_OFF : GLYPH_MON_FEM_OFF));
-        show_glyph(curr.wx, curr.wy, num);
+        await show_glyph(curr.wx, curr.wy, num);
         curr = curr.nseg;
     }
 }
@@ -569,7 +550,7 @@ export function rest_worm(nhfp) {
  *  If oldworm is not NULL, assumes the oldworm segments are on map
  *  in the same location as worm segments
  */
-export function place_wsegs(worm, oldworm) {
+export async function place_wsegs(worm, oldworm) {
     let curr = game.wtails[worm.wormno];
     while (curr != game.wheads[worm.wormno]) {
         let x = curr.wx;
@@ -578,9 +559,9 @@ export function place_wsegs(worm, oldworm) {
         if (oldworm && mtmp == oldworm) {
             game.level.monsters[x][y] = null;
         } else if (mtmp) {
-            impossible("placing worm seg <%d,%d> over another mon", x, y);
+            await impossible("placing worm seg <%d,%d> over another mon", x, y);
         } else if (oldworm) {
-            impossible("replacing worm seg <%d,%d> on empty spot", x, y);
+            await impossible("replacing worm seg <%d,%d> on empty spot", x, y);
         }
         game.level.monsters[x][y] = worm;
         curr = curr.nseg;
@@ -589,26 +570,22 @@ export function place_wsegs(worm, oldworm) {
     curr.wx = worm.mx , curr.wy = worm.my;
 }
 /* called from mon_sanity_check(mon.c) */
-export function sanity_check_worm(worm) {
+export async function sanity_check_worm(worm) {
     let curr = null;
     let wnum = 0;
     let x = 0;
     let y = 0;
     if (!worm) {
-        impossible("worm_sanity: null monster!");
+        await impossible("worm_sanity: null monster!");
         return;
     }
     if (!worm.wormno) {
-        /* note: wormno can't be less than 0 (unsigned bit field) and can't
-       be greater that MAX_NUM_WORMS - 1 (which uses all available bits)
-       so checking for 0 is all we can manage for wormno validation;
-       since caller has already done that, this is rather pointless... */
-        impossible("worm_sanity: not a worm!");
+        await impossible("worm_sanity: not a worm!");
         return;
     }
     wnum = worm.wormno;
     if (!game.wtails[wnum] || !game.wheads[wnum]) {
-        impossible("wormno %d is set without proper tail", wnum);
+        await impossible("wormno %d is set without proper tail", wnum);
         return;
     }
     /* if worm is migrating, we can't check its segments against the map */
@@ -619,9 +596,9 @@ export function sanity_check_worm(worm) {
     while (curr != game.wheads[wnum]) {
         x = curr.wx , y = curr.wy;
         if (!isok(x, y)) {
-            impossible("worm seg not isok <%d,%d>", x, y);
+            await impossible("worm seg not isok <%d,%d>", x, y);
         } else if (game.level.monsters[x][y] != worm) {
-            impossible("mon (%s) at seg location is not worm (%s)", fmt_ptr(game.level.monsters[x][y]), fmt_ptr(worm));
+            await impossible("mon (%s) at seg location is not worm (%s)", fmt_ptr(game.level.monsters[x][y]), fmt_ptr(worm));
         }
         curr = curr.nseg;
     }
@@ -639,12 +616,12 @@ export function wormno_sanity_check() { /* checking tail management, not a parti
  *  It does not get rid of (dealloc) the worm tail structures, and it does
  *  not remove the mon from the fmon chain.
  */
-export function remove_worm(worm) {
+export async function remove_worm(worm) {
     let curr = game.wtails[worm.wormno];
     while (curr) {
         if (curr.wx) {
             game.level.monsters[curr.wx][curr.wy] = null;
-            newsym(curr.wx, curr.wy);
+            await newsym(curr.wx, curr.wy);
             curr.wx = 0;
         }
         curr = curr.nseg;
@@ -659,22 +636,19 @@ export function remove_worm(worm) {
  *  x, and y are most likely the worm->mx, and worm->my, but don't *need* to
  *  be, if somehow the head is disjoint from the tail.
  */
-export function place_worm_tail_randomly(worm, x, y) {
+export async function place_worm_tail_randomly(worm, x, y) {
     let wnum = worm.wormno;
     let curr = game.wtails[wnum];
     let new_tail = null;
     let ox = x;
     let oy = y;
     if (wnum && (!game.wtails[wnum] || !game.wheads[wnum])) {
-        impossible("place_worm_tail_randomly: wormno is set without a tail!");
+        await impossible("place_worm_tail_randomly: wormno is set without a tail!");
         return;
     }
     if (game.wtails[wnum] == game.wheads[wnum]) {
         if (curr.wx && (curr.wx != worm.mx || curr.wy != worm.my)) {
-            /* single segment, co-located with worm;
-           should either have same coordinates or have seg->wx==0
-           to indicate that it is not currently on the map */
-            impossible("place_worm_tail_randomly: tail segment at <%d,%d>, worm at <%d,%d>", curr.wx, curr.wy, worm.mx, worm.my);
+            await impossible("place_worm_tail_randomly: tail segment at <%d,%d>, worm at <%d,%d>", curr.wx, curr.wy, worm.mx, worm.my);
             if ((game.level.monsters[curr.wx][curr.wy]) == worm) {
                 game.level.monsters[curr.wx][curr.wy] = null;
             }
@@ -694,7 +668,7 @@ export function place_worm_tail_randomly(worm, x, y) {
     while (curr) {
         let nx = ox;
         let ny = oy;
-        if (rnd_nextto_goodpos({ get value() { return nx; }, set value(_v) { nx = _v; } }, { get value() { return ny; }, set value(_v) { ny = _v; } }, worm)) {
+        if (await rnd_nextto_goodpos({ get value() { return nx; }, set value(_v) { nx = _v; } }, { get value() { return ny; }, set value(_v) { ny = _v; } }, worm)) {
             game.level.monsters[nx][ny] = worm;
             curr.wx = (ox = nx);
             curr.wy = (oy = ny);
@@ -702,10 +676,9 @@ export function place_worm_tail_randomly(worm, x, y) {
             curr = curr.nseg;
             game.wtails[wnum].nseg = new_tail;
             new_tail = game.wtails[wnum];
-            newsym(nx, ny);
+            await newsym(nx, ny);
         } else {
-            /* Oops.  Truncate because there is no place for rest of it. */
-            toss_wsegs(curr, (0));
+            await toss_wsegs(curr, (0));
             curr = null;
         }
     }
@@ -787,21 +760,12 @@ export function worm_known(worm) {
 }
 /* would moving from <x1,y1> to <x2,y2> involve passing between two
    consecutive segments of the same worm? */
-export function worm_cross(x1, y1, x2, y2) {
+export async function worm_cross(x1, y1, x2, y2) {
     let worm = null;
     let curr = null;
     let wnxt = null;
     if (distmin(x1, y1, x2, y2) != 1) {
-        /*
-     * With digits representing relative sequence number of the segments,
-     * returns true when testing between @ and ? (passes through worm's
-     * body), false between @ and ! (stays on same side of worm).
-     *  .w1?..
-     *  ..@2..
-     *  .65!3.
-     *  ...4..
-     */
-        impossible("worm_cross checking for non-adjacent location?");
+        await impossible("worm_cross checking for non-adjacent location?");
         return (0);
     }
     /* attempting to pass between worm segs is only relevant for diagonal */
@@ -868,19 +832,55 @@ export function flip_worm_segs_horizontal(worm, minx, maxx) {
         curr = curr.nseg;
     }
 }
-export function redraw_worm(worm) {
+export async function redraw_worm(worm) {
     let curr = game.wtails[worm.wormno];
     while (curr) {
-        newsym(curr.wx, curr.wy);
+        await newsym(curr.wx, curr.wy);
         curr = curr.nseg;
     }
 }
 /* !SFCTOOL */
 /*worm.c*/
+/* remove from level.monsters[][];
+           need to check curr->wx for genocided while migrating_mon */
+/* update screen before deallocation */
 /* prior to 5.0.0,, next-grow increment was 3..17 but since
                    it got checked every 4th turn when the speed 3 worm got
                    to move, it was effectively 0..5; also, its usage was
                    'wgrowtime += incr', so often 'wgrowtime' would be
                    exceeded by 'moves' on consecutive turns for the worm,
                    resulting in an excessively rapid growth cycle */
+/* The worm doesn't grow, so the last segment goes away.
+           (Done after inserting an extra segment at the head, so it
+           isn't getting smaller here, just changing location without
+           having to move any of the intermediate segments.) */
+/* note: continuing with wnum==0 runs to completion */
+/*
+     *  This will also remove the real monster (ie 'w') from the its
+     *  position in level.monsters[][].  (That happens when removing
+     *  the hidden tail segment which is co-located with the head.)
+     */
 /* no longer polymorph-proof */
+/* If this is the tail segment, then the worm just loses it. */
+/* clone_mon puts new head here */
+/* clone_mon() will fail if enough long worms have been
+           created to have them be marked as extinct or if the hit
+           that cut the current one has dropped it down to 1 HP */
+/* Place the new monster at all the segment locations. */
+/* note: wormno can't be less than 0 (unsigned bit field) and can't
+       be greater that MAX_NUM_WORMS - 1 (which uses all available bits)
+       so checking for 0 is all we can manage for wormno validation;
+       since caller has already done that, this is rather pointless... */
+/* single segment, co-located with worm;
+           should either have same coordinates or have seg->wx==0
+           to indicate that it is not currently on the map */
+/* Oops.  Truncate because there is no place for rest of it. */
+/*
+     * With digits representing relative sequence number of the segments,
+     * returns true when testing between @ and ? (passes through worm's
+     * body), false between @ and ! (stays on same side of worm).
+     *  .w1?..
+     *  ..@2..
+     *  .65!3.
+     *  ...4..
+     */

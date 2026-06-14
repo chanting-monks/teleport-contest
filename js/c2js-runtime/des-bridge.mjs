@@ -35,11 +35,13 @@
 //     'source'` files like nhlib.lua, quest.lua)
 
 import { lua, lauxlib } from './lua-state.mjs';
+import { lua_touserdata } from './lua-state.mjs';
 import {
     lua_pushinteger, lua_pushnumber, lua_pushstring, lua_pushboolean,
     lua_pushnil, lua_gettop, lua_settop, lua_setfield, lua_rawseti,
     lua_createtable, lua_tointeger, lua_tostring, lua_tonumber,
     lua_isnumber, lua_isstring, luaValueToJs,
+    wrapLuaObj,
 } from './lua.js';
 import { lua_pushjsfunction } from './lua-state.mjs';
 import { pushSelection } from './nhlsel-bridge.mjs';
@@ -52,6 +54,17 @@ import { Selection } from './selection-js.mjs';
 //
 // `lspoTable` is the array-of-{name, func} from sp_lev.js
 // (nhl_functions).  We iterate it once to build the proxy.
+// des-op SERIALIZER (Q9 iter 64): a detached async chain from a
+// prior load could interleave its des ops INSIDE another load's op
+// (seed2600: a themed room's 26x18 des.map mutated xstart/ystart
+// mid-walk during bigrm-9's 74x19 paint -> absorbed mapfrag panic ->
+// all-STONE level).  All top-level des ops now run through one
+// global promise chain so ops are atomic and ordered by invocation.
+// RE-ENTRANT: ops invoked from WITHIN an executing op (contents
+// callbacks via pcall) run inline -- queueing them would deadlock.
+let __desOpChain = Promise.resolve();
+let __desOpDepth = 0;
+
 export function buildDesProxy(L, lspoTable) {
     // Stamp the state with the creating session's epoch (see the
     // stale-chain guard below).
@@ -91,11 +104,13 @@ export function buildDesProxy(L, lspoTable) {
                     + ' (cross-session chain, epoch ' + L.__nh_epoch
                     + ' vs ' + __epoch + ')');
             }
+            const __runOp = async () => {
+            __desOpDepth++;
             const absBase = L.stack.length;
             L.frameBases.push(absBase);
             const __opTrace = (typeof process !== 'undefined' && process.env?.NH_OP_TRACE);
             const __opId = __opTrace ? ((globalThis.__nh_op_seq = (globalThis.__nh_op_seq || 0) + 1)) : 0;
-            if (__opTrace) { const g = globalThis.__nh_gameRef || globalThis.game; console.warn('[op>', __opId, 'des.' + entry.name, 'rng@' + ((g && g._rngLog && g._rngLog.length) || 0), JSON.stringify(args).slice(0, 60)); }
+            if (__opTrace) { const g = globalThis.__nh_gameRef || globalThis.game; const sid = (L.__nh_state_id || (L.__nh_state_id = (globalThis.__nh_state_seq = (globalThis.__nh_state_seq || 0) + 1))); console.warn('[op>', __opId, 'L#' + sid, 'des.' + entry.name, 'rng@' + ((g && g._rngLog && g._rngLog.length) || 0), JSON.stringify(args).slice(0, 50)); }
             try {
                 for (const a of args) pushJsValue(L, a);
                 const nresults = await lspoFn(L);
@@ -124,7 +139,16 @@ export function buildDesProxy(L, lspoTable) {
             } finally {
                 L.frameBases.pop();
                 L.stack.length = absBase;
+                __desOpDepth--;
             }
+            };
+            if (__desOpDepth > 0) {
+                // nested call from within an executing op: run inline
+                return __runOp();
+            }
+            const __p = __desOpChain.then(__runOp);
+            __desOpChain = __p.then(() => {}, () => {});
+            return __p;
         };
     }
     return proxy;
@@ -221,5 +245,11 @@ export function pushJsValue(L, v) {
 export function popJsValue(L, idx) {
     if (lua_isnumber(L, idx)) return lua_tonumber(L, idx);
     if (lua_isstring(L, idx)) return lua_tostring(L, idx);
+    // lightuserdata from nhl_push_obj → shared Lua obj-API wrapper
+    // (timers + totable); see lua.js wrapLuaObj.
+    const raw = lua_touserdata(L, idx);
+    if (raw && typeof raw === 'object' && 'obj' in raw && 'state' in raw) {
+        return wrapLuaObj(raw);
+    }
     return null;
 }

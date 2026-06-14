@@ -81,42 +81,42 @@ export function get_mplname(mtmp, nam) {
     nam = strcat(nam, " the ");
     nam = strcat(nam, rank_of(mtmp.m_lev, ((mtmp.data).pmidx), mtmp.female));
 }
-export function mk_mplayer_armor(mon, typ) {
+export async function mk_mplayer_armor(mon, typ) {
     let obj = null;
     if (typ == STRANGE_OBJECT) {
         return;
     }
-    obj = mksobj(typ, (0), (0));
+    obj = await mksobj(typ, (0), (0));
     obj.oeroded = obj.oeroded2 = 0;
     if (!rn2(3)) {
         obj.oerodeproof = 1;
     }
     if (!rn2(3)) {
-        curse(obj);
+        await curse(obj);
     }
     if (!rn2(3)) {
-        bless(obj);
+        await bless(obj);
     }
     /* Most players who get to the endgame who have cursed equipment
      * have it because the wizard or other monsters cursed it, so its
      * chances of having plusses is the same as usual....
      */
     obj.spe = rn2(10) ? (rn2(3) ? rn2(5) : (rn2(4) + (4))) : -rnd(3);
-    mpickobj(mon, obj);
+    await mpickobj(mon, obj);
 }
-export function mk_mplayer(ptr, x, y, special) {
+export async function mk_mplayer(ptr, x, y, special) {
     let mtmp = null;
     let nam = '';
     if (!(((ptr).pmidx >= PM_ARCHEOLOGIST) && ((ptr).pmidx <= PM_WIZARD))) {
         return (null);
     }
     if ((game.level.monsters[x][y] != null)) {
-        rloc((game.level.monsters[x][y]), 1 | 4);
+        await rloc((game.level.monsters[x][y]), 1 | 4);
     }
     if (!((game.u.uz).dnum == (game.dungeon_topology.d_astral_level).dnum)) {
         special = (0);
     }
-    if ((mtmp = makemon(ptr, x, y, special ? 131072 : 0)) != null) {
+    if ((mtmp = await makemon(ptr, x, y, special ? 131072 : 0)) != null) {
         let weapon = 0;
         let armor = 0;
         let cloak = 0;
@@ -129,8 +129,7 @@ export function mk_mplayer(ptr, x, y, special) {
         if (special) {
             get_mplname(mtmp, nam);
             mtmp = christen_monst(mtmp, nam);
-            /* that's why they are "stuck" in the endgame :-) */
-            mongets(mtmp, FAKE_AMULET_OF_YENDOR);
+            await mongets(mtmp, FAKE_AMULET_OF_YENDOR);
         }
         mtmp.mpeaceful = 0;
         /* peaceful may have changed again */
@@ -254,12 +253,12 @@ export function mk_mplayer(ptr, x, y, special) {
                 shield = STRANGE_OBJECT;
                 break;
             default:
-                impossible("bad mplayer monster");
+                await impossible("bad mplayer monster");
                 weapon = 0;
                 break;
         }
         if (weapon != STRANGE_OBJECT) {
-            otmp = mksobj(weapon, (1), (0));
+            otmp = await mksobj(weapon, (1), (0));
             otmp.oeroded = otmp.oeroded2 = 0;
             otmp.spe = (special ? (rn2(5) + (4)) : rn2(4));
             if (!rn2(3)) {
@@ -267,62 +266,58 @@ export function mk_mplayer(ptr, x, y, special) {
             } else if (!rn2(2)) {
                 otmp.greased = 1;
             }
-            /* mk_artifact() with otmp and A_NONE will never return NULL */
             if (special && rn2(2)) {
-                otmp = mk_artifact(otmp, (-128), 99, (0));
+                otmp = await mk_artifact(otmp, (-128), 99, (0));
             }
             /* usually increase stack size if stackable weapon */
             if (game.objects[otmp.otyp].oc_merge && !otmp.oartifact && monmightthrowwep(otmp)) {
                 otmp.quan += rn2((otmp.oclass == WEAPON_CLASS && game.objects[otmp.otyp].oc_subtyp == P_SPEAR) ? 4 : 8);
             }
-            otmp.owt = weight(otmp);
+            otmp.owt = await weight(otmp);
             /* mplayers knew better than to overenchant Magicbane */
             if (is_art(otmp, ART_MAGICBANE)) {
                 otmp.spe = rnd(4);
             }
-            mpickobj(mtmp, otmp);
+            await mpickobj(mtmp, otmp);
         }
         if (special) {
             if (!rn2(10)) {
-                mongets(mtmp, rn2(3) ? LUCKSTONE : LOADSTONE);
+                await mongets(mtmp, rn2(3) ? LUCKSTONE : LOADSTONE);
             }
-            mk_mplayer_armor(mtmp, armor);
-            mk_mplayer_armor(mtmp, cloak);
-            mk_mplayer_armor(mtmp, helm);
-            mk_mplayer_armor(mtmp, shield);
-            /* valkyrie: wimpy weapon or Mjollnir */
+            await mk_mplayer_armor(mtmp, armor);
+            await mk_mplayer_armor(mtmp, cloak);
+            await mk_mplayer_armor(mtmp, helm);
+            await mk_mplayer_armor(mtmp, shield);
             if (weapon == WAR_HAMMER) {
-                mk_mplayer_armor(mtmp, GAUNTLETS_OF_POWER);
+                await mk_mplayer_armor(mtmp, GAUNTLETS_OF_POWER);
             } else if (rn2(8)) {
-                mk_mplayer_armor(mtmp, rnd_class(LEATHER_GLOVES, GAUNTLETS_OF_DEXTERITY));
+                await mk_mplayer_armor(mtmp, rnd_class(LEATHER_GLOVES, GAUNTLETS_OF_DEXTERITY));
             }
             if (rn2(8)) {
-                mk_mplayer_armor(mtmp, rnd_class(LOW_BOOTS, LEVITATION_BOOTS));
+                await mk_mplayer_armor(mtmp, rnd_class(LOW_BOOTS, LEVITATION_BOOTS));
             }
-            m_dowear(mtmp, (1));
+            await m_dowear(mtmp, (1));
             quan = rn2(3) ? rn2(3) : rn2(16);
             while (quan--) {
-                mongets(mtmp, rnd_class(DILITHIUM_CRYSTAL, JADE));
+                await mongets(mtmp, rnd_class(DILITHIUM_CRYSTAL, JADE));
             }
-            /* To get the gold "right" would mean a player can double his
-               gold supply by killing one mplayer.  Not good. */
-            mkmonmoney(mtmp, rn2(1000));
+            await mkmonmoney(mtmp, rn2(1000));
             quan = rn2(10);
             while (quan--) {
-                mpickobj(mtmp, mkobj(RANDOM_CLASS, (0)));
+                await mpickobj(mtmp, await mkobj(RANDOM_CLASS, (0)));
             }
         }
         quan = rnd(3);
         while (quan--) {
-            mongets(mtmp, rnd_offensive_item(mtmp));
+            await mongets(mtmp, await rnd_offensive_item(mtmp));
         }
         quan = rnd(3);
         while (quan--) {
-            mongets(mtmp, rnd_defensive_item(mtmp));
+            await mongets(mtmp, await rnd_defensive_item(mtmp));
         }
         quan = rnd(3);
         while (quan--) {
-            mongets(mtmp, rnd_misc_item(mtmp));
+            await mongets(mtmp, rnd_misc_item(mtmp));
         }
     }
     return (mtmp);
@@ -334,7 +329,7 @@ export function mk_mplayer(ptr, x, y, special) {
  * developers array, otherwise a bunch of Adams and Eves will
  * fill up the overflow.
  */
-export function create_mplayers(num, special) {
+export async function create_mplayers(num, special) {
     let pm = 0;
     let x = 0;
     let y = 0;
@@ -354,18 +349,23 @@ export function create_mplayers(num, special) {
         if (tryct > 50) {
             return;
         }
-        mk_mplayer(game.mons[pm], x, y, special);
+        await mk_mplayer(game.mons[pm], x, y, special);
         num--;
     }
 }
 const __mplayer_talk_same_class_msg = ["I can't win, and neither will you!", "You don't deserve to win!", "Mine should be the honor, not yours!"];
 const __mplayer_talk_other_class_msg = ["The low-life wants to talk, eh?", "Fight, scum!", "Here is what I have to say!"];
-export function mplayer_talk(mtmp) {
+export async function mplayer_talk(mtmp) {
     if (mtmp.mpeaceful) {
         return;
     }
     ;
-    /* will drop to humanoid talk */
-    verbalize("Talk? -- %s", mtmp.data == game.mons[game.urole.mnum] ? __mplayer_talk_same_class_msg[rn2(3)] : __mplayer_talk_other_class_msg[rn2(3)]);
+    await verbalize("Talk? -- %s", mtmp.data == game.mons[game.urole.mnum] ? __mplayer_talk_same_class_msg[rn2(3)] : __mplayer_talk_other_class_msg[rn2(3)]);
 }
 /*mplayer.c*/
+/* that's why they are "stuck" in the endgame :-) */
+/* mk_artifact() with otmp and A_NONE will never return NULL */
+/* valkyrie: wimpy weapon or Mjollnir */
+/* To get the gold "right" would mean a player can double his
+               gold supply by killing one mplayer.  Not good. */
+/* will drop to humanoid talk */

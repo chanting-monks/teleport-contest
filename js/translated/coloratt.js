@@ -4,8 +4,9 @@
 import { game } from '../gstate.js';
 import { alloc, free, memcpy } from '../c2js-runtime/memory.js';
 import { regex_id } from '../c2js-runtime/regex.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_advance_str, __nh_char_at0, atoi, nh_strchr_truncate, strchr, strlen, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, nh_strchr_truncate, strchr, strlen, strncmpi, strncpy, strstri } from '../c2js-runtime/string.js';
 import { cg, hexdd } from './decl.js';
 import { nul_glyphinfo } from './display.js';
 import { digit, fuzzymatch, mungspaces } from './hacklib.js';
@@ -185,6 +186,7 @@ export function colortable_to_int32(cte) {
     return clr;
 }
 let __color_attr_to_str_buf = '';
+__nh_register_static(() => { __color_attr_to_str_buf = ''; });
 export function color_attr_to_str(ca) {
     __color_attr_to_str_buf = sprintf(__color_attr_to_str_buf, "%s&%s", clr2colorname(ca.color), attr2attrname(ca.attr));
     return __color_attr_to_str_buf;
@@ -197,7 +199,7 @@ export function color_attr_parse_str(ca, str) {
     let c = 8;
     let a = 0;
     buf = strncpy(buf, str, 256 /* sizeof(char [256]) */ - 1);
-    buf[256 /* sizeof(char [256]) */ - 1] = 0;
+    buf = __nh_char_write(buf, 256 /* sizeof(char [256]) */ - 1, 0);
     if ((amp = strchr(buf, 38)) != null) {
         buf = nh_strchr_truncate(buf, 38, 'chr');
     }
@@ -230,14 +232,14 @@ export function color_attr_parse_str(ca, str) {
     ca.color = c;
     return (1);
 }
-export function query_color_attr(ca, prompt) {
+export async function query_color_attr(ca, prompt) {
     let c = 0;
     let a = 0;
-    c = query_color(prompt, ca.color);
+    c = await query_color(prompt, ca.color);
     if (c == -1) {
         return (0);
     }
-    a = query_attr(prompt, ca.attr);
+    a = await query_attr(prompt, ca.attr);
     if (a == -1) {
         return (0);
     }
@@ -310,9 +312,9 @@ export function match_str2attr(str, complain) {
    coloring patterns, only one attribute at a time is allowed;
    for status highlighting, multiple attributes are allowed [overkill;
    life would be much simpler if that were restricted to one also...] */
-export function query_attr(prompt, dflt_attr) {
+export async function query_attr(prompt, dflt_attr) {
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let pick_cnt = 0;
     let picks = null;
@@ -320,16 +322,16 @@ export function query_attr(prompt, dflt_attr) {
     let clr = 8;
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; i < (Math.trunc(11 /* sizeof(const struct attr_names [11]) */ / 1 /* sizeof(const struct attr_names) */)); i++) {
         if (!attrnames[i].name) {
             break;
         }
         any.a_int = i + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, attrnames[i].attr, clr, attrnames[i].name, (attrnames[i].attr == dflt_attr) ? 1 : 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, attrnames[i].attr, clr, attrnames[i].name, (attrnames[i].attr == dflt_attr) ? 1 : 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, (prompt && __nh_char_at0(prompt)) ? prompt : "Pick an attribute");
-    pick_cnt = select_menu(tmpwin, allow_many ? 2 : 1, picks);
+    pick_cnt = await select_menu(tmpwin, allow_many ? 2 : 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (pick_cnt > 0) {
         let j = 0;
@@ -385,9 +387,9 @@ export function query_attr(prompt, dflt_attr) {
        PICK_ANY with preselected entry toggled off and nothing chosen */
     return -1;
 }
-export function query_color(prompt, dflt_color) {
+export async function query_color(prompt, dflt_color) {
     let tmpwin = 0;
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let pick_cnt = 0;
     let picks = null;
@@ -395,16 +397,16 @@ export function query_color(prompt, dflt_color) {
     basic_menu_colors((1));
     tmpwin = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(tmpwin, 0);
-    any = cg.zeroany;
+    Object.assign(any, cg.zeroany);
     for (i = 0; i < (Math.trunc(27 /* sizeof(const struct color_names [27]) */ / 1 /* sizeof(const struct color_names) */)); i++) {
         if (!colornames[i].name) {
             break;
         }
         any.a_int = i + 1;
-        add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, 8, colornames[i].name, (colornames[i].color == dflt_color) ? 1 : 0);
+        await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, 8, colornames[i].name, (colornames[i].color == dflt_color) ? 1 : 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, (prompt && __nh_char_at0(prompt)) ? prompt : "Pick a color");
-    pick_cnt = select_menu(tmpwin, 1, picks);
+    pick_cnt = await select_menu(tmpwin, 1, picks);
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     /* remove temporary color name patterns and restore user-specified ones;
        reset 'menucolors' option to its previous value */
@@ -517,7 +519,7 @@ export function add_menu_coloring(tmpstr) {
     let amp = null;
     let str = '';
     str = strncpy(str, tmpstr, 256 /* sizeof(char [256]) */ - 1);
-    str[256 /* sizeof(char [256]) */ - 1] = 0;
+    str = __nh_char_write(str, 256 /* sizeof(char [256]) */ - 1, 0);
     if ((cs = strchr(str, 61)) == null) {
         config_error_add("Malformed MENUCOLOR");
         return (0);
@@ -645,6 +647,7 @@ export function check_enhanced_colors(buf) {
 }
 /* return the canonical name of a particular color */
 let __wc_color_name_hexcolor = '';
+__nh_register_static(() => { __wc_color_name_hexcolor = ''; });
 export function wc_color_name(colorindx) {
     let result = "no-color";
     if (colorindx >= 0) {

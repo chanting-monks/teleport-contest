@@ -8,13 +8,14 @@
  * It contains also the special level loader.
  */
 import { game } from '../gstate.js';
-import { get_table_boolean_opt, get_table_int, get_table_int_opt, get_table_option, get_table_str, get_table_str_opt, lcheck_param_table, luaL_checkoption, luaL_checktype, luaL_setfuncs, lua_getfield, lua_gettable, lua_gettop, lua_isnil, lua_isnumber, lua_len, lua_newtable, lua_pop, lua_pushinteger, lua_remove, lua_setglobal, lua_tointeger, lua_tostring, lua_type, nhl_error, nhl_pcall_handle } from '../c2js-runtime/lua.js';
+import { check_mapchr, get_table_boolean_opt, get_table_int, get_table_int_opt, get_table_option, get_table_str, get_table_str_opt, lcheck_param_table, load_lua, luaL_checkinteger, luaL_checkoption, luaL_checkstring, luaL_checktype, luaL_optinteger, luaL_setfuncs, luaL_typename, lua_getfield, lua_gettable, lua_gettop, lua_isnil, lua_isnumber, lua_len, lua_newtable, lua_pop, lua_pushinteger, lua_remove, lua_setglobal, lua_tointeger, lua_tostring, lua_type, nhl_error, nhl_pcall_handle, splev_chr2typ } from '../c2js-runtime/lua.js';
 import { abs } from '../c2js-runtime/math.js';
 import { alloc, free, memcpy, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
+import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_char_at0, strcat, strchr, strcmp, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, strcat, strchr, strcmp, strlen, strncmp, strncmpi, strstri } from '../c2js-runtime/string.js';
 import { artifact_exists } from './artifact.js';
 import { placebc, unplacebc } from './ball.js';
 import { describe_level } from './botl.js';
@@ -106,19 +107,19 @@ export function mapfrag_fromstr(str) {
     mf.data = stripdigits(mf.data);
     mf.wid = str_lines_maxlen(mf.data);
     mf.hei = 0;
-    if (mf.data) {
-        const __mfs = typeof mf.data === 'string'
-            ? mf.data
-            : (() => { let r = ''; for (let i = 0; i < mf.data.length && mf.data[i]; i++) r += String.fromCharCode(mf.data[i]); return r; })();
-        for (let __i = 0; __i < __mfs.length; __i++) {
-            if (__mfs.charCodeAt(__i) === 10) {
-                mf.hei++;
-                if (mf.hei > 21) { free(mf.data); free(mf); return null; }
-            }
+    tmps = mf.data;
+    while (tmps && __nh_char_at0(tmps)) {
+        let s1 = strchr(tmps, 10);
+        if (mf.hei > 21) {
+            free(mf.data);
+            free(mf);
+            return null;
         }
-        if (__mfs.length > 0 && __mfs.charCodeAt(__mfs.length - 1) !== 10) {
-            mf.hei++;
+        if (s1) {
+            (s1 = __nh_advance_str(s1, 1));
         }
+        tmps = s1;
+        mf.hei++;
     }
     return mf;
 }
@@ -129,34 +130,34 @@ export function mapfrag_free(mf) {
         mf.value = null;
     }
 }
-export function mapfrag_get(mf, x, y) {
+export async function mapfrag_get(mf, x, y) {
     if (y < 0 || x < 0 || y > mf.hei - 1 || x > mf.wid - 1) {
-        panic("outside mapfrag (%i,%i), wanted (%i,%i)", mf.wid, mf.hei, x, y);
+        await panic("outside mapfrag (%i,%i), wanted (%i,%i)", mf.wid, mf.hei, x, y);
     }
-    return splev_chr2typ(mf.data[y * (mf.wid + 1) + x]);
+    return splev_chr2typ(__nh_char_at0(__nh_advance_str(mf.data, y * (mf.wid + 1) + x)));
 }
 export function mapfrag_canmatch(mf) {
     return ((mf.wid % 2) && (mf.hei % 2));
 }
-export function mapfrag_error(mf) {
+export async function mapfrag_error(mf) {
     let res = null;
     if (!mf) {
         res = "mapfragment error";
     } else if (!mapfrag_canmatch(mf)) {
         mapfrag_free({ get value() { return mf; }, set value(_v) { mf = _v; } });
         res = "mapfragment needs to have odd height and width";
-    } else if (((mapfrag_get(mf, Math.trunc(mf.wid / 2), Math.trunc(mf.hei / 2))) == MAX_TYPE || (mapfrag_get(mf, Math.trunc(mf.wid / 2), Math.trunc(mf.hei / 2))) == INVALID_TYPE)) {
+    } else if (((await mapfrag_get(mf, Math.trunc(mf.wid / 2), Math.trunc(mf.hei / 2))) == MAX_TYPE || (await mapfrag_get(mf, Math.trunc(mf.wid / 2), Math.trunc(mf.hei / 2))) == INVALID_TYPE)) {
         mapfrag_free({ get value() { return mf; }, set value(_v) { mf = _v; } });
         res = "mapfragment center must be valid terrain";
     }
     return res;
 }
-export function mapfrag_match(mf, x, y) {
+export async function mapfrag_match(mf, x, y) {
     let rx = 0;
     let ry = 0;
     for (rx = -(Math.trunc(mf.wid / 2)); rx <= (Math.trunc(mf.wid / 2)); rx++) {
         for (ry = -(Math.trunc(mf.hei / 2)); ry <= (Math.trunc(mf.hei / 2)); ry++) {
-            let mapc = mapfrag_get(mf, rx + (Math.trunc(mf.wid / 2)), ry + (Math.trunc(mf.hei / 2)));
+            let mapc = await mapfrag_get(mf, rx + (Math.trunc(mf.wid / 2)), ry + (Math.trunc(mf.hei / 2)));
             let levc = isok(x + rx, y + ry) ? game.level.locations[x + rx][y + ry].typ : STONE;
             if (!match_maptyps(mapc, levc)) {
                 /* No more free rectangles ! */
@@ -184,7 +185,7 @@ export function solidify_map() {
 }
 /* do a post-level-creation cleanup of map, such as
    removing boulders and traps from lava */
-export function map_cleanup() {
+export async function map_cleanup() {
     let otmp = null;
     let ttmp = null;
     let etmp = null;
@@ -195,15 +196,14 @@ export function map_cleanup() {
             let typ = game.level.locations[x][y].typ;
             if (((typ) == LAVAPOOL || (typ) == LAVAWALL) || ((typ) >= POOL && (typ) <= DRAWBRIDGE_UP)) {
                 while ((otmp = sobj_at(BOULDER, x, y)) != null) {
-                    /* in case any boulders are on liquid, delete them */
-                    obj_extract_self(otmp);
-                    obfree(otmp, null);
+                    await obj_extract_self(otmp);
+                    await obfree(otmp, null);
                 }
                 if (((ttmp = t_at(x, y)) != null) && !((ttmp.ttyp) == MAGIC_PORTAL || (ttmp.ttyp) == VIBRATING_SQUARE)) {
-                    deltrap(ttmp);
+                    await deltrap(ttmp);
                 }
                 if ((etmp = engr_at(x, y)) != null) {
-                    del_engr(etmp);
+                    await del_engr(etmp);
                 }
             }
         }
@@ -222,12 +222,12 @@ export function lvlfill_maze_grid(x1, y1, x2, y2, filling) {
         }
     }
 }
-export function lvlfill_solid(filling, lit) {
+export async function lvlfill_solid(filling, lit) {
     let x = 0;
     let y = 0;
     for (x = 2; x <= game.x_maze_max; x++) {
         for (y = 0; y <= game.y_maze_max; y++) {
-            if (!set_levltyp_lit(x, y, filling, lit)) {
+            if (!await set_levltyp_lit(x, y, filling, lit)) {
                 continue;
             }
             /* no need for IS_DOOR check; out of map bounds */
@@ -239,15 +239,15 @@ export function lvlfill_solid(filling, lit) {
         }
     }
 }
-export function lvlfill_swamp(fg, bg, lit) {
+export async function lvlfill_swamp(fg, bg, lit) {
     let x = 0;
     let y = 0;
-    lvlfill_solid(bg, lit);
+    await lvlfill_solid(bg, lit);
     for (x = 2; x <= ((game.x_maze_max) < (80 - 2) ? (game.x_maze_max) : (80 - 2)); x += 2) {
         for (y = 0; y <= ((game.y_maze_max) < (21 - 2) ? (game.y_maze_max) : (21 - 2)); y += 2) {
             /* "relaxed blockwise maze" algorithm, Jamis Buck */
             let c = 0;
-            set_levltyp_lit(x, y, fg, lit);
+            await set_levltyp_lit(x, y, fg, lit);
             if (game.level.locations[x + 1][y].typ == bg) {
                 ++c;
             }
@@ -261,15 +261,15 @@ export function lvlfill_swamp(fg, bg, lit) {
                 switch (rn2(3)) {
                     /* Convert wall and pos into an absolute coordinate! */
                     case 0:
-                        set_levltyp_lit(x + 1, y, fg, lit);
+                        await set_levltyp_lit(x + 1, y, fg, lit);
                         break;
                     /* don't use move() - it doesn't use W_NORTH, etc. */
                     /* place map starting at halign,valign */
                     case 1:
-                        set_levltyp_lit(x, y + 1, fg, lit);
+                        await set_levltyp_lit(x, y + 1, fg, lit);
                         break;
                     case 2:
-                        set_levltyp_lit(x + 1, y + 1, fg, lit);
+                        await set_levltyp_lit(x + 1, y + 1, fg, lit);
                         break;
                     default:
                         break;
@@ -302,7 +302,7 @@ export function flip_dbridge_vertical(lev) {
 }
 /* for #wizfliplevel; not needed when flipping during level creation;
    update seen vector for whole flip area and glyph for known walls */
-export function flip_visuals(flp, minx, miny, maxx, maxy) {
+export async function flip_visuals(flp, minx, miny, maxx, maxy) {
     let lev = null;
     let x = 0;
     let y = 0;
@@ -336,7 +336,7 @@ export function flip_visuals(flp, minx, miny, maxx, maxy) {
             /* if <x,y> is displayed as a wall, reset its display glyph so
                that remembered, out of view T's and corners get flipped */
             if ((((lev.typ) && (lev.typ) <= DBWALL) || lev.typ == SDOOR) && ((lev.glyph) >= GLYPH_CMAP_STONE_OFF && (lev.glyph) < (GLYPH_CMAP_C_OFF + ((S_goodpos - S_digbeam) + 1)))) {
-                lev.glyph = back_to_glyph(x, y);
+                lev.glyph = await back_to_glyph(x, y);
             }
         }
     }
@@ -361,7 +361,7 @@ export function flip_encoded_dir_bits(flp, val) {
 /* mask for orientation(s) to transpose */
 /* False: level creation; True: #wizfliplevel is
                      * altering an active level so more needs to be done */
-export function flip_level(flp, extras) {
+export async function flip_level(flp, extras) {
     let x = 0;
     let y = 0;
     let i = 0;
@@ -413,7 +413,7 @@ export function flip_level(flp, extras) {
             }
             ball_fliparea = ((((game.uball.ox) >= minx && (game.uball.ox) <= maxx && (game.uball.oy) >= miny && (game.uball.oy) <= maxy) == ((game.uchain.ox) >= minx && (game.uchain.ox) <= maxx && (game.uchain.oy) >= miny && (game.uchain.oy) <= maxy)) && (((game.uball.ox) >= minx && (game.uball.ox) <= maxx && (game.uball.oy) >= miny && (game.uball.oy) <= maxy) == ((game.u.ux) >= minx && (game.u.ux) <= maxx && (game.u.uy) >= miny && (game.u.uy) <= maxy)));
             if (!ball_fliparea) {
-                unplacebc();
+                await unplacebc();
             }
         }
     }
@@ -797,7 +797,7 @@ export function flip_level(flp, extras) {
             game.u.ux0 = game.u.ux , game.u.uy0 = game.u.uy;
         }
         if (ball_active && !ball_fliparea) {
-            placebc();
+            await placebc();
         }
         do {
             if ((game.iflags.travelcc).x && (((game.iflags.travelcc).x) >= minx && ((game.iflags.travelcc).x) <= maxx && ((game.iflags.travelcc).y) >= miny && ((game.iflags.travelcc).y) <= maxy)) {
@@ -820,11 +820,10 @@ export function flip_level(flp, extras) {
             }
         } while (0);
     }
-    fix_wall_spines(1, 0, 80 - 1, 21 - 1);
+    await fix_wall_spines(1, 0, 80 - 1, 21 - 1);
     if (extras && flp) {
         set_wall_state();
-        /* after wall_spines; flips seenv and wall joins */
-        flip_visuals(flp, minx, miny, maxx, maxy);
+        await flip_visuals(flp, minx, miny, maxx, maxy);
     }
     vision_reset();
 }
@@ -868,7 +867,7 @@ export function flip_vault_guard(flp, grd, minx, miny, maxx, maxy) {
 }
 /* randomly transpose top with bottom or left with right or both;
    caller controls which transpositions are allowed */
-export function flip_level_rnd(flp, extras) {
+export async function flip_level_rnd(flp, extras) {
     let c = 0;
     /* TODO?
      *  Might change rn2(2) to !rn2(3) or (rn2(5) < 2) in order to bias
@@ -881,7 +880,7 @@ export function flip_level_rnd(flp, extras) {
         c |= 2;
     }
     if (c) {
-        flip_level(c, extras);
+        await flip_level(c, extras);
     }
 }
 export function sel_set_wall_property(x, y, arg) {
@@ -968,7 +967,7 @@ export function set_door_orientation(x, y) {
 }
 /* is x,y right next to room droom? */
 export function shared_with_room(x, y, droom) {
-    let rmno = game.rooms.indexOf(droom) + 3;
+    let rmno = (game.rooms.indexOf(droom)) + 3;
     if (!isok(x, y)) {
         return (0);
     }
@@ -991,7 +990,7 @@ export function shared_with_room(x, y, droom) {
 }
 /* maybe add door at x,y to room droom */
 export function maybe_add_door(x, y, droom) {
-    if (droom.hx >= 0 && ((!droom.irregular && inside_room(droom, x, y)) || game.level.locations[x][y].roomno == game.rooms.indexOf(droom) + 3 || shared_with_room(x, y, droom))) {
+    if (droom.hx >= 0 && ((!droom.irregular && inside_room(droom, x, y)) || game.level.locations[x][y].roomno == (game.rooms.indexOf(droom)) + 3 || shared_with_room(x, y, droom))) {
         add_door(x, y, droom);
     }
 }
@@ -1023,6 +1022,7 @@ export function link_doors_rooms() {
  * Choose randomly the state (nodoor, open, closed or locked) for a door
  */
 let __rnddoor_state = [0, 1, 2, 4, 8];
+__nh_register_static(() => { __rnddoor_state = [0, 1, 2, 4, 8]; });
 export function rnddoor() {
     return __rnddoor_state[rn2((Math.trunc(20 /* sizeof(int [5]) */ / 4 /* sizeof(int) */)))];
 }
@@ -1072,7 +1072,7 @@ export function rndtrap() {
  * The "humidity" flag is used to ensure that engravings aren't created
  * underwater, or eels on dry land.
  */
-export function get_location(x, y, humidity, croom) {
+export async function get_location(x, y, humidity, croom) {
     let cpt = 0;
     let mx = 0;
     let my = 0;
@@ -1122,7 +1122,7 @@ export function get_location(x, y, humidity, croom) {
                     }
                 }
                 if (!(humidity & 32)) {
-                    impossible("get_location:  can't find a place!");
+                    await impossible("get_location:  can't find a place!");
                 } else {
                     x.value = y.value = -1;
                 }
@@ -1176,6 +1176,7 @@ export function pm_good_location(x, y, pm) {
     return is_ok_location(x, y, pm_to_humidity(pm));
 }
 let __get_unpacked_coord_c = { is_random: 0, getloc_flags: 0, x: 0, y: 0 };
+__nh_register_static(() => { __get_unpacked_coord_c = { is_random: 0, getloc_flags: 0, x: 0, y: 0 }; });
 export function get_unpacked_coord(loc, defhumidity) {
     if (loc & 16777216) {
         __get_unpacked_coord_c.x = __get_unpacked_coord_c.y = -1;
@@ -1192,28 +1193,28 @@ export function get_unpacked_coord(loc, defhumidity) {
     }
     return __get_unpacked_coord_c;
 }
-export function get_location_coord(x, y, humidity, croom, crd) {
-    let c = 0;
-    c = get_unpacked_coord(crd, humidity);
+export async function get_location_coord(x, y, humidity, croom, crd) {
+    let c = { is_random: 0, getloc_flags: 0, x: 0, y: 0 };
+    Object.assign(c, get_unpacked_coord(crd, humidity));
     x.value = c.x;
     y.value = c.y;
-    get_location(x, y, c.getloc_flags | (c.is_random ? 32 : 0), croom);
+    await get_location(x, y, c.getloc_flags | (c.is_random ? 32 : 0), croom);
     if (x.value == -1 && y.value == -1 && c.is_random) {
-        get_location(x, y, humidity, croom);
+        await get_location(x, y, humidity, croom);
     }
 }
 /*
  * Get a relative position inside a room.
  * negative values for x or y means RANDOM!
  */
-export function get_room_loc(x, y, croom) {
+export async function get_room_loc(x, y, croom) {
     let c = { x: 0, y: 0 };
     if (x.value < 0 && y.value < 0) {
         if (somexy(croom, c)) {
             x.value = c.x;
             y.value = c.y;
         } else {
-            panic("get_room_loc : can't find a place!");
+            await panic("get_room_loc : can't find a place!");
         }
     } else {
         if (x.value < 0) {
@@ -1230,23 +1231,23 @@ export function get_room_loc(x, y, croom) {
  * Get a relative position inside a room.
  * negative values for x or y means RANDOM!
  */
-export function get_free_room_loc(x, y, croom, pos) {
+export async function get_free_room_loc(x, y, croom, pos) {
     let try_x = 0;
     let try_y = 0;
     let trycnt = 0;
-    get_location_coord({ get value() { return try_x; }, set value(_v) { try_x = _v; } }, { get value() { return try_y; }, set value(_v) { try_y = _v; } }, 1, croom, pos);
+    await get_location_coord({ get value() { return try_x; }, set value(_v) { try_x = _v; } }, { get value() { return try_y; }, set value(_v) { try_y = _v; } }, 1, croom, pos);
     if (game.level.locations[try_x][try_y].typ != ROOM) {
         do {
             try_x = x.value , try_y = y.value;
-            get_room_loc({ get value() { return try_x; }, set value(_v) { try_x = _v; } }, { get value() { return try_y; }, set value(_v) { try_y = _v; } }, croom);
+            await get_room_loc({ get value() { return try_x; }, set value(_v) { try_x = _v; } }, { get value() { return try_y; }, set value(_v) { try_y = _v; } }, croom);
         } while (game.level.locations[try_x][try_y].typ != ROOM && ++trycnt <= 100);
         if (trycnt > 100) {
-            panic("get_free_room_loc:  can't find a place!");
+            await panic("get_free_room_loc:  can't find a place!");
         }
     }
     x.value = try_x , y.value = try_y;
 }
-export function check_room(lowx, ddx, lowy, ddy, vault) {
+export async function check_room(lowx, ddx, lowy, ddy, vault) {
     let x = 0;
     let y = 0;
     let hix = 0;
@@ -1307,7 +1308,7 @@ export function check_room(lowx, ddx, lowy, ddy, vault) {
                         do {
                             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/sp_lev.c", (1))) {
                                 let save_plnmsg = game.iflags.last_msg;
-                                pline("strange area [%d,%d] in check_room.", x, y);
+                                await pline("strange area [%d,%d] in check_room.", x, y);
                                 game.iflags.last_msg = save_plnmsg;
                             }
                         } while (0);
@@ -1347,7 +1348,7 @@ export function check_room(lowx, ddx, lowy, ddy, vault) {
  * Create a new room.
  * This is still very incomplete...
  */
-export function create_room(x, y, w, h, xal, yal, rtype, rlit) {
+export async function create_room(x, y, w, h, xal, yal, rtype, rlit) {
     let xabs = 0;
     let yabs = 0;
     let wtmp = 0;
@@ -1400,7 +1401,7 @@ export function create_room(x, y, w, h, xal, yal, rtype, rlit) {
                 do {
                     if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/sp_lev.c", (1))) {
                         let save_plnmsg = game.iflags.last_msg;
-                        pline("No more rects...");
+                        await pline("No more rects...");
                         game.iflags.last_msg = save_plnmsg;
                     }
                 } while (0);
@@ -1433,7 +1434,7 @@ export function create_room(x, y, w, h, xal, yal, rtype, rlit) {
                     dy--;
                 }
             }
-            if (!check_room({ get value() { return xabs; }, set value(_v) { xabs = _v; } }, { get value() { return dx; }, set value(_v) { dx = _v; } }, { get value() { return yabs; }, set value(_v) { yabs = _v; } }, { get value() { return dy; }, set value(_v) { dy = _v; } }, vault)) {
+            if (!await check_room({ get value() { return xabs; }, set value(_v) { xabs = _v; } }, { get value() { return dx; }, set value(_v) { dx = _v; } }, { get value() { return yabs; }, set value(_v) { yabs = _v; } }, { get value() { return dy; }, set value(_v) { dy = _v; } }, vault)) {
                 r1 = null;
                 continue;
             }
@@ -1508,7 +1509,7 @@ export function create_room(x, y, w, h, xal, yal, rtype, rlit) {
             r1 = get_rect(r2);
             dx = wtmp;
             dy = htmp;
-            if (r1 && !check_room({ get value() { return xabs; }, set value(_v) { xabs = _v; } }, { get value() { return dx; }, set value(_v) { dx = _v; } }, { get value() { return yabs; }, set value(_v) { yabs = _v; } }, { get value() { return dy; }, set value(_v) { dy = _v; } }, vault)) {
+            if (r1 && !await check_room({ get value() { return xabs; }, set value(_v) { xabs = _v; } }, { get value() { return dx; }, set value(_v) { dx = _v; } }, { get value() { return yabs; }, set value(_v) { yabs = _v; } }, { get value() { return dy; }, set value(_v) { dy = _v; } }, vault)) {
                 r1 = null;
             }
         }
@@ -1516,10 +1517,10 @@ export function create_room(x, y, w, h, xal, yal, rtype, rlit) {
     if (!r1) {
         return (0);
     }
-    split_rects(r1, r2);
+    await split_rects(r1, r2);
     if (!vault) {
         game.smeq[game.nroom] = game.nroom;
-        add_room(xabs, yabs, xabs + wtmp - 1, yabs + htmp - 1, rlit, rtype, (0));
+        await add_room(xabs, yabs, xabs + wtmp - 1, yabs + htmp - 1, rlit, rtype, (0));
     } else {
         game.rooms[game.nroom].lx = xabs;
         game.rooms[game.nroom].ly = yabs;
@@ -1530,7 +1531,7 @@ export function create_room(x, y, w, h, xal, yal, rtype, rlit) {
  * Create a subroom in room proom at pos x,y with width w & height h.
  * x & y are relative to the parent room.
  */
-export function create_subroom(proom, x, y, w, h, rtype, rlit) {
+export async function create_subroom(proom, x, y, w, h, rtype, rlit) {
     let width = 0;
     let height = 0;
     width = proom.hx - proom.lx + 1;
@@ -1568,14 +1569,14 @@ export function create_subroom(proom, x, y, w, h, rtype, rlit) {
         rtype = OROOM;
     }
     rlit = litstate_rnd(rlit);
-    add_subroom(proom, proom.lx + x, proom.ly + y, proom.lx + x + w - 1, proom.ly + y + h - 1, rlit, rtype, (0));
+    await add_subroom(proom, proom.lx + x, proom.ly + y, proom.lx + x + w - 1, proom.ly + y + h - 1, rlit, rtype, (0));
     return (1);
 }
 /*
  * Create a new door in a room.
  * It's placed on a wall (north, south, east or west).
  */
-export function create_door(dd, broom) {
+export async function create_door(dd, broom) {
     let x = 0;
     let y = 0;
     let trycnt = 0;
@@ -1666,10 +1667,10 @@ export function create_door(dd, broom) {
         }
     }
     if (trycnt >= 100) {
-        impossible("create_door: Can't find a proper place!");
+        await impossible("create_door: Can't find a proper place!");
         return;
     }
-    if (!set_levltyp(x, y, (dd.secret ? SDOOR : DOOR))) {
+    if (!await set_levltyp(x, y, (dd.secret ? SDOOR : DOOR))) {
         return;
     }
     game.level.locations[x][y].flags = dd.mask;
@@ -1677,21 +1678,21 @@ export function create_door(dd, broom) {
 /*
  * Create a trap in a room.
  */
-export function create_trap(t, croom) {
+export async function create_trap(t, croom) {
     let x = -1;
     let y = -1;
     let tm = { x: 0, y: 0 };
     let mktrap_flags = 2;
     if (t.type == VIBRATING_SQUARE) {
-        pick_vibrasquare_location();
-        maketrap(game.inv_pos.x, game.inv_pos.y, VIBRATING_SQUARE);
+        await pick_vibrasquare_location();
+        await maketrap(game.inv_pos.x, game.inv_pos.y, VIBRATING_SQUARE);
         return;
     } else if (croom) {
-        get_free_room_loc({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, croom, t.coord);
+        await get_free_room_loc({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, croom, t.coord);
     } else {
         let trycnt = 0;
         do {
-            get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, t.coord);
+            await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, t.coord);
         } while ((game.level.locations[x][y].typ == STAIRS || game.level.locations[x][y].typ == LADDER) && ++trycnt <= 100);
         if (trycnt > 100) {
             return;
@@ -1708,7 +1709,7 @@ export function create_trap(t, croom) {
     }
     tm.x = x;
     tm.y = y;
-    mktrap(t.type, mktrap_flags, null, tm);
+    await mktrap(t.type, mktrap_flags, null, tm);
 }
 /*
  * Create a monster in a room.
@@ -1776,7 +1777,7 @@ export function sp_amask_to_amask(sp_amask) {
     }
     return amask;
 }
-export function create_monster(m, croom) {
+export async function create_monster(m, croom) {
     let mtmp = null;
     let x = 0;
     let y = 0;
@@ -1791,7 +1792,7 @@ export function create_monster(m, croom) {
         class_ = 0;
     }
     if (class_ == MAXMCLASSES) {
-        panic("create_monster: unknown monster class '%c'", m.class);
+        await panic("create_monster: unknown monster class '%c'", m.class);
     }
     amask = sp_amask_to_amask(m.sp_amask);
     if (!class_) {
@@ -1806,37 +1807,33 @@ export function create_monster(m, croom) {
             pm = null;
         }
     } else {
-        /* if we can't get a specific monster type (pm == 0) then the
-           class has been genocided, so settle for a random monster */
-        pm = mkclass(class_, 512);
+        pm = await mkclass(class_, 512);
     }
     if (In_mines(game.u.uz) && pm && (((pm).mflags2 & game.urace.selfmask) != 0) && ((game.urace.mnum == (PM_DWARF)) || (game.urace.mnum == (PM_GNOME))) && rn2(3)) {
         pm = null;
     }
     if (pm) {
         let loc = pm_to_humidity(pm);
-        /* If water-liking monster, first try is without DRY */
-        get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, loc | 32, croom, m.coord);
+        await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, loc | 32, croom, m.coord);
         if (x == -1 && y == -1) {
             loc |= 1;
-            get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, loc, croom, m.coord);
+            await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, loc, croom, m.coord);
         }
     } else {
-        get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, m.coord);
+        await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, m.coord);
     }
-    /* try to find a close place if someone else is already there */
-    if ((game.level.monsters[x][y] != null) && enexto(cc, x, y, pm)) {
+    if ((game.level.monsters[x][y] != null) && await enexto(cc, x, y, pm)) {
         x = cc.x , y = cc.y;
     }
     if (croom && !inside_room(croom, x, y)) {
         return;
     }
     if (m.sp_amask != 128) {
-        mtmp = mk_roamer(pm, (((((amask) & 7) == 0) ? (-128) : (((amask) & 7) == 4) ? 1 : (((amask) & 7)) - 2)), x, y, m.peaceful);
+        mtmp = await mk_roamer(pm, (((((amask) & 7) == 0) ? (-128) : (((amask) & 7) == 4) ? 1 : (((amask) & 7)) - 2)), x, y, m.peaceful);
     } else if (PM_ARCHEOLOGIST <= m.id && m.id <= PM_WIZARD) {
-        mtmp = mk_mplayer(pm, x, y, (0));
+        mtmp = await mk_mplayer(pm, x, y, (0));
     } else {
-        mtmp = makemon(pm, x, y, m.mm_flags);
+        mtmp = await makemon(pm, x, y, m.mm_flags);
     }
     if (mtmp) {
         x = mtmp.mx , y = mtmp.my;
@@ -1856,7 +1853,7 @@ export function create_monster(m, croom) {
             let i = 0;
             switch (m.appear) {
                 case M_AP_NOTHING:
-                    impossible("create_monster: mon has an appearance, \"%s\", but no type", m.appear_as.str);
+                    await impossible("create_monster: mon has an appearance, \"%s\", but no type", m.appear_as.str);
                     break;
                 case M_AP_FURNITURE:
                     for (i = 0; i < MAXPCHARS; i++) {
@@ -1865,7 +1862,7 @@ export function create_monster(m, croom) {
                         }
                     }
                     if (i == MAXPCHARS) {
-                        impossible("create_monster: can't find feature \"%s\"", m.appear_as.str);
+                        await impossible("create_monster: can't find feature \"%s\"", m.appear_as.str);
                     } else {
                         mtmp.m_ap_type = M_AP_FURNITURE;
                         mtmp.mappearance = i;
@@ -1878,7 +1875,7 @@ export function create_monster(m, croom) {
                         }
                     }
                     if (i == NUM_OBJECTS) {
-                        impossible("create_monster: can't find object \"%s\"", m.appear_as.str);
+                        await impossible("create_monster: can't find object \"%s\"", m.appear_as.str);
                     } else {
                         mtmp.m_ap_type = M_AP_OBJECT;
                         mtmp.mappearance = i;
@@ -1889,16 +1886,14 @@ export function create_monster(m, croom) {
                             do {
                                 x = m.x;
                                 y = m.y;
-                                get_location({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom);
-                                if ((game.level.monsters[x][y] != null) && enexto(cc, x, y, pm)) {
+                                await get_location({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom);
+                                if ((game.level.monsters[x][y] != null) && await enexto(cc, x, y, pm)) {
                                     x = cc.x , y = cc.y;
                                 }
                             } while (m_bad_boulder_spot(x, y) && --retrylimit > 0);
-                            place_monster(mtmp, x, y);
-                            /* if we didn't find a good spot
-                           then mimic something else */
+                            await place_monster(mtmp, x, y);
                             if (!retrylimit) {
-                                set_mimic_sym(mtmp);
+                                await set_mimic_sym(mtmp);
                             }
                         }
                     }
@@ -1908,12 +1903,12 @@ export function create_monster(m, croom) {
                         let mndx = 0;
                         let gender_name_var = NEUTRAL;
                         if (!strncmpi((m.appear_as.str), ("random"), -1)) {
-                            mndx = select_newcham_form(mtmp);
+                            mndx = await select_newcham_form(mtmp);
                         } else {
-                            mndx = name_to_mon(m.appear_as.str, { get value() { return gender_name_var; }, set value(_v) { gender_name_var = _v; } });
+                            mndx = await name_to_mon(m.appear_as.str, { get value() { return gender_name_var; }, set value(_v) { gender_name_var = _v; } });
                         }
                         if (mndx == NON_PM || (((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER) && !validvamp(mtmp, { get value() { return mndx; }, set value(_v) { mndx = _v; } }, S_HUMAN))) {
-                            impossible("create_monster: invalid %s (\"%s\")", (mtmp.data.mlet == S_MIMIC) ? "mimic appearance" : (mtmp.data == game.mons[PM_WIZARD_OF_YENDOR]) ? "Wizard appearance" : ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER) ? "vampire shape" : "chameleon shape", m.appear_as.str);
+                            await impossible("create_monster: invalid %s (\"%s\")", (mtmp.data.mlet == S_MIMIC) ? "mimic appearance" : (mtmp.data == game.mons[PM_WIZARD_OF_YENDOR]) ? "Wizard appearance" : ((mtmp).cham == PM_VAMPIRE || (mtmp).cham == PM_VAMPIRE_LEADER || (mtmp).cham == PM_VLAD_THE_IMPALER) ? "vampire shape" : "chameleon shape", m.appear_as.str);
                         } else if (game.mons[mndx] == mtmp.data) {
                             /* explicitly forcing a mimic to appear as itself */
                             mtmp.m_ap_type = M_AP_NOTHING;
@@ -1935,10 +1930,10 @@ export function create_monster(m, croom) {
                                 /* used to give light, now doesn't, or vice versa,
                            or light's range has changed */
                                 if ((((olddata).mlet == S_LIGHT || (olddata) == game.mons[PM_FLAMING_SPHERE] || (olddata) == game.mons[PM_SHOCKING_SPHERE] || (olddata) == game.mons[PM_BABY_GOLD_DRAGON] || (olddata) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((olddata) == game.mons[PM_FIRE_ELEMENTAL] || (olddata) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) {
-                                    del_light_source(LS_MONSTER, monst_to_any(mtmp));
+                                    await del_light_source(LS_MONSTER, monst_to_any(mtmp));
                                 }
                                 if ((((mtmp.data).mlet == S_LIGHT || (mtmp.data) == game.mons[PM_FLAMING_SPHERE] || (mtmp.data) == game.mons[PM_SHOCKING_SPHERE] || (mtmp.data) == game.mons[PM_BABY_GOLD_DRAGON] || (mtmp.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((mtmp.data) == game.mons[PM_FIRE_ELEMENTAL] || (mtmp.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0)) {
-                                    new_light_source(mtmp.mx, mtmp.my, (((mtmp.data).mlet == S_LIGHT || (mtmp.data) == game.mons[PM_FLAMING_SPHERE] || (mtmp.data) == game.mons[PM_SHOCKING_SPHERE] || (mtmp.data) == game.mons[PM_BABY_GOLD_DRAGON] || (mtmp.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((mtmp.data) == game.mons[PM_FIRE_ELEMENTAL] || (mtmp.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0), LS_MONSTER, monst_to_any(mtmp));
+                                    await new_light_source(mtmp.mx, mtmp.my, (((mtmp.data).mlet == S_LIGHT || (mtmp.data) == game.mons[PM_FLAMING_SPHERE] || (mtmp.data) == game.mons[PM_SHOCKING_SPHERE] || (mtmp.data) == game.mons[PM_BABY_GOLD_DRAGON] || (mtmp.data) == game.mons[PM_FIRE_VORTEX]) ? 1 : ((mtmp.data) == game.mons[PM_FIRE_ELEMENTAL] || (mtmp.data) == game.mons[PM_GOLD_DRAGON]) ? 1 : 0), LS_MONSTER, monst_to_any(mtmp));
                                 }
                             }
                             if (!mtmp.perminvis || ((olddata) == game.mons[PM_STALKER] || (olddata) == game.mons[PM_BLACK_LIGHT])) {
@@ -1948,7 +1943,7 @@ export function create_monster(m, croom) {
                         break;
                     }
                 default:
-                    impossible("create_monster: unimplemented mon appear type [%d,\"%s\"]", m.appear, m.appear_as.str);
+                    await impossible("create_monster: unimplemented mon appear type [%d,\"%s\"]", m.appear, m.appear_as.str);
                     break;
             }
             if (does_block(x, y, game.level.locations[x][y])) {
@@ -2003,7 +1998,7 @@ export function create_monster(m, croom) {
                bat/fog/wolf form and the special level or theme room didn't
                explicitly request that, shift back to vampire */
             if (((((mtmp)).cham == PM_VAMPIRE || ((mtmp)).cham == PM_VAMPIRE_LEADER || ((mtmp)).cham == PM_VLAD_THE_IMPALER) && !(((mtmp).data).mlet == S_VAMPIRE)) && m.appear != M_AP_MONSTER) {
-                newcham(mtmp, game.mons[mtmp.cham], 0);
+                await newcham(mtmp, game.mons[mtmp.cham], 0);
             }
         }
         if (m.m_lev_adj) {
@@ -2016,11 +2011,8 @@ export function create_monster(m, croom) {
             }
         }
         if (!(m.has_invent & 2)) {
-            /* guard against someone accidentally specifying e.g. quest nemesis
-             * with custom inventory that lacks Bell or quest artifact but
-             * forgetting to flag them as receiving their default inventory */
-            mdrop_special_objs(mtmp);
-            discard_minvent(mtmp, (1));
+            await mdrop_special_objs(mtmp);
+            await discard_minvent(mtmp, (1));
         }
         if (m.has_invent & 1) {
             game.invent_carrying_monster = mtmp;
@@ -2031,7 +2023,7 @@ export function create_monster(m, croom) {
  * Create an object in a room.
  */
 const __create_object_prize_warning = "multiple prizes on %s level";
-export function create_object(o, croom) {
+export async function create_object(o, croom) {
     let otmp = null;
     let x = 0;
     let y = 0;
@@ -2039,16 +2031,16 @@ export function create_object(o, croom) {
     /* has a name been supplied in level description? */
     let named = 0;
     named = o.name.str ? (1) : (0);
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, o.coord);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, o.coord);
     if (o.class >= 0) {
         c = o.class;
     } else {
         c = 0;
     }
     if (!c) {
-        otmp = mkobj_at(RANDOM_CLASS, x, y, !named);
+        otmp = await mkobj_at(RANDOM_CLASS, x, y, !named);
     } else if (o.id != -1) {
-        otmp = mksobj_at(o.id, x, y, (1), !named);
+        otmp = await mksobj_at(o.id, x, y, (1), !named);
     } else {
         /*
          * The special levels are compiled with the default "text" object
@@ -2056,13 +2048,12 @@ export function create_object(o, croom) {
          */
         let oclass = def_char_to_objclass(c);
         if (oclass == MAXOCLASSES) {
-            panic("create_object:  unexpected object class '%c'", c);
+            await panic("create_object:  unexpected object class '%c'", c);
         }
         if (oclass == COIN_CLASS) {
-            otmp = mkgold(0, x, y);
-        /* KMH -- Create piles of gold properly */
+            otmp = await mkgold(0, x, y);
         } else {
-            otmp = mkobj_at(oclass, x, y, !named);
+            otmp = await mkobj_at(oclass, x, y, !named);
         }
     }
     if (o.spe != -127) {
@@ -2070,41 +2061,38 @@ export function create_object(o, croom) {
     }
     switch (o.curse_state) {
         case 1:
-            bless(otmp);
+            await bless(otmp);
             break;
         case 2:
-            unbless(otmp);
-            uncurse(otmp);
+            await unbless(otmp);
+            await uncurse(otmp);
             break;
         case 3:
-            curse(otmp);
+            await curse(otmp);
             break;
         case 4:
-            uncurse(otmp);
+            await uncurse(otmp);
             break;
         case 5:
-            blessorcurse(otmp, 1);
+            await blessorcurse(otmp, 1);
             break;
         case 6:
-            unbless(otmp);
+            await unbless(otmp);
             break;
         default:
             break;
     }
     if (o.corpsenm != NON_PM) {
         if (o.corpsenm == NON_PM - 1) {
-            set_corpsenm(otmp, rndmonnum());
-        /* corpsenm is "empty" if -1, random if -2, otherwise specific */
+            await set_corpsenm(otmp, await rndmonnum());
         } else {
-            set_corpsenm(otmp, o.corpsenm);
+            await set_corpsenm(otmp, o.corpsenm);
         }
     }
     if (named) {
-        /* set_corpsenm() took care of egg hatch and corpse timers */
-        otmp = oname(otmp, o.name.str, 32);
+        otmp = await oname(otmp, o.name.str, 32);
         if (otmp.otyp == SPE_NOVEL) {
-            /* needs to be an existing title */
-            lookup_novel(o.name.str, { get value() { return otmp.corpsenm; }, set value(_v) { otmp.corpsenm = _v; } });
+            await lookup_novel(o.name.str, { get value() { return otmp.corpsenm; }, set value(_v) { otmp.corpsenm = _v; } });
         }
     }
     if (o.eroded) {
@@ -2136,55 +2124,43 @@ export function create_object(o, croom) {
     otmp.greased = o.greased ? 1 : 0;
     if (o.quan > 0 && game.objects[otmp.otyp].oc_merge) {
         otmp.quan = o.quan;
-        otmp.owt = weight(otmp);
+        otmp.owt = await weight(otmp);
     }
     if (o.containment & 1 || game.invent_carrying_monster) {
         if (!game.container_idx) {
             if (!game.invent_carrying_monster) {
                 ;
             } else {
-                remove_object(otmp);
+                await remove_object(otmp);
                 if (otmp.otyp == SADDLE && can_saddle(game.invent_carrying_monster)) {
-                    put_saddle_on_mon(otmp, game.invent_carrying_monster);
-                /* contents (of a container or monster's inventory) */
-                /*impossible("create_object: no container");*/
-                /* don't complain, the monster may be gone legally
-                   (eg. unique demon already generated)
-                   TODO: In the case of unique demon lords, they should
-                   get their inventories even when they get generated
-                   outside the des-file.  Maybe another data file that
-                   determines what inventories monsters get by default?
-                 */
-                /* ['otmp' remains on floor] */
+                    await put_saddle_on_mon(otmp, game.invent_carrying_monster);
                 } else {
-                    mpickobj(game.invent_carrying_monster, otmp);
+                    await mpickobj(game.invent_carrying_monster, otmp);
                 }
             }
         } else {
             let cobj = game.container_obj[game.container_idx - 1];
-            remove_object(otmp);
+            await remove_object(otmp);
             if (cobj) {
-                otmp = add_to_container(cobj, otmp);
-                cobj.owt = weight(cobj);
+                otmp = await add_to_container(cobj, otmp);
+                cobj.owt = await weight(cobj);
             } else {
-                obj_extract_self(otmp);
-                /* uncreate a random artifact created in a container */
-                /* FIXME: it could be intentional rather than random */
+                await obj_extract_self(otmp);
                 if (otmp.oartifact) {
-                    artifact_exists(otmp, safe_oname(otmp), (0), 0);
+                    await artifact_exists(otmp, safe_oname(otmp), (0), 0);
                 }
-                obfree(otmp, null);
+                await obfree(otmp, null);
                 return null;
             }
         }
     }
     if (o.containment & 2) {
-        delete_contents(otmp);
+        await delete_contents(otmp);
         if (game.container_idx < 10) {
             game.container_obj[game.container_idx] = otmp;
             game.container_idx++;
         } else {
-            impossible("create_object: too deeply nested containers.");
+            await impossible("create_object: too deeply nested containers.");
         }
     }
     if (o.id == STATUE && (((((game.dungeon_topology.d_medusa_level)).dlevel || ((game.dungeon_topology.d_medusa_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_medusa_level)))) && o.corpsenm == NON_PM) {
@@ -2196,32 +2172,27 @@ export function create_object(o, croom) {
         let obj = null;
         let wastyp = 0;
         let i = 0;
-        for (wastyp = otmp.corpsenm; i < 1000; i++ , wastyp = rndmonnum()) {
-            /* Named random statues are of player types, and aren't stone-
-         * resistant (if they were, we'd have to reset the name as well as
-         * setting corpsenm).
-         */
-            /* makemon without rndmonst() might create a group */
-            was = makemon(game.mons[wastyp], 0, 0, 4 | 131072);
+        for (wastyp = otmp.corpsenm; i < 1000; i++ , wastyp = await rndmonnum()) {
+            was = await makemon(game.mons[wastyp], 0, 0, 4 | 131072);
             if (was) {
-                if (!Resists_Elem(was, STONE_RES) && !poly_when_stoned(game.mons[wastyp])) {
-                    propagate(wastyp, (1), (0));
+                if (!await Resists_Elem(was, STONE_RES) && !poly_when_stoned(game.mons[wastyp])) {
+                    await propagate(wastyp, (1), (0));
                     break;
                 }
-                mongone(was);
+                await mongone(was);
                 was = null;
             }
         }
         if (was) {
-            set_corpsenm(otmp, wastyp);
+            await set_corpsenm(otmp, wastyp);
             while (was.minvent) {
                 obj = was.minvent;
                 obj.owornmask = 0;
-                obj_extract_self(obj);
-                add_to_container(otmp, obj);
+                await obj_extract_self(obj);
+                await add_to_container(otmp, obj);
             }
-            otmp.owt = weight(otmp);
-            mongone(was);
+            otmp.owt = await weight(otmp);
+            await mongone(was);
         }
     }
     if (o.achievement) {
@@ -2235,7 +2206,7 @@ export function create_object(o, croom) {
                                     * will be reset in addinv_core1() */
                 otmp.nomerge = 1;
             } else {
-                impossible(__create_object_prize_warning, "mines end");
+                await impossible(__create_object_prize_warning, "mines end");
             }
         } else if ((((((game.dungeon_topology.d_sokoend_level)).dlevel || ((game.dungeon_topology.d_sokoend_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_sokoend_level))))) {
             if (!game.context.achieveo.soko_prize_oid) {
@@ -2243,22 +2214,22 @@ export function create_object(o, croom) {
                 game.context.achieveo.soko_prize_otyp = otmp.otyp;
                 otmp.nomerge = 1;
             } else {
-                impossible(__create_object_prize_warning, "sokoban end");
+                await impossible(__create_object_prize_warning, "sokoban end");
             }
         } else if (!game.iflags.lua_testing) {
             let lbuf = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             describe_level(lbuf, 1 | 2);
-            impossible("create_object: unknown achievement (%s\"%s\")", lbuf, simpleonames(otmp));
+            await impossible("create_object: unknown achievement (%s\"%s\")", lbuf, await simpleonames(otmp));
         }
     }
     if (!(o.containment & 1)) {
-        stackobj(otmp);
+        await stackobj(otmp);
         if (o.lit) {
-            begin_burn(otmp, (0));
+            await begin_burn(otmp, (0));
         }
         if (o.buried) {
             let dealloced = 0;
-            bury_an_obj(otmp, { get value() { return dealloced; }, set value(_v) { dealloced = _v; } });
+            await bury_an_obj(otmp, { get value() { return dealloced; }, set value(_v) { dealloced = _v; } });
             if (dealloced) {
                 if (game.container_idx) {
                     game.container_obj[game.container_idx - 1] = null;
@@ -2272,27 +2243,26 @@ export function create_object(o, croom) {
 /*
  * Create an altar in a room.
  */
-export function create_altar(a, croom) {
+export async function create_altar(a, croom) {
     let sproom = 0;
     let x = -1;
     let y = -1;
     let amask = 0;
     let croom_is_temple = (1);
     if (croom) {
-        get_free_room_loc({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, croom, a.coord);
+        await get_free_room_loc({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, croom, a.coord);
         if (croom.rtype != TEMPLE) {
             croom_is_temple = (0);
         }
     } else {
-        get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, a.coord);
+        await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, croom, a.coord);
         if ((sproom = in_rooms(x, y, TEMPLE)) != 0) {
             croom = game.rooms[sproom - 3];
         } else {
             croom_is_temple = (0);
         }
     }
-    /* check for existing features */
-    if (!set_levltyp(x, y, ALTAR)) {
+    if (!await set_levltyp(x, y, ALTAR)) {
         return;
     }
     amask = sp_amask_to_amask(a.sp_amask);
@@ -2304,8 +2274,7 @@ export function create_altar(a, croom) {
         return;
     }
     if (a.shrine) {
-        /* Is it a shrine  or sanctum? */
-        priestini(game.u.uz, croom, x, y, (a.shrine > 1));
+        await priestini(game.u.uz, croom, x, y, (a.shrine > 1));
         game.level.locations[x][y].flags |= 8;
         if (a.shrine == 2) {
             game.level.locations[x][y].flags |= 16;
@@ -2316,7 +2285,7 @@ export function create_altar(a, croom) {
 /*
  * Search for a door in a room on a specified wall.
  */
-export function search_door(croom, x, y, wall, cnt) {
+export async function search_door(croom, x, y, wall, cnt) {
     let dx = 0;
     let dy = 0;
     let xx = 0;
@@ -2348,7 +2317,7 @@ export function search_door(croom, x, y, wall, cnt) {
             yy = croom.ly;
             break;
         default:
-            panic("search_door: Bad wall!");
+            await panic("search_door: Bad wall!");
     }
     while (xx <= croom.hx + 1 && yy <= croom.hy + 1) {
         if (((game.level.locations[xx][yy].typ) == DOOR) || game.level.locations[xx][yy].typ == SDOOR) {
@@ -2369,7 +2338,7 @@ export function search_door(croom, x, y, wall, cnt) {
  * or just end without reaching the destination.
  * if not null, npoints has the number of map locations used
  */
-export function dig_corridor(org, dest, npoints, nxcor, ftyp, btyp) {
+export async function dig_corridor(org, dest, npoints, nxcor, ftyp, btyp) {
     let dx = 0;
     let dy = 0;
     let dix = 0;
@@ -2391,7 +2360,7 @@ export function dig_corridor(org, dest, npoints, nxcor, ftyp, btyp) {
         do {
             if (debugcore("/share/u/davidbau/git/teleport/monk/nethack-c/upstream/src/sp_lev.c", (1))) {
                 let save_plnmsg = game.iflags.last_msg;
-                pline("dig_corridor: bad coords <%d,%d> <%d,%d>.", xx, yy, tx, ty);
+                await pline("dig_corridor: bad coords <%d,%d> <%d,%d>.", xx, yy, tx, ty);
                 game.iflags.last_msg = save_plnmsg;
             }
         } while (0);
@@ -2432,7 +2401,7 @@ export function dig_corridor(org, dest, npoints, nxcor, ftyp, btyp) {
                 }
                 crm.typ = ftyp;
                 if (nxcor && !rn2(50)) {
-                    mksobj_at(BOULDER, xx, yy, (1), (0));
+                    await mksobj_at(BOULDER, xx, yy, (1), (0));
                 }
             }
         } else if (crm.typ != ftyp && crm.typ != SCORR) {
@@ -2489,26 +2458,22 @@ export function dig_corridor(org, dest, npoints, nxcor, ftyp, btyp) {
  * Basically we search for door coordinates or for endpoints coordinates
  * (from a distance).
  */
-export function create_corridor(c) {
+export async function create_corridor(c) {
     let org = { x: 0, y: 0 };
     let dest = { x: 0, y: 0 };
     if (c.src.room == -1) {
-        /*makecorridors(c->src.door);*/
-        makecorridors();
+        await makecorridors();
         return;
     }
     if (c.src.wall == (1 | 2 | 4 | 8) || c.src.wall == -1 || c.dest.wall == (1 | 2 | 4 | 8) || c.dest.wall == -1) {
-        /* Safety railings - if there's ever a case where des.corridor() needs
-     * to be called with src/destwall="random", that logic first needs to be
-     * implemented in search_door. */
-        impossible("create_corridor to/from a random wall");
+        await impossible("create_corridor to/from a random wall");
         return;
     }
-    if (!search_door(game.rooms[c.src.room], { get value() { return org.x; }, set value(_v) { org.x = _v; } }, { get value() { return org.y; }, set value(_v) { org.y = _v; } }, c.src.wall, c.src.door)) {
+    if (!await search_door(game.rooms[c.src.room], { get value() { return org.x; }, set value(_v) { org.x = _v; } }, { get value() { return org.y; }, set value(_v) { org.y = _v; } }, c.src.wall, c.src.door)) {
         return;
     }
     if (c.dest.room != -1) {
-        if (!search_door(game.rooms[c.dest.room], { get value() { return dest.x; }, set value(_v) { dest.x = _v; } }, { get value() { return dest.y; }, set value(_v) { dest.y = _v; } }, c.dest.wall, c.dest.door)) {
+        if (!await search_door(game.rooms[c.dest.room], { get value() { return dest.x; }, set value(_v) { dest.x = _v; } }, { get value() { return dest.y; }, set value(_v) { dest.y = _v; } }, c.dest.wall, c.dest.door)) {
             return;
         }
         switch (c.src.wall) {
@@ -2539,22 +2504,19 @@ export function create_corridor(c) {
                 dest.x++;
                 break;
         }
-        dig_corridor(org, dest, null, (0), CORR, STONE);
+        await dig_corridor(org, dest, null, (0), CORR, STONE);
     }
 }
 /*
  * Fill a room (shop, zoo, etc...) with appropriate stuff.
  */
-export function fill_special_room(croom) {
+export async function fill_special_room(croom) {
     let i = 0;
     if (!croom) {
         return;
     }
     for (i = 0; i < croom.nsubrooms; ++i) {
-        /* First recurse into subrooms. We don't want to block an ordinary room
-     * with a special subroom from having the subroom filled, or an unfilled
-     * outer room preventing a special subroom from being filled. */
-        fill_special_room(croom.sbrooms[i]);
+        await fill_special_room(croom.sbrooms[i]);
     }
     if (croom.rtype == OROOM || croom.rtype == THEMEROOM || croom.needfill == 0) {
         return;
@@ -2563,7 +2525,7 @@ export function fill_special_room(croom) {
         let x = 0;
         let y = 0;
         if (croom.rtype >= SHOPBASE) {
-            stock_room(croom.rtype - SHOPBASE, croom);
+            await stock_room(croom.rtype - SHOPBASE, croom);
             game.level.flags.has_shop = (1);
             return;
         }
@@ -2571,7 +2533,7 @@ export function fill_special_room(croom) {
             case VAULT:
                 for (x = croom.lx; x <= croom.hx; x++) {
                     for (y = croom.ly; y <= croom.hy; y++) {
-                        mkgold((rn2(abs(depth(game.u.uz)) * 100) + (51)), x, y);
+                        await mkgold((rn2(abs(depth(game.u.uz)) * 100) + (51)), x, y);
                     }
                 }
                 break;
@@ -2583,7 +2545,7 @@ export function fill_special_room(croom) {
             case LEPREHALL:
             case MORGUE:
             case BARRACKS:
-                fill_zoo(croom);
+                await fill_zoo(croom);
                 break;
         }
     }
@@ -2614,16 +2576,16 @@ export function fill_special_room(croom) {
             break;
     }
 }
-export function build_room(r, mkr) {
+export async function build_room(r, mkr) {
     let okroom = 0;
     let aroom = null;
     let rtype = (!r.chance || rn2(100) < r.chance) ? r.rtype : OROOM;
     if (mkr) {
         aroom = game.subrooms[game.nsubroom];
-        okroom = create_subroom(mkr, r.x, r.y, r.w, r.h, rtype, r.rlit);
+        okroom = await create_subroom(mkr, r.x, r.y, r.w, r.h, rtype, r.rlit);
     } else {
         aroom = game.rooms[game.nroom];
-        okroom = create_room(r.x, r.y, r.w, r.h, r.xalign, r.yalign, rtype, r.rlit);
+        okroom = await create_room(r.x, r.y, r.w, r.h, r.xalign, r.yalign, rtype, r.rlit);
     }
     if (okroom) {
         topologize(aroom);
@@ -2722,7 +2684,7 @@ export function maze1xy(m, humidity) {
  * Makes the number of traps, monsters, etc. proportional
  * to the size of the maze.
  */
-export function fill_empty_maze() {
+export async function fill_empty_maze() {
     let mapcountmax = 0;
     let mapcount = 0;
     let mapfact = 0;
@@ -2742,7 +2704,7 @@ export function fill_empty_maze() {
         mapfact = (Math.trunc((mapcount * 100) / mapcountmax));
         for (x = rnd(Math.trunc((20 * mapfact) / 100)); x; x--) {
             maze1xy(mm, 1);
-            mkobj_at(rn2(2) ? GEM_CLASS : RANDOM_CLASS, mm.x, mm.y, (1));
+            await mkobj_at(rn2(2) ? GEM_CLASS : RANDOM_CLASS, mm.x, mm.y, (1));
         }
         for (x = rnd(Math.trunc((12 * mapfact) / 100)); x; x--) {
             let ttmp = null;
@@ -2750,19 +2712,19 @@ export function fill_empty_maze() {
             if ((ttmp = t_at(mm.x, mm.y)) != null && (((ttmp.ttyp) == PIT || (ttmp.ttyp) == SPIKED_PIT) || ((ttmp.ttyp) == HOLE || (ttmp.ttyp) == TRAPDOOR))) {
                 continue;
             }
-            mksobj_at(BOULDER, mm.x, mm.y, (1), (0));
+            await mksobj_at(BOULDER, mm.x, mm.y, (1), (0));
         }
         for (x = rn2(2); x; x--) {
             maze1xy(mm, 1);
-            makemon(game.mons[PM_MINOTAUR], mm.x, mm.y, 0);
+            await makemon(game.mons[PM_MINOTAUR], mm.x, mm.y, 0);
         }
         for (x = rnd(Math.trunc((12 * mapfact) / 100)); x; x--) {
             maze1xy(mm, 1);
-            makemon(null, mm.x, mm.y, 0);
+            await makemon(null, mm.x, mm.y, 0);
         }
         for (x = rn2(Math.trunc((15 * mapfact) / 100)); x; x--) {
             maze1xy(mm, 1);
-            mkgold(0, mm.x, mm.y);
+            await mkgold(0, mm.x, mm.y);
         }
         for (x = rn2(Math.trunc((15 * mapfact) / 100)); x; x--) {
             let trytrap = 0;
@@ -2773,14 +2735,14 @@ export function fill_empty_maze() {
                     trytrap = rndtrap();
                 }
             }
-            maketrap(mm.x, mm.y, trytrap);
+            await maketrap(mm.x, mm.y, trytrap);
         }
     }
 }
-export function splev_initlev(linit) {
+export async function splev_initlev(linit) {
     switch (linit.init_style) {
         default:
-            impossible("Unrecognized level init style.");
+            await impossible("Unrecognized level init style.");
             break;
         case LVLINIT_NONE:
             break;
@@ -2788,39 +2750,39 @@ export function splev_initlev(linit) {
             if (linit.lit == (-1)) {
                 linit.lit = rn2(2);
             }
-            lvlfill_solid(linit.filling, linit.lit);
+            await lvlfill_solid(linit.filling, linit.lit);
             break;
         case LVLINIT_MAZEGRID:
             lvlfill_maze_grid(2, 0, game.x_maze_max, game.y_maze_max, linit.bg);
             break;
         case LVLINIT_MAZE:
-            create_maze(linit.corrwid, linit.wallthick, linit.rm_deadends);
+            await create_maze(linit.corrwid, linit.wallthick, linit.rm_deadends);
             break;
         case LVLINIT_ROGUE:
-            makeroguerooms();
+            await makeroguerooms();
             break;
         case LVLINIT_MINES:
             if (linit.lit == (-1)) {
                 linit.lit = rn2(2);
             }
             if (linit.filling > -1) {
-                lvlfill_solid(linit.filling, 0);
+                await lvlfill_solid(linit.filling, 0);
             }
             linit.icedpools = game.icedpools;
-            mkmap(linit);
+            await mkmap(linit);
             break;
         case LVLINIT_SWAMP:
             if (linit.lit == (-1)) {
                 linit.lit = rn2(2);
             }
-            lvlfill_swamp(linit.fg, linit.bg, linit.lit);
+            await lvlfill_swamp(linit.fg, linit.bg, linit.lit);
             break;
     }
 }
 /*ARGUSED*/
-export function spo_end_moninvent() {
+export async function spo_end_moninvent() {
     if (game.invent_carrying_monster) {
-        m_dowear(game.invent_carrying_monster, (1));
+        await m_dowear(game.invent_carrying_monster, (1));
     }
     game.invent_carrying_monster = null;
 }
@@ -2839,7 +2801,7 @@ export function l_push_wid_hei_table(L, wid, hei) {
     nhl_add_table_entry_int(L, "height", hei);
 }
 /* push a table on lua stack containing room data */
-export function l_push_mkroom_table(L, tmpr) {
+export async function l_push_mkroom_table(L, tmpr) {
     lua_newtable(L);
     nhl_add_table_entry_int(L, "width", 1 + (tmpr.hx - tmpr.lx));
     nhl_add_table_entry_int(L, "height", 1 + (tmpr.hy - tmpr.ly));
@@ -2847,10 +2809,10 @@ export function l_push_mkroom_table(L, tmpr) {
     nhl_add_table_entry_bool(L, "lit", tmpr.rlit);
     nhl_add_table_entry_bool(L, "irregular", tmpr.irregular);
     nhl_add_table_entry_bool(L, "needjoining", tmpr.needjoining);
-    nhl_add_table_entry_str(L, "type", get_mkroom_name(tmpr.rtype));
+    nhl_add_table_entry_str(L, "type", await get_mkroom_name(tmpr.rtype));
 }
 /* message("What a strange feeling!"); */
-export function lspo_message(L) {
+export async function lspo_message(L) {
     let levmsg = null;
     let old_n = 0;
     let n = 0;
@@ -2867,17 +2829,17 @@ export function lspo_message(L) {
              get_table_coord(), get_table_area() */
     create_des_coder();
     msg = luaL_checkstring(L, 1);
-    old_n = game.lev_message ? (Strlen_(game.lev_message, "lspo_message", 3094) + 1) : 0;
-    n = Strlen_(msg, "lspo_message", 3095);
+    old_n = game.lev_message ? (await Strlen_(game.lev_message, "lspo_message", 3094) + 1) : 0;
+    n = await Strlen_(msg, "lspo_message", 3095);
     levmsg = alloc(old_n + n + 1);
     if (old_n) {
-        levmsg[old_n - 1] = 10;
+        levmsg = __nh_char_write(levmsg, old_n - 1, 10);
     }
     if (game.lev_message) {
         memcpy(levmsg, game.lev_message, old_n - 1);
     }
-    memcpy(levmsg[old_n], msg, n);
-    levmsg[old_n + n] = 0;
+    memcpy(__nh_advance_str(levmsg, old_n), msg, n);
+    levmsg = __nh_char_write(levmsg, old_n + n, 0);
     do {
         if (game.lev_message) {
             free((game.lev_message));
@@ -2896,10 +2858,6 @@ export function get_table_monclass(L) {
     let s = get_table_str_opt(L, "class", null);
     let ret = -1;
     if (s && strlen(s) == 1) {
-        /* C: ret = (int) *s — the CHAR CODE, not the string; a JS
-           string here fails create_monster's `m.class >= 0` check
-           and the class monster degrades to a classless random
-           placement (hellfill's class-table monsters; Q9 iter 53). */
         ret = __nh_char_at0(s);
     }
     do {
@@ -2909,10 +2867,10 @@ export function get_table_monclass(L) {
     } while (0);
     return ret;
 }
-export function find_montype(L, s, mgender) {
+export async function find_montype(L, s, mgender) {
     let i = 0;
     let mgend = NEUTRAL;
-    i = name_to_monplus(s, null, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
+    i = await name_to_monplus(s, null, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
     if (i >= LOW_PM && i < NUMMONS) {
         if ((((game.mons[i]).mflags2 & 65536) != 0) || (((game.mons[i]).mflags2 & 131072) != 0)) {
             mgend = (((game.mons[i]).mflags2 & 131072) != 0) ? FEMALE : MALE;
@@ -2929,11 +2887,11 @@ export function find_montype(L, s, mgender) {
     }
     return NON_PM;
 }
-export function get_table_montype(L, mgender) {
+export async function get_table_montype(L, mgender) {
     let s = get_table_str_opt(L, "id", null);
     let ret = NON_PM;
     if (s) {
-        ret = find_montype(L, s, mgender);
+        ret = await find_montype(L, s, mgender);
         do {
             if (s) {
                 free((s));
@@ -3005,7 +2963,7 @@ export async function lspo_monster(L) {
             tmpmons.id = NON_PM;
         } else {
             tmpmons.class = -1;
-            tmpmons.id = find_montype(L, paramstr, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
+            tmpmons.id = await find_montype(L, paramstr, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
             tmpmons.female = (mgend == FEMALE) ? FEMALE : (mgend == MALE) ? MALE : rn2(2);
         }
     } else if (argc == 2 && lua_type(L, 1) == 4 && lua_type(L, 2) == 5) {
@@ -3016,7 +2974,7 @@ export async function lspo_monster(L) {
             tmpmons.id = NON_PM;
         } else {
             tmpmons.class = -1;
-            tmpmons.id = find_montype(L, paramstr, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
+            tmpmons.id = await find_montype(L, paramstr, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
             tmpmons.female = (mgend == FEMALE) ? FEMALE : (mgend == MALE) ? MALE : rn2(2);
         }
     } else if (argc == 3) {
@@ -3028,7 +2986,7 @@ export async function lspo_monster(L) {
             tmpmons.id = NON_PM;
         } else {
             tmpmons.class = -1;
-            tmpmons.id = find_montype(L, paramstr, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
+            tmpmons.id = await find_montype(L, paramstr, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
             tmpmons.female = (mgend == FEMALE) ? FEMALE : (mgend == MALE) ? MALE : rn2(2);
         }
     } else {
@@ -3081,10 +3039,7 @@ export async function lspo_monster(L) {
             } else {
                 nhl_error(L, "Unknown appear_as type");
             }
-            /* C: dupstr(&mappear[4]) — the string PAST the 4-char
-               "obj:"/"mon:"/"ter:" prefix, not the single char at
-               index 4 ("obj:boulder" became "b"; Q9 iter 52). */
-            tmpmons.appear_as.str = dupstr(mappear.slice(4));
+            tmpmons.appear_as.str = dupstr(__nh_advance_str(mappear, 4));
             do {
                 if (mappear) {
                     free((mappear));
@@ -3092,7 +3047,7 @@ export async function lspo_monster(L) {
             } while (0);
         }
         get_table_xy_or_coord(L, { get value() { return mx; }, set value(_v) { mx = _v; } }, { get value() { return my; }, set value(_v) { my = _v; } });
-        tmpmons.id = get_table_montype(L, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
+        tmpmons.id = await get_table_montype(L, { get value() { return mgend; }, set value(_v) { mgend = _v; } });
         /* get_table_montype will return a random gender if the species isn't
          * all-male or all-female; if the level designer specified a certain
          * gender, override that random one now, unless it *is* a one-gender
@@ -3133,11 +3088,11 @@ export async function lspo_monster(L) {
     if (tmpmons.id != NON_PM && tmpmons.class == -1) {
         tmpmons.class = (def_monsyms[(game.mons[tmpmons.id]).mlet].sym);
     }
-    create_monster(tmpmons, game.coder.croom);
+    await create_monster(tmpmons, game.coder.croom);
     if ((tmpmons.has_invent & 1) && lua_type(L, -1) == 6) {
         lua_remove(L, -2);
         await nhl_pcall_handle(L, 0, 0, "lspo_monster", NHLpa_panic);
-        spo_end_moninvent();
+        await spo_end_moninvent();
     } else {
         lua_pop(L, 1);
     }
@@ -3193,8 +3148,6 @@ export function get_table_objclass(L) {
     let s = get_table_str_opt(L, "class", null);
     let ret = -1;
     if (s && strlen(s) == 1) {
-        /* C: ret = (int) *s — the CHAR CODE (same fix as
-           get_table_monclass, Q9 iter 53/55). */
         ret = __nh_char_at0(s);
     }
     do {
@@ -3206,6 +3159,7 @@ export function get_table_objclass(L) {
 }
 /* find object otyp by text s (optionally considering oclass) */
 let __find_objtype_class_prefixes = [{ prefix: "ring of ", class: RING_CLASS }, { prefix: "potion of ", class: POTION_CLASS }, { prefix: "scroll of ", class: SCROLL_CLASS }, { prefix: "spellbook of ", class: SPBOOK_CLASS }, { prefix: "wand of ", class: WAND_CLASS }, { prefix: null, class: 0 }];
+__nh_register_static(() => { __find_objtype_class_prefixes = [{ prefix: "ring of ", class: RING_CLASS }, { prefix: "potion of ", class: POTION_CLASS }, { prefix: "scroll of ", class: SCROLL_CLASS }, { prefix: "spellbook of ", class: SPBOOK_CLASS }, { prefix: "wand of ", class: WAND_CLASS }, { prefix: null, class: 0 }]; });
 export function find_objtype(L, s, oclass) {
     if (s && __nh_char_at0(s)) {
         let i = 0;
@@ -3223,13 +3177,7 @@ export function find_objtype(L, s, oclass) {
                 let p = __find_objtype_class_prefixes[i].prefix;
                 if (!strncmpi(s, p, strlen(p))) {
                     class_ = __find_objtype_class_prefixes[i].class;
-                    /* C: s += strlen(p) — advance past the prefix;
-                       string + number CONCATENATES in JS, so
-                       "scroll of scare monster" became garbage and
-                       every prefixed object name threw "Unknown
-                       object id" (Q9 iter 56, soko prize closet's
-                       scare scroll). */
-                    s = s.slice(strlen(p));
+                    s = __nh_advance_str(s, strlen(p));
                     break;
                 }
             }
@@ -3283,6 +3231,7 @@ export function get_table_objtype(L) {
 /* eroded, locked, trapped, tknown, recharged */
 /* invis, greased, broken, achievement */
 let __lspo_object_zeroobject = { name: { str: null, len: 0 }, corpsenm: 0, id: 0, spe: 0, coord: 0, x: 0, y: 0, class: 0, containment: 0, curse_state: 0, quan: 0, buried: 0, lit: 0, eroded: 0, locked: 0, trapped: 0, tknown: 0, recharged: 0, invis: 0, greased: 0, broken: 0, achievement: 0 };
+__nh_register_static(() => { __lspo_object_zeroobject = { name: { str: null, len: 0 }, corpsenm: 0, id: 0, spe: 0, coord: 0, x: 0, y: 0, class: 0, containment: 0, curse_state: 0, quan: 0, buried: 0, lit: 0, eroded: 0, locked: 0, trapped: 0, tknown: 0, recharged: 0, invis: 0, greased: 0, broken: 0, achievement: 0 }; });
 export async function lspo_object(L) {
     let quancnt = 0;
     let tmpobj = { name: { str: null, len: 0 }, corpsenm: 0, id: 0, spe: 0, coord: 0, x: 0, y: 0, class: 0, containment: 0, curse_state: 0, quan: 0, buried: 0, lit: 0, eroded: 0, locked: 0, trapped: 0, tknown: 0, recharged: 0, invis: 0, greased: 0, broken: 0, achievement: 0 };
@@ -3303,8 +3252,6 @@ export async function lspo_object(L) {
     if (argc == 1 && lua_type(L, 1) == 4) {
         let paramstr = luaL_checkstring(L, 1);
         if (strlen(paramstr) == 1) {
-            /* C: tmpobj.class = (int) *paramstr — char code (same
-               class-string emit bug as get_table_objclass). */
             tmpobj.class = __nh_char_at0(paramstr);
             tmpobj.id = STRANGE_OBJECT;
         } else {
@@ -3315,8 +3262,6 @@ export async function lspo_object(L) {
         let paramstr = luaL_checkstring(L, 1);
         get_coord(L, 2, { get value() { return ox; }, set value(_v) { ox = _v; } }, { get value() { return oy; }, set value(_v) { oy = _v; } });
         if (strlen(paramstr) == 1) {
-            /* C: tmpobj.class = (int) *paramstr — char code (same
-               class-string emit bug as get_table_objclass). */
             tmpobj.class = __nh_char_at0(paramstr);
             tmpobj.id = STRANGE_OBJECT;
         } else {
@@ -3328,8 +3273,6 @@ export async function lspo_object(L) {
         ox = luaL_checkinteger(L, 2);
         oy = luaL_checkinteger(L, 3);
         if (strlen(paramstr) == 1) {
-            /* C: tmpobj.class = (int) *paramstr — char code (same
-               class-string emit bug as get_table_objclass). */
             tmpobj.class = __nh_char_at0(paramstr);
             tmpobj.id = STRANGE_OBJECT;
         } else {
@@ -3381,8 +3324,8 @@ export async function lspo_object(L) {
                 tmpobj.corpsenm = NON_PM;
                 tmpobj.spe = !strncmpi((montype), ("spinach"), -1) ? 1 : 0;
                 nonpmobj = (1);
-            } else if (strlen(montype) == 1 && def_char_to_monclass(montype) != MAXMCLASSES) {
-                pm = mkclass(def_char_to_monclass(montype), 512 | 32768);
+            } else if (strlen(montype) == 1 && def_char_to_monclass(__nh_char_at0(montype)) != MAXMCLASSES) {
+                pm = await mkclass(def_char_to_monclass(__nh_char_at0(montype)), 512 | 32768);
             } else {
                 for (i = LOW_PM; i < NUMMONS; i++) {
                     if (!strncmpi((game.mons[i].pmnames[NEUTRAL]), (montype), -1) || (game.mons[i].pmnames[MALE] != null && !strncmpi((game.mons[i].pmnames[MALE]), (montype), -1)) || (game.mons[i].pmnames[FEMALE] != null && !strncmpi((game.mons[i].pmnames[FEMALE]), (montype), -1))) {
@@ -3428,7 +3371,7 @@ export async function lspo_object(L) {
         }
     }
     do {
-        otmp = create_object(tmpobj, game.coder.croom);
+        otmp = await create_object(tmpobj, game.coder.croom);
         quancnt--;
     } while ((quancnt > 0) && ((tmpobj.id > STRANGE_OBJECT) && !game.objects[tmpobj.id].oc_merge));
     if (lua_type(L, -1) == 6) {
@@ -3523,7 +3466,7 @@ export function lspo_level_flags(L) {
                 smoothed=true, joined=true, lit=0 }) */
 const __lspo_level_init_initstyles = ["solidfill", "mazegrid", "maze", "rogue", "mines", "swamp", null];
 const __lspo_level_init_initstyles2i = [LVLINIT_SOLIDFILL, LVLINIT_MAZEGRID, LVLINIT_MAZE, LVLINIT_ROGUE, LVLINIT_MINES, LVLINIT_SWAMP, 0];
-export function lspo_level_init(L) {
+export async function lspo_level_init(L) {
     let init_lev = { init_style: 0, flags: 0, filling: 0, init_present: 0, padding: 0, fg: 0, bg: 0, smoothed: 0, joined: 0, lit: 0, walled: 0, icedpools: 0, corrwid: 0, wallthick: 0, rm_deadends: 0 };
     create_des_coder();
     lcheck_param_table(L);
@@ -3543,7 +3486,7 @@ export function lspo_level_init(L) {
     if (init_lev.bg == INVALID_TYPE) {
         init_lev.bg = (init_lev.init_style == LVLINIT_SWAMP) ? MOAT : STONE;
     }
-    splev_initlev(init_lev);
+    await splev_initlev(init_lev);
     return 0;
 }
 /* engraving({ x = 1, y = 1, type="burn", text="Foo" }); */
@@ -3551,7 +3494,7 @@ export function lspo_level_init(L) {
 /* engraving({x,y}, "engrave", "Foo"); */
 const __lspo_engraving_engrtypes = ["dust", "engrave", "burn", "mark", "blood", null];
 const __lspo_engraving_engrtypes2i = [1, 2, 3, 4, 5, 0];
-export function lspo_engraving(L) {
+export async function lspo_engraving(L) {
     let etyp = 1;
     let txt = null;
     let ecoord = 0;
@@ -3589,8 +3532,8 @@ export function lspo_engraving(L) {
     } else {
         ecoord = (((x) & 255) + (((y) & 255) << 16));
     }
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, ecoord);
-    make_engr_at(x, y, txt, null, 0, etyp);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, ecoord);
+    await make_engr_at(x, y, txt, null, 0, etyp);
     do {
         if (txt) {
             free((txt));
@@ -3603,7 +3546,7 @@ export function lspo_engraving(L) {
     }
     return 0;
 }
-export function lspo_mineralize(L) {
+export async function lspo_mineralize(L) {
     let gem_prob = 0;
     let gold_prob = 0;
     let kelp_moat = 0;
@@ -3615,25 +3558,25 @@ export function lspo_mineralize(L) {
     gold_prob = get_table_int_opt(L, "gold_prob", -1);
     kelp_moat = get_table_int_opt(L, "kelp_moat", -1);
     kelp_pool = get_table_int_opt(L, "kelp_pool", -1);
-    mineralize(kelp_pool, kelp_moat, gold_prob, gem_prob, (1));
+    await mineralize(kelp_pool, kelp_moat, gold_prob, gem_prob, (1));
     return 0;
 }
 const room_types = [{ name: "ordinary", type: OROOM }, { name: "themed", type: THEMEROOM }, { name: "throne", type: COURT }, { name: "swamp", type: SWAMP }, { name: "vault", type: VAULT }, { name: "beehive", type: BEEHIVE }, { name: "morgue", type: MORGUE }, { name: "barracks", type: BARRACKS }, { name: "zoo", type: ZOO }, { name: "delphi", type: DELPHI }, { name: "temple", type: TEMPLE }, { name: "anthole", type: ANTHOLE }, { name: "cocknest", type: COCKNEST }, { name: "leprehall", type: LEPREHALL }, { name: "shop", type: SHOPBASE }, { name: "armor shop", type: ARMORSHOP }, { name: "scroll shop", type: SCROLLSHOP }, { name: "potion shop", type: POTIONSHOP }, { name: "weapon shop", type: WEAPONSHOP }, { name: "food shop", type: FOODSHOP }, { name: "ring shop", type: RINGSHOP }, { name: "wand shop", type: WANDSHOP }, { name: "tool shop", type: TOOLSHOP }, { name: "book shop", type: BOOKSHOP }, { name: "health food shop", type: FODDERSHOP }, { name: "candle shop", type: CANDLESHOP }, { name: null, type: 0 }];
-export function get_mkroom_name(rtype) {
+export async function get_mkroom_name(rtype) {
     let i = 0;
     for (i = 0; room_types[i].name; i++) {
         if (room_types[i].type == rtype) {
             return room_types[i].name;
         }
     }
-    impossible("get_mkroom_name unknown rtype %d", rtype);
+    await impossible("get_mkroom_name unknown rtype %d", rtype);
     return "unknown";
 }
-export function get_table_roomtype_opt(L, name, defval) {
+export async function get_table_roomtype_opt(L, name, defval) {
     let roomstr = get_table_str_opt(L, name, game.emptystr);
     let i = 0;
     let res = defval;
-    if (roomstr && roomstr) {
+    if (roomstr && __nh_char_at0(roomstr)) {
         for (i = 0; room_types[i].name; i++) {
             if (!strncmpi((roomstr), (room_types[i].name), -1)) {
                 res = room_types[i].type;
@@ -3641,7 +3584,7 @@ export function get_table_roomtype_opt(L, name, defval) {
             }
         }
         if (!room_types[i].name) {
-            impossible("Unknown room type '%s'", roomstr);
+            await impossible("Unknown room type '%s'", roomstr);
         }
     }
     do {
@@ -3667,9 +3610,9 @@ export async function lspo_room(L) {
     }
     lcheck_param_table(L);
     if (game.coder.n_subroom > 5) {
-        panic("Too deeply nested rooms?!");
+        await panic("Too deeply nested rooms?!");
     } else {
-        let tmproom = { name: 0, parent: 0, x: 0, y: 0, w: 0, h: 0, xalign: 0, yalign: 0, rtype: 0, chance: 0, rlit: 0, needfill: 0, joined: 0 };
+        let tmproom = { name: { str: null, len: 0 }, parent: { str: null, len: 0 }, x: 0, y: 0, w: 0, h: 0, xalign: 0, yalign: 0, rtype: 0, chance: 0, rlit: 0, needfill: 0, joined: 0 };
         let tmpcr = null;
         let rx = 0;
         let ry = 0;
@@ -3685,14 +3628,14 @@ export async function lspo_room(L) {
         }
         tmproom.xalign = __lspo_room_l_or_r2i[get_table_option(L, "xalign", "random", __lspo_room_left_or_right)];
         tmproom.yalign = __lspo_room_t_or_b2i[get_table_option(L, "yalign", "random", __lspo_room_top_or_bot)];
-        tmproom.rtype = get_table_roomtype_opt(L, "type", OROOM);
+        tmproom.rtype = await get_table_roomtype_opt(L, "type", OROOM);
         tmproom.chance = get_table_int_opt(L, "chance", 100);
         tmproom.rlit = get_table_int_opt(L, "lit", -1);
         /* theme rooms default to unfilled */
         tmproom.needfill = get_table_int_opt(L, "filled", game.in_mk_themerooms ? 0 : 1);
         tmproom.joined = get_table_boolean_opt(L, "joined", (1));
         if (!game.coder.failed_room[game.coder.n_subroom - 1]) {
-            tmpcr = build_room(tmproom, game.coder.croom);
+            tmpcr = await build_room(tmproom, game.coder.croom);
             if (tmpcr) {
                 let n = game.coder.n_subroom;
                 game.coder.tmproomlist[n] = tmpcr;
@@ -3706,7 +3649,7 @@ export async function lspo_room(L) {
                 lua_getfield(L, 1, "contents");
                 if (lua_type(L, -1) == 6) {
                     lua_remove(L, -2);
-                    l_push_mkroom_table(L, tmpcr);
+                    await l_push_mkroom_table(L, tmpcr);
                     await nhl_pcall_handle(L, 1, 0, "lspo_room", NHLpa_panic);
                 } else {
                     lua_pop(L, 1);
@@ -3756,7 +3699,7 @@ export function good_stair_loc(x, y) {
 }
 const __l_create_stairway_stairdirs = ["down", "up", null];
 const __l_create_stairway_stairdirs2i = [0, 1];
-export function l_create_stairway(L, using_ladder) {
+export async function l_create_stairway(L, using_ladder) {
     let argc = lua_gettop(L);
     let x = -1;
     let y = -1;
@@ -3790,10 +3733,10 @@ export function l_create_stairway(L, using_ladder) {
     } else {
         scoord = (((x) & 255) + (((y) & 255) << 16));
     }
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, scoord);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, scoord);
     set_ok_location_func(null);
     if ((badtrap = t_at(x, y)) != null) {
-        deltrap(badtrap);
+        await deltrap(badtrap);
     }
     game.SpLev_Map[x][y] = 1;
     if (using_ladder) {
@@ -3812,7 +3755,7 @@ export function l_create_stairway(L, using_ladder) {
             game.level.locations[x][y].flags = 2;
         }
     } else {
-        mkstairs(x, y, up, game.coder.croom, !(scoord & 16777216));
+        await mkstairs(x, y, up, game.coder.croom, !(scoord & 16777216));
     }
     return 0;
 }
@@ -3823,21 +3766,21 @@ export function l_create_stairway(L, using_ladder) {
 /* stair("down", 4, 7); */
 /* TODO: stair(selection, "down"); */
 /* TODO: stair("up", {x,y}); */
-export function lspo_stair(L) {
-    return l_create_stairway(L, (0));
+export async function lspo_stair(L) {
+    return await l_create_stairway(L, (0));
 }
 /* ladder("down"); */
 /* ladder("up", 6,10); */
 /* ladder({ x=11, y=05, dir="down" }); */
-export function lspo_ladder(L) {
-    return l_create_stairway(L, (1));
+export async function lspo_ladder(L) {
+    return await l_create_stairway(L, (1));
 }
 /* grave(); */
 /* grave(x,y, "text"); */
 /* grave({ x = 1, y = 1 }); */
 /* grave({ x = 1, y = 1, text = "Foo" }); */
 /* grave({ coord = {1, 1}, text = "Foo" }); */
-export function lspo_grave(L) {
+export async function lspo_grave(L) {
     let argc = lua_gettop(L);
     let x = 0;
     let y = 0;
@@ -3861,11 +3804,10 @@ export function lspo_grave(L) {
     } else {
         scoord = (((ax) & 255) + (((ay) & 255) << 16));
     }
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, scoord);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, scoord);
     if (isok(x, y) && !t_at(x, y)) {
         game.level.locations[x][y].typ = GRAVE;
-        /* note: 'txt' might be Null */
-        make_grave(x, y, txt);
+        await make_grave(x, y, txt);
     }
     do {
         if (txt) {
@@ -3878,7 +3820,7 @@ export function lspo_grave(L) {
 /* des.altar({ coord = {5, 10}, align="noalign", type="altar" }); */
 const __lspo_altar_shrines = ["altar", "shrine", "sanctum", null];
 const __lspo_altar_shrines2i = [0, 1, 2, 0];
-export function lspo_altar(L) {
+export async function lspo_altar(L) {
     let tmpaltar = { coord: 0, x: 0, y: 0, sp_amask: 0, shrine: 0 };
     let x = 0;
     let y = 0;
@@ -3898,7 +3840,7 @@ export function lspo_altar(L) {
     tmpaltar.coord = acoord;
     tmpaltar.sp_amask = al;
     tmpaltar.shrine = shrine;
-    create_altar(tmpaltar, game.coder.croom);
+    await create_altar(tmpaltar, game.coder.croom);
     return 0;
 }
 const trap_types = [{ name: "arrow", type: ARROW_TRAP }, { name: "dart", type: DART_TRAP }, { name: "falling rock", type: ROCKTRAP }, { name: "board", type: SQKY_BOARD }, { name: "bear", type: BEAR_TRAP }, { name: "land mine", type: LANDMINE }, { name: "rolling boulder", type: ROLLING_BOULDER_TRAP }, { name: "sleep gas", type: SLP_GAS_TRAP }, { name: "rust", type: RUST_TRAP }, { name: "fire", type: FIRE_TRAP }, { name: "pit", type: PIT }, { name: "spiked pit", type: SPIKED_PIT }, { name: "hole", type: HOLE }, { name: "trap door", type: TRAPDOOR }, { name: "teleport", type: TELEP_TRAP }, { name: "level teleport", type: LEVEL_TELEP }, { name: "magic portal", type: MAGIC_PORTAL }, { name: "web", type: WEB }, { name: "statue", type: STATUE_TRAP }, { name: "magic", type: MAGIC_TRAP }, { name: "anti magic", type: ANTI_MAGIC }, { name: "polymorph", type: POLY_TRAP }, { name: "vibrating square", type: VIBRATING_SQUARE }, { name: "random", type: -1 }, { name: null, type: NO_TRAP }];
@@ -3906,7 +3848,7 @@ export function get_table_traptype_opt(L, name, defval) {
     let trapstr = get_table_str_opt(L, name, game.emptystr);
     let i = 0;
     let res = defval;
-    if (trapstr && trapstr) {
+    if (trapstr && __nh_char_at0(trapstr)) {
         for (i = 0; trap_types[i].name; i++) {
             if (!strncmpi((trapstr), (trap_types[i].name), -1)) {
                 res = trap_types[i].type;
@@ -3945,7 +3887,7 @@ export function get_traptype_byname(trapname) {
 /* trap("level teleport", {5, 8}); */
 /* trap("rust") */
 /* trap(); */
-export function lspo_trap(L) {
+export async function lspo_trap(L) {
     let tmptrap = { coord: 0, x: 0, y: 0, type: 0, spider_on_web: 0, seen: 0, novictim: 0 };
     let x = 0;
     let y = 0;
@@ -4005,7 +3947,7 @@ export function lspo_trap(L) {
     } else {
         tmptrap.coord = (((x) & 255) + (((y) & 255) << 16));
     }
-    create_trap(tmptrap, game.coder.croom);
+    await create_trap(tmptrap, game.coder.croom);
     game.launchplace.x = game.launchplace.y = 0;
     return 0;
 }
@@ -4014,7 +3956,7 @@ export function lspo_trap(L) {
 /* gold({ amount = 500, x = 2, y = 5 });*/
 /* gold({ amount = 500, coord = {2, 5} });*/
 /* gold(); */
-export function lspo_gold(L) {
+export async function lspo_gold(L) {
     let argc = lua_gettop(L);
     let x = 0;
     let y = 0;
@@ -4046,19 +3988,19 @@ export function lspo_gold(L) {
     } else {
         gcoord = (((gldx) & 255) + (((gldy) & 255) << 16));
     }
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, gcoord);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1, game.coder.croom, gcoord);
     if (amount < 0) {
         amount = rnd(200);
     }
-    mkgold(amount, x, y);
+    await mkgold(amount, x, y);
     return 0;
 }
 /* corridor({ srcroom=1, srcdoor=2, srcwall="north",
  *            destroom=2, destdoor=1, destwall="west" }); */
 const __lspo_corridor_walldirs = ["all", "random", "north", "west", "east", "south", null];
 const __lspo_corridor_walldirs2i = [(1 | 2 | 4 | 8), -1, 1, 8, 4, 2, 0];
-export function lspo_corridor(L) {
-    let tc = 0;
+export async function lspo_corridor(L) {
+    let tc = { src: { room: 0, wall: 0, door: 0 }, dest: { room: 0, wall: 0, door: 0 } };
     create_des_coder();
     lcheck_param_table(L);
     tc.src.room = get_table_int(L, "srcroom");
@@ -4067,12 +4009,12 @@ export function lspo_corridor(L) {
     tc.dest.room = get_table_int(L, "destroom");
     tc.dest.door = get_table_int(L, "destdoor");
     tc.dest.wall = __lspo_corridor_walldirs2i[get_table_option(L, "destwall", "all", __lspo_corridor_walldirs)];
-    create_corridor(tc);
+    await create_corridor(tc);
     return 0;
 }
 /* random_corridors(); */
-export function lspo_random_corridors(L) {
-    let tc = 0;
+export async function lspo_random_corridors(L) {
+    let tc = { src: { room: 0, wall: 0, door: 0 }, dest: { room: 0, wall: 0, door: 0 } };
     create_des_coder();
     tc.src.room = -1;
     tc.src.door = -1;
@@ -4080,7 +4022,7 @@ export function lspo_random_corridors(L) {
     tc.dest.room = -1;
     tc.dest.door = -1;
     tc.dest.wall = -1;
-    create_corridor(tc);
+    await create_corridor(tc);
     return 0;
 }
 /* Choose a single random W_* direction. */
@@ -4100,10 +4042,10 @@ export function floodfillchk_match_accessible(x, y) {
     return (((game.level.locations[x][y].typ) >= DOOR) || game.level.locations[x][y].typ == SDOOR || game.level.locations[x][y].typ == SCORR);
 }
 /* change map location terrain type during level creation */
-export function sel_set_ter(x, y, arg) {
+export async function sel_set_ter(x, y, arg) {
     let terr = { ter: 0, tlit: 0 };
-    terr = arg;
-    if (!set_levltyp_lit(x, y, terr.ter, terr.tlit)) {
+    Object.assign(terr, arg);
+    if (!await set_levltyp_lit(x, y, terr.ter, terr.tlit)) {
         return;
     }
     if (game.level.locations[x][y].typ == SDOOR || ((game.level.locations[x][y].typ) == DOOR)) {
@@ -4120,8 +4062,7 @@ export function sel_set_ter(x, y, arg) {
     } else if (game.splev_init_present && game.level.locations[x][y].typ == ICE) {
         game.level.locations[x][y].flags = game.icedpools ? 8 : 16;
     } else if (game.level.locations[x][y].typ == CLOUD) {
-        /* clouds cannot have engravings */
-        del_engr_at(x, y);
+        await del_engr_at(x, y);
     }
 }
 export function sel_set_feature(x, y, arg) {
@@ -4158,7 +4099,7 @@ const __lspo_door_doorstates = ["random", "open", "closed", "locked", "nodoor", 
 const __lspo_door_doorstates2i = [-1, 2, 4, 8, 0, 1, 32];
 const __lspo_door_walldirs = ["all", "random", "north", "west", "east", "south", null];
 const __lspo_door_walldirs2i = [(1 | 2 | 4 | 8), (1 | 2 | 4 | 8), 1, 8, 4, 2, 0];
-export function lspo_door(L) {
+export async function lspo_door(L) {
     let msk = 0;
     let x = 0;
     let y = 0;
@@ -4186,10 +4127,9 @@ export function lspo_door(L) {
         tmpd.mask = msk;
         tmpd.pos = get_table_int_opt(L, "pos", -1);
         tmpd.wall = __lspo_door_walldirs2i[get_table_option(L, "wall", "all", __lspo_door_walldirs)];
-        create_door(tmpd, game.coder.croom);
+        await create_door(tmpd, game.coder.croom);
     } else {
-        /*selection_iterate(sel, sel_set_door, (genericptr_t) &typ);*/
-        get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 16, game.coder.croom, (((x) & 255) + (((y) & 255) << 16)));
+        await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 16, game.coder.croom, (((x) & 255) + (((y) & 255) << 16)));
         if (!isok(x, y)) {
             nhl_error(L, "door coord not ok");
             return 0;
@@ -4287,7 +4227,7 @@ export function nhl_abs_coord(L) {
 /* feature({ type="tree", coord={NN, NN}, swarm=true, looted=false }); */
 const __lspo_feature_features = ["fountain", "sink", "pool", "throne", "tree", null];
 const __lspo_feature_features2i = [FOUNTAIN, SINK, POOL, THRONE, TREE, STONE];
-export function lspo_feature(L) {
+export async function lspo_feature(L) {
     let x = 0;
     let y = 0;
     let typ = 0;
@@ -4328,9 +4268,9 @@ export function lspo_feature(L) {
         /* assume the author knows what they're doing */
         humidity = 16;
     }
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, humidity, game.coder.croom, fcoord);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, humidity, game.coder.croom, fcoord);
     if (typ == STONE) {
-        impossible("feature has unknown type param.");
+        await impossible("feature has unknown type param.");
     } else {
         sel_set_feature(x, y, typ);
     }
@@ -4362,7 +4302,7 @@ export function lspo_feature(L) {
 /* gas_cloud({ selection=SELECTION }); */
 /* gas_cloud({ selection=SELECTION, damage=N }); */
 /* gas_cloud({ selection=SELECTION, damage=N, ttl=N }); */
-export function lspo_gas_cloud(L) {
+export async function lspo_gas_cloud(L) {
     let x = 0;
     let y = 0;
     let sel = null;
@@ -4385,9 +4325,9 @@ export function lspo_gas_cloud(L) {
         damage = get_table_int_opt(L, "damage", 0);
         ttl = get_table_int_opt(L, "ttl", -2);
         if (!sel) {
-            reg = create_gas_cloud(x, y, 1, damage);
+            reg = await create_gas_cloud(x, y, 1, damage);
         } else {
-            reg = create_gas_cloud_selection(sel, damage);
+            reg = await create_gas_cloud_selection(sel, damage);
         }
         if (ttl > -2) {
             reg.ttl = ttl;
@@ -4406,7 +4346,7 @@ export function lspo_gas_cloud(L) {
  * terrain({x,y}, MAPCHAR);
  * terrain(x,y, MAPCHAR);
  */
-export function lspo_terrain(L) {
+export async function lspo_terrain(L) {
     let tmpterrain = { ter: 0, tlit: 0 };
     let x = 0;
     let y = 0;
@@ -4452,12 +4392,12 @@ export function lspo_terrain(L) {
     if (sel) {
         selection_iterate(sel, sel_set_ter, tmpterrain);
     } else {
-        get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 16, game.coder.croom, (((x) & 255) + (((y) & 255) << 16)));
+        await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 16, game.coder.croom, (((x) & 255) + (((y) & 255) << 16)));
         if (!isok(x, y)) {
             nhl_error(L, "terrain coord not ok");
             return 0;
         }
-        sel_set_ter(x, y, tmpterrain);
+        await sel_set_ter(x, y, tmpterrain);
     }
     return 0;
 }
@@ -4471,7 +4411,7 @@ export function lspo_terrain(L) {
  * replace_terrain({ selection=SEL, mapfragment=[[...]],
  *                   toterrain=MAPCHAR });
  */
-export function lspo_replace_terrain(L) {
+export async function lspo_replace_terrain(L) {
     let totyp = 0;
     let fromtyp = 0;
     let mf = null;
@@ -4498,7 +4438,7 @@ export function lspo_replace_terrain(L) {
         let tmpstr = get_table_str(L, "mapfragment");
         mf = mapfrag_fromstr(tmpstr);
         free(tmpstr);
-        if ((err = mapfrag_error(mf)) != (null)) {
+        if ((err = await mapfrag_error(mf)) != (null)) {
             nhl_error(L, err);
         }
     }
@@ -4529,8 +4469,8 @@ export function lspo_replace_terrain(L) {
             let rx2 = 0;
             let ry2 = 0;
             rx1 = x1 , ry1 = y1 , rx2 = x2 , ry2 = y2;
-            get_location({ get value() { return rx1; }, set value(_v) { rx1 = _v; } }, { get value() { return ry1; }, set value(_v) { ry1 = _v; } }, 16, game.coder.croom);
-            get_location({ get value() { return rx2; }, set value(_v) { rx2 = _v; } }, { get value() { return ry2; }, set value(_v) { ry2 = _v; } }, 16, game.coder.croom);
+            await get_location({ get value() { return rx1; }, set value(_v) { rx1 = _v; } }, { get value() { return ry1; }, set value(_v) { ry1 = _v; } }, 16, game.coder.croom);
+            await get_location({ get value() { return rx2; }, set value(_v) { rx2 = _v; } }, { get value() { return ry2; }, set value(_v) { ry2 = _v; } }, 16, game.coder.croom);
             for (x = ((rx1) > (0) ? (rx1) : (0)); x <= ((rx2) < (80 - 1) ? (rx2) : (80 - 1)); x++) {
                 for (y = ((ry1) > (0) ? (ry1) : (0)); y <= ((ry2) < (21 - 1) ? (ry2) : (21 - 1)); y++) {
                     selection_setpoint(x, y, sel, 1);
@@ -4543,12 +4483,12 @@ export function lspo_replace_terrain(L) {
         for (y = rect.ly; y <= rect.hy; y++) {
             if (selection_getpoint(x, y, sel)) {
                 if (mf) {
-                    if (mapfrag_match(mf, x, y) && (rn2(100)) < chance) {
-                        set_levltyp_lit(x, y, totyp, tolit);
+                    if (await mapfrag_match(mf, x, y) && (rn2(100)) < chance) {
+                        await set_levltyp_lit(x, y, totyp, tolit);
                     }
                 } else {
                     if (((fromtyp == MATCH_WALL && ((game.level.locations[x][y].typ) <= DBWALL)) || game.level.locations[x][y].typ == fromtyp) && rn2(100) < chance) {
-                        set_levltyp_lit(x, y, totyp, tolit);
+                        await set_levltyp_lit(x, y, totyp, tolit);
                     }
                 }
             }
@@ -4561,7 +4501,7 @@ export function lspo_replace_terrain(L) {
     return 0;
 }
 const __generate_way_out_method_escapeitems = [PICK_AXE, DWARVISH_MATTOCK, WAN_DIGGING, WAN_TELEPORTATION, SCR_TELEPORTATION, RIN_TELEPORTATION];
-export function generate_way_out_method(nx, ny, ov) {
+export async function generate_way_out_method(nx, ny, ov) {
     let ov2 = null;
     let ov3 = null;
     let x = 0;
@@ -4570,7 +4510,7 @@ export function generate_way_out_method(nx, ny, ov) {
     gotitdone: {
         ov2 = selection_new();
         res = (1);
-        selection_floodfill(ov2, nx, ny, (1));
+        await selection_floodfill(ov2, nx, ny, (1));
         ov3 = selection_clone(ov2);
         while (selection_rndcoord(ov3, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, (1))) {
             if (isok(x + 1, y) && !selection_getpoint(x + 1, y, ov) && ((game.level.locations[x + 1][y].typ) && (game.level.locations[x + 1][y].typ) <= DBWALL) && isok(x + 2, y) && selection_getpoint(x + 2, y, ov) && ((game.level.locations[x + 2][y].typ) >= DOOR)) {
@@ -4596,14 +4536,13 @@ export function generate_way_out_method(nx, ny, ov) {
             selection_free(ov3, (1));
             ov3 = selection_clone(ov2);
             while (selection_rndcoord(ov3, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, (1))) {
-                if (maketrap(x, y, rn2(2) ? HOLE : TRAPDOOR)) {
+                if (await maketrap(x, y, rn2(2) ? HOLE : TRAPDOOR)) {
                     break gotitdone;
                 }
             }
         }
         if (selection_rndcoord(ov2, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, (0))) {
-            /* generate one of the escape items */
-            mksobj_at(__generate_way_out_method_escapeitems[rn2((Math.trunc(24 /* sizeof(const int [6]) */ / 4 /* sizeof(const int) */)))], x, y, (1), (0));
+            await mksobj_at(__generate_way_out_method_escapeitems[rn2((Math.trunc(24 /* sizeof(const int [6]) */ / 4 /* sizeof(const int) */)))], x, y, (1), (0));
             break gotitdone;
         }
         res = (0);
@@ -4612,7 +4551,7 @@ export function generate_way_out_method(nx, ny, ov) {
     selection_free(ov3, (1));
     return res;
 }
-export function ensure_way_out() {
+export async function ensure_way_out() {
     let ov = selection_new();
     let ttmp = game.ftrap;
     let x = 0;
@@ -4622,13 +4561,13 @@ export function ensure_way_out() {
     set_selection_floodfillchk(floodfillchk_match_accessible);
     while (stway) {
         if (stway.tolev.dnum == game.u.uz.dnum) {
-            selection_floodfill(ov, stway.sx, stway.sy, (1));
+            await selection_floodfill(ov, stway.sx, stway.sy, (1));
         }
         stway = stway.next;
     }
     while (ttmp) {
         if ((((ttmp.ttyp) == MAGIC_PORTAL || (ttmp.ttyp) == VIBRATING_SQUARE) || ((ttmp.ttyp) == HOLE || (ttmp.ttyp) == TRAPDOOR)) && !selection_getpoint(ttmp.tx, ttmp.ty, ov)) {
-            selection_floodfill(ov, ttmp.tx, ttmp.ty, (1));
+            await selection_floodfill(ov, ttmp.tx, ttmp.ty, (1));
         }
         ttmp = ttmp.ntrap;
     }
@@ -4638,8 +4577,8 @@ export function ensure_way_out() {
             for (x = 1; x < 80; x++) {
                 for (y = 0; y < 21; y++) {
                     if (((game.level.locations[x][y].typ) >= DOOR) && !selection_getpoint(x, y, ov)) {
-                        if (generate_way_out_method(x, y, ov)) {
-                            selection_floodfill(ov, x, y, (1));
+                        if (await generate_way_out_method(x, y, ov)) {
+                            await selection_floodfill(ov, x, y, (1));
                         }
                         ret = (0);
                         break outhere;
@@ -4730,37 +4669,31 @@ export function get_coord(L, i, x, y) {
     }
     return ret;
 }
-export function levregion_add(lregion) {
+export async function levregion_add(lregion) {
     if (!lregion.in_islev) {
-        get_location({ get value() { return lregion.inarea.x1; }, set value(_v) { lregion.inarea.x1 = _v; } }, { get value() { return lregion.inarea.y1; }, set value(_v) { lregion.inarea.y1 = _v; } }, 16, null);
-        get_location({ get value() { return lregion.inarea.x2; }, set value(_v) { lregion.inarea.x2 = _v; } }, { get value() { return lregion.inarea.y2; }, set value(_v) { lregion.inarea.y2 = _v; } }, 16, null);
+        await get_location({ get value() { return lregion.inarea.x1; }, set value(_v) { lregion.inarea.x1 = _v; } }, { get value() { return lregion.inarea.y1; }, set value(_v) { lregion.inarea.y1 = _v; } }, 16, null);
+        await get_location({ get value() { return lregion.inarea.x2; }, set value(_v) { lregion.inarea.x2 = _v; } }, { get value() { return lregion.inarea.y2; }, set value(_v) { lregion.inarea.y2 = _v; } }, 16, null);
     }
     if (!lregion.del_islev) {
-        get_location({ get value() { return lregion.delarea.x1; }, set value(_v) { lregion.delarea.x1 = _v; } }, { get value() { return lregion.delarea.y1; }, set value(_v) { lregion.delarea.y1 = _v; } }, 16, null);
-        get_location({ get value() { return lregion.delarea.x2; }, set value(_v) { lregion.delarea.x2 = _v; } }, { get value() { return lregion.delarea.y2; }, set value(_v) { lregion.delarea.y2 = _v; } }, 16, null);
+        await get_location({ get value() { return lregion.delarea.x1; }, set value(_v) { lregion.delarea.x1 = _v; } }, { get value() { return lregion.delarea.y1; }, set value(_v) { lregion.delarea.y1 = _v; } }, 16, null);
+        await get_location({ get value() { return lregion.delarea.x2; }, set value(_v) { lregion.delarea.x2 = _v; } }, { get value() { return lregion.delarea.y2; }, set value(_v) { lregion.delarea.y2 = _v; } }, 16, null);
     }
-    /* Hand-port: C reallocs a lev_region ARRAY; the emit alloc'd an
-       object whose [i] slots were undefined, so the final memcpy
-       no-op'd and NO LEVREGION WAS EVER STORED -- place_lregions
-       then placed branch/portal regions over the FULL MAP
-       (rn2(79)/rn2(21) where C fires rn2(1)/rn2(1) for a fixed
-       region; Q9 iter 50). */
-    if (game.num_lregions && Array.isArray(game.lregions)) {
+    if (game.num_lregions) {
         /* realloc the lregion space to add the new one */
+        let newl = alloc(1 /* sizeof(lev_region) */ * (1 + game.num_lregions));
+        memcpy((newl), game.lregions, 1 /* sizeof(lev_region) */ * game.num_lregions);
+        do {
+            if (game.lregions) {
+                free((game.lregions));
+            }
+        } while (0);
         game.num_lregions++;
+        game.lregions = newl;
     } else {
         game.num_lregions = 1;
-        game.lregions = [];
+        game.lregions = alloc(1 /* sizeof(lev_region) */);
     }
-    game.lregions[game.num_lregions - 1] = {
-        inarea: { ...lregion.inarea },
-        delarea: { ...lregion.delarea },
-        in_islev: lregion.in_islev,
-        del_islev: lregion.del_islev,
-        rtype: lregion.rtype,
-        padding: lregion.padding,
-        rname: { str: lregion.rname?.str ?? null, len: lregion.rname?.len ?? 0 },
-    };
+    memcpy(game.lregions[game.num_lregions - 1], lregion, 1 /* sizeof(lev_region) */);
 }
 /* get params from topmost lua hash:
    - region = {x1,y1,x2,y2}
@@ -4799,7 +4732,7 @@ export function l_get_lregion(L, tmplregion) {
 /* TODO: maybe allow using selection, with a new method "getextents()"? */
 const __lspo_teleport_region_teledirs = ["both", "down", "up", null];
 const __lspo_teleport_region_teledirs2i = [LR_TELE, LR_DOWNTELE, LR_UPTELE, -1];
-export function lspo_teleport_region(L) {
+export async function lspo_teleport_region(L) {
     let tmplregion = { inarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, delarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, in_islev: 0, del_islev: 0, rtype: 0, padding: 0, rname: { str: null, len: 0 } };
     create_des_coder();
     lcheck_param_table(L);
@@ -4807,7 +4740,7 @@ export function lspo_teleport_region(L) {
     tmplregion.rtype = __lspo_teleport_region_teledirs2i[get_table_option(L, "dir", "both", __lspo_teleport_region_teledirs)];
     tmplregion.padding = 0;
     tmplregion.rname.str = null;
-    levregion_add(tmplregion);
+    await levregion_add(tmplregion);
     return 0;
 }
 /* TODO: FIXME
@@ -4821,7 +4754,7 @@ export function lspo_teleport_region(L) {
 /* TODO: allow region to be optional, defaulting to whole level */
 const __lspo_levregion_regiontypes = ["stair-down", "stair-up", "portal", "branch", "teleport", "teleport-up", "teleport-down", null];
 const __lspo_levregion_regiontypes2i = [LR_DOWNSTAIR, LR_UPSTAIR, LR_PORTAL, LR_BRANCH, LR_TELE, LR_UPTELE, LR_DOWNTELE, 0];
-export function lspo_levregion(L) {
+export async function lspo_levregion(L) {
     let tmplregion = { inarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, delarea: { x1: 0, y1: 0, x2: 0, y2: 0 }, in_islev: 0, del_islev: 0, rtype: 0, padding: 0, rname: { str: null, len: 0 } };
     create_des_coder();
     lcheck_param_table(L);
@@ -4829,13 +4762,13 @@ export function lspo_levregion(L) {
     tmplregion.rtype = __lspo_levregion_regiontypes2i[get_table_option(L, "type", "stair-down", __lspo_levregion_regiontypes)];
     tmplregion.padding = get_table_int_opt(L, "padding", 0);
     tmplregion.rname.str = get_table_str_opt(L, "name", null);
-    levregion_add(tmplregion);
+    await levregion_add(tmplregion);
     return 0;
 }
 /* exclusion({ type = "teleport", region = { x1,y1, x2,y2 } }); */
 const __lspo_exclusion_ez_types = ["teleport", "teleport-up", "teleport-down", "monster-generation", null];
 const __lspo_exclusion_ez_types2i = [LR_TELE, LR_UPTELE, LR_DOWNTELE, LR_MONGEN, 0];
-export function lspo_exclusion(L) {
+export async function lspo_exclusion(L) {
     let ez = alloc(1 /* sizeof(struct exclusion_zone) */);
     let x1 = 0;
     let y1 = 0;
@@ -4851,8 +4784,8 @@ export function lspo_exclusion(L) {
     get_table_region(L, "region", { get value() { return x1; }, set value(_v) { x1 = _v; } }, { get value() { return y1; }, set value(_v) { y1 = _v; } }, { get value() { return x2; }, set value(_v) { x2 = _v; } }, { get value() { return y2; }, set value(_v) { y2 = _v; } }, (0));
     a1 = x1 , b1 = y1;
     a2 = x2 , b2 = y2;
-    get_location_coord({ get value() { return a1; }, set value(_v) { a1 = _v; } }, { get value() { return b1; }, set value(_v) { b1 = _v; } }, 16 | 32, game.coder.croom, (((a1) & 255) + (((b1) & 255) << 16)));
-    get_location_coord({ get value() { return a2; }, set value(_v) { a2 = _v; } }, { get value() { return b2; }, set value(_v) { b2 = _v; } }, 16 | 32, game.coder.croom, (((a2) & 255) + (((b2) & 255) << 16)));
+    await get_location_coord({ get value() { return a1; }, set value(_v) { a1 = _v; } }, { get value() { return b1; }, set value(_v) { b1 = _v; } }, 16 | 32, game.coder.croom, (((a1) & 255) + (((b1) & 255) << 16)));
+    await get_location_coord({ get value() { return a2; }, set value(_v) { a2 = _v; } }, { get value() { return b2; }, set value(_v) { b2 = _v; } }, 16 | 32, game.coder.croom, (((a2) & 255) + (((b2) & 255) << 16)));
     ez.lx = a1;
     ez.ly = b1;
     ez.hx = a2;
@@ -4927,7 +4860,7 @@ export async function lspo_region(L) {
         irregular = get_table_boolean_opt(L, "irregular", 0);
         joined = get_table_boolean_opt(L, "joined", (1));
         do_arrival_room = get_table_boolean_opt(L, "arrival_room", 0);
-        rtype = get_table_roomtype_opt(L, "type", OROOM);
+        rtype = await get_table_roomtype_opt(L, "type", OROOM);
         rlit = get_table_int_opt(L, "lit", -1);
         get_table_coords_or_region(L, { get value() { return dx1; }, set value(_v) { dx1 = _v; } }, { get value() { return dy1; }, set value(_v) { dy1 = _v; } }, { get value() { return dx2; }, set value(_v) { dx2 = _v; } }, { get value() { return dy2; }, set value(_v) { dy2 = _v; } });
         if (dx1 == -1 && dy1 == -1 && dx2 == -1 && dy2 == -1) {
@@ -4952,8 +4885,8 @@ export async function lspo_region(L) {
         return 0;
     }
     rlit = litstate_rnd(rlit);
-    get_location({ get value() { return dx1; }, set value(_v) { dx1 = _v; } }, { get value() { return dy1; }, set value(_v) { dy1 = _v; } }, 16, null);
-    get_location({ get value() { return dx2; }, set value(_v) { dx2 = _v; } }, { get value() { return dy2; }, set value(_v) { dy2 = _v; } }, 16, null);
+    await get_location({ get value() { return dx1; }, set value(_v) { dx1 = _v; } }, { get value() { return dy1; }, set value(_v) { dy1 = _v; } }, 16, null);
+    await get_location({ get value() { return dx2; }, set value(_v) { dx2 = _v; } }, { get value() { return dy2; }, set value(_v) { dy2 = _v; } }, 16, null);
     /* Many regions are simple, rectangular areas that just need to set
      * lighting in an area. In that case, we don't need to do anything
      * complicated by creating a room. The exceptions are:
@@ -4967,7 +4900,7 @@ export async function lspo_region(L) {
     if (room_not_needed || game.nroom >= 40) {
         let tmpregion = { x1: 0, y1: 0, x2: 0, y2: 0, rtype: 0, rlit: 0, rirreg: 0 };
         if (!room_not_needed) {
-            impossible("Too many rooms on new level!");
+            await impossible("Too many rooms on new level!");
         }
         tmpregion.rlit = rlit;
         tmpregion.x1 = dx1;
@@ -4986,16 +4919,16 @@ export async function lspo_region(L) {
         game.min_ry = game.max_ry = dy1;
         game.smeq[game.nroom] = game.nroom;
         flood_fill_rm(dx1, dy1, game.nroom + 3, rlit, (1));
-        add_room(game.min_rx, game.min_ry, game.max_rx, game.max_ry, (0), rtype, (1));
+        await add_room(game.min_rx, game.min_ry, game.max_rx, game.max_ry, (0), rtype, (1));
         troom.rlit = rlit;
         troom.irregular = (1);
     } else {
-        add_room(dx1, dy1, dx2, dy2, rlit, rtype, (1));
+        await add_room(dx1, dy1, dx2, dy2, rlit, rtype, (1));
         topologize(troom);
     }
     if (!room_not_needed) {
         if (game.coder.n_subroom > 1) {
-            impossible("region as subroom");
+            await impossible("region as subroom");
         } else {
             game.coder.tmproomlist[game.coder.n_subroom] = troom;
             game.coder.failed_room[game.coder.n_subroom] = (0);
@@ -5004,7 +4937,7 @@ export async function lspo_region(L) {
             lua_getfield(L, 1, "contents");
             if (lua_type(L, -1) == 6) {
                 lua_remove(L, -2);
-                l_push_mkroom_table(L, troom);
+                await l_push_mkroom_table(L, troom);
                 await nhl_pcall_handle(L, 1, 0, "lspo_region", NHLpa_panic);
             } else {
                 lua_pop(L, 1);
@@ -5021,7 +4954,7 @@ const __lspo_drawbridge_mwdirs = ["north", "south", "west", "east", "random", nu
 const __lspo_drawbridge_mwdirs2i = [0, 1, 3, 2, -1, -2];
 const __lspo_drawbridge_dbopens = ["open", "closed", "random", null];
 const __lspo_drawbridge_dbopens2i = [1, 0, -1, -2];
-export function lspo_drawbridge(L) {
+export async function lspo_drawbridge(L) {
     let x = 0;
     let y = 0;
     let mx = 0;
@@ -5037,7 +4970,7 @@ export function lspo_drawbridge(L) {
     db_open = __lspo_drawbridge_dbopens2i[get_table_option(L, "state", "random", __lspo_drawbridge_dbopens)];
     x = mx;
     y = my;
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1 | 2 | 4, game.coder.croom, dcoord);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 1 | 2 | 4, game.coder.croom, dcoord);
     if (!isok(mx, my)) {
         nhl_error(L, "drawbridge coord not ok");
         return 0;
@@ -5045,8 +4978,8 @@ export function lspo_drawbridge(L) {
     if (db_open == -1) {
         db_open = !rn2(2);
     }
-    if (!create_drawbridge(x, y, dir, db_open ? (1) : (0))) {
-        impossible("Cannot create drawbridge.");
+    if (!await create_drawbridge(x, y, dir, db_open ? (1) : (0))) {
+        await impossible("Cannot create drawbridge.");
     }
     game.SpLev_Map[x][y] = 1;
     return 0;
@@ -5056,7 +4989,7 @@ export function lspo_drawbridge(L) {
 /* mazewalk(x,y,dir); */
 const __lspo_mazewalk_mwdirs = ["north", "south", "east", "west", "random", null];
 const __lspo_mazewalk_mwdirs2i = [1, 2, 4, 8, -1, -2];
-export function lspo_mazewalk(L) {
+export async function lspo_mazewalk(L) {
     let x = 0;
     let y = 0;
     let mx = 0;
@@ -5081,7 +5014,7 @@ export function lspo_mazewalk(L) {
     mcoord = (((mx) & 255) + (((my) & 255) << 16));
     x = mx;
     y = my;
-    get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 16, game.coder.croom, mcoord);
+    await get_location_coord({ get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } }, 16, game.coder.croom, mcoord);
     if (!isok(x, y)) {
         nhl_error(L, "mazewalk coord not ok");
         return 0;
@@ -5106,7 +5039,7 @@ export function lspo_mazewalk(L) {
             --x;
             break;
         default:
-            impossible("mazewalk: Bad direction");
+            await impossible("mazewalk: Bad direction");
     }
     if (!((game.level.locations[x][y].typ) == DOOR)) {
         game.level.locations[x][y].typ = ftyp;
@@ -5133,9 +5066,9 @@ export function lspo_mazewalk(L) {
             y--;
         }
     }
-    walkfrom(x, y, ftyp);
+    await walkfrom(x, y, ftyp);
     if (fstocked) {
-        fill_empty_maze();
+        await fill_empty_maze();
     }
     return 0;
 }
@@ -5143,7 +5076,7 @@ export function lspo_mazewalk(L) {
 /* wall_property({ region = {1,0, 78,20}, property="nonpasswall" }); */
 const __lspo_wall_property_wprops = ["nondiggable", "nonpasswall", null];
 const __lspo_wall_property_wprop2i = [8, 16, -1];
-export function lspo_wall_property(L) {
+export async function lspo_wall_property(L) {
     let dx1 = -1;
     let dy1 = -1;
     let dx2 = -1;
@@ -5165,8 +5098,8 @@ export function lspo_wall_property(L) {
     if (dy2 == -1) {
         dy2 = game.ystart + game.ysize + 1;
     }
-    get_location({ get value() { return dx1; }, set value(_v) { dx1 = _v; } }, { get value() { return dy1; }, set value(_v) { dy1 = _v; } }, 16, null);
-    get_location({ get value() { return dx2; }, set value(_v) { dx2 = _v; } }, { get value() { return dy2; }, set value(_v) { dy2 = _v; } }, 16, null);
+    await get_location({ get value() { return dx1; }, set value(_v) { dx1 = _v; } }, { get value() { return dy1; }, set value(_v) { dy1 = _v; } }, 16, null);
+    await get_location({ get value() { return dx2; }, set value(_v) { dx2 = _v; } }, { get value() { return dy2; }, set value(_v) { dy2 = _v; } }, 16, null);
     set_wall_property(dx1, dy1, dx2, dy2, wprop);
     return 0;
 }
@@ -5221,8 +5154,8 @@ export function lspo_wallify(L) {
     return 0;
 }
 /* reset_level is only needed for testing purposes */
-export function lspo_reset_level(L) {
-    let wtower = In_W_tower(game.u.ux, game.u.uy, game.u.uz);
+export async function lspo_reset_level(L) {
+    let wtower = await In_W_tower(game.u.ux, game.u.uy, game.u.uz);
     game.iflags.lua_testing = (1);
     if (L) {
         if (game.coder) {
@@ -5235,16 +5168,15 @@ export function lspo_reset_level(L) {
         }
         create_des_coder();
     }
-    makemap_prepost((1), wtower);
+    await makemap_prepost((1), wtower);
     game.in_mklev = (1);
-    /* assign level dependent obj probabilities */
-    oinit();
-    clear_level_structures();
+    await oinit();
+    await clear_level_structures();
     return 0;
 }
 /* finalize_level is only needed for testing purposes */
-export function lspo_finalize_level(L) {
-    let wtower = In_W_tower(game.u.ux, game.u.uy, game.u.uz);
+export async function lspo_finalize_level(L) {
+    let wtower = await In_W_tower(game.u.ux, game.u.uy, game.u.uz);
     let i = 0;
     if (L) {
         create_des_coder();
@@ -5253,36 +5185,28 @@ export function lspo_finalize_level(L) {
     remove_boundary_syms();
     /* TODO: ensure_way_out() needs rewrite */
     if (L && game.coder.check_inaccessibles) {
-        ensure_way_out();
+        await ensure_way_out();
     }
-    map_cleanup();
-    /* FIXME: Ideally, we want this call to only cover areas of the map
-     * which were not inserted directly by the special level file (see
-     * the insect legs on Baalzebub's level, for instance). Since that
-     * is currently not possible, we overload the corrmaze flag for this
-     * purpose.
-     */
+    await map_cleanup();
     if (!game.level.flags.corrmaze) {
-        wallification(1, 0, 80 - 1, 21 - 1);
+        await wallification(1, 0, 80 - 1, 21 - 1);
     }
     if (L) {
-        flip_level_rnd(game.coder.allow_flips, (0));
+        await flip_level_rnd(game.coder.allow_flips, (0));
     }
     count_level_features();
     if (L && game.coder.solidify) {
         solidify_map();
     }
-    /* This must be done before premap_detect(),
-     * otherwise branch stairs won't be premapped. */
-    fixup_special();
+    await fixup_special();
     if (L && game.coder.premapped) {
-        premap_detect();
+        await premap_detect();
     }
-    level_finalize_topology();
+    await level_finalize_topology();
     for (i = 0; i < game.nroom; ++i) {
-        fill_special_room(game.rooms[i]);
+        await fill_special_room(game.rooms[i]);
     }
-    makemap_prepost((0), wtower);
+    await makemap_prepost((0), wtower);
     game.iflags.lua_testing = (0);
     return 0;
 }
@@ -5310,47 +5234,55 @@ export async function lspo_map(L) {
     let oy = 0;
     let lit = 0;
     let sel = null;
-    x = -1;
-    y = -1;
-    argc = lua_gettop(L);
-    has_contents = (0);
-    tryct = 0;
-    lit = (0);
-    create_des_coder();
-    if (game.in_mk_themerooms && game.themeroom_failed) {
-        return 0;
-    }
-    if (argc == 1 && lua_type(L, 1) == 4) {
-        tmpstr = dupstr(luaL_checkstring(L, 1));
-        lr = tb = 3;
-        mf = mapfrag_fromstr(tmpstr);
-        free(tmpstr);
-    } else {
-        lcheck_param_table(L);
-        lr = __lspo_map_l_or_r2i[get_table_option(L, "halign", "none", __lspo_map_left_or_right)];
-        tb = __lspo_map_t_or_b2i[get_table_option(L, "valign", "none", __lspo_map_top_or_bot)];
-        get_table_xy_or_coord(L, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } });
-        tmpstr = get_table_str(L, "map");
-        lit = get_table_boolean_opt(L, "lit", (0));
-        lua_getfield(L, 1, "contents");
-        if (lua_type(L, -1) == 6) {
-            lua_remove(L, -2);
-            has_contents = (1);
-        } else {
-            lua_pop(L, 1);
+    redo_maploc: {
+        /*
+TODO: allow passing an array of strings as map data
+TODO: handle if map lines aren't same length
+TODO: gc.coder->croom needs to be updated
+     */
+        x = -1;
+        y = -1;
+        argc = lua_gettop(L);
+        has_contents = (0);
+        tryct = 0;
+        lit = (0);
+        create_des_coder();
+        if (game.in_mk_themerooms && game.themeroom_failed) {
+            return 0;
         }
-        mf = mapfrag_fromstr(tmpstr);
-        free(tmpstr);
+        if (argc == 1 && lua_type(L, 1) == 4) {
+            tmpstr = dupstr(luaL_checkstring(L, 1));
+            lr = tb = 3;
+            mf = mapfrag_fromstr(tmpstr);
+            free(tmpstr);
+        } else {
+            lcheck_param_table(L);
+            lr = __lspo_map_l_or_r2i[get_table_option(L, "halign", "none", __lspo_map_left_or_right)];
+            tb = __lspo_map_t_or_b2i[get_table_option(L, "valign", "none", __lspo_map_top_or_bot)];
+            get_table_xy_or_coord(L, { get value() { return x; }, set value(_v) { x = _v; } }, { get value() { return y; }, set value(_v) { y = _v; } });
+            tmpstr = get_table_str(L, "map");
+            lit = get_table_boolean_opt(L, "lit", (0));
+            lua_getfield(L, 1, "contents");
+            if (lua_type(L, -1) == 6) {
+                lua_remove(L, -2);
+                has_contents = (1);
+            } else {
+                lua_pop(L, 1);
+            }
+            mf = mapfrag_fromstr(tmpstr);
+            free(tmpstr);
+        }
+        if (!mf) {
+            nhl_error(L, "Map data error");
+            return 0;
+        }
+        sel = selection_new();
+        ox = x;
+        oy = y;
     }
-    if (!mf) {
-        nhl_error(L, "Map data error");
-        return 0;
-    }
-    sel = selection_new();
-    ox = x;
-    oy = y;
-    redo_maploc: while (true) {
-        game.xsize = mf.wid;
+    __redo_maploc: for (;;) {
+    game.xsize = mf.wid;
+    skipmap: {
         game.ysize = mf.hei;
         if (lr == -1 && tb == -1) {
             if (game.in_mk_themerooms && (ox == -1 || oy == -1)) {
@@ -5434,7 +5366,7 @@ export async function lspo_map(L) {
         if (game.ystart < 0 || game.ystart + game.ysize > 21) {
             if (game.in_mk_themerooms) {
                 game.themeroom_failed = (1);
-                break redo_maploc;
+                break skipmap;
             }
             /* try to move the start a bit */
             game.ystart += (game.ystart > 0) ? -2 : 2;
@@ -5462,7 +5394,7 @@ export async function lspo_map(L) {
                                 isokp = (0);
                             }
                         } else {
-                            mptyp = mapfrag_get(mf, x - game.xstart, y - game.ystart);
+                            mptyp = await mapfrag_get(mf, x - game.xstart, y - game.ystart);
                             if (mptyp >= MAX_TYPE) {
                                 /* TODO: warn about illegal map char */
                                 continue;
@@ -5473,17 +5405,17 @@ export async function lspo_map(L) {
                         }
                         if (!isokp) {
                             if (tryct++ < 100 && (lr == -1 || tb == -1)) {
-                                continue redo_maploc;
+                                continue __redo_maploc;
                             }
                             game.themeroom_failed = (1);
-                            break redo_maploc;
+                            break skipmap;
                         }
                     }
                 }
             }
             for (y = game.ystart; y < ((21) < (game.ystart + game.ysize) ? (21) : (game.ystart + game.ysize)); y++) {
                 for (x = game.xstart; x < ((80) < (game.xstart + game.xsize) ? (80) : (game.xstart + game.xsize)); x++) {
-                    mptyp = mapfrag_get(mf, (x - game.xstart), (y - game.ystart));
+                    mptyp = await mapfrag_get(mf, (x - game.xstart), (y - game.ystart));
                     if (mptyp == INVALID_TYPE) {
                         continue;
                     }
@@ -5499,12 +5431,13 @@ export async function lspo_map(L) {
                     selection_setpoint(x, y, sel, 1);
                     terr.ter = mptyp;
                     terr.tlit = lit;
-                    sel_set_ter(x, y, terr);
+                    await sel_set_ter(x, y, terr);
                 }
             }
         }
-        break redo_maploc;
     }
+    break;
+    } /* __redo_maploc */
     mapfrag_free({ get value() { return mf; }, set value(_v) { mf = _v; } });
     if (game.in_mk_themerooms && game.themeroom_failed) {
         reset_xystart_size();
@@ -5590,12 +5523,6 @@ export function create_des_coder() {
 /*
  * General loader
  */
-/* Hand-port async coloring (Q9 iter 47): load_lua is ASYNC; the
-   sync emit treated its Promise as truthy, so load_special
-   wallified/flipped a still-STONE level while the des module's ops
-   ran DETACHED -- they resumed during whatever level loaded next
-   (bigrm-2's des.object() firing inside the sokoban load; every
-   all-STONE GLOC + the early dmonsfree complaint). */
 export async function load_special(name) {
     let result = 0;
     let sbi = { flags: 0, memlimit: 0, steps: 0, perpcall: 0 };
@@ -5603,26 +5530,26 @@ export async function load_special(name) {
         result = (0);
         sbi = { flags: 2147483648, memlimit: 1 * 1024 * 1024, steps: 0, perpcall: 1 * 1024 * 1024 };
         create_des_coder();
-        if (!(await load_lua(name, sbi))) {
+        if (!await load_lua(name, sbi)) {
             break give_up;
         }
         link_doors_rooms();
         remove_boundary_syms();
         if (game.coder.check_inaccessibles) {
-            ensure_way_out();
+            await ensure_way_out();
         }
-        map_cleanup();
+        await map_cleanup();
         if (!game.level.flags.corrmaze) {
-            wallification(1, 0, 80 - 1, 21 - 1);
+            await wallification(1, 0, 80 - 1, 21 - 1);
         }
-        flip_level_rnd(game.coder.allow_flips, (0));
+        await flip_level_rnd(game.coder.allow_flips, (0));
         count_level_features();
         if (game.coder.solidify) {
             solidify_map();
         }
-        fixup_special();
+        await fixup_special();
         if (game.coder.premapped) {
-            premap_detect();
+            await premap_detect();
         }
         result = (1);
     }
@@ -5635,11 +5562,60 @@ export async function load_special(name) {
     return result;
 }
 /*sp_lev.c*/
+/* in case any boulders are on liquid, delete them */
+/* after wall_spines; flips seenv and wall joins */
 /* 3.6.2: made iron bars eligible to be flagged nondiggable
            (checked by chewing(hack.c) and zap_over_floor(zap.c)) */
+/* if we can't get a specific monster type (pm == 0) then the
+           class has been genocided, so settle for a random monster */
+/* If water-liking monster, first try is without DRY */
+/* try to find a close place if someone else is already there */
+/* if we didn't find a good spot
+                           then mimic something else */
+/* guard against someone accidentally specifying e.g. quest nemesis
+             * with custom inventory that lacks Bell or quest artifact but
+             * forgetting to flag them as receiving their default inventory */
+/* KMH -- Create piles of gold properly */
+/* corpsenm is "empty" if -1, random if -2, otherwise specific */
+/* set_corpsenm() took care of egg hatch and corpse timers */
+/* needs to be an existing title */
+/* contents (of a container or monster's inventory) */
+/*impossible("create_object: no container");*/
+/* don't complain, the monster may be gone legally
+                   (eg. unique demon already generated)
+                   TODO: In the case of unique demon lords, they should
+                   get their inventories even when they get generated
+                   outside the des-file.  Maybe another data file that
+                   determines what inventories monsters get by default?
+                 */
+/* ['otmp' remains on floor] */
+/* uncreate a random artifact created in a container */
+/* FIXME: it could be intentional rather than random */
+/* Named random statues are of player types, and aren't stone-
+         * resistant (if they were, we'd have to reset the name as well as
+         * setting corpsenm).
+         */
+/* makemon without rndmonst() might create a group */
+/* check for existing features */
+/* Is it a shrine  or sanctum? */
+/*makecorridors(c->src.door);*/
+/* Safety railings - if there's ever a case where des.corridor() needs
+     * to be called with src/destwall="random", that logic first needs to be
+     * implemented in search_door. */
+/* First recurse into subrooms. We don't want to block an ordinary room
+     * with a special subroom from having the subroom filled, or an unfilled
+     * outer room preventing a special subroom from being filled. */
 /* failed to create parent room, so fail this too */
-/*
-TODO: allow passing an array of strings as map data
-TODO: handle if map lines aren't same length
-TODO: gc.coder->croom needs to be updated
+/* note: 'txt' might be Null */
+/* clouds cannot have engravings */
+/*selection_iterate(sel, sel_set_door, (genericptr_t) &typ);*/
+/* generate one of the escape items */
+/* assign level dependent obj probabilities */
+/* FIXME: Ideally, we want this call to only cover areas of the map
+     * which were not inserted directly by the special level file (see
+     * the insect legs on Baalzebub's level, for instance). Since that
+     * is currently not possible, we overload the corrmaze flag for this
+     * purpose.
      */
+/* This must be done before premap_detect(),
+     * otherwise branch stairs won't be premapped. */

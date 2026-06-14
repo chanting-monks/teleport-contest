@@ -2,12 +2,13 @@
 /*-Copyright (c) Robert Patrick Rankin, 2024. */
 /* NetHack may be freely redistributed.  See license for details. */
 import { game } from '../gstate.js';
+import { load_lua } from '../c2js-runtime/lua.js';
 import { alloc, free, memset } from '../c2js-runtime/memory.js';
 import { impossible, panic } from '../c2js-runtime/panic.js';
 import { You, pline } from '../c2js-runtime/pline.js';
-import { qsort } from '../c2js-runtime/qsort.js';
+import { qsort , qsort_async } from '../c2js-runtime/qsort.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { __nh_advance_str, __nh_char_at0, atoi, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi } from '../c2js-runtime/string.js';
+import { __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, strcat, strchr, strcmp, strcpy, strlen, strncmp, strncmpi } from '../c2js-runtime/string.js';
 import { bc_sanity_check } from './ball.js';
 import { cmd_from_func, ecname_from_fn, getdir, levltyp, makemap_prepost, paranoid_query, unavailcmd, yn_function } from './cmd.js';
 import { c_common_strings, cg, ynchars, ynqchars } from './decl.js';
@@ -57,21 +58,21 @@ import { makewish } from './zap.js';
 /* cmd.c */
 /* #wizwish command - wish for something */
 /* Unlimited wishes for debug mode by Paul Polderman */
-export function wiz_wish() {
+export async function wiz_wish() {
     if (game.flags.debug) {
         let save_verbose = game.flags.verbose;
         game.flags.verbose = (0);
-        makewish();
+        await makewish();
         game.flags.verbose = save_verbose;
-        encumber_msg();
+        await encumber_msg();
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_wish));
+        await pline(unavailcmd, ecname_from_fn(wiz_wish));
     }
     /* distinction between ECMD_CANCEL and ECMD_OK is unimportant here */
     return 0;
 }
 /* #wizidentify command - reveal and optionally identify hero's inventory */
-export function wiz_identify() {
+export async function wiz_identify() {
     if (game.flags.debug) {
         game.iflags.override_ID = cmd_from_func(wiz_identify);
         /* command remapping might leave #wizidentify as the only way
@@ -82,16 +83,16 @@ export function wiz_identify() {
         if (!game.iflags.override_ID) {
             game.iflags.override_ID = (31 & (73));
         }
-        display_inventory(null, (0));
+        await display_inventory(null, (0));
         game.iflags.override_ID = 0;
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_identify));
+        await pline(unavailcmd, ecname_from_fn(wiz_identify));
     }
     return 0;
 }
 /* used when wiz_makemap() gets rid of monsters for the old incarnation of
    a level before creating a new incarnation of it */
-export function makemap_unmakemon(mtmp, migratory) {
+export async function makemap_unmakemon(mtmp, migratory) {
     let ndx = ((mtmp.data).pmidx);
     /* uncreate any unique monster so that it is eligible to be remade
        on the new incarnation of the level; ignores DEADMONSTER() [why?] */
@@ -111,7 +112,7 @@ export function makemap_unmakemon(mtmp, migratory) {
         /* already set to be discarded */
         return;
     } else if (mtmp.isshk && on_level(game.u.uz, ((mtmp).mextra.eshk).shoplevel)) {
-        setpaid(mtmp);
+        await setpaid(mtmp);
     }
     if (migratory) {
         /* caller has removed 'mtmp' from migrating_mons; put it onto fmon
@@ -123,25 +124,22 @@ export function makemap_unmakemon(mtmp, migratory) {
         mtmp.nmon = game.level.monlist;
         game.level.monlist = mtmp;
     }
-    mongone(mtmp);
+    await mongone(mtmp);
 }
 /* get rid of the all the monsters on--or intimately involved with--current
    level; used when #wizmakemap destroys the level before replacing it */
-export function makemap_remove_mons() {
+export async function makemap_remove_mons() {
     let mtmp = null;
     let mprev__parent = null;
     let mprev__field = null;
-    /* keep steed and other adjacent pets after releasing them
-       from traps, stopping eating, &c as if hero were ascending */
-    /* (pets-only; normally we'd be using 'FALSE') */
-    keepdogs((1));
+    await keepdogs((1));
     for (mtmp = game.level.monlist; mtmp; mtmp = mtmp.nmon) {
         /* get rid of all the monsters that didn't make it to 'mydogs' */
         /* if already dead, dmonsfree(below) will get rid of it */
         if (((mtmp).mhp < 1)) {
             continue;
         }
-        makemap_unmakemon(mtmp, (0));
+        await makemap_unmakemon(mtmp, (0));
     }
     for ((mprev__parent = game, mprev__field = "migrating_mons"); (mtmp = mprev__parent[mprev__field]) != null; ) {
         if (mtmp.mextra && ((mtmp.isshk && on_level(game.u.uz, ((mtmp).mextra.eshk).shoplevel)) || (mtmp.ispriest && on_level(game.u.uz, ((mtmp).mextra.epri).shrlevel)) || (mtmp.isgd && on_level(game.u.uz, ((mtmp).mextra.egd).gdlevel)))) {
@@ -155,42 +153,32 @@ export function makemap_remove_mons() {
        present location instead of being saved with whatever level they
        happen to be on; see keepdogs() and keep_mon_accessible(dog.c)] */
             mprev__parent[mprev__field] = mtmp.nmon;
-            makemap_unmakemon(mtmp, (1));
+            await makemap_unmakemon(mtmp, (1));
         } else {
             (mprev__parent = mtmp, mprev__field = "nmon");
         }
     }
-    /* release dead and 'unmade' monsters */
-    /* since #wizkill takes no game time, it is possible to kill something
-       in the main dungeon and immediately level teleport into the endgame
-       which will delete the main dungeon's level files; avoid triggering
-       impossible "dmonsfree: 0 removed doesn't match N pending" by forcing
-       dead monster cleanup; we don't track whether anything was actually
-       killed above--if nothing was, this will be benign */
-    dmonsfree();
+    await dmonsfree();
     if (game.level.monlist) {
-        impossible("makemap_remove_mons: 'fmon' did not get emptied?");
+        await impossible("makemap_remove_mons: 'fmon' did not get emptied?");
     }
     return;
 }
 /* #wizmakemap - discard current dungeon level and replace with a new one */
-export function wiz_makemap() {
+export async function wiz_makemap() {
     if (game.flags.debug) {
-        let was_in_W_tower = In_W_tower(game.u.ux, game.u.uy, game.u.uz);
-        makemap_prepost((1), was_in_W_tower);
-        /* create a new level; various things like bestowing a guardian
-           angel on Astral or setting off alarm on Ft.Ludios are handled
-           by goto_level(do.c) so won't occur for replacement levels */
-        mklev();
-        makemap_prepost((0), was_in_W_tower);
+        let was_in_W_tower = await In_W_tower(game.u.ux, game.u.uy, game.u.uz);
+        await makemap_prepost((1), was_in_W_tower);
+        await mklev();
+        await makemap_prepost((0), was_in_W_tower);
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_makemap));
+        await pline(unavailcmd, ecname_from_fn(wiz_makemap));
     }
     return 0;
 }
 /* the #wizmap command - reveal the level map
    and any traps or engravings on it */
-export function wiz_map() {
+export async function wiz_map() {
     if (game.flags.debug) {
         let t = null;
         let ep = null;
@@ -202,58 +190,58 @@ export function wiz_map() {
         game.u.uprops[CONFUSION].intrinsic = game.u.uprops[HALLUC].intrinsic = 0;
         for (t = game.ftrap; t != null; t = t.ntrap) {
             t.tseen = 1;
-            map_trap(t, (1));
+            await map_trap(t, (1));
         }
         for (ep = game.head_engr; ep != null; ep = ep.nxt_engr) {
-            map_engraving(ep, (1));
+            await map_engraving(ep, (1));
         }
-        do_mapping();
+        await do_mapping();
         do {
             if (--game.a11y.mon_notices_blocked < 0) {
-                impossible("mon_notices_blocked<0");
+                await impossible("mon_notices_blocked<0");
                 game.a11y.mon_notices_blocked = 0;
             }
         } while (0);
         game.u.uprops[CONFUSION].intrinsic = save_Hconf;
         game.u.uprops[HALLUC].intrinsic = save_Hhallu;
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_map));
+        await pline(unavailcmd, ecname_from_fn(wiz_map));
     }
     return 0;
 }
 /* #wizgenesis - generate monster(s); a count prefix will be honored */
-export function wiz_genesis() {
+export async function wiz_genesis() {
     if (game.flags.debug) {
         let mongen_saved = game.iflags.debug_mongen;
         game.iflags.debug_mongen = (0);
-        create_particular();
+        await create_particular();
         game.iflags.debug_mongen = mongen_saved;
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_genesis));
+        await pline(unavailcmd, ecname_from_fn(wiz_genesis));
     }
     return 0;
 }
 /* #wizwhere command - display dungeon layout */
-export function wiz_where() {
+export async function wiz_where() {
     if (game.flags.debug) {
-        print_dungeon((0), null, null);
+        await print_dungeon((0), null, null);
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_where));
+        await pline(unavailcmd, ecname_from_fn(wiz_where));
     }
     return 0;
 }
 /* the #wizdetect command - detect secret doors, traps, hidden monsters */
-export function wiz_detect() {
+export async function wiz_detect() {
     if (game.flags.debug) {
-        findit();
+        await findit();
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_detect));
+        await pline(unavailcmd, ecname_from_fn(wiz_detect));
     }
     return 0;
 }
 /* the #wizkill command - pick targets and reduce them to 0HP;
    by default, the hero is credited/blamed; use 'm' prefix to avoid that */
-export function wiz_kill() {
+export async function wiz_kill() {
     let mtmp = null;
     let cc = { x: 0, y: 0 };
     let ans = 0;
@@ -265,11 +253,11 @@ export function wiz_kill() {
     let uarehere = game.u.uz;
     cc.x = game.u.ux , cc.y = game.u.uy;
     for (; ; ) {
-        pline("%s:", prompt);
+        await pline("%s:", prompt);
         prompt = "Next monster";
         game.flags.verbose = (0);
         game.iflags.autodescribe = (1);
-        ans = getpos(cc, (1), "a monster");
+        ans = await getpos(cc, (1), "a monster");
         game.flags.verbose = save_verbose;
         game.iflags.autodescribe = save_autodescribe;
         if (ans < 0 || cc.x < 1) {
@@ -278,8 +266,8 @@ export function wiz_kill() {
         mtmp = null;
         if (((cc.x) == game.u.ux && (cc.y) == game.u.uy)) {
             if (game.u.usteed) {
-                qbuf = sprintf(qbuf, "Kill %.110s?", mon_nam(game.u.usteed));
-                if ((c = yn_function(qbuf, ynqchars, 113, (1))) == 113) {
+                qbuf = sprintf(qbuf, "Kill %.110s?", await mon_nam(game.u.usteed));
+                if ((c = await yn_function(qbuf, ynqchars, 113, (1))) == 113) {
                     break;
                 }
                 if (c == 121) {
@@ -288,10 +276,10 @@ export function wiz_kill() {
             }
             if (!mtmp) {
                 qbuf = sprintf(qbuf, "%s?", (game.urole.mnum == (PM_SAMURAI)) ? "Perform seppuku" : "Commit suicide");
-                if (paranoid_query((1), qbuf)) {
+                if (await paranoid_query((1), qbuf)) {
                     game.killer.name = sprintf(game.killer.name, "%s own player", (genders[game.flags.female ? 1 : 0].his));
                     game.killer.format = 1;
-                    done(DIED);
+                    await done(DIED);
                 }
                 break;
             }
@@ -300,10 +288,7 @@ export function wiz_kill() {
         } else {
             mtmp = (game.level.monsters[cc.x][cc.y]);
         }
-        /* whether there's an unseen monster here or not, player will know
-           that there's no monster here after the kill or failed attempt;
-           let hero know too */
-        unmap_invisible(cc.x, cc.y);
+        await unmap_invisible(cc.x, cc.y);
         if (mtmp) {
             /* we don't require that the monster be seen or sensed so
                we issue our own message in order to name it in case it
@@ -314,11 +299,10 @@ export function wiz_kill() {
             let flgs = (1 | 4 | ((tame && ((mtmp).mextra && ((mtmp).mextra.mgivenname))) ? 8 : 0));
             let articl = tame ? 3 : seen ? 1 : 2;
             let adjs = tame ? (!seen ? "poor, unseen" : "poor") : (!seen ? "unseen" : null);
-            let Mn = x_monnam(mtmp, articl, adjs, flgs, (0));
+            let Mn = await x_monnam(mtmp, articl, adjs, flgs, (0));
             if (!game.iflags.menu_requested) {
-                /* normal case: hero is credited/blamed */
-                You("%s %s!", ((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) ? "destroy" : "kill", Mn);
-                xkilled(mtmp, 1);
+                await You("%s %s!", ((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) ? "destroy" : "kill", Mn);
+                await xkilled(mtmp, 1);
             } else {
                 /* we know that monsters aren't moving because player has
                    just issued this #wizkill command, but if 'mtmp' is a
@@ -326,9 +310,8 @@ export function wiz_kill() {
                    need to have the mon_moving flag be True in order to
                    avoid blaming or crediting hero for their deaths */
                 game.context.mon_moving = (1);
-                pline("%s is %s.", upstart(Mn), ((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) ? "destroyed" : "killed");
-                /* Null second arg suppresses the usual message */
-                monkilled(mtmp, null, 0);
+                await pline("%s is %s.", upstart(Mn), ((((mtmp.data).mflags2 & 2) != 0) || (mtmp.data) == game.mons[PM_MANES] || (((mtmp.data).mlet == S_GOLEM) || (mtmp.data).mlet == S_VORTEX)) ? "destroyed" : "killed");
+                await monkilled(mtmp, null, 0);
                 game.context.mon_moving = (0);
             }
             /* end targetting loop if an engulfer dropped hero onto a level-
@@ -337,15 +320,15 @@ export function wiz_kill() {
                 break;
             }
         } else {
-            There("is no monster there.");
+            await There("is no monster there.");
             break;
         }
     }
-    dmonsfree();
+    await dmonsfree();
     return 0;
 }
 /* the #wizloadlua command - load an arbitrary lua file */
-export function wiz_load_lua() {
+export async function wiz_load_lua() {
     if (game.flags.debug) {
         let buf = '';
         /* Large but not unlimited memory and CPU so random bits of
@@ -353,16 +336,16 @@ export function wiz_load_lua() {
         let sbi = { flags: 2147483648 | 134217728, memlimit: 16 * 1024 * 1024, steps: 0, perpcall: 16 * 1024 * 1024 };
         /* in case EDIT_GETLIN is enabled */
         buf = '';
-        getlin("Load which lua file?", buf);
-        if (buf[0] == 27 || buf[0] == 0) {
+        buf = await getlin("Load which lua file?", buf);
+        if (__nh_char_at0(buf) == 27 || __nh_char_at0(buf) == 0) {
             return 2;
         }
         if (!strchr(buf, 46)) {
             buf = strcat(buf, ".lua");
         }
-        load_lua(buf, sbi);
+        await load_lua(buf, sbi);
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_load_lua));
+        await pline(unavailcmd, ecname_from_fn(wiz_load_lua));
     }
     return 0;
 }
@@ -371,99 +354,91 @@ export async function wiz_load_splua() {
     if (game.flags.debug) {
         let buf = '';
         buf = '';
-        getlin("Load which des lua file?", buf);
-        if (buf[0] == 27 || buf[0] == 0) {
+        buf = await getlin("Load which des lua file?", buf);
+        if (__nh_char_at0(buf) == 27 || __nh_char_at0(buf) == 0) {
             return 2;
         }
         if (!strchr(buf, 46)) {
             buf = strcat(buf, ".lua");
         }
-        lspo_reset_level(null);
+        await lspo_reset_level(null);
         await load_special(buf);
-        lspo_finalize_level(null);
+        await lspo_finalize_level(null);
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_load_splua));
+        await pline(unavailcmd, ecname_from_fn(wiz_load_splua));
     }
     return 0;
 }
 /* the #wizlevelport command - level teleport */
-export function wiz_level_tele() {
+export async function wiz_level_tele() {
     if (game.flags.debug) {
-        level_tele();
+        await level_tele();
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_level_tele));
+        await pline(unavailcmd, ecname_from_fn(wiz_level_tele));
     }
     return 0;
 }
 /* #wizfliplevel - transpose the current level */
 const __wiz_flip_level_choices = "0123";
 const __wiz_flip_level_prmpt = "Flip 0=randomly, 1=vertically, 2=horizontally, 3=both:";
-export function wiz_flip_level() {
+export async function wiz_flip_level() {
     if (game.flags.debug) {
-        /*
-     * Does not handle
-     *   levregions,
-     *   monster mtrack,
-     *   migrating monsters aimed at returning to specific coordinates
-     *     on this level
-     * as flipping is normally done only during level creation.
-     */
-        let c = yn_function(__wiz_flip_level_prmpt, __wiz_flip_level_choices, 0, (1));
+        let c = await yn_function(__wiz_flip_level_prmpt, __wiz_flip_level_choices, 0, (1));
         if (c && strchr(__wiz_flip_level_choices, c)) {
             c -= 48;
             if (!c) {
-                flip_level_rnd(3, (1));
+                await flip_level_rnd(3, (1));
             } else {
-                flip_level(c, (1));
+                await flip_level(c, (1));
             }
-            docrt();
+            await docrt();
         } else {
-            pline("%s", c_common_strings.c_Never_mind);
+            await pline("%s", c_common_strings.c_Never_mind);
         }
     }
     return 0;
 }
 /* #levelchange command - adjust hero's experience level */
-export function wiz_level_change() {
+export async function wiz_level_change() {
     let buf = '';
     let dummy = 0;
     let newlevel = 0;
     let ret = 0;
     buf = '';
-    getlin("To what experience level do you want to be set?", buf);
+    buf = await getlin("To what experience level do you want to be set?", buf);
     buf = mungspaces(buf);
-    if (buf[0] == 27 || buf[0] == 0) {
+    if (__nh_char_at0(buf) == 27 || __nh_char_at0(buf) == 0) {
         ret = 0;
     } else {
         ret = sscanf(buf, "%d%c", newlevel, dummy);
     }
     if (ret != 1) {
-        pline("%s", c_common_strings.c_Never_mind);
+        await pline("%s", c_common_strings.c_Never_mind);
         return 0;
     }
     if (newlevel == game.u.ulevel) {
-        You("are already that experienced.");
+        await You("are already that experienced.");
     } else if (newlevel < game.u.ulevel) {
         if (game.u.ulevel == 1) {
-            You("are already as inexperienced as you can get.");
+            await You("are already as inexperienced as you can get.");
             return 0;
         }
         if (newlevel < 1) {
             newlevel = 1;
         }
         while (game.u.ulevel > newlevel) {
-            losexp("#levelchange");
+            await losexp("#levelchange");
         }
     } else {
         if (game.u.ulevel >= 30) {
-            You("are already as experienced as you can get.");
+            await You("are already as experienced as you can get.");
             return 0;
         }
         if (newlevel > 30) {
             newlevel = 30;
         }
         while (game.u.ulevel < newlevel) {
-            pluslvl((0));
+            await pluslvl((0));
         }
     }
     /* blessed full healing or restore ability won't fix any lost levels */
@@ -471,30 +446,30 @@ export function wiz_level_change() {
     return 0;
 }
 /* #wiztelekinesis */
-export function wiz_telekinesis() {
+export async function wiz_telekinesis() {
     let ans = 0;
     let cc = { x: 0, y: 0 };
     let mtmp = null;
     cc.x = game.u.ux;
     cc.y = game.u.uy;
-    pline("Pick a monster to hurtle.");
+    await pline("Pick a monster to hurtle.");
     do {
-        ans = getpos(cc, (1), "a monster");
+        ans = await getpos(cc, (1), "a monster");
         if (ans < 0 || cc.x < 1) {
             return 2;
         }
         if ((((mtmp = (game.level.monsters[cc.x][cc.y])) != null) && (canseemon(mtmp) || sensemon(mtmp))) || ((cc.x) == game.u.ux && (cc.y) == game.u.uy)) {
-            if (!getdir("which direction?")) {
+            if (!await getdir("which direction?")) {
                 return 2;
             }
             if (mtmp) {
-                mhurtle(mtmp, game.u.dx, game.u.dy, 6);
+                await mhurtle(mtmp, game.u.dx, game.u.dy, 6);
                 if (!((mtmp).mhp < 1) && (canseemon(mtmp) || sensemon(mtmp))) {
                     cc.x = mtmp.mx;
                     cc.y = mtmp.my;
                 }
             } else {
-                hurtle(game.u.dx, game.u.dy, 6, (0));
+                await hurtle(game.u.dx, game.u.dy, 6, (0));
                 cc.x = game.u.ux , cc.y = game.u.uy;
             }
         }
@@ -502,25 +477,25 @@ export function wiz_telekinesis() {
     return 0;
 }
 /* #panic command - test program's panic handling */
-export function wiz_panic() {
+export async function wiz_panic() {
     if (game.iflags.debug_fuzzer) {
         game.u.uhp = game.u.uhpmax = 1000;
         game.u.uen = game.u.uenmax = 1000;
         return 0;
     }
-    if (paranoid_query((1), "Do you want to call panic() and end your game?")) {
-        panic("Crash test (#panic).");
+    if (await paranoid_query((1), "Do you want to call panic() and end your game?")) {
+        await panic("Crash test (#panic).");
     }
     return 0;
 }
 /* #debugfuzzer command - fuzztest the program */
-export function wiz_fuzzer() {
+export async function wiz_fuzzer() {
     if (game.flags.suppress_alert < ((3 << 24) | (7 << 16) | (0 << 8) | (0))) {
-        pline("The fuzz tester will make NetHack execute random keypresses.");
-        There("is no conventional way out of this mode.");
+        await pline("The fuzz tester will make NetHack execute random keypresses.");
+        await There("is no conventional way out of this mode.");
     }
-    if (paranoid_query((1), "Do you want to start fuzz testing?")) {
-        if (yn_function("Do you want to call panic() after impossible()?", ynchars, 110, (1)) == 110) {
+    if (await paranoid_query((1), "Do you want to start fuzz testing?")) {
+        if (await yn_function("Do you want to call panic() after impossible()?", ynchars, 110, (1)) == 110) {
             game.iflags.debug_fuzzer = fuzzer_impossible_continue;
         } else {
             game.iflags.debug_fuzzer = fuzzer_impossible_panic;
@@ -529,12 +504,12 @@ export function wiz_fuzzer() {
     return 0;
 }
 /* #polyself command - change hero's form */
-export function wiz_polyself() {
-    polyself(POLY_CONTROLLED);
+export async function wiz_polyself() {
+    await polyself(POLY_CONTROLLED);
     return 0;
 }
 /* #seenv command */
-export function wiz_show_seenv() {
+export async function wiz_show_seenv() {
     let win = 0;
     let x = 0;
     let y = 0;
@@ -561,30 +536,30 @@ export function wiz_show_seenv() {
     for (y = 0; y < 21; y++) {
         for (x = startx , curx = 0; x < stopx; x++ , curx += 2) {
             if (((x) == game.u.ux && (y) == game.u.uy)) {
-                (row[curx + 1] = 64, row[curx] = 64);
+                (row = __nh_char_write(row, curx + 1, 64), row = __nh_char_write(row, curx, 64));
             } else {
                 v = game.level.locations[x][y].seenv & 255;
                 if (v == 0) {
-                    (row[curx + 1] = 32, row[curx] = 32);
+                    (row = __nh_char_write(row, curx + 1, 32), row = __nh_char_write(row, curx, 32));
                 } else {
-                    sprintf({ get value() { return row[curx]; }, set value(_v) { row[curx] = _v; } }, "%02x", v);
+                    sprintf({ get value() { return __nh_char_at0(__nh_advance_str(row, curx)); }, set value(_v) { __nh_char_at0(__nh_advance_str(row, curx)) = _v; } }, "%02x", v);
                 }
             }
         }
         for (x = curx - 1; x >= 0; x--) {
-            if (row[x] != 32) {
+            if (__nh_char_at0(__nh_advance_str(row, x)) != 32) {
                 break;
             }
         }
-        row[x + 1] = 0;
+        row = __nh_char_write(row, x + 1, 0);
         (game.windowprocs.win_putstr)(win, 0, row);
     }
-    (game.windowprocs.win_display_nhwindow)(win, (1));
+    await (game.windowprocs.win_display_nhwindow)(win, (1));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
 /* #vision command */
-export function wiz_show_vision() {
+export async function wiz_show_vision() {
     let win = 0;
     let x = 0;
     let y = 0;
@@ -597,28 +572,28 @@ export function wiz_show_vision() {
     for (y = 0; y < 21; y++) {
         for (x = 1; x < 80; x++) {
             if (((x) == game.u.ux && (y) == game.u.uy)) {
-                row[x] = 64;
+                row = __nh_char_write(row, x, 64);
             } else {
                 /* data access should be hidden */
                 v = game.viz_array[y][x];
-                row[x] = (v == 0) ? 32 : (48 + v);
+                row = __nh_char_write(row, x, (v == 0) ? 32 : (48 + v));
             }
         }
         for (x = 80 - 1; x >= 1; x--) {
-            if (row[x] != 32) {
+            if (__nh_char_at0(__nh_advance_str(row, x)) != 32) {
                 break;
             }
         }
-        row[x + 1] = 0;
+        row = __nh_char_write(row, x + 1, 0);
         /* map column 0, levl[0][], is off the left edge of the screen */
-        (game.windowprocs.win_putstr)(win, 0, row[1]);
+        (game.windowprocs.win_putstr)(win, 0, __nh_char_at0(__nh_advance_str(row, 1)));
     }
-    (game.windowprocs.win_display_nhwindow)(win, (1));
+    await (game.windowprocs.win_display_nhwindow)(win, (1));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
 /* #wmode command */
-export function wiz_show_wmodes() {
+export async function wiz_show_wmodes() {
     let win = 0;
     let x = 0;
     let y = 0;
@@ -635,26 +610,26 @@ export function wiz_show_wmodes() {
             /* tty only: blank top line */
             lev = game.level.locations[x][y];
             if (((x) == game.u.ux && (y) == game.u.uy)) {
-                row[x] = 64;
+                row = __nh_char_write(row, x, 64);
             } else if (((lev.typ) && (lev.typ) <= DBWALL) || lev.typ == SDOOR) {
-                row[x] = 48 + (lev.flags & 7);
+                row = __nh_char_write(row, x, 48 + (lev.flags & 7));
             } else if (lev.typ == CORR) {
-                row[x] = 35;
+                row = __nh_char_write(row, x, 35);
             } else if (((lev.typ) >= ROOM) || ((lev.typ) == DOOR)) {
-                row[x] = 46;
+                row = __nh_char_write(row, x, 46);
             } else {
-                row[x] = 120;
+                row = __nh_char_write(row, x, 120);
             }
         }
-        row[80] = 0;
-        (game.windowprocs.win_putstr)(win, 0, row[1]);
+        row = __nh_char_write(row, 80, 0);
+        (game.windowprocs.win_putstr)(win, 0, __nh_char_at0(__nh_advance_str(row, 1)));
     }
-    (game.windowprocs.win_display_nhwindow)(win, (1));
+    await (game.windowprocs.win_display_nhwindow)(win, (1));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
 /* wizard mode variant of #terrain; internal levl[][].typ values in base-36 */
-export function wiz_map_levltyp() {
+export async function wiz_map_levltyp() {
     let win = 0;
     let x = 0;
     let y = 0;
@@ -671,13 +646,13 @@ export function wiz_map_levltyp() {
            it should always have terrain type "undiggable stone" */
             terrain = game.level.locations[x][y].typ;
             /* assumes there aren't more than 10+26+26 terrain types */
-            row[x - 1] = ((terrain == STONE && !may_dig(x, y)) ? 42 : (terrain < 10) ? 48 + terrain : (terrain < 36) ? 97 + terrain - 10 : 65 + terrain - 36);
+            row = __nh_char_write(row, x - 1, ((terrain == STONE && !may_dig(x, y)) ? 42 : (terrain < 10) ? 48 + terrain : (terrain < 36) ? 97 + terrain - 10 : 65 + terrain - 36));
         }
         x--;
         if (game.level.locations[0][y].typ != STONE || may_dig(0, y)) {
-            row[x++] = 33;
+            row = __nh_char_write(row, x++, 33);
         }
-        row[x] = 0;
+        row = __nh_char_write(row, x, 0);
         (game.windowprocs.win_putstr)(win, 0, row);
     }
 {
@@ -803,16 +778,16 @@ export function wiz_map_levltyp() {
         }
         /* limit the line length to map width */
         if (strlen(dsc) >= 80) {
-            dsc[80 - 1] = 0;
+            dsc = __nh_char_write(dsc, 80 - 1, 0);
         }
         (game.windowprocs.win_putstr)(win, 0, dsc);
     }
-    (game.windowprocs.win_display_nhwindow)(win, (1));
+    await (game.windowprocs.win_display_nhwindow)(win, (1));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return;
 }
 /* explanation of base-36 output from wiz_map_levltyp() */
-export function wiz_levltyp_legend() {
+export async function wiz_levltyp_legend() {
     let win = 0;
     let i = 0;
     let j = 0;
@@ -845,12 +820,12 @@ export function wiz_levltyp_legend() {
             }
         }
     }
-    (game.windowprocs.win_display_nhwindow)(win, (1));
+    await (game.windowprocs.win_display_nhwindow)(win, (1));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return;
 }
 /* #wizsmell command - test usmellmon(). */
-export function wiz_smell() {
+export async function wiz_smell() {
     let mtmp = null;
     let mptr = null;
     let ans = 0;
@@ -860,13 +835,13 @@ export function wiz_smell() {
     cc.x = game.u.ux;
     cc.y = game.u.uy;
     if (!olfaction(game.youmonst.data)) {
-        You("are incapable of detecting odors in your present form.");
+        await You("are incapable of detecting odors in your present form.");
         return 0;
     }
-    You("can move the cursor to a monster that you want to smell.");
+    await You("can move the cursor to a monster that you want to smell.");
     do {
-        pline("Pick a monster to smell.");
-        ans = getpos(cc, (1), "a monster");
+        await pline("Pick a monster to smell.");
+        ans = await getpos(cc, (1), "a monster");
         if (ans < 0 || cc.x < 0) {
             return 2;
         }
@@ -888,18 +863,18 @@ export function wiz_smell() {
         glyph = glyph_at(cc.x, cc.y);
         if (mptr) {
             if (is_you) {
-                You("surreptitiously sniff under your %s.", body_part(ARM));
+                await You("surreptitiously sniff under your %s.", await body_part(ARM));
             }
-            if (!usmellmon(mptr)) {
-                pline("%s to not give off any smell.", is_you ? "You seem" : "That monster seems");
+            if (!await usmellmon(mptr)) {
+                await pline("%s to not give off any smell.", is_you ? "You seem" : "That monster seems");
             }
             if (!((((glyph) >= GLYPH_MON_MALE_OFF && (glyph) < (GLYPH_MON_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_MON_FEM_OFF && (glyph) < (GLYPH_MON_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_PET_MALE_OFF && (glyph) < (GLYPH_PET_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_PET_FEM_OFF && (glyph) < (GLYPH_PET_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_RIDDEN_MALE_OFF && (glyph) < (GLYPH_RIDDEN_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_RIDDEN_FEM_OFF && (glyph) < (GLYPH_RIDDEN_FEM_OFF + NUMMONS))) || (((glyph) >= GLYPH_DETECT_MALE_OFF && (glyph) < (GLYPH_DETECT_MALE_OFF + NUMMONS)) || ((glyph) >= GLYPH_DETECT_FEM_OFF && (glyph) < (GLYPH_DETECT_FEM_OFF + NUMMONS))))) {
-                map_invisible(cc.x, cc.y);
+                await map_invisible(cc.x, cc.y);
             }
         } else {
-            You("don't smell any monster there.");
+            await You("don't smell any monster there.");
             if (((glyph) == GLYPH_INVIS_OFF)) {
-                unmap_invisible(cc.x, cc.y);
+                await unmap_invisible(cc.x, cc.y);
             }
         }
     } while ((1));
@@ -908,10 +883,10 @@ export function wiz_smell() {
 /* #wizinstrinsic command to set some intrinsics for testing */
 const __wiz_intrinsic_wizintrinsic = "#wizintrinsic";
 const __wiz_intrinsic_fmt = "You are%s %s.";
-export function wiz_intrinsic() {
+export async function wiz_intrinsic() {
     if (game.flags.debug) {
         let win = 0;
-        let any = 0;
+        let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
         let buf = '';
         let i = 0;
         let j = 0;
@@ -924,12 +899,12 @@ export function wiz_intrinsic() {
         let propname = null;
         let pick_list = null;
         let clr = 8;
-        any = cg.zeroany;
+        Object.assign(any, cg.zeroany);
         win = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(win, 0);
         if (game.iflags.cmdassist) {
             buf = sprintf(buf, "[Precede any selection with a count to increment by other than %d.]", 30);
-            add_menu_str(win, buf);
+            await add_menu_str(win, buf);
         }
         for (i = 0; (propname = property_by_index(i, { get value() { return p; }, set value(_v) { p = _v; } })) != null; ++i) {
             if (p == HALLUC_RES) {
@@ -941,10 +916,7 @@ export function wiz_intrinsic() {
                 continue;
             }
             if (p == FIRE_RES) {
-                /* FIRE_RES and properties beyond it (in the propertynames[]
-                   ordering, not their numerical PROP values), can only be
-                   set to timed values here so show a separator */
-                add_menu_str(win, "--");
+                await add_menu_str(win, "--");
             }
             any.a_int = i + 1;
             oldtimeout = game.u.uprops[p].intrinsic & 16777215;
@@ -953,10 +925,10 @@ export function wiz_intrinsic() {
             } else {
                 buf = sprintf(buf, "%s", propname);
             }
-            add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+            await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
         (game.windowprocs.win_end_menu)(win, "Which intrinsics?");
-        n = select_menu(win, 2, pick_list);
+        n = await select_menu(win, 2, pick_list);
         (game.windowprocs.win_destroy_nhwindow)(win);
         for (j = 0; j < n; ++j) {
             i = pick_list[j].item.a_int - 1;
@@ -978,35 +950,35 @@ export function wiz_intrinsic() {
             }
             switch (p) {
                 case BLINDED:
-                    make_blinded(newtimeout, (1));
+                    await make_blinded(newtimeout, (1));
                     break;
                 /* make_confused() only gives feedback when confusion is
              * ending so use the 'default' case for it instead */
                 case DEAF:
-                    make_deaf(newtimeout, (1));
+                    await make_deaf(newtimeout, (1));
                     break;
                 case HALLUC:
-                    make_hallucinated(newtimeout, (1), 0);
+                    await make_hallucinated(newtimeout, (1), 0);
                     break;
                 case SICK:
                     typ = !rn2(2) ? 1 : 2;
-                    make_sick(newtimeout, __wiz_intrinsic_wizintrinsic, (1), typ);
+                    await make_sick(newtimeout, __wiz_intrinsic_wizintrinsic, (1), typ);
                     break;
                 case SLIMED:
                     buf = sprintf(buf, __wiz_intrinsic_fmt, !game.u.uprops[SLIMED].intrinsic ? "" : " still", "turning into slime");
-                    make_slimed(newtimeout, buf);
+                    await make_slimed(newtimeout, buf);
                     break;
                 case STONED:
                     buf = sprintf(buf, __wiz_intrinsic_fmt, !game.u.uprops[STONED].intrinsic ? "" : " still", "turning into stone");
-                    make_stoned(newtimeout, buf, 1, __wiz_intrinsic_wizintrinsic);
+                    await make_stoned(newtimeout, buf, 1, __wiz_intrinsic_wizintrinsic);
                     break;
                 case STUNNED:
-                    make_stunned(newtimeout, (1));
+                    await make_stunned(newtimeout, (1));
                     break;
                 case VOMITING:
                     buf = sprintf(buf, __wiz_intrinsic_fmt, !game.u.uprops[VOMITING].intrinsic ? "" : " still", "vomiting");
-                    make_vomiting(newtimeout, (0));
-                    pline("%s", buf);
+                    await make_vomiting(newtimeout, (0));
+                    await pline("%s", buf);
                     break;
                 case WARN_OF_MON:
                     if (!(game.u.uprops[WARN_OF_MON].intrinsic || game.u.uprops[WARN_OF_MON].extrinsic)) {
@@ -1018,7 +990,7 @@ export function wiz_intrinsic() {
                     }
                     /* have pline() do a status update */
                     game.disp.botl = (1);
-                    pline("Timeout for %s %s %d.", propname, oldtimeout ? "increased by" : "set to", amt);
+                    await pline("Timeout for %s %s %d.", propname, oldtimeout ? "increased by" : "set to", amt);
                     break;
                 case GLIB:
                     make_glib(newtimeout);
@@ -1028,33 +1000,33 @@ export function wiz_intrinsic() {
                         incr_itimeout({ get value() { return game.u.uprops[p].intrinsic; }, set value(_v) { game.u.uprops[p].intrinsic = _v; } }, amt);
                     }
                     game.disp.botl = (1);
-                    pline("Timeout for %s %s %d.", propname, oldtimeout ? "increased by" : "set to", amt);
+                    await pline("Timeout for %s %s %d.", propname, oldtimeout ? "increased by" : "set to", amt);
                     break;
             }
             /* this has to be after incr_itimeout() */
             if (p == LEVITATION || p == FLYING) {
                 float_vs_flight();
             } else if (p == PROT_FROM_SHAPE_CHANGERS) {
-                rescham();
+                await rescham();
             }
             if (p == WWALKING || p == LEVITATION || p == FLYING) {
                 if (game.u.uinwater) {
-                    pooleffects((0));
+                    await pooleffects((0));
                 }
             }
         }
         if (n >= 1) {
             free(pick_list);
         }
-        docrt();
+        await docrt();
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_intrinsic));
+        await pline(unavailcmd, ecname_from_fn(wiz_intrinsic));
     }
     return 0;
 }
 /* #wizrumorcheck command - verify each rumor access */
-export function wiz_rumor_check() {
-    rumor_check();
+export async function wiz_rumor_check() {
+    await rumor_check();
     return 0;
 }
 /*
@@ -1303,41 +1275,37 @@ export function misc_stats(win, total_count, total_size) {
         (game.windowprocs.win_putstr)(win, 0, buf);
     }
 }
-export function you_sanity_check() {
+export async function you_sanity_check() {
     let mtmp = null;
     if (game.u.uswallow && !game.u.ustuck) {
-        /* this probably ought to be panic() */
-        impossible("sanity_check: swallowed by nothing?");
-        (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
+        await impossible("sanity_check: swallowed by nothing?");
+        await (game.windowprocs.win_display_nhwindow)(game.WIN_MESSAGE, (1));
         /* try to recover from whatever the problem is */
         game.u.uswallow = 0;
         game.u.uswldtim = 0;
-        docrt();
+        await docrt();
     }
     if ((mtmp = (game.level.monsters[game.u.ux][game.u.uy])) != null) {
-        /* u.usteed isn't on the map */
         if (game.u.ustuck != mtmp) {
-            impossible("sanity_check: you over monster");
+            await impossible("sanity_check: you over monster");
         }
     }
     if (game.u.uhp > game.u.uhpmax) {
-        /* [should we also check for (u.uhp < 1), (Upolyd && u.mh < 1),
-       and (u.uen < 0) here?] */
-        impossible("current hero health (%d) better than maximum? (%d)", game.u.uhp, game.u.uhpmax);
+        await impossible("current hero health (%d) better than maximum? (%d)", game.u.uhp, game.u.uhpmax);
         game.u.uhp = game.u.uhpmax;
     }
     if ((game.u.umonnum != game.u.umonster) && game.u.mh > game.u.mhmax) {
-        impossible("current hero health as monster (%d) better than maximum? (%d)", game.u.mh, game.u.mhmax);
+        await impossible("current hero health as monster (%d) better than maximum? (%d)", game.u.mh, game.u.mhmax);
         game.u.mh = game.u.mhmax;
     }
     if (game.u.uen > game.u.uenmax) {
-        impossible("current hero energy (%d) better than maximum? (%d)", game.u.uen, game.u.uenmax);
+        await impossible("current hero energy (%d) better than maximum? (%d)", game.u.uen, game.u.uenmax);
         game.u.uen = game.u.uenmax;
     }
-    check_wornmask_slots();
-    check_invent_gold("invent");
+    await check_wornmask_slots();
+    await check_invent_gold("invent");
 }
-export function levl_sanity_check() {
+export async function levl_sanity_check() {
     let x = 0;
     let y = 0;
     if ((game.u.uinwater)) {
@@ -1347,12 +1315,12 @@ export function levl_sanity_check() {
         for (x = 1; x < 80; x++) {
             /* Underwater uses different vision */
             if ((does_block(x, y, game.level.locations[x][y]) ? 1 : 0) != get_viz_clear(x, y)) {
-                impossible("levl[%i][%i] vision blocking", x, y);
+                await impossible("levl[%i][%i] vision blocking", x, y);
             }
         }
     }
 }
-export function sanity_check() {
+export async function sanity_check() {
     if (game.iflags.sanity_no_check) {
         /* in case a recurring sanity_check warning occurs, we mustn't
            re-trigger it when ^P is used, otherwise msg_window:Single
@@ -1362,15 +1330,15 @@ export function sanity_check() {
         return;
     }
     game.program_state.in_sanity_check++;
-    you_sanity_check();
-    obj_sanity_check();
-    timer_sanity_check();
-    mon_sanity_check();
-    light_sources_sanity_check();
-    bc_sanity_check();
-    trap_sanity_check();
-    engraving_sanity_check();
-    levl_sanity_check();
+    await you_sanity_check();
+    await obj_sanity_check();
+    await timer_sanity_check();
+    await mon_sanity_check();
+    await light_sources_sanity_check();
+    await bc_sanity_check();
+    await trap_sanity_check();
+    await engraving_sanity_check();
+    await levl_sanity_check();
     game.program_state.in_sanity_check--;
 }
 /* qsort() comparison routine for use in list_migrating_mons() */
@@ -1396,7 +1364,7 @@ export function migrsort_cmp(vptr1, vptr2) {
 /* called by #migratemons; displays count of migrating monsters, optionally
    displays them as well */
 /* default destination for wiz_migrate_mons() */
-export function list_migrating_mons(nextlevl) {
+export async function list_migrating_mons(nextlevl) {
     let win = (-1);
     let showit = (0);
     let n = 0;
@@ -1422,9 +1390,9 @@ export function list_migrating_mons(nextlevl) {
         }
     }
     if (here + nxtlv + other == 0) {
-        pline("No monsters currently migrating.");
+        await pline("No monsters currently migrating.");
     } else {
-        pline("%d mon%s pending for current level, %d for next level, %d for others.", here, (((here) == 1) ? "" : "s"), nxtlv, other);
+        await pline("%d mon%s pending for current level, %d for next level, %d for others.", here, (((here) == 1) ? "" : "s"), nxtlv, other);
         (xtra = '', prmpt = '');
         strkitten(here ? prmpt : xtra, 99);
         strkitten(nxtlv ? prmpt : xtra, 110);
@@ -1433,7 +1401,7 @@ export function list_migrating_mons(nextlevl) {
         if (xtra) {
             prmpt = __nh_buf_append(prmpt, sprintf('', "%c%s", 27, xtra));
         }
-        c = yn_function("List which?", prmpt, 113, (1));
+        c = await yn_function("List which?", prmpt, 113, (1));
         n = (c == 99) ? here : (c == 110) ? nxtlv : (c == 111) ? other : (c == 97) ? here + nxtlv + other : 0;
         if (n > 0) {
             win = (game.windowprocs.win_create_nhwindow)(5);
@@ -1472,7 +1440,7 @@ export function list_migrating_mons(nextlevl) {
             /* mark end for traversal loop */
             marray[n] = null;
             if (n > 1) {
-                qsort(marray, n, 8 /* sizeof(struct monst *) */, migrsort_cmp);
+                await qsort_async(marray, n, 8 /* sizeof(struct monst *) */, migrsort_cmp);
             }
             for (n = 0; (mtmp = marray[n]) != null; ++n) {
                 buf = sprintf(buf, "  %s", minimal_monnam(mtmp, (0)));
@@ -1495,17 +1463,17 @@ export function list_migrating_mons(nextlevl) {
                 (game.windowprocs.win_putstr)(win, 0, buf);
             }
             free(marray);
-            (game.windowprocs.win_display_nhwindow)(win, (0));
+            await (game.windowprocs.win_display_nhwindow)(win, (0));
             (game.windowprocs.win_destroy_nhwindow)(win);
         } else if (c != 113) {
-            pline("None.");
+            await pline("None.");
         }
     }
 }
 /* the #stats command
  * Display memory usage of all monsters and objects on the level.
  */
-export function wiz_show_stats() {
+export async function wiz_show_stats() {
     let buf = '';
     let win = 0;
     let total_obj_size = 0;
@@ -1566,14 +1534,14 @@ export function wiz_show_stats() {
     (game.windowprocs.win_putstr)(win, 0, stats_sep);
     buf = sprintf(buf, template, "  Grand total", (total_obj_count + total_mon_count + total_ovr_count + total_misc_count), (total_obj_size + total_mon_size + total_ovr_size + total_misc_size));
     (game.windowprocs.win_putstr)(win, 0, buf);
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
 /* the #wizdispmacros command
  * Verify that some display macros are returning sane values */
 const __wiz_display_macros_display_issues = "Display macro issues:";
-export function wiz_display_macros() {
+export async function wiz_display_macros() {
     let buf = '';
     let win = 0;
     let glyph = 0;
@@ -1638,18 +1606,18 @@ export function wiz_display_macros() {
     if (!trouble) {
         (game.windowprocs.win_putstr)(win, 0, "No display macro issues detected.");
     }
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
 /* the #wizshownhuuid command */
-export function wiz_show_nhuuid() {
-    pline("The NHUUID for this game is { %s }.", game.nhuuid);
+export async function wiz_show_nhuuid() {
+    await pline("The NHUUID for this game is { %s }.", game.nhuuid);
     return 0;
 }
 /* the #wizmondiff command */
 const __wiz_mon_diff_window_title = "Review of monster difficulty ratings [index:level]:";
-export function wiz_mon_diff() {
+export async function wiz_mon_diff() {
     let buf = '';
     let win = 0;
     let mhardcoded = 0;
@@ -1679,12 +1647,12 @@ export function wiz_mon_diff() {
     if (!trouble) {
         (game.windowprocs.win_putstr)(win, 0, "No monster difficulty discrepancies were detected.");
     }
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
 /* the #wizobjprobs command */
-export function wiz_objprobs() {
+export async function wiz_objprobs() {
     let win = 0;
     let buf = '';
     let probsum = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -1707,13 +1675,13 @@ export function wiz_objprobs() {
         buf = nh_snprintf("wiz_objprobs", 1861, buf, 256 /* sizeof(char [256]) */, "%4d / %4d (%6.2f%%): %s", game.objects[otyp].oc_prob, probsum[oclass], game.objects[otyp].oc_prob * 100 / probsum[oclass], (game.obj_descr[(game.objects[otyp]).oc_name_idx].oc_name));
         (game.windowprocs.win_putstr)(win, 0, buf);
     }
-    (game.windowprocs.win_display_nhwindow)(win, (0));
+    await (game.windowprocs.win_display_nhwindow)(win, (0));
     (game.windowprocs.win_destroy_nhwindow)(win);
     return 0;
 }
 /* (NH_DEVEL_STATUS != NH_STATUS_RELEASED) || defined(DEBUG) */
 /* #migratemons command */
-export function wiz_migrate_mons() {
+export async function wiz_migrate_mons() {
     let mcount = 0;
     let inbuf = '';
     let ptr = null;
@@ -1724,16 +1692,16 @@ export function wiz_migrate_mons() {
     if ((((((game.dungeon_topology.d_stronghold_level)).dlevel || ((game.dungeon_topology.d_stronghold_level)).dnum) && on_level(game.u.uz, (game.dungeon_topology.d_stronghold_level))))) {
         assign_level(tolevel, (game.dungeon_topology.d_valley_level));
     } else if (!Is_botlevel(game.u.uz)) {
-        get_level(tolevel, depth(game.u.uz) + 1);
+        await get_level(tolevel, depth(game.u.uz) + 1);
     } else {
         tolevel.dnum = 0 , tolevel.dlevel = 0;
     }
-    list_migrating_mons(tolevel);
-    (inbuf[1] = 0, inbuf = '');
+    await list_migrating_mons(tolevel);
+    (inbuf = __nh_char_write(inbuf, 1, 0), inbuf = '');
     if (tolevel.dnum || tolevel.dlevel) {
-        getlin("How many random monsters to migrate to next level? [0]", inbuf);
+        inbuf = await getlin("How many random monsters to migrate to next level? [0]", inbuf);
     } else {
-        pline("Can't get there from here.");
+        await pline("Can't get there from here.");
     }
     if (inbuf == 27 || inbuf == 0) {
         return 0;
@@ -1751,13 +1719,13 @@ export function wiz_migrate_mons() {
     game.iflags.debug_mongen = (0);
     while (mcount > 0) {
         if (use_random_mon) {
-            ptr = rndmonst();
-            mtmp = makemon(ptr, 0, 0, 131072);
+            ptr = await rndmonst();
+            mtmp = await makemon(ptr, 0, 0, 131072);
         } else {
             mtmp = game.level.monlist;
         }
         if (mtmp) {
-            migrate_to_level(mtmp, ledger_no(tolevel), 0, null);
+            await migrate_to_level(mtmp, ledger_no(tolevel), 0, null);
         }
         mcount--;
     }
@@ -1766,7 +1734,7 @@ export function wiz_migrate_mons() {
 }
 /* #wizcustom command to see glyphmap customizations */
 const __wiz_custom_wizcustom = "#wizcustom";
-export function wiz_custom() {
+export async function wiz_custom() {
     if (game.flags.debug) {
         let win = 0;
         let buf = '';
@@ -1774,11 +1742,11 @@ export function wiz_custom() {
         let n = 0;
         let pick_list = null;
         if (!glyphid_cache_status()) {
-            fill_glyphid_cache();
+            await fill_glyphid_cache();
         }
         win = (game.windowprocs.win_create_nhwindow)(4);
         (game.windowprocs.win_start_menu)(win, 0);
-        add_menu_heading(win, "    glyph  glyph identifier                             sym   clr customcolor unicode utf8");
+        await add_menu_heading(win, "    glyph  glyph identifier                             sym   clr customcolor unicode utf8");
         bufa = sprintf(bufa, "%s: colorcount=%ld %s", __wiz_custom_wizcustom, game.iflags.colorcount, game.symset[PRIMARYSET].name ? game.symset[PRIMARYSET].name : "default");
         if (game.currentgraphics == PRIMARYSET && game.symset[PRIMARYSET].name) {
             bufa = strcat(bufa, ", active");
@@ -1787,9 +1755,9 @@ export function wiz_custom() {
             bufa = __nh_buf_append(bufa, sprintf('', ", handler=%s", known_handling[game.symset[PRIMARYSET].handling]));
         }
         buf = sprintf(buf, "%s", bufa);
-        wizcustom_glyphids(win);
+        await wizcustom_glyphids(win);
         (game.windowprocs.win_end_menu)(win, bufa);
-        n = select_menu(win, 0, pick_list);
+        n = await select_menu(win, 0, pick_list);
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (n >= 1) {
             free(pick_list);
@@ -1797,13 +1765,13 @@ export function wiz_custom() {
         if (glyphid_cache_status()) {
             free_glyphid_cache();
         }
-        docrt();
+        await docrt();
     } else {
-        pline(unavailcmd, ecname_from_fn(wiz_custom));
+        await pline(unavailcmd, ecname_from_fn(wiz_custom));
     }
     return 0;
 }
-export function wizcustom_callback(win, glyphnum, id) {
+export async function wizcustom_callback(win, glyphnum, id) {
     let cgm = null;
     let clr = 8;
     let buf = '';
@@ -1812,7 +1780,7 @@ export function wizcustom_callback(win, glyphnum, id) {
     let bufc = '';
     let bufd = '';
     let bufu = '';
-    let any = 0;
+    let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let cp = null;
     if (win && id) {
         cgm = glyphmap[glyphnum];
@@ -1832,13 +1800,46 @@ export function wizcustom_callback(win, glyphnum, id) {
             }
             any.a_int = glyphnum + 1;
             buf = nh_snprintf("wizcustom_callback", 2021, buf, 256 /* sizeof(char [256]) */, "%s %s %s %s", bufa, bufb, bufc, bufu);
-            add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
+            await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
     }
     return;
 }
 /*wizcmds.c*/
+/* keep steed and other adjacent pets after releasing them
+       from traps, stopping eating, &c as if hero were ascending */
+/* (pets-only; normally we'd be using 'FALSE') */
+/* release dead and 'unmade' monsters */
+/* create a new level; various things like bestowing a guardian
+           angel on Astral or setting off alarm on Ft.Ludios are handled
+           by goto_level(do.c) so won't occur for replacement levels */
+/* whether there's an unseen monster here or not, player will know
+           that there's no monster here after the kill or failed attempt;
+           let hero know too */
+/* normal case: hero is credited/blamed */
+/* Null second arg suppresses the usual message */
+/* since #wizkill takes no game time, it is possible to kill something
+       in the main dungeon and immediately level teleport into the endgame
+       which will delete the main dungeon's level files; avoid triggering
+       impossible "dmonsfree: 0 removed doesn't match N pending" by forcing
+       dead monster cleanup; we don't track whether anything was actually
+       killed above--if nothing was, this will be benign */
+/*
+     * Does not handle
+     *   levregions,
+     *   monster mtrack,
+     *   migrating monsters aimed at returning to specific coordinates
+     *     on this level
+     * as flipping is normally done only during level creation.
+     */
 /* append a branch identifier for completeness' sake */
+/* FIRE_RES and properties beyond it (in the propertynames[]
+                   ordering, not their numerical PROP values), can only be
+                   set to timed values here so show a separator */
 /* slippery fingers might need a persistent inventory update
                    so needs more than simple incr_itimeout() but we want
                    the pline() issued with that */
+/* this probably ought to be panic() */
+/* u.usteed isn't on the map */
+/* [should we also check for (u.uhp < 1), (Upolyd && u.mh < 1),
+       and (u.uen < 0) here?] */

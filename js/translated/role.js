@@ -191,15 +191,14 @@ export function randrole_filtered() {
     }
     return n ? set[rn2(n)] : randrole((0));
 }
-export function str2role(str) {
+export async function str2role(str) {
     let i = 0;
     let len = 0;
     if (!str || !__nh_char_at0(str)) {
         /* Couldn't find anything appropriate */
         return (-1);
     }
-    /* Match as much of str as is provided */
-    len = Strlen_(str, "str2role", 756);
+    len = await Strlen_(str, "str2role", 756);
     for (i = 0; roles[i].name.m; i++) {
         /* Does it match the male name? */
         if (!strncmpi(str, roles[i].name.m, len)) {
@@ -245,13 +244,13 @@ export function randrace(rolenum) {
     /* This role has no permitted races? */
     return rn2((Math.trunc(6 /* sizeof(const struct Race [6]) */ / 1 /* sizeof(const struct Race) */)) - 1);
 }
-export function str2race(str) {
+export async function str2race(str) {
     let i = 0;
     let len = 0;
     if (!str || !__nh_char_at0(str)) {
         return (-1);
     }
-    len = Strlen_(str, "str2race", 822);
+    len = await Strlen_(str, "str2race", 822);
     for (i = 0; races[i].noun; i++) {
         if (!strncmpi(str, races[i].noun, len)) {
             return i;
@@ -296,13 +295,13 @@ export function randgend(rolenum, racenum) {
     /* This role/race has no permitted genders? */
     return rn2(2);
 }
-export function str2gend(str) {
+export async function str2gend(str) {
     let i = 0;
     let len = 0;
     if (!str || !__nh_char_at0(str)) {
         return (-1);
     }
-    len = Strlen_(str, "str2gend", 889);
+    len = await Strlen_(str, "str2gend", 889);
     for (i = 0; i < 2; i++) {
         /* Does it match the adjective? */
         if (!strncmpi(str, genders[i].adj, len)) {
@@ -344,13 +343,13 @@ export function randalign(rolenum, racenum) {
     /* This role/race has no permitted alignments? */
     return rn2(3);
 }
-export function str2align(str) {
+export async function str2align(str) {
     let i = 0;
     let len = 0;
     if (!str || !__nh_char_at0(str)) {
         return (-1);
     }
-    len = Strlen_(str, "str2align", 952);
+    len = await Strlen_(str, "str2align", 952);
     for (i = 0; i < 3; i++) {
         if (!strncmpi(str, aligns[i].adj, len)) {
             return i;
@@ -653,16 +652,16 @@ export function rigid_role_checks() {
         }
     }
 }
-export function setrolefilter(bufp) {
+export async function setrolefilter(bufp) {
     let i = 0;
     let reslt = (1);
-    if ((i = str2role(bufp)) != (-1) && i != (-2)) {
+    if ((i = await str2role(bufp)) != (-1) && i != (-2)) {
         game.rfilter.roles[i] = (1);
-    } else if ((i = str2race(bufp)) != (-1) && i != (-2)) {
+    } else if ((i = await str2race(bufp)) != (-1) && i != (-2)) {
         game.rfilter.mask |= races[i].selfmask;
-    } else if ((i = str2gend(bufp)) != (-1) && i != (-2)) {
+    } else if ((i = await str2gend(bufp)) != (-1) && i != (-2)) {
         game.rfilter.mask |= genders[i].allow;
-    } else if ((i = str2align(bufp)) != (-1) && i != (-2)) {
+    } else if ((i = await str2align(bufp)) != (-1) && i != (-2)) {
         game.rfilter.mask |= aligns[i].allow;
     } else {
         reslt = (0);
@@ -683,7 +682,7 @@ export function gotrolefilter() {
 }
 /* create a string like " !Bar !Kni" or " !chaotic" that can be
    put back into an RC file by #saveoptions */
-export function rolefilterstring(outbuf, which) {
+export async function rolefilterstring(outbuf, which) {
     let i = 0;
     (outbuf = __nh_char_write(outbuf, 1, 0), outbuf = __nh_char_write(outbuf, 0, 0));
     switch (which) {
@@ -716,7 +715,7 @@ export function rolefilterstring(outbuf, which) {
             }
             break;
         default:
-            impossible("rolefilterstring: bad role aspect (%d)", which);
+            await impossible("rolefilterstring: bad role aspect (%d)", which);
             outbuf = strcpy(outbuf, " ?");
             break;
     }
@@ -927,7 +926,7 @@ export function root_plselection_prompt(suppliedbuf, buflen, rolenum, racenum, g
         return __root_plselection_prompt_err_ret;
     }
 }
-export function build_plselection_prompt(buf, buflen, rolenum, racenum, gendnum, alignnum) {
+export async function build_plselection_prompt(buf, buflen, rolenum, racenum, gendnum, alignnum) {
     let defprompt = "Shall I pick a character for you? [ynaq] ";
     let num_post_attribs = 0;
     let tmpbuf = '';
@@ -941,7 +940,7 @@ export function build_plselection_prompt(buf, buflen, rolenum, racenum, gendnum,
     } else {
         tmpbuf = strcat(tmpbuf, "a ");
     }
-    root_plselection_prompt(eos(tmpbuf), buflen - Strlen_(tmpbuf, "build_plselection_prompt", 1601), rolenum, racenum, gendnum, alignnum);
+    root_plselection_prompt(eos(tmpbuf), buflen - await Strlen_(tmpbuf, "build_plselection_prompt", 1601), rolenum, racenum, gendnum, alignnum);
     /* "Shall I pick a character's role, race, gender, and alignment for you?"
        plus " [ynaq] (y)" is a little too long for a conventional 80 columns;
        also, "pick a character's <anything>" sounds a bit stilted */
@@ -999,7 +998,7 @@ export function build_plselection_prompt(buf, buflen, rolenum, racenum, gendnum,
     buf = strcat(buf, " for you? [ynaq] ");
     return buf;
 }
-export function plnamesuffix() {
+export async function plnamesuffix() {
     let sptr = null;
     let eptr = null;
     let i = 0;
@@ -1008,10 +1007,7 @@ export function plnamesuffix() {
             /* some generic user names will be ignored in favor of prompting */
             game.plname = '';
         } else {
-            /* need to ignore appended '-role-race-gender-alignment';
-               'plnamelen' is non-zero when dealing with plname[] value that
-               contains a username with dash(es) in it and is usually 0 */
-            i = ((eptr = strchr(game.plname + game.plnamelen, 45)) != null) ? ((game.plname.length - eptr.length)) : Strlen_(game.plname, "plnamesuffix", 1680);
+            i = ((eptr = strchr(game.plname + game.plnamelen, 45)) != null) ? ((game.plname.length - eptr.length)) : await Strlen_(game.plname, "plnamesuffix", 1680);
             /* look for plname[] in the 'genericusers' space-separated list */
             if (findword(game.sysopt.genericusers, game.plname, i, (0))) {
                 game.plname = '';
@@ -1039,14 +1035,13 @@ export function plnamesuffix() {
             if ((eptr = strchr(sptr, 45)) != null) {
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
             }
-            /* Try to match it to something */
-            if ((i = str2role(sptr)) != (-1)) {
+            if ((i = await str2role(sptr)) != (-1)) {
                 game.flags.initrole = i;
-            } else if ((i = str2race(sptr)) != (-1)) {
+            } else if ((i = await str2race(sptr)) != (-1)) {
                 game.flags.initrace = i;
-            } else if ((i = str2gend(sptr)) != (-1)) {
+            } else if ((i = await str2gend(sptr)) != (-1)) {
                 game.flags.initgend = i;
-            } else if ((i = str2align(sptr)) != (-1)) {
+            } else if ((i = await str2align(sptr)) != (-1)) {
                 game.flags.initalign = i;
             }
         }
@@ -1134,7 +1129,7 @@ export function role_selection_prolog(which, where) {
 }
 /* add a "pick alignment first"-type entry to the specified menu */
 const __role_menu_extra_RS_menu_let = [61, 63, 47, 34, 91];
-export function role_menu_extra(which, where, preselect) {
+export async function role_menu_extra(which, where, preselect) {
     let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let buf = '';
     let what = null;
@@ -1256,25 +1251,24 @@ export function role_menu_extra(which, where, preselect) {
     if (constrainer) {
         any.a_int = 0;
         buf = sprintf(buf, "%4s%s forces %s", "", constrainer, forcedvalue);
-        /* use four spaces of padding to fake a grayed out menu choice */
-        add_menu_str(where, buf);
+        await add_menu_str(where, buf);
     } else if (what) {
         any.a_int = ((-2) - ((which) + 1));
         buf = sprintf(buf, "Pick%s %s first", (f >= 0) ? " another" : "", what);
-        add_menu(where, nul_glyphinfo, any, __role_menu_extra_RS_menu_let[which], 0, 0, clr, buf, 0);
+        await add_menu(where, nul_glyphinfo, any, __role_menu_extra_RS_menu_let[which], 0, 0, clr, buf, 0);
     } else if (which == 5) {
         let setfiltering = '';
         any.a_int = ((-2) - ((5) + 1));
         setfiltering = sprintf(setfiltering, "%s role/race/&c filtering", gotrolefilter() ? "Reset" : "Set");
-        add_menu(where, nul_glyphinfo, any, 126, 0, 0, clr, setfiltering, 0);
+        await add_menu(where, nul_glyphinfo, any, 126, 0, 0, clr, setfiltering, 0);
     } else if (which == (-2)) {
         any.a_int = (-2);
-        add_menu(where, nul_glyphinfo, any, 42, 0, 0, clr, "Random", preselect ? 1 : 0);
+        await add_menu(where, nul_glyphinfo, any, 42, 0, 0, clr, "Random", preselect ? 1 : 0);
     } else if (which == (-1)) {
         any.a_int = (-1);
-        add_menu(where, nul_glyphinfo, any, 113, 0, 0, clr, "Quit", preselect ? 1 : 0);
+        await add_menu(where, nul_glyphinfo, any, 113, 0, 0, clr, "Quit", preselect ? 1 : 0);
     } else {
-        impossible("role_menu_extra: bad arg (%d)", which);
+        await impossible("role_menu_extra: bad arg (%d)", which);
     }
 }
 /*
@@ -1294,18 +1288,13 @@ export function role_menu_extra(which, where, preselect) {
  *
  * This code also replaces quest_init().
  */
-export function role_init() {
+export async function role_init() {
     fnEnter("role_init", "role.c", 0);
     let alignmnt = 0;
     let pm = null;
-    /* Strip the role letter out of the player name.
-     * This is included for backwards compatibility.
-     */
-    plnamesuffix();
+    await plnamesuffix();
     if (!validrole(game.flags.initrole)) {
-        /* Check for a valid role.  Try flags.initrole first. */
-        /* Try the player letter second */
-        if ((game.flags.initrole = str2role(game.pl_character)) < 0) {
+        if ((game.flags.initrole = await str2role(game.pl_character)) < 0) {
             game.flags.initrole = randrole_filtered();
         }
     }
@@ -1449,8 +1438,8 @@ export function character_race(pmindex) {
 }
 /*--------------------------------------------------------------------------*/
 /* potential interface routine */
-export function genl_player_selection() {
-    if (genl_player_setup(0)) {
+export async function genl_player_selection() {
+    if (await genl_player_setup(0)) {
         return;
     }
     /* player cancelled role/race/&c selection, so quit */
@@ -1459,7 +1448,7 @@ export function genl_player_selection() {
 /* ['#else' far below] */
 /* try to reduce clutter in the code below... */
 /* guts of tty's player_selection() */
-export function genl_player_setup(screenheight) {
+export async function genl_player_setup(screenheight) {
     let pbuf = '';
     let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
@@ -1501,10 +1490,10 @@ export function genl_player_setup(screenheight) {
     rigid_role_checks();
     let __bail_chargen = false;
     if (game.flags.initrole == (-1) || game.flags.initrace == (-1) || game.flags.initgend == (-1) || game.flags.initalign == (-1)) {
-        let prompt = build_plselection_prompt(pbuf, 128, game.flags.initrole, game.flags.initrace, game.flags.initgend, game.flags.initalign);
+        let prompt = await build_plselection_prompt(pbuf, 128, game.flags.initrole, game.flags.initrace, game.flags.initgend, game.flags.initalign);
         prompt = trimspaces(prompt);
         do {
-            pick4u = yn_function(prompt, null, 0, (0));
+            pick4u = await yn_function(prompt, null, 0, (0));
             pick4u = lowc(pick4u);
             if (pick4u == 27 || pick4u == 113) {
                 __bail_chargen = true;
@@ -1532,29 +1521,27 @@ export function genl_player_setup(screenheight) {
                race/gender/alignment, but may not succeed. */
                         k = pick_role(game.flags.initrace, game.flags.initgend, game.flags.initalign, 0);
                         if (k < 0) {
-                            pline("Incompatible role!");
+                            await pline("Incompatible role!");
                             k = randrole((0));
                         }
                     } else {
                         /* 'excess' is used to try to avoid tty pagination */
                         let excess = maybe_skip_seps(screenheight, 1);
-                        win = plsel_startmenu(screenheight, 1);
-                        /* populate the menu with role choices */
-                        setup_rolemenu(win, (1), game.flags.initrace, game.flags.initgend, game.flags.initalign);
-                        /* add miscellaneous menu entries */
-                        role_menu_extra((-2), win, (1));
+                        win = await plsel_startmenu(screenheight, 1);
+                        await setup_rolemenu(win, (1), game.flags.initrace, game.flags.initgend, game.flags.initalign);
+                        await role_menu_extra((-2), win, (1));
                         Object.assign(any, cg.zeroany);
                         if (excess < 1 || excess > 2) {
-                            add_menu_str(win, "");
+                            await add_menu_str(win, "");
                         }
-                        role_menu_extra(2, win, (0));
-                        role_menu_extra(3, win, (0));
-                        role_menu_extra(4, win, (0));
-                        role_menu_extra(5, win, (0));
-                        role_menu_extra((-1), win, (0));
+                        await role_menu_extra(2, win, (0));
+                        await role_menu_extra(3, win, (0));
+                        await role_menu_extra(4, win, (0));
+                        await role_menu_extra(5, win, (0));
+                        await role_menu_extra((-1), win, (0));
                         pbuf = strcpy(pbuf, "Pick a role or profession");
                         (game.windowprocs.win_end_menu)(win, pbuf);
-                        n = select_menu(win, 1, selected);
+                        n = await select_menu(win, 1, selected);
                         if (n > 0) {
                             /*
                      * PICK_ONE with preselected choice behaves strangely:
@@ -1590,7 +1577,7 @@ export function genl_player_setup(screenheight) {
                             nextpick = 2;
                         } else if (choice == ((-2) - ((5) + 1))) {
                             game.flags.initrole = k = (-1);
-                            reset_role_filtering();
+                            await reset_role_filtering();
                             nextpick = 1;
                         } else if (choice == (-2)) {
                             k = pick_role(game.flags.initrace, game.flags.initgend, game.flags.initalign, 0);
@@ -1614,7 +1601,7 @@ export function genl_player_setup(screenheight) {
                         /* no race yet, or pre-selected race not valid */
                         k = pick_race(game.flags.initrole, game.flags.initgend, game.flags.initalign, 0);
                         if (k < 0) {
-                            pline("Incompatible race!");
+                            await pline("Incompatible race!");
                             k = randrace(game.flags.initrole);
                         }
                     } else {
@@ -1635,21 +1622,20 @@ export function genl_player_setup(screenheight) {
                             }
                         }
                         if (n > 1) {
-                            /* Permit the user to pick, if there is more than one */
-                            win = plsel_startmenu(screenheight, 2);
+                            win = await plsel_startmenu(screenheight, 2);
                             Object.assign(any, cg.zeroany);
-                            setup_racemenu(win, (1), game.flags.initrole, game.flags.initgend, game.flags.initalign);
-                            role_menu_extra((-2), win, (1));
+                            await setup_racemenu(win, (1), game.flags.initrole, game.flags.initgend, game.flags.initalign);
+                            await role_menu_extra((-2), win, (1));
                             any.a_int = 0;
-                            add_menu_str(win, "");
-                            role_menu_extra(1, win, (0));
-                            role_menu_extra(3, win, (0));
-                            role_menu_extra(4, win, (0));
-                            role_menu_extra(5, win, (0));
-                            role_menu_extra((-1), win, (0));
+                            await add_menu_str(win, "");
+                            await role_menu_extra(1, win, (0));
+                            await role_menu_extra(3, win, (0));
+                            await role_menu_extra(4, win, (0));
+                            await role_menu_extra(5, win, (0));
+                            await role_menu_extra((-1), win, (0));
                             pbuf = strcpy(pbuf, "Pick a race or species");
                             (game.windowprocs.win_end_menu)(win, pbuf);
-                            n = select_menu(win, 1, selected);
+                            n = await select_menu(win, 1, selected);
                             if (n > 0) {
                                 choice = selected[0].item.a_int;
                                 if (n > 1 && choice == (-2)) {
@@ -1675,7 +1661,7 @@ export function genl_player_setup(screenheight) {
                                 nextpick = 1;
                             } else if (choice == ((-2) - ((5) + 1))) {
                                 game.flags.initrace = k = (-1);
-                                if (reset_role_filtering()) {
+                                if (await reset_role_filtering()) {
                                     nextpick = 1;
                                 } else {
                                     nextpick = 2;
@@ -1703,7 +1689,7 @@ export function genl_player_setup(screenheight) {
                         /* no gender yet, or pre-selected gender not valid */
                         k = pick_gend(game.flags.initrole, game.flags.initrace, game.flags.initalign, 0);
                         if (k < 0) {
-                            pline("Incompatible gender!");
+                            await pline("Incompatible gender!");
                             k = randgend(game.flags.initrole, game.flags.initrace);
                         }
                     } else {
@@ -1724,21 +1710,20 @@ export function genl_player_setup(screenheight) {
                             }
                         }
                         if (n > 1) {
-                            win = plsel_startmenu(screenheight, 3);
+                            win = await plsel_startmenu(screenheight, 3);
                             Object.assign(any, cg.zeroany);
-                            /* populate the menu with gender choices */
-                            setup_gendmenu(win, (1), game.flags.initrole, game.flags.initrace, game.flags.initalign);
-                            role_menu_extra((-2), win, (1));
+                            await setup_gendmenu(win, (1), game.flags.initrole, game.flags.initrace, game.flags.initalign);
+                            await role_menu_extra((-2), win, (1));
                             any.a_int = 0;
-                            add_menu_str(win, "");
-                            role_menu_extra(1, win, (0));
-                            role_menu_extra(2, win, (0));
-                            role_menu_extra(4, win, (0));
-                            role_menu_extra(5, win, (0));
-                            role_menu_extra((-1), win, (0));
+                            await add_menu_str(win, "");
+                            await role_menu_extra(1, win, (0));
+                            await role_menu_extra(2, win, (0));
+                            await role_menu_extra(4, win, (0));
+                            await role_menu_extra(5, win, (0));
+                            await role_menu_extra((-1), win, (0));
                             pbuf = strcpy(pbuf, "Pick a gender or sex");
                             (game.windowprocs.win_end_menu)(win, pbuf);
-                            n = select_menu(win, 1, selected);
+                            n = await select_menu(win, 1, selected);
                             if (n > 0) {
                                 choice = selected[0].item.a_int;
                                 if (n > 1 && choice == (-2)) {
@@ -1764,7 +1749,7 @@ export function genl_player_setup(screenheight) {
                                 nextpick = 1;
                             } else if (choice == ((-2) - ((5) + 1))) {
                                 game.flags.initgend = k = (-1);
-                                if (reset_role_filtering()) {
+                                if (await reset_role_filtering()) {
                                     nextpick = 1;
                                 } else {
                                     nextpick = 3;
@@ -1791,7 +1776,7 @@ export function genl_player_setup(screenheight) {
                         /* no alignment yet, or pre-selected alignment not valid */
                         k = pick_align(game.flags.initrole, game.flags.initrace, game.flags.initgend, 0);
                         if (k < 0) {
-                            pline("Incompatible alignment!");
+                            await pline("Incompatible alignment!");
                             k = randalign(game.flags.initrole, game.flags.initrace);
                         }
                     } else {
@@ -1812,20 +1797,20 @@ export function genl_player_setup(screenheight) {
                             }
                         }
                         if (n > 1) {
-                            win = plsel_startmenu(screenheight, 4);
+                            win = await plsel_startmenu(screenheight, 4);
                             Object.assign(any, cg.zeroany);
-                            setup_algnmenu(win, (1), game.flags.initrole, game.flags.initrace, game.flags.initgend);
-                            role_menu_extra((-2), win, (1));
+                            await setup_algnmenu(win, (1), game.flags.initrole, game.flags.initrace, game.flags.initgend);
+                            await role_menu_extra((-2), win, (1));
                             any.a_int = 0;
-                            add_menu_str(win, "");
-                            role_menu_extra(1, win, (0));
-                            role_menu_extra(2, win, (0));
-                            role_menu_extra(3, win, (0));
-                            role_menu_extra(5, win, (0));
-                            role_menu_extra((-1), win, (0));
+                            await add_menu_str(win, "");
+                            await role_menu_extra(1, win, (0));
+                            await role_menu_extra(2, win, (0));
+                            await role_menu_extra(3, win, (0));
+                            await role_menu_extra(5, win, (0));
+                            await role_menu_extra((-1), win, (0));
                             pbuf = strcpy(pbuf, "Pick an alignment or creed");
                             (game.windowprocs.win_end_menu)(win, pbuf);
-                            n = select_menu(win, 1, selected);
+                            n = await select_menu(win, 1, selected);
                             if (n > 0) {
                                 choice = selected[0].item.a_int;
                                 if (n > 1 && choice == (-2)) {
@@ -1851,7 +1836,7 @@ export function genl_player_setup(screenheight) {
                                 nextpick = 1;
                             } else if (choice == ((-2) - ((5) + 1))) {
                                 game.flags.initalign = k = (-1);
-                                if (reset_role_filtering()) {
+                                if (await reset_role_filtering()) {
                                     nextpick = 1;
                                 } else {
                                     nextpick = 4;
@@ -1889,21 +1874,21 @@ export function genl_player_setup(screenheight) {
      */
         getconfirmation = (picksomething && pick4u != 97 && !game.flags.randomall);
         while (getconfirmation) {
-            win = plsel_startmenu(screenheight, 5);
+            win = await plsel_startmenu(screenheight, 5);
             Object.assign(any, cg.zeroany);
             any.a_int = 1;
-            add_menu(win, nul_glyphinfo, any, 121, 0, 0, clr, "Yes; start game", 1);
+            await add_menu(win, nul_glyphinfo, any, 121, 0, 0, clr, "Yes; start game", 1);
             any.a_int = 2;
-            add_menu(win, nul_glyphinfo, any, 110, 0, 0, clr, "No; choose role again", 0);
+            await add_menu(win, nul_glyphinfo, any, 110, 0, 0, clr, "No; choose role again", 0);
             if (game.iflags.renameallowed) {
                 any.a_int = 3;
-                add_menu(win, nul_glyphinfo, any, 97, 0, 0, clr, "Not yet; choose another name", 0);
+                await add_menu(win, nul_glyphinfo, any, 97, 0, 0, clr, "Not yet; choose another name", 0);
             }
             any.a_int = -1;
-            add_menu(win, nul_glyphinfo, any, 113, 0, 0, clr, "Quit", 0);
+            await add_menu(win, nul_glyphinfo, any, 113, 0, 0, clr, "Quit", 0);
             pbuf = sprintf(pbuf, "Is this ok? [yn%sq]", game.iflags.renameallowed ? "a" : "");
             (game.windowprocs.win_end_menu)(win, pbuf);
-            n = select_menu(win, 1, selected);
+            n = await select_menu(win, 1, selected);
             /* [pick-one menus with a preselected entry behave oddly...] */
             choice = (n > 0) ? selected[n - 1].item.a_int : (n == 0) ? 1 : -1;
             if (selected) {
@@ -1931,8 +1916,7 @@ export function genl_player_setup(screenheight) {
                GEND, ALGN; we'll override that and honor only the name */
                         saveROLE = game.flags.initrole , saveRACE = game.flags.initrace , saveGEND = game.flags.initgend , saveALGN = game.flags.initalign;
                         game.plname = '';
-                        /* calls askname() when svp.plname[] is empty */
-                        plnamesuffix();
+                        await plnamesuffix();
                         game.flags.initrole = saveROLE , game.flags.initrace = saveRACE , game.flags.initgend = saveGEND , game.flags.initalign = saveALGN;
                         /* getconfirmation is still True */
                         break;
@@ -1954,7 +1938,7 @@ export function genl_player_setup(screenheight) {
     game.program_state.in_role_selection--;
     return result;
 }
-export function reset_role_filtering() {
+export async function reset_role_filtering() {
     let win = 0;
     let i = 0;
     let n = 0;
@@ -1962,26 +1946,25 @@ export function reset_role_filtering() {
     let selected = null;
     win = (game.windowprocs.win_create_nhwindow)(4);
     (game.windowprocs.win_start_menu)(win, 0);
-    /* no extra blank line preceding this entry; end_menu supplies one */
-    add_menu_str(win, "Unacceptable roles");
-    setup_rolemenu(win, (0), (-1), (-1), (-1));
-    add_menu_str(win, "");
-    add_menu_str(win, "Unacceptable races");
-    setup_racemenu(win, (0), (-1), (-1), (-1));
-    add_menu_str(win, "");
-    add_menu_str(win, "Unacceptable genders");
-    setup_gendmenu(win, (0), (-1), (-1), (-1));
-    add_menu_str(win, "");
-    add_menu_str(win, "Unacceptable alignments");
-    setup_algnmenu(win, (0), (-1), (-1), (-1));
+    await add_menu_str(win, "Unacceptable roles");
+    await setup_rolemenu(win, (0), (-1), (-1), (-1));
+    await add_menu_str(win, "");
+    await add_menu_str(win, "Unacceptable races");
+    await setup_racemenu(win, (0), (-1), (-1), (-1));
+    await add_menu_str(win, "");
+    await add_menu_str(win, "Unacceptable genders");
+    await setup_gendmenu(win, (0), (-1), (-1), (-1));
+    await add_menu_str(win, "");
+    await add_menu_str(win, "Unacceptable alignments");
+    await setup_algnmenu(win, (0), (-1), (-1), (-1));
     filterprompt = sprintf(filterprompt, "Pick all that apply%s", gotrolefilter() ? " and/or unpick any that no longer apply" : "");
     (game.windowprocs.win_end_menu)(win, filterprompt);
-    n = select_menu(win, 2, selected);
+    n = await select_menu(win, 2, selected);
     if (n >= 0) {
         /* n==0: clear current filters and don't set new ones */
         clearrolefilter(5);
         for (i = 0; i < n; i++) {
-            setrolefilter(selected[i].item.a_string);
+            await setrolefilter(selected[i].item.a_string);
         }
         game.flags.initrole = game.flags.initrace = game.flags.initgend = game.flags.initalign = (-1);
     }
@@ -2025,7 +2008,7 @@ export function maybe_skip_seps(rows, aspect) {
     return 0;
 }
 /* start a menu; show role aspects specified so far as a header line */
-export function plsel_startmenu(ttyrows, aspect) {
+export async function plsel_startmenu(ttyrows, aspect) {
     let qbuf = '';
     let win = 0;
     let rolename = null;
@@ -2038,12 +2021,12 @@ export function plsel_startmenu(ttyrows, aspect) {
     }
     win = (game.windowprocs.win_create_nhwindow)(4);
     if (win == (-1)) {
-        panic("could not create role selection window");
+        await panic("could not create role selection window");
     }
     (game.windowprocs.win_start_menu)(win, 0);
-    add_menu_str(win, qbuf);
+    await add_menu_str(win, qbuf);
     if (maybe_skip_seps(ttyrows, aspect) != 2) {
-        add_menu_str(win, "");
+        await add_menu_str(win, "");
     }
     return win;
 }
@@ -2051,7 +2034,7 @@ export function plsel_startmenu(ttyrows, aspect) {
 /* True => exclude filtered roles;
                         * False => filter reset */
 /* all ROLE_NONE for !filtering case */
-export function setup_rolemenu(win, filtering, race, gend, algn) {
+export async function setup_rolemenu(win, filtering, race, gend, algn) {
     let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let i = 0;
     let role_ok = 0;
@@ -2085,13 +2068,11 @@ export function setup_rolemenu(win, filtering, race, gend, algn) {
                 rolenamebuf = strcat(rolenamebuf, roles[i].name.f);
             }
         }
-        /* !filtering implies reset_role_filtering() where we want to
-           mark this role as preselected if current filter excludes it */
-        add_menu(win, nul_glyphinfo, any, thisch, 0, 0, clr, an(rolenamebuf), (!filtering && !role_ok) ? 1 : 0);
+        await add_menu(win, nul_glyphinfo, any, thisch, 0, 0, clr, await an(rolenamebuf), (!filtering && !role_ok) ? 1 : 0);
         lastch = thisch;
     }
 }
-export function setup_racemenu(win, filtering, role, gend, algn) {
+export async function setup_racemenu(win, filtering, role, gend, algn) {
     let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let race_ok = 0;
     let i = 0;
@@ -2110,14 +2091,10 @@ export function setup_racemenu(win, filtering, role, gend, algn) {
             any.a_string = races[i].noun;
         }
         this_ch = races[i].noun;
-        /* filtering: picking race, so choose by first letter, with
-           capital letter as unseen accelerator;
-           !filtering: resetting filter rather than picking, choose by
-           capital letter since lowercase role letters will be present */
-        add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, races[i].noun, (!filtering && !race_ok) ? 1 : 0);
+        await add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, races[i].noun, (!filtering && !race_ok) ? 1 : 0);
     }
 }
-export function setup_gendmenu(win, filtering, role, race, algn) {
+export async function setup_gendmenu(win, filtering, role, race, algn) {
     let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let gend_ok = 0;
     let i = 0;
@@ -2136,12 +2113,10 @@ export function setup_gendmenu(win, filtering, role, race, algn) {
             any.a_string = genders[i].adj;
         }
         this_ch = genders[i].adj;
-        /* (see setup_racemenu for explanation of selector letters
-           and setup_rolemenu for preselection) */
-        add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, genders[i].adj, (!filtering && !gend_ok) ? 1 : 0);
+        await add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, genders[i].adj, (!filtering && !gend_ok) ? 1 : 0);
     }
 }
-export function setup_algnmenu(win, filtering, role, race, gend) {
+export async function setup_algnmenu(win, filtering, role, race, gend) {
     let any = { a_void: 0, a_obj: null, a_monst: null, a_int: 0, a_xint16: 0, a_xint8: 0, a_char: 0, a_schar: 0, a_uchar: 0, a_uint: 0, a_long: 0, a_ulong: 0, a_coordxy: 0, a_iptr: null, a_xint16ptr: null, a_xint8ptr: null, a_lptr: null, a_coordxyptr: null, a_ulptr: null, a_uptr: null, a_string: null, a_nfunc: null, a_mask32: 0, a_int64: 0, a_uint64: 0 };
     let algn_ok = 0;
     let i = 0;
@@ -2160,16 +2135,27 @@ export function setup_algnmenu(win, filtering, role, race, gend) {
             any.a_string = aligns[i].adj;
         }
         this_ch = aligns[i].adj;
-        add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, aligns[i].adj, (!filtering && !algn_ok) ? 1 : 0);
+        await add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, aligns[i].adj, (!filtering && !algn_ok) ? 1 : 0);
     }
 }
 /* !TTY_GRAPHICS */
 /* ?TTY_GRAPHICS */
 /* role.c */
+/* Match as much of str as is provided */
 /* clear race, gender, and alignment filters */
+/* need to ignore appended '-role-race-gender-alignment';
+               'plnamelen' is non-zero when dealing with plname[] value that
+               contains a username with dash(es) in it and is usually 0 */
 /* it's generic; remove it so that askname() will be called */
+/* Try to match it to something */
 /* female specified; replace male role name with female one */
 /* gender unspecified; append slash and female role name */
+/* use four spaces of padding to fake a grayed out menu choice */
+/* Strip the role letter out of the player name.
+     * This is included for backwards compatibility.
+     */
+/* Check for a valid role.  Try flags.initrole first. */
+/* Try the player letter second */
 /* We now have a valid role index.  Copy the role name back. */
 /* This should become OBSOLETE */
 /* assume failure (player chooses to 'quit') */
@@ -2202,10 +2188,24 @@ export function setup_algnmenu(win, filtering, role, race, gend) {
 /* prompt becomes "Shall I pick ... for you? [ynaq] (y) "
            with " [ynaq] (y) " appended by yn_function() which also changes
            user's <space> and <return> to 'y', <escape> to 'q' */
+/* populate the menu with role choices */
+/* add miscellaneous menu entries */
+/* Permit the user to pick, if there is more than one */
+/* populate the menu with gender choices */
+/* calls askname() when svp.plname[] is empty */
 /* start fresh, but bypass "shall I pick everything for you?"
                step; any partial role selection via config file, command
                line, or name suffix is discarded this time */
+/* no extra blank line preceding this entry; end_menu supplies one */
 /* "<name> the <alignment> <gender> <race.adjective> <role>" */
 /* "<role> <race.noun> <gender> <alignment>" */
+/* !filtering implies reset_role_filtering() where we want to
+           mark this role as preselected if current filter excludes it */
 /* female already chosen; replace male name */
 /* not chosen yet; append slash+female name */
+/* filtering: picking race, so choose by first letter, with
+           capital letter as unseen accelerator;
+           !filtering: resetting filter rather than picking, choose by
+           capital letter since lowercase role letters will be present */
+/* (see setup_racemenu for explanation of selector letters
+           and setup_rolemenu for preselection) */
