@@ -38,7 +38,7 @@ import { doremring as t_doremring, doddoremarm as t_doddoremarm } from './transl
 import { dopay as t_dopay } from './translated/shk.js';
 import { dowield as t_dowield, dowieldquiver as t_dowieldquiver, dotwoweapon as t_dotwoweapon, ready_ok } from './translated/wield.js';
 import { doengrave as t_doengrave } from './translated/engrave.js';
-import { doddrop as t_doddrop } from './translated/do.js';
+import { doddrop as t_doddrop, dodrop as t_dodrop } from './translated/do.js';
 import { dotypeinv as t_dotypeinv } from './translated/invent.js';
 import { rn2, rnl } from './rng.js';
 
@@ -1878,6 +1878,18 @@ export async function rhack(key) {
         let res = 0;
         try { res = (await t_doddrop()) || 0; } catch (_e) {
             if (__env.NH_DEBUG_EXTCMD) console.error('[D doddrop]', _e.message);
+        }
+        game.context.move = (res & 1) ? 1 : 0;
+    } else if (ch === 'd') {
+        // 'd' drop — C ref do.c dodrop → single-item drop (getobj +
+        // drop()).  Previously unwired, so the recorded 'd','a' drop
+        // keys were skipped and the command stream misaligned (seed0116:
+        // JS read the next ^W wish one command early at rng 5800 vs C's
+        // 5849).  C ref cmd.c:1708 ('d' -> dodrop).  A normal floor/shop
+        // drop fires ~0 RNG, so this realigns the input stream.
+        let res = 0;
+        try { res = (await t_dodrop()) || 0; } catch (_e) {
+            if (__env.NH_DEBUG_EXTCMD) console.error('[d dodrop]', _e.message);
         }
         game.context.move = (res & 1) ? 1 : 0;
     } else if (ch === 'X') {
