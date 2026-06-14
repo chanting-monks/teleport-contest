@@ -28,7 +28,7 @@ import { settrack } from './translated/track.js';
 import { nh_timeout, do_storms } from './translated/timeout.js';
 import { regen_hp, regen_pw, maybe_generate_rnd_mon, u_calc_moveamt } from './translated/allmain.js';
 import { age_spells } from './translated/spell.js';
-import { glibr } from './translated/do_wear.js';
+import { glibr, find_ac } from './translated/do_wear.js';
 import { overexert_hp, near_capacity, unmul, runmode_delay_output, monster_nearby } from './translated/hack.js';
 import { prayer_done } from './translated/pray.js';
 import {
@@ -2734,6 +2734,19 @@ export async function moveloop_core() {
     // C does regen_hp where JS did the extra mcalcmove(steed)).  Reset
     // matches C's position: after u_calc_moveamt, before rhack.
     g.u.umoved = 0;
+
+    // Recompute armor class once per player input.  C ref allmain.c:453
+    // — the "once-per-player-input" block calls find_ac() every iteration
+    // so u.uac tracks worn-gear changes (e.g. doffing a cloak via the
+    // no-delay armoroff path, which removes uarmc + prints off_msg but
+    // never calls find_ac itself; C relies on this moveloop call to update
+    // botl).  The hand moveloop was missing it, so u.uac stayed at its
+    // chargen value forever (seed0116: doff cloak of magic resistance at
+    // T:3 → C AC 9→10, JS stuck at 9, shifting the whole status line).
+    // find_ac consumes no RNG (pure recompute from worn items + uprops),
+    // so this is PRNG-safe.  Must run before bot() so the rendered AC is
+    // current.  [[hand-moveloop-missing-state-resets]]
+    try { find_ac(); } catch (_e) {}
 
     // Vision + display
     if (g.vision_full_recalc) {
