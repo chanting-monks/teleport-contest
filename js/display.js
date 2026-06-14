@@ -416,9 +416,17 @@ export function newsym(x, y) {
         }
         if (isGeneric) {
             color = NO_COLOR;
-        } else if (obj.otyp === 265 /* CORPSE */ || obj.otyp === 476 /* STATUE */) {
+        } else if (obj.otyp === 265 /* CORPSE */) {
             const mc = game.mons?.[obj.corpsenm]?.mcolor;
             color = (mc == null || mc === 7) ? NO_COLOR : mc;
+        } else if (obj.otyp === 476 /* STATUE */) {
+            // C ref display.c:2787/2794 — statue glyphs are colored with
+            // obj_color(STATUE), the STATUE object's stone color, NOT the
+            // depicted monster's mcolor (only a CORPSE uses that).  Using
+            // the monster color rendered e.g. a newt statue yellow where C
+            // shows it white (seed0104: one statue, wrong on 39 screens).
+            const raw = game.objects?.[476]?.oc_color;
+            color = (raw == null || raw === 7) ? NO_COLOR : raw;
         } else {
             const raw = ocl?.oc_color;
             color = (raw == null || raw === 7) ? NO_COLOR : raw;
