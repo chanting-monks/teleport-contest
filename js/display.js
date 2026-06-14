@@ -1136,12 +1136,32 @@ export function pline(msg) {
     }
     if (game._topl_seen) {
         game._pending_message = msg;
+        game._pending_message_moves = (game.moves || 0);
         game._topl_seen = false;
         return;
     }
     const cur = game._pending_message || '';
     if (!cur) {
         game._pending_message = msg;
+        game._pending_message_moves = (game.moves || 0);
+        return;
+    }
+    // C ref topl.c: a message from a LATER turn does not silently concatenate
+    // onto an unseen topl — C fires more() so the player sees each turn's
+    // events before the next overwrites.  In normal play the input between
+    // turns sets _topl_seen (above), so this never triggers; it fires ONLY
+    // during a no-input multi-turn span (counted search / run auto-repeat),
+    // where C shows --More-- between the per-turn messages while JS used to
+    // combine them by length alone.  That missing input boundary let the
+    // hero run one tile ahead and forked the seed0900 monster-movement
+    // cluster (confirmed via per-turn hero-@ position diff: positions match
+    // through the search, diverge the turn C holds the dog-combat --More--).
+    // Same-turn multi-messages (e.g. hallucination see_monsters) keep
+    // combining because game.moves is unchanged.
+    if ((game.moves || 0) !== (game._pending_message_moves || 0)
+            && (game.multi || 0) > 0) {
+        game._pending_message = cur + '--More--';
+        game._dmore_queue = [msg];
         return;
     }
     const combined = cur + '  ' + msg;
