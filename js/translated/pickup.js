@@ -966,8 +966,8 @@ export async function query_objlist(qstr, olist_p, qflags, pick_list, how, allow
     }
     if (n == 1 && (qflags & 4)) {
         pick_list.value = alloc(1 /* sizeof(menu_item) */);
-        (pick_list.value).item.a_obj = last;
-        (pick_list.value).count = last.quan;
+        (pick_list.value)[0].item.a_obj = last;
+        (pick_list.value)[0].count = last.quan;
         /* something [useless] happened */
         return 1;
     }
@@ -1184,7 +1184,7 @@ export async function query_category(qstr, olist, qflags, pick_list, how) {
             }
             if (curr) {
                 pick_list.value = alloc(1 /* sizeof(menu_item) */);
-                (pick_list.value).item.a_int = curr.oclass;
+                (pick_list.value)[0].item.a_int = curr.oclass;
                 n = 1;
             } else {
                 do {
