@@ -10,6 +10,8 @@ import {
     TREE, POOL, MOAT, LAVAPOOL, LAVAWALL, IRONBARS,
     FOUNTAIN, THRONE, SINK, GRAVE, ALTAR, ICE,
     D_NODOOR, D_ISOPEN, D_CLOSED, D_LOCKED,
+    SV0, SV1, SV2, SV3, SV4, SV5, SV6, SV7,
+    WM_MASK, WM_C_OUTER, WM_C_INNER,
 } from './const.js';
 import { NO_COLOR, CLR_GRAY, CLR_BROWN, CLR_WHITE, CLR_YELLOW,
     CLR_GREEN, CLR_BLUE, CLR_CYAN, CLR_BRIGHT_BLUE,
@@ -52,6 +54,44 @@ const ANSI_COLOR = [
 ];
 
 // ── Terrain to display character + color + DEC flag ──
+// C ref display.c wall_angle(): a wall renders as S_stone (blank) when it
+// has only been seen from angles that don't reveal it — driven by
+// lev->wall_info (WM_MASK mode) combined with lev->seenv.  JS's terrain
+// renderer mapped typ→glyph directly and ignored this, so a wall seen only
+// from its "back" (e.g. a TLCORNER's NW side, WM_C_OUTER + seenv=SV0) drew
+// the corner glyph where C shows blank (seed0060's phantom ┌ at 17,14,
+// persisting on 31 screens).  We replicate ONLY the S_stone cases here:
+// never change WHICH non-blank glyph is drawn, only blank when C blanks.
+// Gated on seenv != 0 so premapped/never-seenv'd walls keep their current
+// rendering (avoids regressing levels where JS doesn't set seenv).
+function wall_angle_is_stone(loc) {
+    const seenv = (loc.seenv || 0) & 0xff;
+    if (!seenv) return false;
+    const wm = (loc.wall_info || 0) & WM_MASK;
+    switch (loc.typ) {
+    case HWALL:
+        if (wm === 1) return !(seenv & (SV3 | SV4 | SV5 | SV6 | SV7));
+        if (wm === 2) return !(seenv & (SV0 | SV1 | SV2 | SV3 | SV7));
+        return false;
+    case VWALL:
+        if (wm === 1) return !(seenv & (SV1 | SV2 | SV3 | SV4 | SV5));
+        if (wm === 2) return !(seenv & (SV0 | SV1 | SV5 | SV6 | SV7));
+        return false;
+    case TLCORNER: return corner_is_stone(wm, seenv, SV3 | SV4 | SV5, SV4);
+    case TRCORNER: return corner_is_stone(wm, seenv, SV5 | SV6 | SV7, SV6);
+    case BLCORNER: return corner_is_stone(wm, seenv, SV1 | SV2 | SV3, SV2);
+    case BRCORNER: return corner_is_stone(wm, seenv, SV7 | SV0 | SV1, SV0);
+    default: return false;  // T-walls / crosswall: keep existing rendering
+    }
+}
+// C set_corner macro: mode 0 always shows; WM_C_OUTER blanks unless seenv
+// has an 'outer' bit; WM_C_INNER blanks unless seenv has any bit but 'inner'.
+function corner_is_stone(wm, seenv, outer, inner) {
+    if (wm === WM_C_OUTER) return !(seenv & outer);
+    if (wm === WM_C_INNER) return !(seenv & (~inner & 0xff));
+    return false;
+}
+
 function terrain_glyph(loc, x, y) {
     const typ = loc.typ;
     switch (typ) {
@@ -101,9 +141,18 @@ function terrain_glyph(loc, x, y) {
     // door); when unset, default to horizontal wall (matches C's
     // dchar(SDOOR) where horizontal flag = 0 hits the S_hwall branch).
     case SDOOR:
+        // Respect the active symset: under DECgraphics (handling===2) the
+        // surrounding wall is the DEC line-draw char ('q'=─ / 'x'=│); under
+        // the default ASCII symset it is '-' / '|'.  The old code emitted DEC
+        // unconditionally, so an undetected secret door in an ASCII-symset
+        // session rendered '─' where C shows '-' (seed0104 (37,5), 17 screens).
+        if (game.symset?.[0]?.handling === 2)
+            return loc.horizontal
+                ? { ch: 'q', color: NO_COLOR, dec: true }   // ─
+                : { ch: 'x', color: NO_COLOR, dec: true };  // │
         return loc.horizontal
-            ? { ch: 'q', color: NO_COLOR, dec: true }   // ─ horizontal wall
-            : { ch: 'x', color: NO_COLOR, dec: true };  // │ vertical wall
+            ? { ch: '-', color: NO_COLOR, dec: false }
+            : { ch: '|', color: NO_COLOR, dec: false };
     case SCORR:
         // Undetected secret corridor renders as stone (' ').
         return { ch: ' ', color: NO_COLOR, dec: false };
@@ -140,6 +189,10 @@ function terrain_glyph(loc, x, y) {
     case BLCORNER: case BRCORNER: case CROSSWALL: case TUWALL:
     case TDWALL: case TLWALL: case TRWALL:
         {
+            // C wall_angle: render blank when the wall's seenv/wall_info
+            // mode means it isn't visibly revealed from the seen angle.
+            if (wall_angle_is_stone(loc))
+                return { ch: ' ', color: NO_COLOR, dec: false };
             // Sokoban walls: the recorder emits \x1b[34m (CLR_BLUE)
             // for every soko wall cell (C display.c wallcolors[
             // sokoban_walls] via the GLYPH_CMAP_SOKO branch; verified
@@ -881,6 +934,70 @@ function _buildScreenOutput() {
         const menu = game._menu_overlay;
         if (Array.isArray(menu?.pages) && menu.pages[menu.page]) {
             const lines = menu.pages[menu.page];
+            // ── Popup menu (kind 'popup', offx > 0): C tty draws the menu
+            // as a right-anchored window without clearing the screen, so
+            // the map shows through everywhere outside the menu's lines
+            // (cols 0..offx, and to the right of each line's text).  The
+            // recorded pickup menu emits "\x1b[41C<text>" per row — cols
+            // 0..40 keep the prior frame (map), content starts at offx+1.
+            // Render the map + status underneath, then write each menu
+            // line's content (its 1-col left gutter stripped so the map
+            // shows at col offx) starting at col offx+1.
+            const __popupOffx = (menu.kind === 'popup') ? (menu.offx | 0) : 0;
+            if (__popupOffx > 0) {
+                // Map underneath, but ONLY on rows the menu does NOT
+                // occupy: C tty positions the menu window over screen
+                // rows 0..maxrow-1 and those rows show no map (the recorded
+                // pickup blanks cols outside its content, e.g. row 8's
+                // "(end)" line has no wall behind it).  The map shows from
+                // the row just past the menu.  `lines.length` = maxrow
+                // (content rows + pager).  Same skip as the 'menu' kind.
+                for (let y = 0; y < ROWNO; y++) {
+                    if ((y + 1) < lines.length) continue;
+                    for (let x = 1; x < COLNO; x++) {
+                        const loc = game.level?.at(x, y);
+                        if (!loc?.disp_ch || loc.disp_ch === ' ') continue;
+                        let ch = loc.disp_ch, color = loc.disp_color ?? NO_COLOR,
+                            decgfx = loc.disp_decgfx;
+                        if (loc.typ === DOOR
+                            && (ch === '+' || ch === '|' || ch === '-'
+                                || (decgfx && ch === 'a'))) {
+                            const tg = terrain_glyph(loc, x, y);
+                            ch = tg.ch; color = tg.color; decgfx = tg.dec;
+                        }
+                        const rc = decgfx ? renderDecCh(ch) : ch;
+                        display.setCell(x - 1, y + 1, rc, color, loc.disp_attr ?? 0);
+                    }
+                }
+                const ps1 = _statusLine1().replace(/\x1b\[[0-9;]*[A-Za-z]/g, m =>
+                    m.match(/\x1b\[\d+C/) ? ' '.repeat(parseInt(m.slice(2))) : '');
+                for (let c = 0; c < Math.min(ps1.length, display.cols); c++)
+                    display.setCell(c, 22, ps1[c], NO_COLOR, 0);
+                const ps2 = _statusLine2();
+                for (let c = 0; c < Math.min(ps2.length, display.cols); c++)
+                    display.setCell(c, 23, ps2[c], NO_COLOR, 0);
+                // Menu lines, gutter-stripped, starting at col offx+1.
+                for (let r = 0; r < lines.length && r < display.rows; r++) {
+                    const entry = lines[r];
+                    const text = (typeof entry === 'string') ? entry : (entry?.text ?? '');
+                    const attr = (typeof entry === 'string') ? 0 : (entry?.attr ?? 0);
+                    const spaceAttr = (typeof entry === 'object' && entry && 'spaceAttr' in entry)
+                        ? (entry.spaceAttr | 0) : attr;
+                    for (let c = 0; c < text.length; c++) {
+                        // Skip the single leading gutter space (col offx shows
+                        // the map, mirroring C's cursor-forward over it).
+                        if (c === 0 && text[0] === ' ') continue;
+                        const col = __popupOffx + c;
+                        if (col >= display.cols) break;
+                        const ch = text[c];
+                        display.setCell(col, r, ch, NO_COLOR, ch === ' ' ? spaceAttr : attr);
+                    }
+                }
+                // computeOverlayCursor already folds offx into curx.
+                const [pcx, pcy] = computeOverlayCursor(menu, display.rows);
+                display.setCursor(pcx, pcy);
+                return;
+            }
             // For 'menu' kind (right-corner inventory etc.) C's
             // wintty.c only writes the menu within its window — cells
             // OUTSIDE the menu's row range stay as whatever the main

@@ -67,7 +67,7 @@ export async function give_may_advance_msg(skill) {
    fingers or polymorph causes hero to involuntarily drop wielded weapon(s) */
 export async function weapon_descr(obj) {
     let skill = weapon_type(obj);
-    let descr = ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]);
+    let descr = ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[skill]]);
     switch (skill) {
         case P_NONE:
             descr = (obj.otyp == CORPSE || obj.otyp == TIN || obj.otyp == EGG || obj.otyp == STATUE || obj.otyp == BOULDER || obj.otyp == TOWEL || obj.otyp == TIN_OPENER) ? (game.obj_descr[(game.objects[obj.otyp]).oc_name_idx].oc_name) : obj.globby ? "glob" : def_oc_syms[obj.oclass].name;
@@ -944,7 +944,7 @@ export function skill_level_name(skill, buf) {
     return buf;
 }
 export function skill_name(skill) {
-    return ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]);
+    return ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[skill]]);
 }
 /* return the # of slots required to advance the skill */
 export function slots_required(skill) {
@@ -995,7 +995,7 @@ export async function skill_advance(skill) {
     game.u.weapon_slots -= slots_required(skill);
     (game.u.weapon_skills[skill].skill)++;
     game.u.skill_record[game.u.skills_advanced++] = skill;
-    await You("are now %s skilled in %s.", (game.u.weapon_skills[skill].skill) >= (game.u.weapon_skills[skill].max_skill) ? "most" : "more", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
+    await You("are now %s skilled in %s.", (game.u.weapon_skills[skill].skill) >= (game.u.weapon_skills[skill].max_skill) ? "most" : "more", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[skill]]));
     /* wizards discover spellbook IDs depending on spell 'school' skill limits;
        this allows them to successfully write books for unknown spells without
        the Luck bias they used to have over other roles */
@@ -1024,7 +1024,7 @@ export async function add_skills_to_menu(win, selectable, speedy) {
         if ((game.u.weapon_skills[i].skill == P_ISRESTRICTED)) {
             continue;
         }
-        if ((len = await Strlen_(((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), "add_skills_to_menu", 1241)) > longest) {
+        if ((len = await Strlen_(((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[i]]), "add_skills_to_menu", 1241)) > longest) {
             longest = len;
         }
     }
@@ -1061,18 +1061,18 @@ export async function add_skills_to_menu(win, selectable, speedy) {
             } else {
                 prefix = "    ";
             }
-            skill_level_name(i, sklnambuf);
+            sklnambuf = skill_level_name(i, sklnambuf);
             if (game.flags.debug) {
                 if (!game.iflags.menu_tab_sep) {
-                    buf = nh_snprintf("add_skills_to_menu", 1282, buf, 256 /* sizeof(char [256]) */, " %s%-*s %-12s %5d(%4d)", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
+                    buf = nh_snprintf("add_skills_to_menu", 1282, buf, 256 /* sizeof(char [256]) */, " %s%-*s %-12s %5d(%4d)", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
                 } else {
-                    buf = nh_snprintf("add_skills_to_menu", 1287, buf, 256 /* sizeof(char [256]) */, " %s%s\t%s\t%5d(%4d)", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
+                    buf = nh_snprintf("add_skills_to_menu", 1287, buf, 256 /* sizeof(char [256]) */, " %s%s\t%s\t%5d(%4d)", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[i]]), sklnambuf, (game.u.weapon_skills[i].advance), (((game.u.weapon_skills[i].skill)) * ((game.u.weapon_skills[i].skill)) * 20));
                 }
             } else {
                 if (!game.iflags.menu_tab_sep) {
-                    buf = nh_snprintf("add_skills_to_menu", 1292, buf, 256 /* sizeof(char [256]) */, " %s %-*s [%s]", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
+                    buf = nh_snprintf("add_skills_to_menu", 1292, buf, 256 /* sizeof(char [256]) */, " %s %-*s [%s]", prefix, longest, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
                 } else {
-                    buf = nh_snprintf("add_skills_to_menu", 1296, buf, 256 /* sizeof(char [256]) */, " %s%s\t[%s]", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
+                    buf = nh_snprintf("add_skills_to_menu", 1296, buf, 256 /* sizeof(char [256]) */, " %s%s\t[%s]", prefix, ((skill_names_indices[i] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[i]]).oc_name_idx].oc_name) : (i == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[i]]), sklnambuf);
                 }
             }
             any.a_int = selectable && can_advance(i, speedy) ? i + 1 : 0;
@@ -1267,7 +1267,7 @@ export async function drain_weapon_skill(n) {
     /* initialize skill array; by default, everything is restricted */
     for (skill = 0; skill < P_NUM_SKILLS; skill++) {
         if (tmpskills[skill]) {
-            await You("forget %syour training in %s.", (game.u.weapon_skills[skill].skill) >= P_BASIC ? "some of " : "", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
+            await You("forget %syour training in %s.", (game.u.weapon_skills[skill].skill) >= P_BASIC ? "some of " : "", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[skill]]));
         }
     }
 }
@@ -1523,7 +1523,7 @@ export async function skill_init(class_skill) {
     for (skill = 0; skill < P_NUM_SKILLS; skill++) {
         if (!(game.u.weapon_skills[skill].skill == P_ISRESTRICTED)) {
             if ((game.u.weapon_skills[skill].max_skill) < (game.u.weapon_skills[skill].skill)) {
-                await impossible("skill_init: curr > max: %s", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))] : odd_skill_names[-skill_names_indices[skill]]));
+                await impossible("skill_init: curr > max: %s", ((skill_names_indices[skill] > 0) ? (game.obj_descr[(game.objects[skill_names_indices[skill]]).oc_name_idx].oc_name) : (skill == P_BARE_HANDED_COMBAT) ? barehands_or_martial[(((game.urole.mnum == (PM_SAMURAI)) || (game.urole.mnum == (PM_MONK)))) ? 1 : 0] : odd_skill_names[-skill_names_indices[skill]]));
                 (game.u.weapon_skills[skill].max_skill) = (game.u.weapon_skills[skill].skill);
             }
             (game.u.weapon_skills[skill].advance) = (((game.u.weapon_skills[skill].skill) - 1) * ((game.u.weapon_skills[skill].skill) - 1) * 20);

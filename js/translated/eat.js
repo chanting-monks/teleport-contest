@@ -2094,6 +2094,13 @@ export async function fprefx(otmp) {
                 await pline("My, this is a %s %s!", (game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) ? "primo" : "yummy", await singular(otmp, xname));
             } else if (otmp.otyp == APPLE && otmp.cursed && !(game.u.uprops[SLEEP_RES].intrinsic || game.u.uprops[SLEEP_RES].extrinsic)) {
                 ;
+            } else if (otmp.otyp == APPLE) {
+                /* C eat.c:2179 MACOS branch — the contest recorder is a
+                   Darwin build, so apple yields the Mac-specific message,
+                   checked BEFORE the UNIX "Core dumped" branch (which then
+                   only catches pear).  Unconditional: no hallu variant, no
+                   rnd(100). */
+                await pline("Delicious!  Must be a Macintosh!");
             } else if (otmp.otyp == APPLE || otmp.otyp == PEAR) {
                 if (!(game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic))) {
                     await pline("Core dumped.");

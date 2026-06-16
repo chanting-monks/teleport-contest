@@ -2556,7 +2556,7 @@ export function trapnote(trap, noprefix) {
     __trapnote_tnbuf = '';
     tn = __trapnote_tnnames[trap.vl.v_tnote];
     if (!noprefix) {
-        just_an(__trapnote_tnbuf, tn);
+        __trapnote_tnbuf = just_an(__trapnote_tnbuf, tn);
     }
     return strcat(__trapnote_tnbuf, tn);
 }

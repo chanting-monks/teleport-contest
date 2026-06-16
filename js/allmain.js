@@ -2410,14 +2410,20 @@ async function per_iter_setup() {
         game.moves = (game.moves || 1) + 1;
     }
 
-    // Multi-turn freeze: C ref allmain.c:380-388.  Originally narrowed
-    // to prayer_done only; 2026-05-30 extended via allowlist to also
-    // include the take-off finalizers (Armor_off/Shield_off/etc).
-    // These are structurally simple cleanup functions (setworn(null)
-    // + property updates, no PRNG draws) so safer to fire than the
-    // broader category of afternmv targets.  Per
-    // project_singlechar_dispatch_gap memory's callee-blocker
-    // pattern: incremental allowlist beats all-or-nothing broadening.
+    // Multi-turn freeze: C ref allmain.c:380-388.  C ALWAYS runs the
+    // countdown (`if (++gm.multi == 0) unmul()`) for any multi<0; JS gates
+    // it on an allowlist because firing unsafe (not-yet-ported) afternmv
+    // callbacks at multi==0 regresses.  NON-NULL allowlisted afternmv
+    // (prayer_done / *_off / eatmdone) counts down HERE.  NULL-afternmv
+    // freezes (sleep, sleep-ray helpless, count-wait) are deferred to the
+    // END of post_turn_block instead — C runs the multi<0 countdown at
+    // allmain.c:380, AFTER gethungry (354), and gethungry's "asleep" rn2(10)
+    // (eat.c:3174) is gated on Unaware = (multi<0 && unconscious()).
+    // Incrementing multi to 0 BEFORE gethungry would make the last sleep
+    // turn see Unaware=false and skip that rn2 (seed0016's residual fork at
+    // div 3578).  We keep non-null afternmv early because deferring it
+    // entangles with the *_off occupation path and regresses (see memory
+    // feedback_atomic_multi_turn_prng_drift).
     const __mtf_allow = (game.afternmv === prayer_done
         || game.afternmv === Armor_off
         || game.afternmv === Shield_off
@@ -2598,6 +2604,22 @@ async function post_turn_block(wtcap, did_per_iter_setup) {
     const dex = game.u?.acurr?.a?.[3] ?? 14;
     if (rn2(40 + dex * 3) === 0) {
         rnd(3);
+    }
+
+    // Null-afternmv freeze countdown (sleep / sleep-ray helpless / count-wait):
+    // C ref allmain.c:380 — runs HERE, after dosounds(352)/gethungry(354)/
+    // wipe_engr(360), at the end of C's per-iter block.  Deferred from
+    // per_iter_setup so the last sleep turn's gethungry "asleep" rn2(10)
+    // (eat.c:3174, gated on Unaware = multi<0 && unconscious) fires while
+    // multi is still <0 — matching C and fixing seed0016's residual fork.
+    // unmul(null) for a null afternmv is PRNG-safe (no callback, just clears
+    // the freeze + nomovemsg).  Non-null afternmv counted down in
+    // per_iter_setup (kept early; deferring it entangles with *_off).
+    if (!game.afternmv && (game.multi || 0) < 0) {
+        game.multi++;
+        if (game.multi === 0) {
+            try { await unmul(null); } catch (_e) {}
+        }
     }
   } // end of `if (did_per_iter_setup)` — the inside-the-gate block
 
@@ -2826,10 +2848,18 @@ export async function moveloop_core() {
     // spread-across-iterations semantics.
     //
     // Allowlist is the same as per_iter_setup's __mtf_allow: only
-    // afternmv targets we've audited as safe to drive atomically.
-    // safety cap of 8 covers the largest known nomul depth (prayer
-    // is -3, takeoff is generally -1 to -3) with margin.
-    const __mtf_allow_atomic = (game.afternmv === prayer_done
+    // afternmv targets we've audited as safe to drive atomically, PLUS
+    // null-afternmv freezes (sleep / sleep-ray helpless / count-wait —
+    // unmul(null) just clears the freeze, no callback).  Without the
+    // null case the deep sleep freeze (multi ~ -27) was never driven
+    // atomically, so JS ran only as many frozen turns as the harness'
+    // input loop happened to pump before exhausting, vs C's full N —
+    // forking all monster scheduling during the sleep (seed0016).
+    // Safety cap sized to the actual freeze depth (+margin) so deep
+    // sleeps complete; the multi<0 condition still bounds the loop since
+    // per_iter_setup increments multi each iteration.
+    const __mtf_allow_atomic = (!game.afternmv
+        || game.afternmv === prayer_done
         || game.afternmv === Armor_off
         || game.afternmv === Shield_off
         || game.afternmv === Helmet_off
@@ -2839,7 +2869,7 @@ export async function moveloop_core() {
         || game.afternmv === Shirt_off
         || game.afternmv === Shirt_on
         || game.afternmv === eatmdone);
-    let __mtf_safety = 8;
+    let __mtf_safety = Math.max(8, Math.abs(game.multi || 0) + 4);
     const __mtf_started = (game.multi || 0) < 0 && __mtf_allow_atomic;
     while ((game.multi || 0) < 0 && __mtf_allow_atomic && __mtf_safety-- > 0) {
         // C ref allmain.c:203 — per-turn block runs ONLY when

@@ -13,9 +13,11 @@ import { COLNO, ROWNO, STONE, DOOR, D_CLOSED, D_LOCKED, D_ISOPEN,
          IS_WALL, IS_OBSTRUCTED } from './const.js';
 import { MAXSPELL, P_UNSKILLED, P_BASIC, P_SKILLED, P_EXPERT } from './translated/nh-constants.js';
 import { dosearch0 } from './translated/detect.js';
+import { night as __night, midnight as __midnight } from './translated/calendar.js';
 import { Japanese_item_name as __Japanese_item_name } from './translated/objnam.js';
 import { donull } from './translated/do.js';
 import { domove as t_domove, inv_weight as t_inv_weight, lookaround as t_lookaround } from './translated/hack.js';
+import { THRONE, SINK, GRAVE, FOUNTAIN, ALTAR, STAIRS } from './translated/nh-constants.js';
 import { pickup as t_pickup } from './translated/pickup.js';
 import { dodown as t_dodown, doup as t_doup } from './translated/do.js';
 import { dolook as t_dolook } from './translated/invent.js';
@@ -63,6 +65,26 @@ const DIR_DY = { h: 0, l: 0, j: 1, k: -1, y: -1, u: -1, b: 1, n: 1 };
 // skips nhgetch, replaying the saved direction.
 const UPPER_TO_LOWER_DIR = {
     H: 'h', J: 'j', K: 'k', L: 'l', Y: 'y', U: 'u', B: 'b', N: 'n',
+};
+
+// Ctrl+vi-key movement = NetHack's "rush" command (MV_RUSH).  C ref:
+// cmd.c do_rush_west/etc. → set_move_cmd(dir, 3) → svc.context.run=3.
+// Keyed by the raw control-char code.  These bindings apply when
+// number_pad is OFF (with number_pad ON, C rebinds C('l') etc. to
+// redraw/other — cmd.c:2762; the recorded sessions all run num_pad=0).
+// Without this JS dropped ^L (key 12) as a no-op, so a run that stopped
+// at a doorway never continued the rush down the corridor (seed0013).
+//
+// DELIBERATELY EXCLUDED: ^H(8, rubout), ^J(10, newline/Enter), and
+// ^U(21, kill-line) — these are line-editing/confirm keys that C
+// consumes inside getlin/yn/menu prompts and NEVER dispatches as a
+// rush command (verified: seed0383 sends ^J×9 yet the C recorder shows
+// 0 rush events and 0 command-level ^J reads — they are all Enter).
+// JS currently leaks those to rhack (a separate prompt-handling gap);
+// mapping them to rush would mis-move the hero (seed0383 regressed -88
+// when ^J was included).  Only the pure-movement controls are mapped.
+const CTRL_TO_DIR = {
+    11: 'k', 12: 'l', 25: 'y', 2: 'b', 14: 'n',
 };
 
 function isMovementKey(ch) {
@@ -231,6 +253,29 @@ function buildAttributesPages() {
     } else {
         const turnWord = (moves === 1) ? 'turn' : 'turns';
         lines.push(`  You entered the dungeon ${moves} ${turnWord} ago.`);
+    }
+    // C ref insight.c:647-682 (background_enlightenment, environmental
+    // factors) — between "entered the dungeon" and the experience line:
+    //   midnight/night, full/new moon, Friday the 13th.  buildAttributesPages
+    // is a hand-port of enlightenment and omitted these; the moonphase /
+    // friday13 flags ARE correct (computed from the pinned session datetime),
+    // so seed0013 (Oct-13-2000, full moon + Friday 13th) lost two lines and
+    // every line below shifted up (its ^X screen, +friday13 sibling).
+    try {
+        if (__midnight()) {
+            lines.push('  It is the midnight hour.');
+        } else if (__night()) {
+            lines.push('  It is nighttime.');
+        }
+    } catch (_e) { /* calendar shim unavailable — skip */ }
+    {
+        const mp = g.flags?.moonphase;
+        if (mp === 4 /* FULL_MOON */ || mp === 0 /* NEW_MOON */) {
+            lines.push(`  There is a ${mp === 4 ? 'full' : 'new'} moon in effect.`);
+        }
+    }
+    if (g.flags?.friday13) {
+        lines.push('  Bad things can happen on Friday the 13th.');
     }
     // C ref insight.c:688-712 — experience display:
     //   "<exp> experience point<s>"
@@ -502,8 +547,30 @@ function buildAttributesPages() {
                 lines2.push(`  You have ${name} skill with ${wname}.`);
             }
         } else {
-            lines2.push('  You are bare handed.');
-            lines2.push('  You are unskilled in bare handed combat.');
+            // C ref insight.c weapon_insight (!uwep): you_are(empty_handed())
+            // then the P_BARE_HANDED_COMBAT skill line.  empty_handed()
+            // (wield.c:158): gloves worn → "empty handed", else (humanoid)
+            // "bare handed".  The skill is named "martial arts" for monk/
+            // samurai (weapon.js barehands_or_martial), else "bare handed
+            // combat", and uses the actual P_SKILL level.  The hand-port
+            // previously hardcoded "bare handed" + "unskilled in bare handed
+            // combat", wrong for a glove-wearing monk with martial-arts skill
+            // (seed0200 ^X page 2: "You are empty handed." / "You have basic
+            // skill with martial arts.").
+            const isMartial = (g.urole?.mnum === 336 /* PM_MONK */
+                               || g.urole?.mnum === 340 /* PM_SAMURAI */);
+            const bhWname = isMartial ? 'martial arts' : 'bare handed combat';
+            lines2.push(`  You are ${g.uarmg ? 'empty handed' : 'bare handed'}.`);
+            const bhLvl = g.u?.weapon_skills?.[35 /* P_BARE_HANDED_COMBAT */]?.skill | 0;
+            const bhLvls = [null, 'unskilled', 'basic', 'skilled', 'expert', 'master', 'grand-master'];
+            const bhName = bhLvls[Math.min(bhLvl, bhLvls.length - 1)];
+            if (bhLvl === 0 /* P_ISRESTRICTED */) {
+                lines2.push(`  You have no skill with ${bhWname}.`);
+            } else if (bhLvl === 1 /* UNSKILLED */ || bhLvl === 3 /* SKILLED */) {
+                lines2.push(`  You are ${bhName} in ${bhWname}.`);
+            } else {
+                lines2.push(`  You have ${bhName} skill with ${bhWname}.`);
+            }
         }
     }
     // C ref insight.c — the "Attributes:" (magic enlightenment)
@@ -593,7 +660,19 @@ function buildAttributesPages() {
     lines2.push('  Total elapsed playing time is none.');
     lines2.push(' (2 of 2)');
 
-    return [page1, lines2];
+    // C ref: enlightenment paginates by SCREEN HEIGHT, not by section —
+    // page 1 holds the first 23 rows and the rest spills to page 2, so C
+    // breaks mid-Characteristics (str/dex on page 1; con/int/wis/cha on
+    // page 2).  buildAttributesPages historically broke at a fixed section
+    // boundary (after "intelligence"); that only lined up before the
+    // moon/Friday-13th lines were added.  Rebuild from the combined content
+    // split at row 23 (lines/lines2 hold the page bodies sans pager).
+    const __content = lines.concat(lines2.slice(0, -1));
+    const __p1 = __content.slice(0, 23);
+    __p1.push(' (1 of 2)');
+    const __p2 = __content.slice(23);
+    __p2.push(' (2 of 2)');
+    return [__p1, __p2];
 }
 
 // Build the inventory display by walking translator-populated
@@ -1570,6 +1649,13 @@ export async function rhack(key) {
         game._run_dx = null;
         game._run_dy = null;
         await domove(DIR_DX[ch], DIR_DY[ch]);
+        // C ref cmd.c:3789 — after a DOMOVE_WALK domove, C clears
+        // svc.context.forcefight (and iflags.menu_requested).  The 'F'
+        // force-fight prefix sets forcefight=1 for the NEXT move only;
+        // the live hand-port rhack never cleared it (only translated
+        // cmd.js does), so after an 'F'+dir move forcefight stayed 1 and
+        // a subsequent plain move was wrongly treated as a force-fight.
+        game.context.forcefight = 0;
     } else if (UPPER_TO_LOWER_DIR[ch]) {
         // Uppercase movement = rush mode (NetHack vi-keys).  Set
         // context.run=3 BEFORE domove so translated domove's stop-
@@ -1601,15 +1687,54 @@ export async function rhack(key) {
         game._run_dx = dx;
         game._run_dy = dy;
         await domove(dx, dy);
+    } else if (CTRL_TO_DIR[key]) {
+        // Ctrl+direction = rush (MV_RUSH).  C ref cmd.c do_rush_<dir>:
+        // set_move_cmd(dir, 3) → context.run=3, then domove in that
+        // direction; the moveloop replays the saved dir until
+        // end_running clears context.run.  Mirrors the uppercase-run
+        // branch above but with run=3 (rush) instead of run=1 (run).
+        const dir = CTRL_TO_DIR[key];
+        const dx = DIR_DX[dir], dy = DIR_DY[dir];
+        game.context.move = 1;
+        game.context.run = 3;
+        game._run_dx = dx;
+        game._run_dy = dy;
+        await domove(dx, dy);
     } else if (ch === ',') {
-        // Pick up object(s) at hero's position.  C ref: pickup.c
-        // dopickup → pickup(-count) (count=0 when no prior digit
-        // prefix).  Translated pickup() handles the OBJ_AT check,
-        // the multi-item menu (if applicable), and the actual
-        // pickup_object() calls.  Sets context.move = (res & 1)
-        // when a turn was consumed.
+        // Pick up object(s) at hero's position.  C ref: hack.c dopickup
+        // → pickup_checks() → pickup(-command_count).  Calling the
+        // translated pickup() DIRECTLY skipped dopickup's pickup_checks(),
+        // which emits the OBJ_AT-empty feedback ("There is nothing here
+        // to pick up." and the furniture variants for throne/sink/grave/
+        // fountain/door/altar/stairs) — seed0013-rogue ',' on bare floor
+        // showed a blank topl vs C's message.  So run pickup_checks()
+        // first (it fires no rn2), then keep the existing pickup(0) for
+        // the proceed/engulf cases — NOT dopickup's pickup(-command_count),
+        // which shifted PRNG on seed0002/seed0004 (JS's command_count isn't
+        // reset C-identically).
         let res = 0;
-        try { res = (await t_pickup(0)) || 0; } catch (e) {
+        try {
+            // Emit the OBJ_AT-empty feedback INLINE (replicating only
+            // hack.c:3826-3845, not pickup_checks() — the latter also calls
+            // can_reach_floor() which pickup() calls again, and the double
+            // invocation shifted PRNG on seed0002/seed0004).  pline() fires
+            // no rn2, and we still call pickup(0) (a no-op on an empty tile)
+            // so PRNG is unchanged.  D_ISOPEN = 0x02 (const.js).
+            const __ux = game.u?.ux, __uy = game.u?.uy;
+            if (__ux > 0 && !(game.level?.objects?.[__ux]?.[__uy])) {
+                const __l = game.level?.at(__ux, __uy);
+                const __t = __l?.typ;
+                if (__t === THRONE) await pline(`It must weigh${__l.looted ? ' almost' : ''} a ton!`);
+                else if (__t === SINK) await pline('The plumbing connects it to the floor.');
+                else if (__t === GRAVE) await pline("You don't need a gravestone.  Yet.");
+                else if (__t === FOUNTAIN) await pline('You could drink the water...');
+                else if (__t === DOOR && (__l.doormask & 0x02 /* D_ISOPEN */)) await pline("It won't come off the hinges.");
+                else if (__t === ALTAR) await pline('Moving the altar would be a very bad idea.');
+                else if (__t === STAIRS) await pline('The stairs are solidly affixed.');
+                else await pline('There is nothing here to pick up.');
+            }
+            res = (await t_pickup(0)) || 0;
+        } catch (e) {
             if (__env.NH_DEBUG_PICKUP) console.error('pickup:', e.message);
         }
         game._run_dx = null;
@@ -2785,6 +2910,20 @@ export async function rhack(key) {
         // Until we port the full command dispatch, prefer
         // silence over wrong output.
         game.context.move = 0;
+    }
+
+    // C ref cmd.c:3819-3825 — after a turn-consuming command that was
+    // NOT a kick (^D = 0x04), reset kickedloc so pets stop avoiding the
+    // just-kicked tile.  The translated rhack (cmd.js:2865) does this;
+    // the live hand-port omitted it.  Movement already clears kickedloc
+    // via domove (translated hack.js:2096), but a NON-movement turn such
+    // as 's'earch did not — so a stale kickedloc persisted and the pet
+    // kept avoiding the kicked tile, firing one fewer dog_move
+    // rn2(++chcnt) than C (seed0060 div=3033: dog skipped the kicked
+    // candidate (24,13) that C evaluates/chooses).
+    if (game.context.move && key !== 0x04 && game.kickedloc) {
+        game.kickedloc.x = 0;
+        game.kickedloc.y = 0;
     }
 }
 

@@ -3093,6 +3093,23 @@ export async function wall_angle(lev) {
             await impossible("wall_angle: unexpected wall type %d", lev.typ);
             idx = S_stone;
     }
+    if (__do_horiz) {
+        switch (lev.flags & 7) {
+            case 0:
+                idx = seenv ? S_hwall : S_stone;
+                break;
+            case 1:
+                idx = seenv & ((8) | (16) | (32) | (64) | (128)) ? S_hwall : S_stone;
+                break;
+            case 2:
+                idx = seenv & ((1) | (2) | (4) | (8) | (128)) ? S_hwall : S_stone;
+                break;
+            default:
+                await impossible("wall_angle: unknown hwall mode %d", lev.flags & 7);
+                idx = S_stone;
+                break;
+        }
+    }
     return idx;
 }
 /*
