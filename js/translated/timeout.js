@@ -537,8 +537,15 @@ export async function nh_timeout() {
     was_flying = ((game.u.uprops[FLYING].intrinsic || game.u.uprops[FLYING].extrinsic || (game.u.usteed && (((game.u.usteed.data).mflags1 & 1) != 0))) && !game.u.uprops[FLYING].blocked);
     for (let __nhi_upp = 0; (upp = game.u.uprops[__nhi_upp]) && (upp < game.u.uprops + (Math.trunc(69 /* sizeof(struct prop [69]) */ / 1 /* sizeof(struct prop) */))); __nhi_upp++) {
         if ((upp.intrinsic & 16777215) && !(--upp.intrinsic & 16777215)) {
-            kptr = find_delayed_killer((upp - game.u.uprops));
-            switch (upp - game.u.uprops) {
+            /* C: `switch (upp - u.uprops)` is pointer subtraction = the property
+               index.  In JS `upp` is the prop OBJECT and `game.u.uprops` the
+               array, so `upp - game.u.uprops` is object-minus-array = NaN — the
+               switch matched NO case, so EVERY timeout-expiry cleanup
+               (WOUNDED_LEGS heal_legs, STONED/SICK death, confusion/blind clear,
+               ...) silently never fired.  Use the loop index __nhi_upp, which
+               equals the C pointer difference. */
+            kptr = find_delayed_killer(__nhi_upp);
+            switch (__nhi_upp) {
                 case STONED:
                     if (kptr && kptr.name[0]) {
                         game.killer.format = kptr.format;

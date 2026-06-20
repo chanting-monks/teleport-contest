@@ -194,7 +194,7 @@ export function do_light_sources(cs_rows) {
              * Kevin's tests indicated that doing this brute-force
              * method is faster for radius <= 3 (or so).
              */
-            limits = (circle_data[circle_start[ls.range]]);
+            limits = circle_start[ls.range]; /* C: limits = &circle_data[circle_start[ls.range]] — carry the index (was collapsed to a scalar, breaking non-hero light sources) */
             if ((max_y = (ls.y + ls.range)) >= 21) {
                 max_y = 21 - 1;
             }
@@ -203,7 +203,7 @@ export function do_light_sources(cs_rows) {
             }
             for (; y <= max_y; y++) {
                 row = cs_rows[y];
-                offset = limits[abs(y - ls.y)];
+                offset = circle_data[limits + abs(y - ls.y)]; /* C: limits[abs(y-ls.y)] */
                 if ((min_x = (ls.x - offset)) < 1) {
                     min_x = 1;
                 }

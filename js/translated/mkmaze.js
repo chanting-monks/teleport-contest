@@ -510,11 +510,24 @@ export async function fixup_special() {
         game.level.flags.hero_memory = 0;
         await setup_waterlevel();
     }
-    for (x = 0; x < game.num_lregions; x++ , (r = __nh_blackhole)) {
+    for (x = 0; x < game.num_lregions; x++) {
+        /* C ref mkmaze.c fixup_special: `lev_region *r = gl.lregions` then
+           `r++` per iter — the translator collapsed the pointer walk to a
+           __nh_blackhole discard, so r never pointed at game.lregions[x]
+           (every r->inarea read 0 → place_lregion always took the
+           whole-level default rn2(79) instead of the real region's rn2(1),
+           and updest/dndest were poisoned with 0).  Index explicitly. */
+        r = game.lregions[x];
+        /* C's `goto place_it` (LR_BRANCH) and the place_it: label after
+           LR_UPSTAIR/LR_DOWNSTAIR were dropped by the goto→flag lowering;
+           restore via __do_place_it.  LR_BRANCH jumps straight to place_it
+           (skipping LR_PORTAL's rname parse); LR_PORTAL falls through. */
+        let __do_place_it = false;
         switch (r.rtype) {
             case LR_BRANCH:
                 added_branch = (1);
-                /* TODO Phase 5+: goto place_it (label not in scope of break) */
+                __do_place_it = true;
+                break;
             case LR_PORTAL:
                 if (__nh_char_at0(r.rname.str) >= 48 && __nh_char_at0(r.rname.str) <= 57) {
                     Object.assign(lev, game.u.uz);
@@ -523,10 +536,11 @@ export async function fixup_special() {
                     sp = find_level(r.rname.str);
                     Object.assign(lev, sp.dlevel);
                 }
-                ;
+                __do_place_it = true;
+                break;
             case LR_UPSTAIR:
             case LR_DOWNSTAIR:
-                // TODO LabelStmt place_it not at compound-stmt level
+                __do_place_it = true;
                 break;
             case LR_TELE:
             case LR_UPTELE:
@@ -553,6 +567,10 @@ export async function fixup_special() {
                     game.dndest.nhy = r.delarea.y2;
                 }
                 break;
+        }
+        if (__do_place_it) {
+            /* C ref mkmaze.c place_it: label */
+            await place_lregion(r.inarea.x1, r.inarea.y1, r.inarea.x2, r.inarea.y2, r.delarea.x1, r.delarea.y1, r.delarea.x2, r.delarea.y2, r.rtype, lev);
         }
         if (r.rname.str) {
             free(r.rname.str) , r.rname.str = null;

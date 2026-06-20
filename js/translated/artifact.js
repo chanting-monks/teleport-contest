@@ -1659,7 +1659,7 @@ export async function invoke_create_portal(obj) {
         /* more than one entry; display menu for choices */
         let selected = null;
         let n = 0;
-        n = await select_menu(tmpwin, 1, selected);
+        { const __selbox = { value: null }; n = await select_menu(tmpwin, 1, __selbox); selected = __selbox.value; }
         if (n <= 0) {
             (game.windowprocs.win_destroy_nhwindow)(tmpwin);
             await nothing_special(obj);

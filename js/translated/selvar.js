@@ -42,7 +42,17 @@ export function selection_free(sel, freesel) {
 }
 /* clear selection, setting all locations to value val */
 export function selection_clear(sel, val) {
-    memset(sel.map, 1 + val, (80 * 21));
+    /* C: memset(sel->map, 1 + val, COLNO * ROWNO) on a char* buffer.  In JS
+       sel.map is an immutable string, so memset() returns a no-op (memory.js
+       can't fill a primitive string in place).  Rebuild + reassign the map,
+       mirroring selection_new()/selection_setpoint().  Without this, a
+       selection_clear(sel,1) leaves the map empty, so whole-level
+       non_diggable()/non_passwall() (e.g. the big room) set no walls. */
+    if (typeof sel.map === 'string') {
+        sel.map = String.fromCharCode((1 + val) & 0xff).repeat(80 * 21);
+    } else {
+        memset(sel.map, 1 + val, (80 * 21));
+    }
     if (val) {
         sel.bounds.lx = 0;
         sel.bounds.ly = 0;

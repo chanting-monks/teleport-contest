@@ -600,7 +600,10 @@ export async function doextlist() {
             await doc_extcmd_flagstr(menuwin, null);
         }
         (game.windowprocs.win_end_menu)(menuwin, null);
-        n = await select_menu(menuwin, 1, selected);
+        // select_menu menu_item** OUT param needs a box (win_select_menu writes
+        // box.value; a bare null loses the pick → selected[0] throws).  Same
+        // class as display_pickinv/dohelp — the '#' extended-command menu.
+        { const __selbox = { value: null }; n = await select_menu(menuwin, 1, __selbox); selected = __selbox.value; }
         if (n > 0) {
             switch (selected[0].item.a_int) {
                 /* 'a': toggle show/hide non-autocomplete */

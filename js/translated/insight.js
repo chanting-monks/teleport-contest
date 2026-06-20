@@ -2363,7 +2363,7 @@ export async function set_vanq_order(for_vanq) {
     }
     buf = sprintf(buf, "Sort order for %s", for_vanq ? "vanquished monster counts (also genocided types)" : "genocided monster types (also vanquished counts)");
     (game.windowprocs.win_end_menu)(tmpwin, buf);
-    n = await select_menu(tmpwin, 1, selected);
+    { const __selbox = { value: null }; n = await select_menu(tmpwin, 1, __selbox); selected = __selbox.value; }
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (n > 0) {
         choice = selected[0].item.a_int - 1;

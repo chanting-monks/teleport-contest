@@ -277,7 +277,11 @@ export class Selection {
     }
 
     static grow(s, dir) {
-        const sv = ((s && s.sv) || s);
+        // C ref nhlsel.c l_selection_grow: CLONES the source first
+        // (l_selection_clone) and grows the CLONE, leaving the original
+        // selection UNCHANGED.  The old wrapper grew sv in place, so a
+        // selection reused after `:grow()` was silently corrupted.
+        const sv = selection_clone((s && s.sv) || s);
         const tag = DIR_TAGS[dir] ?? 0;
         selection_do_grow(sv, tag);
         return new Selection(sv);
@@ -355,9 +359,18 @@ export class Selection {
     }
 
     static percentage(s, p) {
+        // C ref nhlsel.c l_selection_filter_percent: returns the NEW
+        // filtered selection (tmp = selection_filter_percent(sel,p);
+        // push_copy(tmp)), leaving the original UNCHANGED.  The old
+        // wrapper discarded selection_filter_percent's return and
+        // handed back the original (unfiltered) selection — so a chain
+        // like hellfill's `negate():percentage(10):grow():filter_mapchar(".")`
+        // kept ALL floor cells instead of ~10%, turning the whole
+        // Gehennom level to ice and leaving no floor for the UPTELE
+        // lregion (seed4500).  Masked until selection_clear() was fixed
+        // to actually fill (empty selections hid every filter).
         const sv = ((s && s.sv) || s);
-        selection_filter_percent(sv, p);
-        return new Selection(sv);
+        return new Selection(selection_filter_percent(sv, p));
     }
 
     static set(s, x, y) {
@@ -405,8 +418,11 @@ export class Selection {
     percentage(p) { return Selection.percentage(this, p); }
     set(x, y) { return Selection.set(this, x, y); }
     filter_mapchar(typ, lit) {
-        selection_filter_mapchar(this.sv, typ, lit);
-        return this;
+        // C ref nhlsel.c l_selection_filter_mapchar: returns the NEW
+        // filtered selection, original UNCHANGED.  Same discard bug as
+        // percentage() above — returning `this` (the unfiltered source)
+        // broke the hellfill icey chain.
+        return new Selection(selection_filter_mapchar(this.sv, typ, lit));
     }
     async iterate(fn) {
         // C ref selection.c selection_iterate.  Walks set points,

@@ -2781,7 +2781,13 @@ export async function monstone(mdef) {
 /* another monster has killed the monster mdef */
 export async function monkilled(mdef, fltxt, how) {
     let mptr = mdef.data;
-    if (fltxt && (mdef.wormno ? worm_known(mdef) : ((game.viz_array[mdef.my][mdef.mx] & 2) != 0))) {
+    /* C ref mon.c monkilled: `if (fltxt && ...)` tests a char* for non-NULL.
+       An empty string "" is a non-NULL pointer (TRUTHY) in C, but "" is
+       FALSY in JS — so the translated `fltxt &&` wrongly fell through to the
+       sad_feeling branch when callers pass "" (e.g. a pit kill with no
+       "by the <x>" suffix: "The little dog is killed!").  Test for non-null
+       explicitly to match C pointer-truthiness. */
+    if (fltxt != null && (mdef.wormno ? worm_known(mdef) : ((game.viz_array[mdef.my][mdef.mx] & 2) != 0))) {
         await pline_mon(mdef, "%s is %s%s%s!", await Monnam(mdef), ((((mptr).mflags2 & 2) != 0) || (mptr) == game.mons[PM_MANES] || (((mptr).mlet == S_GOLEM) || (mptr).mlet == S_VORTEX)) ? "destroyed" : "killed", __nh_char_at0(fltxt) ? " by the " : "", fltxt);
     /* sad feeling is deferred until after potential life-saving */
     } else {

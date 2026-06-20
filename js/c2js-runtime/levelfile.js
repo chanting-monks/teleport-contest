@@ -284,10 +284,25 @@ export function savelev(nhfp, ledger_no) {
     // chains leak into the next mklev: a previous level's squeaky
     // board made choose_trapnote see 11 free notes where C sees 12
     // (Q9 iter 55, seed0373 judged 15749).
-    g.ftrap = null;
-    g.billobjs = null;
-    g.stairs = null;
-    g.head_engr = null;
+    //
+    // BUT the freeing is GATED on FREEING mode in C: release_data and
+    // the save_* free passes only run when nhfp->mode & FREEING (a
+    // level-SWITCH save — goto_level sets mode 2|4).  A CHECKPOINT
+    // write (save_currentstate, mode 2 = WRITING only) must NOT free
+    // the live chains, because the hero is still standing on that
+    // level.  Nulling unconditionally destroyed the live level on a
+    // checkpoint: seed0015's save_currentstate (ins_chkpt) ran right
+    // after arriving on dlvl 2 and nulled g.stairs, so On_stairs()
+    // returned false for the hero on the upstair, forking the pet's
+    // dog_goal appr (the dominant "distfleeck/dog" cluster).  FREEING
+    // is bit 4 (C nhfile.h: COUNTING=1, WRITING=2, FREEING=4); do.js
+    // uses the same literal (`nhfp.mode = ... (2 | 4)`).
+    if (nhfp && (nhfp.mode & 4) /* FREEING */) {
+        g.ftrap = null;
+        g.billobjs = null;
+        g.stairs = null;
+        g.head_engr = null;
+    }
 }
 
 export function getlev(nhfp, _pid, ledger_no) {

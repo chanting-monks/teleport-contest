@@ -429,7 +429,7 @@ export function genl_status_update(idx, ptr, chg, percent, color, colormasks) {
             case BL_CONDITION:
                 cond = condptr ? condptr.value : 0;
                 nb = game.status_vals[idx];
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+                nb = __nh_char_write(nb, 0, 0);
                 if (cond & 1048576) {
                     strcpy(nb = eos(nb), " Stone");
                 }
@@ -483,7 +483,7 @@ export function genl_status_update(idx, ptr, chg, percent, color, colormasks) {
     }
     /* We've received BL_FLUSH; time to output the gathered data */
     nb = newbot1;
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+    nb = __nh_char_write(nb, 0, 0);
     for (i = 0; (idx1 = __genl_status_update_fieldorder[0][i]) != BL_FLUSH; ++i) {
         /* BL_FLUSH is the only pseudo-index value we need to check for
        in the loop below because it is the only entry used to pad the
@@ -503,7 +503,7 @@ export function genl_status_update(idx, ptr, chg, percent, color, colormasks) {
        here but currently emulate that behavior */
         fieldlist = __genl_status_update_fieldorder[pass];
         nb = newbot2;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        nb = __nh_char_write(nb, 0, 0);
         for (i = 0; (idx2 = fieldlist[i]) != BL_FLUSH; ++i) {
             if (game.status_activefields[idx2]) {
                 let val = game.status_vals[idx2];

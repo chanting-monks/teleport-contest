@@ -12,7 +12,7 @@ import { impossible, panic } from '../c2js-runtime/panic.js';
 import { pline } from '../c2js-runtime/pline.js';
 import { __nh_register_static } from '../c2js-runtime/static-registry.js';
 import { __nh_buf_append, nh_snprintf, sprintf } from '../c2js-runtime/stdio.js';
-import { coerceCStr, __nh_advance_str, __nh_char_at0, __nh_char_write, atoi, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
+import { coerceCStr, __nh_advance_str, __nh_buf_view, __nh_char_at0, __nh_char_write, atoi, nh_strchr_truncate, strcat, strchr, strcmp, strcpy, strlen, strncat, strncmp, strncmpi, strncpy, strrchr, strstr, strstri } from '../c2js-runtime/string.js';
 import { artifact_exists, artifact_light, artifact_name, artiname, find_artifact, glow_color, glow_verb, nartifact_exist, permapoisoned, undiscovered_artifact } from './artifact.js';
 import { isok, yn_function } from './cmd.js';
 import { is_ice, is_lava, is_pool, is_pool_or_lava } from './dbridge.js';
@@ -1729,7 +1729,7 @@ export async function corpse_xname(otmp, adjective, cxn_flags) {
     let glob = (otmp.otyp != CORPSE && otmp.globby);
     let mnam = null;
     game.xnamep = nextobuf();
-    nambuf = __nh_advance_str(game.xnamep, 80);
+    nambuf = __nh_buf_view(game.xnamep, 80);
     if (glob) {
         /* suppress "the" from "the unique monster corpse" */
         /* include "the" for "the woodchuck corpse */
@@ -1758,7 +1758,7 @@ export async function corpse_xname(otmp, adjective, cxn_flags) {
     } else if (the_prefix) {
         any_prefix = (0);
     }
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+    nambuf = __nh_char_write(nambuf, 0, 0); /* C: *nambuf = '\0' */
     /* can't use the() the way we use an() below because any capitalized
        Name causes it to assume a personal name and return Name as-is;
        that's usually the behavior wanted, but here we need to force "the"
@@ -2024,8 +2024,13 @@ export async function the(str) {
         return strcpy(buf, "the []");
     }
     if (!strncmpi(str, "the ", 4)) {
-        buf = (() => { const __s = buf; if (!__s) return __s; const __t = Array.isArray(__s)   ? (() => { let r=''; for (let i=0;i<__s.length&&__s[i];i++) r+=String.fromCharCode(__s[i]); return r; })()   : (__s + ''); return __t.length ? __t[0].toLowerCase() + __t.slice(1) : __s; })();
-        strcpy({ get value() { return __nh_char_at0(__nh_advance_str(buf, 1)); }, set value(_v) { __nh_char_at0(__nh_advance_str(buf, 1)) = _v; } }, __nh_advance_str(str, 1));
+        /* C: buf[0] = lowc(*str); Strcpy(&buf[1], str + 1); — i.e. copy str
+           with its first char lowercased.  The translator mistranslated the
+           `&buf[1]` strcpy dest into a scalar getter/setter wrapper, so buf
+           stayed the empty nextobuf() and every "the …" name (corpse_xname /
+           food_xname double-"the") rendered blank (#104). */
+        const __s = coerceCStr(str);
+        buf = strcpy(buf, __s.length ? (__s.charAt(0).toLowerCase() + __s.slice(1)) : __s);
         return buf;
     } else if (__nh_char_at0(str) < 65 || __nh_char_at0(str) > 90 || await CapitalMon(str) || (await fruit_from_name(str, (1), null) && ((aname = artifact_name(str, null, (0))) == null || strncmpi(aname, "the ", 4) == 0))) {
         /* some capitalized monster names want "the", others don't */
@@ -3439,31 +3444,39 @@ export function readobjnam_preparse(d) {
     return res;
 }
 export function readobjnam_parse_charges(d) {
-    if (strlen(d.bp) > 1 && (d.p = strrchr(d.bp, 40)) != null) {
+    if (strlen(d.bp) > 1 && strrchr(d.bp, 40) != null) {
+        /* C walks d->bp via a char* (d->p) and truncates in place with
+           *p='\0'.  d->bp is a JS string here, so the in-place writes
+           (__nh_char_write on the decoupled strrchr suffix) never landed
+           — the trailing "(N:M)"/"(lit)" charge spec stayed attached to
+           d->bp and broke the otyp name match (e.g. "wand of polymorph
+           (0:30)" left actualn="polymorph (0:30)", which rnd_otyp_by_-
+           namedesc can't match → random wand instead of WAN_POLYMORPH;
+           seed0398/0399 #103).  Mirror C's net effect on the string:
+           strip the "(...)" (and a single space before it), parse the
+           charges from inside, then stitch any post-')' text back. */
         let keeptrailingchars = (1);
-        let idx = 0;
-        if (d.p > d.bp && __nh_char_at0(__nh_advance_str(d.p, -1)) == 32) {
-            idx = -1;
-        }
-        d.p = __nh_char_write(d.p, idx, 0);
-        (d.p = __nh_advance_str(d.p, 1));
-        if (!strncmpi(d.p, "lit)", 4)) {
+        const __s = coerceCStr(d.bp);
+        const __lp = __s.lastIndexOf('(');
+        /* C: if char before '(' is a space, terminate there (drops it) */
+        const __tp = (__lp > 0 && __s.charAt(__lp - 1) === ' ') ? (__lp - 1) : __lp;
+        const __prefix = __s.slice(0, __tp);
+        const __q = __s.slice(__lp + 1); /* contents after '(' (mirrors ++p) */
+        let __i = 0;
+        let __tail = '';
+        if (__q.slice(0, 4).toLowerCase() === 'lit)') {
             d.islit = 1;
-            d.p = __nh_advance_str(d.p, 4 - 1);
+            __tail = __q.slice(4); /* C: p += 3 → ')'; trailing = after ')' */
         } else {
-            d.spe = atoi(d.p);
-            while (digit(__nh_char_at0(d.p))) {
-                (d.p = __nh_advance_str(d.p, 1));
-            }
-            if (__nh_char_at0(d.p) == 58) {
-                (d.p = __nh_advance_str(d.p, 1));
+            d.spe = atoi(__q);
+            while (__i < __q.length && digit(__q.charCodeAt(__i))) __i++;
+            if (__q.charAt(__i) === ':') {
+                __i++;
                 d.rechrg = d.spe;
-                d.spe = atoi(d.p);
-                while (digit(__nh_char_at0(d.p))) {
-                    (d.p = __nh_advance_str(d.p, 1));
-                }
+                d.spe = atoi(__q.slice(__i));
+                while (__i < __q.length && digit(__q.charCodeAt(__i))) __i++;
             }
-            if (__nh_char_at0(d.p) != 41) {
+            if (__q.charAt(__i) !== ')') {
                 d.spe = d.rechrg = 0;
                 /* mis-matched parentheses; rest of string will be ignored
                  * [probably we should restore everything back to '('
@@ -3472,16 +3485,21 @@ export function readobjnam_parse_charges(d) {
                 keeptrailingchars = (0);
             } else {
                 d.spesgn = 1;
+                __tail = __q.slice(__i + 1); /* text after ')' */
             }
         }
-        if (keeptrailingchars) {
-            let pp = eos(d.bp);
-            /* 'pp' points at 'pb's terminating '\0',
+        /* C: keeptrailingchars copies the post-')' text back onto bp at
+           the '(' truncation point; otherwise the rest is dropped. */
+        /* 'pp' points at 'pb's terminating '\0',
                'p' points at ')' and will be incremented past it */
-            do {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0((d.p = __nh_advance_str(d.) */;
-            } while (__nh_char_at0(d.p));
-        }
+        const __truncBp = keeptrailingchars ? (__prefix + __tail) : __prefix;
+        /* In C, bp and origbp index the SAME buffer, so the truncation
+           shows in both — but bp may already be advanced past qualifiers
+           (preparse), so origbp keeps any leading prefix (e.g. "blessed ").
+           bp is a suffix of origbp; rebuild origbp = its prefix + truncBp. */
+        const __origFull = coerceCStr(d.origbp);
+        d.bp = __truncBp;
+        d.origbp = __origFull.slice(0, Math.max(0, __origFull.length - __s.length)) + __truncBp;
     }
     if (d.spe < 0) {
         /*

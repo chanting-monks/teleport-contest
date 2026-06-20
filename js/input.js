@@ -82,6 +82,19 @@ export async function nhgetch() {
                 continue;
             }
             const next = q.shift();
+            // #100 per-message snapshot: this revealed queued message was
+            // generated on its OWN turn (tagged in _dmore_snaps by allmain.js);
+            // apply its background so each message in a cross-turn chain replays
+            // its generation turn (seed1150: swap msgs at T:22 show the live pet,
+            // "Slasher drops..." at T:23 shows the corpse).  moves-gated at the
+            // capture, so a same-turn message falls back to the live frame.
+            if (Array.isArray(game._dmore_snaps) && game._dmore_snaps.length) {
+                const __ds = game._dmore_snaps.shift();
+                if (__ds && typeof __ds === 'object') {
+                    game._topl_bg_snapshot = __ds.snap;
+                    game._topl_bg_snapshot_moves = __ds.moves;
+                }
+            }
             if (q.length > 0) {
                 game._pending_message = next + '--More--';
             } else {
@@ -109,6 +122,11 @@ export async function nhgetch() {
             continue;
         }
 
+        // #100 occupation snapshot is consumed once the topl is acknowledged;
+        // clear it so it never leaks onto an unrelated later --More-- capture.
+        game._topl_bg_snapshot = null;
+        game._topl_bg_snapshot_moves = null;
+        game._dmore_snaps = null;
         game._topl_seen = true;
         return key;
     }

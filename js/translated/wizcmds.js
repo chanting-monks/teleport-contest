@@ -928,7 +928,7 @@ export async function wiz_intrinsic() {
             await add_menu(win, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         }
         (game.windowprocs.win_end_menu)(win, "Which intrinsics?");
-        n = await select_menu(win, 2, pick_list);
+        n = await select_menu(win, 2, { get value() { return pick_list; }, set value(_v) { pick_list = _v; } });
         (game.windowprocs.win_destroy_nhwindow)(win);
         for (j = 0; j < n; ++j) {
             i = pick_list[j].item.a_int - 1;

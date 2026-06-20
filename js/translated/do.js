@@ -4,6 +4,7 @@
 /* NetHack may be freely redistributed.  See license for details. */
 /* Contains code for 'd', 'D' (drop), '>', '<' (up, down) */
 import { game } from '../gstate.js';
+import { initrack } from './track.js';
 import { close_nhfile, create_levelfile, delete_levelfile, open_levelfile } from '../c2js-runtime/levelfile.js';
 import { lua_getglobal, lua_pushstring, lua_settop, nhl_pcall_handle } from '../c2js-runtime/lua.js';
 import { free, memset } from '../c2js-runtime/memory.js';
@@ -1497,6 +1498,7 @@ export async function goto_level(newlevel, at_stairs, falling, portal) {
     save_mode = nhfp.mode;
     nhfp.mode = cant_go_back ? 4 : (2 | 4);
     savelev(nhfp, ledger_no(game.u.uz));
+    initrack(); /* C save_track (save.c:553) clears the track on FREEING; JS savelev is a no-op stub */
     nhfp.mode = save_mode;
     close_nhfile(nhfp);
     if (cant_go_back) {

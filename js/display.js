@@ -17,6 +17,7 @@ import { NO_COLOR, CLR_GRAY, CLR_BROWN, CLR_WHITE, CLR_YELLOW,
     CLR_GREEN, CLR_BLUE, CLR_CYAN, CLR_BRIGHT_BLUE,
     CLR_RED, CLR_ORANGE, DEC_TO_UNICODE } from './terminal.js';
 import { def_monsyms, def_oc_syms, defsyms } from './translated/drawing.js';
+import { mon_visible } from './translated/display.js';
 import { S_arrow_trap, GLYPH_UNEXPLORED_OFF, GLYPH_OBJ_OFF, GLYPH_BODY_OFF } from './translated/nh-constants.js';
 import { stairway_at, known_branch_stairs } from './translated/stairs.js';
 import { In_mines, In_hell } from './translated/dungeon.js';
@@ -305,7 +306,7 @@ function cside_remembered_glyph(loc, x, y) {
         const sym = def_oc_syms?.[obj.oclass ?? 0]?.sym ?? 96;
         const raw = game.objects?.[obj.otyp]?.oc_color;
         return { ch: String.fromCharCode(sym),
-                 color: (raw == null || raw === 7) ? NO_COLOR : raw,
+                 color: (raw == null || raw === 7 || raw === 0) ? NO_COLOR : raw,
                  dec: false };
     }
     for (let t = game.ftrap; t; t = t.ntrap) {
@@ -313,7 +314,7 @@ function cside_remembered_glyph(loc, x, y) {
             const e = defsyms?.[S_arrow_trap + (t.ttyp | 0) - 1];
             if (e) {
                 return { ch: String.fromCharCode(e.sym),
-                         color: (e.color === 7) ? NO_COLOR : e.color,
+                         color: (e.color === 7 || e.color === 0) ? NO_COLOR : e.color,
                          dec: false };
             }
         }
@@ -321,13 +322,33 @@ function cside_remembered_glyph(loc, x, y) {
     return terrain_glyph(loc, x, y);
 }
 
+// C ref display.h:251 display_self() via maybe_display_usteed: when the
+// hero is riding a VISIBLE steed, the hero's tile renders the STEED's
+// glyph, not '@'.  In C the steed is in fmon and the monster loop draws
+// it at the hero's location, so see_monsters() SKIPS newsym(u.ux,u.uy)
+// when mounted.  The hand newsym/docrt draw the hero unconditionally, so
+// mirror the steed-glyph pick here.  ridden_mon_to_glyph uses the DISPLAY
+// rng (rn2_on_display_rng), never the gameplay PRNG, so this is PRNG-safe.
+function heroCellGlyph() {
+    const st = game.u?.usteed;
+    if (st && st.data && mon_visible(st)) {
+        const mlet = st.data.mlet ?? 0;
+        const sym = def_monsyms?.[mlet]?.sym ?? 63 /* '?' */;
+        const rawMc = st.data.mcolor;
+        const color = (rawMc == null || rawMc === 7 || rawMc === 0) ? NO_COLOR : rawMc;
+        return { ch: String.fromCharCode(sym), color };
+    }
+    return { ch: '@', color: CLR_WHITE };
+}
+
 export function newsym(x, y) {
     const loc = game.level?.at(x, y);
     if (!loc) return;
 
     if (game.u?.ux === x && game.u?.uy === y) {
-        // Hero
-        show_glyph_cell(x, y, '@', CLR_WHITE, false);
+        // Hero (or, when mounted, the steed's glyph — see heroCellGlyph)
+        const hg = heroCellGlyph();
+        show_glyph_cell(x, y, hg.ch, hg.color, false);
         const tg = terrain_glyph(loc, x, y);
         loc.remembered_glyph = { ch: tg.ch, color: tg.color, decgfx: tg.dec };
         return;
@@ -359,7 +380,7 @@ export function newsym(x, y) {
         const sym = def_oc_syms?.[oclass]?.sym ?? 96;
         const raw = game.objects?.[otyp]?.oc_color;
         show_glyph_cell(x, y, String.fromCharCode(sym),
-            (raw == null || raw === 7) ? NO_COLOR : raw, false);
+            (raw == null || raw === 7 || raw === 0) ? NO_COLOR : raw, false);
         if (game.level?.flags?.hero_memory) {
             const tg2 = terrain_glyph(loc, x, y);
             loc.remembered_glyph = { ch: tg2.ch, color: tg2.color, decgfx: tg2.dec };
@@ -412,9 +433,12 @@ export function newsym(x, y) {
         const ocl = game.objects?.[obj.otyp];
         // Corpses and statues color from the monster, not the object class.
         // C ref: display.c GLYPH_BODY_OFF/STATUE_*_OFF branches use mon_color
-        // / obj_color(STATUE).  CLR_GRAY (=7) collapses to NO_COLOR (=8 /
-        // ANSI default 39) because wintty drops the explicit [37m escape;
-        // applying the same collapse here matches the recorded stream.
+        // / obj_color(STATUE).  CLR_GRAY (=7) AND CLR_BLACK (=0) collapse to
+        // NO_COLOR (=8 / ANSI default): wintty drops the explicit [37m escape
+        // for gray, and substitutes/defaults CLR_BLACK (termcap.c:1033,
+        // "black-on-black is invisible") — the recorder NEVER emits color 0 or
+        // 7 (verified: all fg cells are 8 or a bright color).  Orcish weapons
+        // (oc_color=CLR_BLACK) rendered black in JS vs default in C.
         //
         // Unidentified potions/gems/spellbooks still render in their
         // shuffled appearance color (oc_color holds the appearance color
@@ -471,7 +495,7 @@ export function newsym(x, y) {
             color = NO_COLOR;
         } else if (obj.otyp === 265 /* CORPSE */) {
             const mc = game.mons?.[obj.corpsenm]?.mcolor;
-            color = (mc == null || mc === 7) ? NO_COLOR : mc;
+            color = (mc == null || mc === 7 || mc === 0) ? NO_COLOR : mc;
         } else if (obj.otyp === 476 /* STATUE */) {
             // C ref display.c:2787/2794 — statue glyphs are colored with
             // obj_color(STATUE), the STATUE object's stone color, NOT the
@@ -479,10 +503,10 @@ export function newsym(x, y) {
             // the monster color rendered e.g. a newt statue yellow where C
             // shows it white (seed0104: one statue, wrong on 39 screens).
             const raw = game.objects?.[476]?.oc_color;
-            color = (raw == null || raw === 7) ? NO_COLOR : raw;
+            color = (raw == null || raw === 7 || raw === 0) ? NO_COLOR : raw;
         } else {
             const raw = ocl?.oc_color;
-            color = (raw == null || raw === 7) ? NO_COLOR : raw;
+            color = (raw == null || raw === 7 || raw === 0) ? NO_COLOR : raw;
         }
         show_glyph_cell(x, y, ch, color, false);
         if (game.level?.flags?.hero_memory) {
@@ -613,7 +637,7 @@ export async function docrt() {
                     loc.remembered_glyph.color, loc.remembered_glyph.decgfx);
             }
         }
-    if (game.u?.ux > 0) show_glyph_cell(game.u.ux, game.u.uy, '@', CLR_WHITE, false);
+    if (game.u?.ux > 0) { const hg = heroCellGlyph(); show_glyph_cell(game.u.ux, game.u.uy, hg.ch, hg.color, false); }
 }
 
 // ── Serialize a map row with DEC line-drawing and ANSI colors ──
@@ -1086,14 +1110,31 @@ function _buildScreenOutput() {
                 const spaceAttr = (typeof entry === 'object' && entry && 'spaceAttr' in entry)
                     ? (entry.spaceAttr | 0) : attr;
                 let __cStart = 0;
+                let __cEnd = Math.min(text.length, display.cols);
                 if (__menuPreserveBg) {
                     while (__cStart < text.length && text[__cStart] === ' ') __cStart++;
                     if (__cStart === text.length) continue;  // empty line — leave map visible
                     __cStart = Math.max(0, __cStart - 1);    // include 1-col gutter
+                    // C ref wintty.c:1428 — for a right-corner menu (offx != 0)
+                    // each row does cl_end() before writing, blanking from the
+                    // menu's left edge to the SCREEN edge.  So the menu owns
+                    // cols [offx .. colno-1]; the map shows only LEFT of offx.
+                    // Extend the write to the screen edge (space-filling past
+                    // the text) so short class-header rows ("Spellbooks") don't
+                    // let the map bleed through their right gutter.
+                    __cEnd = display.cols;
                 }
-                for (let c = __cStart; c < Math.min(text.length, display.cols); c++) {
-                    const ch = text[c];
-                    display.setCell(c, r, ch, NO_COLOR, ch === ' ' ? spaceAttr : attr);
+                for (let c = __cStart; c < __cEnd; c++) {
+                    const ch = c < text.length ? text[c] : ' ';
+                    // For a bgPreserve menu, the single re-included gutter
+                    // space at __cStart is the menu's selector column, which
+                    // C draws with putchar(' ') BEFORE term_start_attr
+                    // (wintty.c) — so it stays attr 0 even on bold class-
+                    // header rows.  Without this the header's bold attr bled
+                    // onto the gutter cell (seed0116 col 33 header rows).
+                    let cellAttr = (ch === ' ') ? spaceAttr : attr;
+                    if (__menuPreserveBg && c === __cStart && ch === ' ') cellAttr = 0;
+                    display.setCell(c, r, ch, NO_COLOR, cellAttr);
                 }
             }
             // Position cursor to match tty.c's dmore() leave-state.

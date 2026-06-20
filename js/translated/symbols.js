@@ -807,7 +807,7 @@ export async function do_symset(rogueflag) {
         }
         buf = sprintf(buf, "Select %ssymbol set:", rogueflag ? "rogue level " : "");
         (game.windowprocs.win_end_menu)(tmpwin, buf);
-        n = await select_menu(tmpwin, 1, symset_pick);
+        { const __selbox = { value: null }; n = await select_menu(tmpwin, 1, __selbox); symset_pick = __selbox.value; }
         if (n > 0) {
             chosen = symset_pick[0].item.a_int;
             /* if picking non-preselected entry yields 2, make sure

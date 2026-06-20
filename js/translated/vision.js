@@ -106,6 +106,37 @@ export function get_viz_clear(x, y) {
     }
     return (0);
 }
+/* new_angle() — C ref vision.c.  Return the new angle seen by the hero for
+   this location (the angle bit is `sv`).  For T walls and crosswalls seen
+   from a cardinal angle, extend a spine toward an unblocked neighbor so the
+   wall connects with the wall beyond (purely cosmetic but C-faithful and it
+   sets extra seenv bits).  The translated call sites used the raw `sv`,
+   dropping these bits — so T/crosswalls seen from an angle blanked where C
+   shows them.  COLNO=80, ROWNO=21; SV0..SV7 = 1,2,4,8,16,32,64,128. */
+function new_angle(lev, sv, row, col) {
+    let res = sv;
+    if (lev.typ >= 7 /* CROSSWALL */ && lev.typ <= 11 /* TRWALL */) {
+        switch (res) {
+            case 1 /* SV0 */:
+                if (col > 0 && game.viz_clear[row][col - 1]) res |= 128 /* SV7 */;
+                if (row > 0 && game.viz_clear[row - 1][col]) res |= 2 /* SV1 */;
+                break;
+            case 4 /* SV2 */:
+                if (row > 0 && game.viz_clear[row - 1][col]) res |= 2 /* SV1 */;
+                if (col < 80 - 1 && game.viz_clear[row][col + 1]) res |= 8 /* SV3 */;
+                break;
+            case 16 /* SV4 */:
+                if (col < 80 - 1 && game.viz_clear[row][col + 1]) res |= 8 /* SV3 */;
+                if (row < 21 - 1 && game.viz_clear[row + 1][col]) res |= 32 /* SV5 */;
+                break;
+            case 64 /* SV6 */:
+                if (row < 21 - 1 && game.viz_clear[row + 1][col]) res |= 32 /* SV5 */;
+                if (col > 0 && game.viz_clear[row][col - 1]) res |= 128 /* SV7 */;
+                break;
+        }
+    }
+    return res;
+}
 /*
  * vision_init()
  *
@@ -549,7 +580,7 @@ export async function vision_recalc(control) {
                     /*
          * Set the IN_SIGHT bit for xray and night vision.
          */
-                    ranges = (circle_data[circle_start[game.u.xray_range]]);
+                    ranges = circle_start[game.u.xray_range]; /* C: circle_ptr() — carry the index */
                     for (row = game.u.uy - game.u.xray_range; row <= game.u.uy + game.u.xray_range; row++) {
                         if (row < 0) {
                             continue;
@@ -559,8 +590,8 @@ export async function vision_recalc(control) {
                         }
                         dy = ((game.u.uy - row) < 0 ? -(game.u.uy - row) : (game.u.uy - row));
                         next_row = next_array[row];
-                        start = ((1) > (game.u.ux - ranges[dy]) ? (1) : (game.u.ux - ranges[dy]));
-                        stop = ((80 - 1) < (game.u.ux + ranges[dy]) ? (80 - 1) : (game.u.ux + ranges[dy]));
+                        start = ((1) > (game.u.ux - circle_data[ranges + dy]) ? (1) : (game.u.ux - circle_data[ranges + dy]));
+                        stop = ((80 - 1) < (game.u.ux + circle_data[ranges + dy]) ? (80 - 1) : (game.u.ux + circle_data[ranges + dy]));
                         for (col = start; col <= stop; col++) {
                             let old_row_val = next_row[col];
                             next_row[col] |= 2;
@@ -588,7 +619,7 @@ export async function vision_recalc(control) {
                     next_rmin[game.u.uy] = ((game.u.ux) < (next_rmin[game.u.uy]) ? (game.u.ux) : (next_rmin[game.u.uy]));
                     next_rmax[game.u.uy] = ((game.u.ux) > (next_rmax[game.u.uy]) ? (game.u.ux) : (next_rmax[game.u.uy]));
                 } else if (game.u.nv_range > 0) {
-                    ranges = (circle_data[circle_start[game.u.nv_range]]);
+                    ranges = circle_start[game.u.nv_range]; /* C: circle_ptr() — carry the index */
                     for (row = game.u.uy - game.u.nv_range; row <= game.u.uy + game.u.nv_range; row++) {
                         if (row < 0) {
                             continue;
@@ -598,8 +629,8 @@ export async function vision_recalc(control) {
                         }
                         dy = ((game.u.uy - row) < 0 ? -(game.u.uy - row) : (game.u.uy - row));
                         next_row = next_array[row];
-                        start = ((1) > (game.u.ux - ranges[dy]) ? (1) : (game.u.ux - ranges[dy]));
-                        stop = ((80 - 1) < (game.u.ux + ranges[dy]) ? (80 - 1) : (game.u.ux + ranges[dy]));
+                        start = ((1) > (game.u.ux - circle_data[ranges + dy]) ? (1) : (game.u.ux - circle_data[ranges + dy]));
+                        stop = ((80 - 1) < (game.u.ux + circle_data[ranges + dy]) ? (80 - 1) : (game.u.ux + circle_data[ranges + dy]));
                         for (col = start; col <= stop; col++) {
                             if (next_row[col]) {
                                 next_row[col] |= 2;
@@ -648,7 +679,7 @@ export async function vision_recalc(control) {
                  * We see this position because of night- or xray-vision.
                  */
                     oldseenv = lev.seenv;
-                    lev.seenv |= (sv);
+                    lev.seenv |= new_angle(lev, sv, row, col);
                     /* Update pos if previously not in sight or new angle. */
                     if (!(old_row[col] & 2) || oldseenv != lev.seenv) {
                         await newsym(col, row);
@@ -670,7 +701,7 @@ export async function vision_recalc(control) {
                         if (flev.lit || next_array[row + dy][col + dx] & 4) {
                             next_row[col] |= 2;
                             oldseenv = lev.seenv;
-                            lev.seenv |= (sv);
+                            lev.seenv |= new_angle(lev, sv, row, col);
                             /* Update pos if previously not in sight or new
                          * angle.*/
                             if (!(old_row[col] & 2) || oldseenv != lev.seenv) {
@@ -686,7 +717,7 @@ export async function vision_recalc(control) {
                     } else {
                         next_row[col] |= 2;
                         oldseenv = lev.seenv;
-                        lev.seenv |= (sv);
+                        lev.seenv |= new_angle(lev, sv, row, col);
                         if (!(old_row[col] & 2) || oldseenv != lev.seenv) {
                             await newsym(col, row);
                         }
@@ -1325,14 +1356,14 @@ export function right_side(row, left, right_mark, limits) {
      * limit value is the start of a new circle radius (meaning we depend
      * on the structure of circle_data[]).
      */
-    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (limits >= (limits + 1)));
+    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (circle_data[limits] >= circle_data[limits + 1]));
     if (!game.vis_func) {
         rowp = game.cs_rows[row];
         row_min = game.cs_left[row];
         row_max = game.cs_right[row];
     }
     if (limits) {
-        lim_max = game.start_col + limits;
+        lim_max = game.start_col + circle_data[limits];
         if (lim_max > 80 - 1) {
             lim_max = 80 - 1;
         }
@@ -1728,14 +1759,14 @@ export function left_side(row, left_mark, right, limits) {
     let row_max = null;
     let lim_min = 0;
     nrow = row + game.step;
-    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (limits >= (limits + 1)));
+    deeper = ((nrow) >= 0 && (nrow) < 21) && (!limits || (circle_data[limits] >= circle_data[limits + 1]));
     if (!game.vis_func) {
         rowp = game.cs_rows[row];
         row_min = game.cs_left[row];
         row_max = game.cs_right[row];
     }
     if (limits) {
-        lim_min = game.start_col - limits;
+        lim_min = game.start_col - circle_data[limits];
         if (lim_min < 0) {
             lim_min = 0;
         }
@@ -2108,7 +2139,12 @@ export async function view_from(srow, scol, loc_cs_rows, left_most, right_most, 
         if (range > 15 || range < 1) {
             await panic("view_from called with range %d", range);
         }
-        limits = (circle_data[circle_start[range]]) + 1;
+        /* C: limits = &circle_data[circle_start[range] + 1] — a POINTER into
+           the flat circle_data[]; we carry the integer INDEX instead, so
+           *limits => circle_data[limits], *(limits+1) => circle_data[limits+1],
+           limits++ => limits++ (all faithful).  The old code stored the VALUE
+           circle_data[idx]+1, breaking limited-range vision. */
+        limits = circle_start[range] + 1;
         if (left < scol - range) {
             left = scol - range;
         }
@@ -2192,7 +2228,7 @@ export async function do_clear_area(scol, srow, range, func, arg) {
         if (game.vision_full_recalc) {
             await vision_recalc(0);
         }
-        limits = (circle_data[circle_start[range]]);
+        limits = circle_start[range]; /* C: &circle_data[circle_start[range]] — carry the index */
         if ((max_y = (srow + range)) >= 21) {
             max_y = 21 - 1;
         }
@@ -2200,7 +2236,7 @@ export async function do_clear_area(scol, srow, range, func, arg) {
             y = 0;
         }
         for (; y <= max_y; y++) {
-            offset = limits[((y - srow) < 0 ? -(y - srow) : (y - srow))];
+            offset = circle_data[limits + ((y - srow) < 0 ? -(y - srow) : (y - srow))]; /* C: limits[abs(y-srow)] */
             if ((min_x = (scol - offset)) < 1) {
                 min_x = 1;
             }

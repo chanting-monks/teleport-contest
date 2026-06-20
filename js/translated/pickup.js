@@ -3054,7 +3054,7 @@ export async function in_or_out_menu(prompt, obj, outokay, inokay, alreadyused, 
     buf = strcpy(buf, alreadyused ? "done" : "do nothing");
     await add_menu(win, nul_glyphinfo, any, __nh_char_at0(__nh_advance_str(menuselector, any.a_int)), 0, 0, clr, buf, more_containers ? 0 : 1);
     (game.windowprocs.win_end_menu)(win, prompt);
-    n = await select_menu(win, 1, pick_list);
+    n = await select_menu(win, 1, { get value() { return pick_list; }, set value(_v) { pick_list = _v; } });
     (game.windowprocs.win_destroy_nhwindow)(win);
     if (n > 0) {
         let k = pick_list[0].item.a_int;

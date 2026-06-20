@@ -3093,6 +3093,104 @@ export async function wall_angle(lev) {
             await impossible("wall_angle: unexpected wall type %d", lev.typ);
             idx = S_stone;
     }
+    if (__do_twall) {
+        /* C ref display.c do_twall: — the goto→flag lowering dropped this
+           consuming block (T_* are column indices into wall_matrix[row];
+           SV0..SV7 = 1,2,4,8,16,32,64,128; only(sv,b)=(sv&b)&&!(sv&~b)). */
+        switch (lev.flags & 7) {
+            case 0:
+                if (seenv == 16 /* SV4 */) {
+                    col = 1 /* T_tlcorn */;
+                } else if (seenv == 64 /* SV6 */) {
+                    col = 2 /* T_trcorn */;
+                } else if ((seenv & ((8) | (32) | (128))) || ((seenv & 16) && (seenv & 64))) {
+                    col = 4 /* T_tdwall */;
+                } else if (seenv & ((1) | (2) | (4))) {
+                    col = (seenv & ((16) | (64))) ? 4 /* T_tdwall */ : 3 /* T_hwall */;
+                } else {
+                    await t_warn(lev);
+                    col = 0 /* T_stone */;
+                }
+                break;
+            case 1 /* WM_T_LONG */:
+                if ((seenv & ((8) | (16))) && !(seenv & ((32) | (64) | (128)))) {
+                    col = 1 /* T_tlcorn */;
+                } else if ((seenv & ((64) | (128))) && !(seenv & ((8) | (16) | (32)))) {
+                    col = 2 /* T_trcorn */;
+                } else if ((seenv & 32) || ((seenv & ((8) | (16))) && (seenv & ((64) | (128))))) {
+                    col = 4 /* T_tdwall */;
+                } else {
+                    if (!(((seenv) & ((1) | (2) | (4))) && !((seenv) & ~((1) | (2) | (4))))) {
+                        await t_warn(lev);
+                    }
+                    col = 0 /* T_stone */;
+                }
+                break;
+            case 2 /* WM_T_BL */:
+                if ((((seenv) & ((16) | (32))) && !((seenv) & ~((16) | (32))))) {
+                    col = 1 /* T_tlcorn */;
+                } else if ((seenv & ((1) | (2) | (4) | (128))) && !(seenv & ((8) | (16) | (32)))) {
+                    col = 3 /* T_hwall */;
+                } else if ((((seenv) & (64)) && !((seenv) & ~(64)))) {
+                    col = 0 /* T_stone */;
+                } else {
+                    col = 4 /* T_tdwall */;
+                }
+                break;
+            case 3 /* WM_T_BR */:
+                if ((((seenv) & ((32) | (64))) && !((seenv) & ~((32) | (64))))) {
+                    col = 2 /* T_trcorn */;
+                } else if ((seenv & ((1) | (2) | (4) | (8))) && !(seenv & ((32) | (64) | (128)))) {
+                    col = 3 /* T_hwall */;
+                } else if ((((seenv) & (16)) && !((seenv) & ~(16)))) {
+                    col = 0 /* T_stone */;
+                } else {
+                    col = 4 /* T_tdwall */;
+                }
+                break;
+            default:
+                await impossible("wall_angle: unknown T wall mode %d", lev.flags & 7);
+                col = 0 /* T_stone */;
+                break;
+        }
+        idx = row[col];
+    }
+    if (__do_crwall) {
+        /* C ref display.c do_crwall: — also dropped by the goto lowering
+           (C_* are column indices into cross_matrix[row]). */
+        if (seenv == 16 /* SV4 */) {
+            idx = S_stone;
+        } else {
+            seenv = seenv & ~16 /* strip SV4 */;
+            if (seenv == 1 /* SV0 */) {
+                col = 1 /* C_brcorn */;
+            } else if (seenv & ((4) | (8)) /* SV2|SV3 */) {
+                if (seenv & ((32) | (64) | (128))) {
+                    col = 5 /* C_crwall */;
+                } else if (seenv & ((1) | (2))) {
+                    col = 4 /* C_tuwall */;
+                } else {
+                    col = 2 /* C_blcorn */;
+                }
+            } else if (seenv & ((32) | (64)) /* SV5|SV6 */) {
+                if (seenv & ((2) | (4) | (8))) {
+                    col = 5 /* C_crwall */;
+                } else if (seenv & ((1) | (128))) {
+                    col = 3 /* C_tlwall */;
+                } else {
+                    col = 0 /* C_trcorn */;
+                }
+            } else if (seenv & 2 /* SV1 */) {
+                col = (seenv & 128) ? 5 /* C_crwall */ : 4 /* C_tuwall */;
+            } else if (seenv & 128 /* SV7 */) {
+                col = (seenv & 2) ? 5 /* C_crwall */ : 3 /* C_tlwall */;
+            } else {
+                await impossible("wall_angle: bottom of crwall check");
+                col = 5 /* C_crwall */;
+            }
+            idx = row[col];
+        }
+    }
     if (__do_horiz) {
         switch (lev.flags & 7) {
             case 0:

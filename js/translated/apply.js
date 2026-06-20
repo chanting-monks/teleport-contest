@@ -3277,7 +3277,9 @@ export async function use_grapple(obj) {
         await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, buf, 0);
         (game.windowprocs.win_end_menu)(tmpwin, "Aim for what?");
         tohit = rn2(4);
-        if (await select_menu(tmpwin, 1, selected) > 0 && rn2((game.u.weapon_skills[typ].skill) > P_SKILLED ? 20 : 2)) {
+        // select_menu menu_item** out-param needs a box (lost pick → selected[0] throws).
+        let __apply_sel_n; { const __selbox = { value: null }; __apply_sel_n = await select_menu(tmpwin, 1, __selbox); selected = __selbox.value; }
+        if (__apply_sel_n > 0 && rn2((game.u.weapon_skills[typ].skill) > P_SKILLED ? 20 : 2)) {
             tohit = selected[0].item.a_int - 1;
         }
         free(selected);

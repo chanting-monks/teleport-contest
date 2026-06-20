@@ -2300,7 +2300,13 @@ export async function dohelp() {
         await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, clr, helpbuf, 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, "Select one item:");
-    n = await select_menu(tmpwin, 1, selected);
+    // C `select_menu(win, how, &selected)` — `selected` is a menu_item** OUT
+    // param; win_select_menu writes the picks back via box.value, which a bare
+    // null arg can't receive (`box && typeof box === 'object'` is false) → the
+    // pick is lost and `selected[0]` throws (swallowed), so a '?' help-menu
+    // topic selection silently aborts.  Box it (same fix class as
+    // display_pickinv / genl_player_setup).
+    { const __selbox = { value: null }; n = await select_menu(tmpwin, 1, __selbox); selected = __selbox.value; }
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     if (n > 0) {
         sel = selected[0].item.a_int - 1;

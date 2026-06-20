@@ -202,7 +202,7 @@ export function submit_web_report(cos, msg, why) {
         memcpy(game.uend, game.sysopt.crashreporturl, game.utmp);
         game.uend = __nh_advance_str(game.uend, game.utmp);
         game.urem -= game.utmp;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        game.uend = __nh_char_write(game.uend, 0, 0);
         ;
         temp = sprintf(temp, "?cos=%d&v=1", cos);
         game.utmp = strlen(temp);
@@ -213,7 +213,7 @@ export function submit_web_report(cos, msg, why) {
         memcpy(game.uend, temp, game.utmp);
         game.uend = __nh_advance_str(game.uend, game.utmp);
         game.urem -= game.utmp;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        game.uend = __nh_char_write(game.uend, 0, 0);
         ;
         /*
      * Note: all snprintf() calls here changed to sprintf() to avoid
@@ -231,7 +231,7 @@ export function submit_web_report(cos, msg, why) {
             memcpy(game.uend, "&subject=", game.utmp);
             game.uend = __nh_advance_str(game.uend, game.utmp);
             game.urem -= game.utmp;
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+            game.uend = __nh_char_write(game.uend, 0, 0);
             ;
             temp = sprintf(temp, "%.40s report for NetHack %.40s", msg, version_string(temp2, 200 /* sizeof(char [200]) */));
             if (swr_add_uricoded(temp, { get value() { return game.uend; }, set value(_v) { game.uend = _v; } }, { get value() { return game.urem; }, set value(_v) { game.urem = _v; } }, game.mark)) {
@@ -247,7 +247,7 @@ export function submit_web_report(cos, msg, why) {
         memcpy(game.uend, "&gitver=", game.utmp);
         game.uend = __nh_advance_str(game.uend, game.utmp);
         game.urem -= game.utmp;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        game.uend = __nh_char_write(game.uend, 0, 0);
         ;
         if (swr_add_uricoded(getversionstring(temp2, 200 /* sizeof(char [200]) */), { get value() { return game.uend; }, set value(_v) { game.uend = _v; } }, { get value() { return game.urem; }, set value(_v) { game.urem = _v; } }, game.mark)) {
             break full;
@@ -262,7 +262,7 @@ export function submit_web_report(cos, msg, why) {
             memcpy(game.uend, "&name=", game.utmp);
             game.uend = __nh_advance_str(game.uend, game.utmp);
             game.urem -= game.utmp;
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+            game.uend = __nh_char_write(game.uend, 0, 0);
             ;
             if (swr_add_uricoded(game.crash_name, { get value() { return game.uend; }, set value(_v) { game.uend = _v; } }, { get value() { return game.urem; }, set value(_v) { game.urem = _v; } }, game.mark)) {
                 break full;
@@ -278,7 +278,7 @@ export function submit_web_report(cos, msg, why) {
             memcpy(game.uend, "&email=", game.utmp);
             game.uend = __nh_advance_str(game.uend, game.utmp);
             game.urem -= game.utmp;
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+            game.uend = __nh_char_write(game.uend, 0, 0);
             ;
             if (swr_add_uricoded(game.crash_email, { get value() { return game.uend; }, set value(_v) { game.uend = _v; } }, { get value() { return game.urem; }, set value(_v) { game.urem = _v; } }, game.mark)) {
                 break full;
@@ -293,7 +293,7 @@ export function submit_web_report(cos, msg, why) {
         memcpy(game.uend, "&details=", game.utmp);
         game.uend = __nh_advance_str(game.uend, game.utmp);
         game.urem -= game.utmp;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        game.uend = __nh_char_write(game.uend, 0, 0);
         ;
         if (why) {
             if (swr_add_uricoded(why, { get value() { return game.uend; }, set value(_v) { game.uend = _v; } }, { get value() { return game.urem; }, set value(_v) { game.urem = _v; } }, game.mark)) {
@@ -378,7 +378,7 @@ export function submit_web_report(cos, msg, why) {
         memcpy(game.uend, "&detailrows=", game.utmp);
         game.uend = __nh_advance_str(game.uend, game.utmp);
         game.urem -= game.utmp;
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        game.uend = __nh_char_write(game.uend, 0, 0);
         ;
         temp = sprintf(temp, "%d", ((count + countpp) < (30) ? (count + countpp) : (30)));
         if (swr_add_uricoded(temp, { get value() { return game.uend; }, set value(_v) { game.uend = _v; } }, { get value() { return game.urem; }, set value(_v) { game.urem = _v; } }, game.mark)) {

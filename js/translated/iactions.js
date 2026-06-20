@@ -528,7 +528,7 @@ export async function itemactions(otmp) {
     }
     buf = sprintf(buf, "Do what with %s?", await the(await cxname(otmp)));
     (game.windowprocs.win_end_menu)(win, buf);
-    n = await select_menu(win, 1, selected);
+    { const __selbox = { value: null }; n = await select_menu(win, 1, __selbox); selected = __selbox.value; }
     if (n > 0) {
         act = selected[0].item.a_int;
         free(selected);

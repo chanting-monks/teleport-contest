@@ -2054,7 +2054,7 @@ export async function setup_rolemenu(win, filtering, race, gend, algn) {
         } else {
             any.a_string = roles[i].name.m;
         }
-        thisch = lowc(roles[i].name.m);
+        thisch = lowc(roles[i].name.m.charCodeAt(0));
         if (thisch == lastch) {
             thisch = highc(thisch);
         }
@@ -2090,7 +2090,7 @@ export async function setup_racemenu(win, filtering, role, gend, algn) {
         } else {
             any.a_string = races[i].noun;
         }
-        this_ch = races[i].noun;
+        this_ch = races[i].noun.charCodeAt(0);
         await add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, races[i].noun, (!filtering && !race_ok) ? 1 : 0);
     }
 }
@@ -2112,7 +2112,7 @@ export async function setup_gendmenu(win, filtering, role, race, algn) {
         } else {
             any.a_string = genders[i].adj;
         }
-        this_ch = genders[i].adj;
+        this_ch = genders[i].adj.charCodeAt(0);
         await add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, genders[i].adj, (!filtering && !gend_ok) ? 1 : 0);
     }
 }
@@ -2134,7 +2134,7 @@ export async function setup_algnmenu(win, filtering, role, race, gend) {
         } else {
             any.a_string = aligns[i].adj;
         }
-        this_ch = aligns[i].adj;
+        this_ch = aligns[i].adj.charCodeAt(0);
         await add_menu(win, nul_glyphinfo, any, filtering ? this_ch : highc(this_ch), filtering ? highc(this_ch) : 0, 0, clr, aligns[i].adj, (!filtering && !algn_ok) ? 1 : 0);
     }
 }

@@ -1151,7 +1151,7 @@ export async function enhance_weapon_skill() {
             buf = __nh_buf_append(buf, sprintf('', "  (%d slot%s available)", game.u.weapon_slots, (((game.u.weapon_slots) == 1) ? "" : "s")));
         }
         (game.windowprocs.win_end_menu)(win, buf);
-        n = await select_menu(win, to_advance ? 1 : 0, selected);
+        n = await select_menu(win, to_advance ? 1 : 0, { get value() { return selected; }, set value(_v) { selected = _v; } });
         (game.windowprocs.win_destroy_nhwindow)(win);
         if (n > 0) {
             n = selected[0].item.a_int - 1;

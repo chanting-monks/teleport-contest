@@ -111,7 +111,7 @@ export function upwords(s) {
 /* remove excess whitespace from a string buffer (in place) */
 export function mungspaces(bp) {
     if (bp == null) return bp;
-    return __nh_toJsStr(bp).replace(/\t/g, ' ').split('\n')[0].replace(/ +/g, ' ').replace(/ +$/, '');
+    return __nh_toJsStr(bp).replace(/\t/g, ' ').split('\n')[0].replace(/ +/g, ' ').replace(/^ +| +$/g, '');
 }
 /* skip leading whitespace; remove trailing whitespace, in place */
 export function trimspaces(txt) {

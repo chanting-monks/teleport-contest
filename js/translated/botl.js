@@ -3216,7 +3216,7 @@ export async function status_hilite_menu_add(origfld) {
                             continue choose_behavior;
                         }
                         /* strip '%' [this accepts trailing junk!] */
-                        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+                        inp = __nh_char_write(inp, 0, 0);
                     } else if (__nh_char_at0(inp)) {
                         await pline("\"%s\" is not a recognized number.", inp);
                         continue choose_value;

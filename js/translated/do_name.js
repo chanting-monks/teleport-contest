@@ -455,7 +455,8 @@ export async function docallcmd() {
         any.a_char = 97;
         await add_menu(win, nul_glyphinfo, any, abc ? 0 : any.a_char, 108, 0, clr, "record an annotation for the current level", 0);
         (game.windowprocs.win_end_menu)(win, "What do you want to name?");
-        if (await select_menu(win, 1, pick_list) > 0) {
+        let __dn_n; { const __selbox = { value: null }; __dn_n = await select_menu(win, 1, __selbox); pick_list = __selbox.value; }
+        if (__dn_n > 0) {
             ch = pick_list[0].item.a_char;
             free(pick_list);
         } else {

@@ -775,7 +775,7 @@ export async function outentry(rank, t1, so) {
         linebuf = __nh_buf_append(linebuf, sprintf('', "escaped the dungeon %s[max level %d]", !strncmp(" (", t1.death + 7, 2) ? t1.death + 7 + 2 : "", t1.maxlvl));
         /* fixup for closing paren in "escaped... with...Amulet)[max..." */
         if ((bp = strchr(linebuf, 41)) != null) {
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = (t1.deathdnum == (game.dungeon_topology.) */;
+            bp = __nh_char_write(bp, 0, (t1.deathdnum == (game.dungeon_topology.d_astral_level).dnum) ? 0 : 32);
         }
         second_line = (0);
     } else if (!strncmp("ascended", t1.death, 8)) {
@@ -874,12 +874,12 @@ export async function outentry(rank, t1, so) {
         } else {
             linebuf3 = strcpy(linebuf3, __nh_advance_str(bp, 1));
         }
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        bp = __nh_char_write(bp, 0, 0);
         if (so) {
             while (bp < linebuf + (80 - 1)) {
                 void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
             }
-            void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+            bp = __nh_char_write(bp, 0, 0);
             topten_print_bold(linebuf);
         } else {
             topten_print(linebuf);
@@ -903,7 +903,7 @@ export async function outentry(rank, t1, so) {
         while (bp < linebuf + (80 - 1)) {
             void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32) */;
         }
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+        bp = __nh_char_write(bp, 0, 0);
         topten_print_bold(linebuf);
     } else {
         topten_print(linebuf);

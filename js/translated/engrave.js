@@ -1041,15 +1041,25 @@ export async function doengrave() {
                 livelog_printf(32, "became literate by engraving \"%s\"", de.ebuf);
             }
         }
-        for (sp = de.ebuf; __nh_char_at0(sp); (sp = __nh_advance_str(sp, 1))) {
-            /* Mix up engraving if surface or state of mind is unsound.
+        /* C ref engrave.c: walk a char* sp over de.ebuf and mutate it in
+           place (`*sp = ' ' + rnd(96 - 2)`) when the char is garbled.  JS
+           strings are immutable, so iterate by index and rebuild.  The
+           rnd(96-2) call IS load-bearing — skipping it (the old `void 0`
+           stub) dropped an rng call on every garbled char, e.g. ~half the
+           chars while hallucinating (`!rn2(2)`), forking the PRNG. */
+        {
+            let __ebc = String(de.ebuf).split('');
+            for (let __spi = 0; __spi < __ebc.length; __spi++) {
+                /* Mix up engraving if surface or state of mind is unsound.
        Note: this won't add or remove any spaces. */
-            if (__nh_char_at0(sp) == 32) {
-                continue;
+                if (__ebc[__spi].charCodeAt(0) == 32) {
+                    continue;
+                }
+                if (((de.type == 1 || de.type == 5) && !rn2(25)) || (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !rn2(11)) || (game.u.uprops[CONFUSION].intrinsic && !rn2(7)) || (game.u.uprops[STUNNED].intrinsic && !rn2(4)) || ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !rn2(2))) {
+                    __ebc[__spi] = String.fromCharCode(32 + rnd(96 - 2)); /* ASCII '!' thru '~' */
+                }
             }
-            if (((de.type == 1 || de.type == 5) && !rn2(25)) || (((game.u.uprops[BLINDED].intrinsic || game.u.uprops[BLINDED].extrinsic) && !game.u.uprops[BLINDED].blocked) && !rn2(11)) || (game.u.uprops[CONFUSION].intrinsic && !rn2(7)) || (game.u.uprops[STUNNED].intrinsic && !rn2(4)) || ((game.u.uprops[HALLUC].intrinsic && !(game.u.uprops[HALLUC_RES].intrinsic || game.u.uprops[HALLUC_RES].extrinsic)) && !rn2(2))) {
-                void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 32 + rnd(96 - 2)) */;
-            }
+            de.ebuf = __ebc.join('');
         }
         if (de.eow) {
             await del_engr(de.oep);

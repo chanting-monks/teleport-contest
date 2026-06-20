@@ -107,7 +107,14 @@ export function pass_two(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            game.level.locations[x][y].typ = __nh_char_at0((__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x)));
+            /* C: levl[x][y].typ = gn.new_locations[y * (WIDTH+1) + x] — a
+               char* index read.  The translator mis-lowered it to
+               __nh_char_at0(__nh_advance_str(buf, y*79) + x), where `+ x`
+               became STRING concatenation (array.slice(y*79) + x), so
+               __nh_char_at0 read charCodeAt(0) of the stringified slice —
+               returning 48 ('0') for any cell holding value 0.  The write
+               side (above) correctly uses array indexing; match it. */
+            game.level.locations[x][y].typ = game.new_locations[y * 79 + x];
         }
     }
 }
@@ -132,7 +139,14 @@ export function pass_three(bg_typ, fg_typ) {
     }
     for (x = 2; x <= (80 - 2); x++) {
         for (y = 1; y < (21 - 1); y++) {
-            game.level.locations[x][y].typ = __nh_char_at0((__nh_advance_str(game.new_locations, ((y) * ((80 - 2) + 1))) + (x)));
+            /* C: levl[x][y].typ = gn.new_locations[y * (WIDTH+1) + x] — a
+               char* index read.  The translator mis-lowered it to
+               __nh_char_at0(__nh_advance_str(buf, y*79) + x), where `+ x`
+               became STRING concatenation (array.slice(y*79) + x), so
+               __nh_char_at0 read charCodeAt(0) of the stringified slice —
+               returning 48 ('0') for any cell holding value 0.  The write
+               side (above) correctly uses array indexing; match it. */
+            game.level.locations[x][y].typ = game.new_locations[y * 79 + x];
         }
     }
 }

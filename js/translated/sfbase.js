@@ -2222,9 +2222,9 @@ export function sfvalue_char(a, n) {
         __sfvalue_char_buf = __nh_char_write(__sfvalue_char_buf, (120 /* sizeof(char [120]) */ - 1), 0);
     }
     for (i = 0; i < n; ++i , (cp = __nh_advance_str(cp, 1)) , (a = __nh_advance_str(a, 1))) {
-        void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = __nh_char_at0(a)) */;
+        cp = __nh_char_write(cp, 0, __nh_char_at0(a));
     }
-    void 0 /* TODO Phase 5+: pointer-mutation lvalue (C: *p = 0) */;
+    cp = __nh_char_write(cp, 0, 0);
     return __sfvalue_char_buf;
 }
 let __sfvalue_boolean_buf = '';

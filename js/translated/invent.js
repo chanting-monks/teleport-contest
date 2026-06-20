@@ -2413,7 +2413,12 @@ export async function reroll_menu() {
     buf = sprintf(buf, "St:%s Dx:%-1d Co:%-1d In:%-1d Wi:%-1d Ch:%-1d", get_strength_str(), (acurr(A_DEX)), (acurr(A_CON)), (acurr(A_INT)), (acurr(A_WIS)), (acurr(A_CHA)));
     await add_menu(win, nul_glyphinfo, any, 0, 0, 0, 8, buf, 0);
     (game.windowprocs.win_end_menu)(win, "Reroll this character?");
-    if (await select_menu(win, 1, pick_list) > 0) {
+    // select_menu's menu_item** OUT param needs a box (win_select_menu writes
+    // box.value); a bare null pick_list loses the pick → pick_list[0] throws.
+    // Same fix class as display_pickinv / dohelp.
+    let __reroll_n;
+    { const __plbox = { value: null }; __reroll_n = await select_menu(win, 1, __plbox); pick_list = __plbox.value; }
+    if (__reroll_n > 0) {
         option = pick_list[0].item.a_char;
         free(pick_list);
     } else {
@@ -3077,7 +3082,7 @@ export async function display_pickinv(lets, xtra_choice, query, allowxtra, want_
             want_reply = (0);
         }
         (game.windowprocs.win_end_menu)(win, (query && __nh_char_at0(query)) ? query : null);
-        n = await select_menu(win, wizid ? 2 : want_reply ? 1 : 0, selected);
+        n = await select_menu(win, wizid ? 2 : want_reply ? 1 : 0, { get value() { return selected; }, set value(_v) { selected = _v; } });
         if (n > 0) {
             if (wizid) {
                 let all_id = (0);
@@ -3192,7 +3197,9 @@ export async function display_used_invlets(avoidlet) {
             invdone = 1;
         }
         (game.windowprocs.win_end_menu)(win, "Inventory letters used:");
-        n = await select_menu(win, 1, selected);
+        // select_menu menu_item** OUT param needs a box (same class as
+        // display_pickinv/dohelp); bare null loses the pick → selected[0] throws.
+        { const __selbox = { value: null }; n = await select_menu(win, 1, __selbox); selected = __selbox.value; }
         if (n > 0) {
             ret = selected[0].item.a_char;
             free(selected);

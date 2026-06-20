@@ -406,7 +406,7 @@ export async function query_color(prompt, dflt_color) {
         await add_menu(tmpwin, nul_glyphinfo, any, 0, 0, 0, 8, colornames[i].name, (colornames[i].color == dflt_color) ? 1 : 0);
     }
     (game.windowprocs.win_end_menu)(tmpwin, (prompt && __nh_char_at0(prompt)) ? prompt : "Pick a color");
-    pick_cnt = await select_menu(tmpwin, 1, picks);
+    { const __selbox = { value: null }; pick_cnt = await select_menu(tmpwin, 1, __selbox); picks = __selbox.value; }
     (game.windowprocs.win_destroy_nhwindow)(tmpwin);
     /* remove temporary color name patterns and restore user-specified ones;
        reset 'menucolors' option to its previous value */

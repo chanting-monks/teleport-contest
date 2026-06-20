@@ -1757,6 +1757,10 @@ export async function findit() {
 /* returns number of things found and opened */
 export async function openit() {
     let num = 0;
+    /* C passes &num to do_clear_area→openone which does (*num_p)++; carry a
+       live {value} ref (the do_clear_area path was previously dead, so this
+       surfaced only once limited/area vision was fixed). */
+    const num_p = { get value() { return num; }, set value(_v) { num = _v; } };
     if (game.u.uswallow) {
         if ((dmgtype_fromattack((game.u.ustuck.data), 26, 11) != null)) {
             /* expels() will take care of this */
@@ -1769,7 +1773,7 @@ export async function openit() {
         await expels(game.u.ustuck, game.u.ustuck.data, (1));
         return -1;
     }
-    await do_clear_area(game.u.ux, game.u.uy, 8, openone, num);
+    await do_clear_area(game.u.ux, game.u.uy, 8, openone, num_p);
     return num;
 }
 /* callback hack for overriding vision in do_clear_area() */
